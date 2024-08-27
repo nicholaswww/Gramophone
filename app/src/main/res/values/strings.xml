@@ -4,7 +4,7 @@
     <eat-comment/>
 
     <string name="default_time" translatable="false">0:00</string>
-    <string name="settings_contributors_detail" translatable="false">nift4, 123Duo3, AkaneTan, imjyotiraditya, WSTxda</string>
+    <string name="settings_contributors_detail" translatable="false">nift4, Nicholas, 123Duo3, AkaneTan, imjyotiraditya, WSTxda</string>
     <string name="upper_folder" translatable="false">..</string>
 
     <!-- Translatable -->

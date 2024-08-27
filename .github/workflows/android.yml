@@ -51,7 +51,7 @@ jobs:
           cache: gradle
 
       - name: Set release type
-        run: echo releaseType=CI > package.properties
+        run: echo releaseType=Nicholas > package.properties
 
       - name: Create signing files
         if: github.event_name != 'pull_request'
