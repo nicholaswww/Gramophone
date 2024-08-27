@@ -171,11 +171,10 @@
 				android:visibility="gone"
 				android:contentDescription="@string/position_slider"
 				app:labelBehavior="gone"
-				style="@style/Widget.Material3.Slider.Legacy"
-				app:thumbElevation="0dp"
-				app:trackHeight="5dp"
-				app:thumbHeight="20dp"
-				app:thumbWidth="20dp"
+				app:thumbHeight="24dp"
+				app:thumbWidth="4dp"
+				app:thumbTrackGapSize="4dp"
+				app:trackHeight="11dp"
 				tools:value="0.5"
 				tools:visibility="visible" />
 
