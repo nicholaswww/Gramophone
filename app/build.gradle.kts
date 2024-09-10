@@ -95,8 +95,8 @@ android {
         // keep support for it for a while.
         minSdk = 21
         targetSdk = 34
-        versionCode = 10
-        versionName = "1.0.8"
+        versionCode = 11
+        versionName = "1.0.9"
         if (releaseType != "Release") {
             versionNameSuffix = myVersionName
         }
@@ -190,7 +190,7 @@ aboutLibraries {
 
 dependencies {
     implementation(project(":libphonograph:libPhonograph"))
-    val media3Version = "1.4.0"
+    val media3Version = "1.4.1"
     implementation("androidx.activity:activity-ktx:1.9.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.collection:collection-ktx:1.4.3")
