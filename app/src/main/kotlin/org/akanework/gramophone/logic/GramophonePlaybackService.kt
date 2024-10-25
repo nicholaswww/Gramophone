@@ -697,7 +697,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private fun sendLyricNow() {
-        val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", true)
+        val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
         val highlightedLyric = if (isStatusBarLyricsEnabled)
             if (lyrics != null && lyrics is SemanticLyrics.SyncedLyrics) {
                 val syncedLyrics = lyrics as SemanticLyrics.SyncedLyrics
