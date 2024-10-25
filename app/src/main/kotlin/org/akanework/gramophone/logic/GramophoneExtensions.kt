@@ -445,6 +445,11 @@ fun Context.hasImagePermission() =
     checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
             PackageManager.PERMISSION_GRANTED
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+fun Context.hasNotificationPermission() =
+    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+
 @Suppress("NOTHING_TO_INLINE")
 inline fun needsMissingOnDestroyCallWorkarounds(): Boolean =
     Build.VERSION.SDK_INT == Build.VERSION_CODES.UPSIDE_DOWN_CAKE
@@ -455,6 +460,10 @@ inline fun needsManualSnackBarInset(): Boolean =
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun hasOsClipboardDialog(): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun supportsNotificationPermission(): Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
 @Suppress("NOTHING_TO_INLINE")
@@ -473,3 +482,8 @@ inline fun hasScopedStorageWithMediaTypes(): Boolean =
 inline fun mayThrowForegroundServiceStartNotAllowed(): Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun mayThrowForegroundServiceStartNotAllowedMiui(): Boolean =
+    Build.MANUFACTURER.lowercase() == "xiaomi" &&
+            Build.VERSION.SDK_INT == Build.VERSION_CODES.TIRAMISU
