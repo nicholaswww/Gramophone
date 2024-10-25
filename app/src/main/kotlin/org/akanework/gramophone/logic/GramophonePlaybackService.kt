@@ -18,8 +18,6 @@
 package org.akanework.gramophone.logic
 
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -30,7 +28,6 @@ import android.graphics.Bitmap
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -58,7 +55,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
-import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -96,6 +92,7 @@ import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFactory
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
+import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.akanework.gramophone.ui.MainActivity
 import kotlin.random.Random
 
@@ -114,6 +111,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         private const val NOTIFY_ID = 1
         private const val PENDING_INTENT_SESSION_ID = 0
         private const val PENDING_INTENT_NOTIFY_ID = 1
+        const val PENDING_INTENT_WIDGET_ID = 2
         private const val PLAYBACK_SHUFFLE_ACTION_ON = "shuffle_on"
         private const val PLAYBACK_SHUFFLE_ACTION_OFF = "shuffle_off"
         private const val PLAYBACK_REPEAT_OFF = "repeat_off"
@@ -125,13 +123,17 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         const val SERVICE_GET_LYRICS_LEGACY = "get_lyrics_legacy"
         const val SERVICE_GET_SESSION = "get_session"
         const val SERVICE_TIMER_CHANGED = "changed_timer"
+        var instanceForWidgetAndOnlyWidget: GramophonePlaybackService? = null
     }
     private var lastSessionId = 0
     private var mediaSession: MediaLibrarySession? = null
-    private var controller: MediaController? = null
-    private val sendLyrics = Runnable { sendLyricNow() }
-    private var lyrics: SemanticLyrics? = null
-    private var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
+    var controller: MediaController? = null
+        private set
+    private val sendLyrics = Runnable { scheduleSendingLyrics() }
+    var lyrics: SemanticLyrics? = null
+        private set
+    var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
+        private set
     private var shuffleFactory:
             ((Int) -> ((CircularShuffleOrder) -> Unit) -> CircularShuffleOrder)? = null
     private lateinit var customCommands: List<CommandButton>
@@ -183,7 +185,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
     }
 
+    private val seekReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val to = intent.extras?.getLong("seekTo", C.INDEX_UNSET.toLong()) ?: C.INDEX_UNSET.toLong()
+            if (to != C.INDEX_UNSET.toLong())
+                controller?.seekTo(to)
+        }
+    }
+
     override fun onCreate() {
+        instanceForWidgetAndOnlyWidget = this
         handler = Handler(Looper.getMainLooper())
         super.onCreate()
         nm = NotificationManagerCompat.from(this)
@@ -379,11 +390,18 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             headSetReceiver,
             IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
         )
+        ContextCompat.registerReceiver(
+            this,
+            seekReceiver,
+            IntentFilter("$packageName.SEEK_TO"),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     // When destroying, we should release server side player
     // alongside with the mediaSession.
     override fun onDestroy() {
+        instanceForWidgetAndOnlyWidget = null
         // Important: this must happen before sending stop() as that changes state ENDED -> IDLE
         lastPlayedManager.save()
         mediaSession!!.player.stop()
@@ -393,9 +411,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaSession!!.release()
         mediaSession!!.player.release()
         mediaSession = null
-        lyrics = null
-        lyricsLegacy = null
         unregisterReceiver(headSetReceiver)
+        unregisterReceiver(seekReceiver)
         super.onDestroy()
     }
 
@@ -681,43 +698,51 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private fun scheduleSendingLyrics() {
         handler.removeCallbacks(sendLyrics)
         sendLyricNow()
-        if (controller?.isPlaying != true) return
-        val controllerPos = (controller?.currentPosition ?: 0).toULong()
+        val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
+        val hnw = !LyricWidgetProvider.hasWidget(this)
+        if (controller?.isPlaying != true || (!isStatusBarLyricsEnabled && hnw)) return
+        val cPos = (controller?.contentPosition ?: 0).toULong()
         val nextUpdate = if (lyrics != null && lyrics is SemanticLyrics.SyncedLyrics) {
             val syncedLyrics = lyrics as SemanticLyrics.SyncedLyrics
-            syncedLyrics.text.filterIndexed { _, lyric ->
-                lyric.lyric.start > controllerPos
-            }.minByOrNull { it.lyric.start }?.lyric?.start
+            syncedLyrics.text.flatMap {
+                if (hnw) listOf(it.lyric.start) else
+                    (it.lyric.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
+                    .let { i -> if (it.lyric.start > cPos) i + it.lyric.start else i }
+            }.minOrNull()
         } else if (lyricsLegacy != null) {
-            lyricsLegacy!!.filterIndexed { _, lyric ->
-                (lyric.timeStamp ?: -2) > controllerPos.toLong()
-            }.minByOrNull { it.timeStamp!! }?.timeStamp?.toULong()
+            lyricsLegacy!!.find {
+                (it.timeStamp ?: -2) > cPos.toLong()
+            }?.timeStamp?.toULong()
         } else null
-        nextUpdate?.let { handler.postDelayed(sendLyrics, (it - controllerPos).toLong()) }
+        nextUpdate?.let { handler.postDelayed(sendLyrics, (it - cPos).toLong()) }
     }
 
     private fun sendLyricNow() {
+        LyricWidgetProvider.adapterUpdate(this)
         val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
         val highlightedLyric = if (isStatusBarLyricsEnabled)
-            if (lyrics != null && lyrics is SemanticLyrics.SyncedLyrics) {
-                val syncedLyrics = lyrics as SemanticLyrics.SyncedLyrics
-                syncedLyrics.text.find {
-                    it.lyric.start > (controller?.currentPosition ?: 0).toULong()
-                }?.lyric?.text
-            } else if (lyricsLegacy != null) {
-                val filteredList = lyricsLegacy?.filterIndexed { _, lyric ->
-                    (lyric.timeStamp ?: Long.MAX_VALUE) <= (controller?.currentPosition ?: 0)
-                }
-                if (filteredList?.isNotEmpty() == true) {
-                    filteredList.maxByOrNull { it.timeStamp ?: -2 }?.content
-                } else null
-            } else null
+            getCurrentLyricIndex()?.let {
+                (lyrics as? SemanticLyrics.SyncedLyrics)?.text?.get(it)?.lyric?.text ?:
+                    lyricsLegacy?.get(it)?.content
+            }
         else null
         if (lastSentHighlightedLyric != highlightedLyric) {
             lastSentHighlightedLyric = highlightedLyric
             doUpdateNotification(mediaSession!!)
         }
     }
+
+    fun getCurrentLyricIndex() =
+        if (lyrics != null && lyrics is SemanticLyrics.SyncedLyrics) {
+            val syncedLyrics = lyrics as SemanticLyrics.SyncedLyrics
+            syncedLyrics.text.indexOfFirst {
+                it.lyric.start > (controller?.currentPosition ?: 0).toULong()
+            }
+        } else if (lyricsLegacy != null) {
+            lyricsLegacy?.indexOfLast {
+                (it.timeStamp ?: Long.MAX_VALUE) <= (controller?.currentPosition ?: 0)
+            }
+        } else null
 
     override fun onForegroundServiceStartNotAllowedException() {
         Log.w(TAG, "Failed to resume playback :/")

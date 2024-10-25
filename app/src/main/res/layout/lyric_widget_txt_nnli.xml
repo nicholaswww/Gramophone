@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+	android:theme="@style/Theme.Gramophone"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:id="@+id/lyric_widget_item"
+	android:layout_gravity="start"
+	android:textColor="@color/sl_lyric_text"
+	android:textSize="@dimen/lyric_widget_nn" />

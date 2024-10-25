@@ -1,5 +1,6 @@
 package org.akanework.gramophone.logic.ui
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.TypedArray
 import android.os.Build
@@ -20,10 +21,7 @@ class ViewCompatInflater
 	class ViewCompatInflaterImpl : MaterialComponentsViewInflater(), Callback {
 
 		override fun createTextView(context: Context, attrs: AttributeSet?): AppCompatTextView {
-			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-				return TypefaceCompatTextView(context, attrs)
-			}
-			return super.createTextView(context, attrs)
+			return TypefaceCompatTextView(context, attrs)
 		}
 
 		class TypefaceCompatTextView(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
@@ -72,7 +70,7 @@ class ViewCompatInflater
 			attrs: AttributeSet,
 			result: View?
 		) {
-			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && result is TextView) {
+			if (result is TextView) {
 				// perhaps some descendant, not just TypefaceCompatTextView
 				var fontWeight = -1
 				val theme = context.theme
@@ -91,20 +89,20 @@ class ViewCompatInflater
 				if (ap != -1) {
 					appearance = theme.obtainStyledAttributes(ap, R.styleable.MyTextAppearance)
 				}
-				if (appearance != null) {
+				if (appearance != null && appearance.hasValue(R.styleable.MyTextAppearance_textFontWeight)) {
 					fontWeight =
 						appearance.getInt(R.styleable.MyTextAppearance_textFontWeight, -1)
 					appearance.recycle()
 				}
 				a = theme.obtainStyledAttributes(
 					attrs,
-					androidx.appcompat.R.styleable.TextAppearance,
+					R.styleable.MyTextAppearance,
 					0,
 					0
 				)
-				if (a.hasValue(androidx.appcompat.R.styleable.TextAppearance_android_textFontWeight)) {
+				if (a.hasValue(R.styleable.MyTextAppearance_textFontWeight)) {
 					fontWeight = a.getInt(
-						androidx.appcompat.R.styleable.TextAppearance_android_textFontWeight,
+						R.styleable.MyTextAppearance_textFontWeight,
 						-1
 					)
 				}
@@ -119,17 +117,15 @@ class ViewCompatInflater
 					result.setTypeface(tf)
 				}
 			}
-			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-				val a = context.theme.obtainStyledAttributes(
-					attrs,
-					R.styleable.MyTooltipCompat,
-					0,
-					0
-				)
-				val tooltip = a.getText(R.styleable.MyTooltipCompat_android_tooltipText)
-				if (tooltip != null) {
-					result?.let { TooltipCompat.setTooltipText(it, tooltip) }
-				}
+			val a = context.theme.obtainStyledAttributes(
+				attrs,
+				R.styleable.MyTooltipCompat,
+				0,
+				0
+			)
+			val tooltip = a.getText(R.styleable.MyTooltipCompat_tooltipText)
+			if (tooltip != null) {
+				result?.let { TooltipCompat.setTooltipText(it, tooltip) }
 			}
 		}
 	}

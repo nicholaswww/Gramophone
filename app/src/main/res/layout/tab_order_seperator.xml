@@ -10,10 +10,12 @@
 	android:background="?attr/selectableItemBackground"
 	tools:ignore="Overdraw">
 
+	<!-- this background/backgroundTint construction is for Android 5 -->
 	<View
 		android:layout_width="0dp"
 		android:layout_height="3dp"
-		android:background="?colorControlNormal"
+		android:background="#ffffff"
+		android:backgroundTint="?colorControlNormal"
 		android:contentDescription="@string/divider"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintEnd_toStartOf="@id/dragHandle"

@@ -24,7 +24,7 @@
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
         android:textColor="?attr/colorOnSurface"
-        android:textFontWeight="500"
+        app:textFontWeight="500"
         android:fontFamily="sans-serif"
         android:layout_gravity="center_vertical"
         android:textSize="16sp"

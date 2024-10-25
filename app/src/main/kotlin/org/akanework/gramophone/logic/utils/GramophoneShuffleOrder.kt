@@ -137,6 +137,7 @@ class CircularShuffleOrder private constructor(
 			fun deserialize(data: String?): Persistent {
 				if (data == null || data.length < 2) return Persistent(Random.nextLong(), null)
 				val split = data.split(';')
+				if (split.isEmpty()) return Persistent(Random.nextLong(), null)
 				return Persistent(split[0].toLong(), if (split.size > 1) split[1]
 					.split(',').map(String::toInt).toIntArray() else null)
 			}

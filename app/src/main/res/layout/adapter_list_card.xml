@@ -51,7 +51,7 @@
             android:layout_height="wrap_content"
             android:singleLine="true"
             android:textColor="?attr/colorOnSurface"
-            android:textFontWeight="400"
+            app:textFontWeight="400"
             android:fontFamily="sans-serif"
             android:textSize="17sp"
             tools:text="Example Title" />
@@ -62,7 +62,7 @@
             android:layout_height="wrap_content"
             android:singleLine="true"
             android:textColor="?attr/colorOnSurfaceVariant"
-            android:textFontWeight="400"
+            app:textFontWeight="400"
             android:fontFamily="sans-serif"
             android:textSize="14sp"
             tools:text="Example Artist" />
@@ -92,7 +92,7 @@
         android:insetTop="0dp"
         android:insetRight="0dp"
         android:insetBottom="0dp"
-        android:tooltipText="@string/more"
+        app:tooltipText="@string/more"
         android:contentDescription="@string/more"
         app:icon="@drawable/ic_more_vert_alt"
         app:iconGravity="textStart"
