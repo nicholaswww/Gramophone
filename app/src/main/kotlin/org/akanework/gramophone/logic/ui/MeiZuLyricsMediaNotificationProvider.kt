@@ -55,15 +55,25 @@ class MeiZuLyricsMediaNotificationProvider(private val context: MediaSessionServ
 			mediaSession, customLayout, actionFactory
 		) {
 			onNotificationChangedCallback.onNotificationChanged(it.also {
+				if (ticker != null) {
+					it.notification.apply {
+						extras.putInt("ticker_icon", R.drawable.ic_gramophone_monochrome)
+						extras.putBoolean("ticker_icon_switch", false)
+					}
+				}
 				if (tickerProvider() != null) {
 					updateTickerLater(mediaSession)
 				}
 			})
 		}.also {
-			if (ticker != null && isManualNotificationUpdate) {
+			if (ticker != null) {
 				it.notification.apply {
 					extras.putInt("ticker_icon", R.drawable.ic_gramophone_monochrome)
 					extras.putBoolean("ticker_icon_switch", false)
+				}
+			}
+			if (ticker != null && isManualNotificationUpdate) {
+				it.notification.apply {
 					// Keep the status bar lyrics scrolling
 					flags = flags.or(FLAG_ALWAYS_SHOW_TICKER)
 					// Only update the ticker (lyrics), and do not update other properties
