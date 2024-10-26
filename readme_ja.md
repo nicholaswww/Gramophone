@@ -1,7 +1,7 @@
 # Gramophone
 ![GitHub](https://img.shields.io/github/license/AkaneTan/Gramophone)
 ![GitHub tag (with filter)](https://img.shields.io/github/v/tag/AkaneTan/Gramophone)
-[![Telegram](https://img.shields.io/badge/-telegram-red?color=white&logo=telegram&logoColor=blue)](https://t.me/MizuhaNetwork)
+[![Telegram](https://img.shields.io/badge/-telegram-red?color=white&logo=telegram&logoColor=blue)](https://t.me/FoedusProgramme)
 [![Matrix](https://img.shields.io/badge/-matrix-red?color=white&logo=matrix&logoColor=black)](https://matrix.to/#/#akanefoundation:matrix.org)
 
 最新の md3 Phonograph Design な media3 音楽プレーヤー
@@ -11,7 +11,6 @@
 - Monet テーマアイコン (Android 12+)
 - お気に入りの音楽を表示、再生
 - お気に入りの音楽を検索
-- Web ストリーミング (ご期待ください!)
 - プレイリストの追加と管理
 
 ## 特徴
@@ -37,7 +36,7 @@
 ライセンスの詳細は [LICENSE](https://github.com/AkaneTan/Gramophone/blob/beta/LICENSE) ファイルをご参照ください。
 
 ## お知らせ
-- バグの報告はこちら: [Telegram](https://t.me/MizuhaNetwork)
+- バグの報告はこちら: [Telegram](https://t.me/AkaneDev)
 
 ## 友達
 [SongSync](https://github.com/lambada10/songsync)

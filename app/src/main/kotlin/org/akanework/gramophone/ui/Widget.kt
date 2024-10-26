@@ -39,7 +39,6 @@ class LyricWidgetProvider : AppWidgetProvider() {
 		)
 		for (appWidgetId in appWidgetIds) {
 			val views = RemoteViews(context.packageName, R.layout.lyric_widget)
-			lastViewForIdCache[appWidgetId] = views
 			views.setPendingIntentTemplate(R.id.list_view, seekPi)
 			views.setRemoteAdapter(
 				R.id.list_view,
@@ -63,7 +62,6 @@ class LyricWidgetProvider : AppWidgetProvider() {
 	}
 
 	companion object {
-		private val lastViewForIdCache = hashMapOf<Int, RemoteViews>()
 		fun update(context: Context) {
 			val awm = AppWidgetManager.getInstance(context)
 			LyricWidgetProvider().onUpdate(context, awm, awm.appWidgetIds(context))
@@ -72,13 +70,6 @@ class LyricWidgetProvider : AppWidgetProvider() {
 			val awm = AppWidgetManager.getInstance(context)
 			for (appWidgetId in awm.appWidgetIds(context)) {
 				awm.notifyAppWidgetViewDataChanged(appWidgetId, R.id.list_view)
-				Handler(Looper.getMainLooper()).postDelayed({
-					GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.getCurrentLyricIndex()
-						?.let {
-							lastViewForIdCache[appWidgetId]?.setScrollPosition(R.id.lyric_view, it)
-							awm.partiallyUpdateAppWidget(appWidgetId, lastViewForIdCache[appWidgetId])
-						} // TODO fix scroll
-				}, 1000)
 			}
 		}
 		fun hasWidget(context: Context): Boolean {
@@ -100,14 +91,24 @@ class LyricWidgetService : RemoteViewsService() {
 	}
 }
 
-private class LyricRemoteViewsFactory(private val context: Context, private val widgetId: Int)
+private class LyricRemoteViewsFactory(private val context: Context, private val appWidgetId: Int)
 	: RemoteViewsService.RemoteViewsFactory {
 	override fun onCreate() {
 		// do nothing
 	}
 
 	override fun onDataSetChanged() {
-		// do nothing
+		Handler(Looper.getMainLooper()).post {
+			val views = RemoteViews(context.packageName, R.layout.lyric_widget)
+			val awm = AppWidgetManager.getInstance(context)
+			val li = GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.getCurrentLyricIndex()
+			if (li != null) {
+				views.setScrollPosition(R.id.list_view, li + 2)
+				awm.partiallyUpdateAppWidget(appWidgetId, views)
+				views.setScrollPosition(R.id.list_view, li)
+				awm.partiallyUpdateAppWidget(appWidgetId, views)
+			}
+		}
 	}
 
 	override fun onDestroy() {

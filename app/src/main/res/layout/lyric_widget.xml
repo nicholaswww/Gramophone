@@ -11,12 +11,15 @@
 		android:id="@+id/list_view"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
+		android:divider="@null"
 		android:padding="8dp" />
 
 	<TextView
 		android:id="@+id/empty_view"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_gravity="center"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:gravity="center"
+		android:textColor="@color/sl_lyric_text"
+		android:textSize="@dimen/lyric_widget_nn"
 		android:text="@string/no_lyric_found" />
 </LinearLayout>

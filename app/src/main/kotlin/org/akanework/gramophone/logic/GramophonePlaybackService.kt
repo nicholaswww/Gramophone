@@ -129,7 +129,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var mediaSession: MediaLibrarySession? = null
     var controller: MediaController? = null
         private set
-    private val sendLyrics = Runnable { scheduleSendingLyrics() }
+    private val sendLyrics = Runnable { scheduleSendingLyrics(true) }
     var lyrics: SemanticLyrics? = null
         private set
     var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
@@ -143,6 +143,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private val lyricsLock = Semaphore(1)
     private lateinit var prefs: SharedPreferences
     private var lastSentHighlightedLyric: String? = null
+    private var updatedLyricAtLeastOnce = false
 
     private fun getRepeatCommand() =
         when (controller!!.repeatMode) {
@@ -602,7 +603,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                             SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
                             Bundle.EMPTY
                         )
-                        scheduleSendingLyrics()
+                        scheduleSendingLyrics(true)
                     }
                 }.join()
             } else {
@@ -628,7 +629,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                             SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
                             Bundle.EMPTY
                         )
-                        scheduleSendingLyrics()
+                        scheduleSendingLyrics(true)
                     }
                 }.join()
             }
@@ -638,12 +639,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         lyrics = null
         lyricsLegacy = null
-        scheduleSendingLyrics()
+        scheduleSendingLyrics(true)
         lastPlayedManager.save()
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-        scheduleSendingLyrics()
+        scheduleSendingLyrics(false)
         lastPlayedManager.save()
     }
 
@@ -692,12 +693,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         reason: Int
     ) {
         super.onPositionDiscontinuity(oldPosition, newPosition, reason)
-        scheduleSendingLyrics()
+        scheduleSendingLyrics(false)
     }
 
-    private fun scheduleSendingLyrics() {
+    private fun scheduleSendingLyrics(new: Boolean) {
         handler.removeCallbacks(sendLyrics)
-        sendLyricNow()
+        sendLyricNow(new || !updatedLyricAtLeastOnce)
+        updatedLyricAtLeastOnce = true
         val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
         val hnw = !LyricWidgetProvider.hasWidget(this)
         if (controller?.isPlaying != true || (!isStatusBarLyricsEnabled && hnw)) return
@@ -717,8 +719,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         nextUpdate?.let { handler.postDelayed(sendLyrics, (it - cPos).toLong()) }
     }
 
-    private fun sendLyricNow() {
-        LyricWidgetProvider.adapterUpdate(this)
+    private fun sendLyricNow(new: Boolean) {
+        if (new)
+            LyricWidgetProvider.update(this)
+        else
+            LyricWidgetProvider.adapterUpdate(this)
         val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
         val highlightedLyric = if (isStatusBarLyricsEnabled)
             getCurrentLyricIndex()?.let {

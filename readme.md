@@ -29,7 +29,7 @@ A sane music player built with media3 and material design library that is follow
 ## Installation
 You can download the latest stable version of the app from [GitHub releases](https://github.com/AkaneTan/Gramophone/releases/latest), or from [F-Droid](https://f-droid.org/packages/org.akanework.gramophone/).
 
-Beta versions and sneak peeks are available in the [telegram channel](https://t.me/AkaneDistribution) or [chat](https://t.me/AkaneDev).
+Beta versions and sneak peeks are available in the [telegram channel](https://t.me/FoedusProgramme) or [chat](https://t.me/FoedusDiscussion).
 
 ## Building
 To build this app, you will need the latest beta version of [Android Studio](https://developer.android.com/studio) and a fast network.
@@ -50,7 +50,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 </a>
 
 ## Notice
-- For bug reporting: [Telegram](https://t.me/AkaneDev)
+- For bug reporting: [Telegram](https://t.me/FoedusDiscussion)
 
 ## Friends
 [SongSync](https://github.com/lambada10/songsync)
