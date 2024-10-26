@@ -36,7 +36,7 @@ private class InnerMeiZuLyricsMediaNotificationProvider(context: Context)
 }
 
 @OptIn(UnstableApi::class)
-class MeiZuLyricsMediaNotificationProvider(private val context: MediaSessionService,
+class MeiZuLyricsMediaNotificationProvider(context: MediaSessionService,
                                            private val tickerProvider: () -> CharSequence?)
 	: MediaNotification.Provider {
 	private val inner = InnerMeiZuLyricsMediaNotificationProvider(context).apply {
@@ -72,7 +72,8 @@ class MeiZuLyricsMediaNotificationProvider(private val context: MediaSessionServ
 
 	private fun MediaNotification.applyNotificationFlags(onlyUpdateTicker: Boolean) {
 		notification.apply {
-			extras.putInt("ticker_icon", R.drawable.ic_gramophone_monochrome)
+			extras.putInt("ticker_icon", R.drawable.ic_gramophone_mono16)
+			// set to true if icon changed and SysUI has to dispose of cached one
 			extras.putBoolean("ticker_icon_switch", false)
 			// Keep the status bar lyrics scrolling
 			flags = flags.or(FLAG_ALWAYS_SHOW_TICKER)
