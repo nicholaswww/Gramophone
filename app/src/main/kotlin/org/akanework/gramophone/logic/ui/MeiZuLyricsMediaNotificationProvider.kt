@@ -21,16 +21,24 @@ private const val FLAG_ALWAYS_SHOW_TICKER = 0x01000000
 private const val FLAG_ONLY_UPDATE_TICKER = 0x02000000
 
 @OptIn(UnstableApi::class)
-private class InnerMeiZuLyricsMediaNotificationProvider(context: Context)
+private class InnerMeiZuLyricsMediaNotificationProvider(context: Context,
+                                                        private val tickerProvider: () -> CharSequence?)
 	: DefaultMediaNotificationProvider(context) {
-	var ticker: CharSequence? = null
 	override fun addNotificationActions(
 		mediaSession: MediaSession,
 		mediaButtons: ImmutableList<CommandButton>,
 		builder: NotificationCompat.Builder,
 		actionFactory: MediaNotification.ActionFactory
 	): IntArray {
+		val ticker = tickerProvider()
 		builder.setTicker(ticker)
+		if (ticker != null) {
+			builder.addExtras(Bundle().apply {
+				putInt("ticker_icon", R.drawable.ic_gramophone_mono16)
+				// set to true if icon changed and SysUI has to dispose of cached one
+				putBoolean("ticker_icon_switch", false)
+			})
+		}
 		return super.addNotificationActions(mediaSession, mediaButtons, builder, actionFactory)
 	}
 }
@@ -39,7 +47,7 @@ private class InnerMeiZuLyricsMediaNotificationProvider(context: Context)
 class MeiZuLyricsMediaNotificationProvider(context: MediaSessionService,
                                            private val tickerProvider: () -> CharSequence?)
 	: MediaNotification.Provider {
-	private val inner = InnerMeiZuLyricsMediaNotificationProvider(context).apply {
+	private val inner = InnerMeiZuLyricsMediaNotificationProvider(context, tickerProvider).apply {
 		setSmallIcon(R.drawable.ic_gramophone_monochrome)
 	}
 
@@ -50,7 +58,6 @@ class MeiZuLyricsMediaNotificationProvider(context: MediaSessionService,
 		onNotificationChangedCallback: MediaNotification.Provider.Callback
 	): MediaNotification {
 		val ticker = tickerProvider()
-		inner.ticker = ticker
 		return inner.createNotification(
 			mediaSession, customLayout, actionFactory
 		) {
@@ -72,9 +79,6 @@ class MeiZuLyricsMediaNotificationProvider(context: MediaSessionService,
 
 	private fun MediaNotification.applyNotificationFlags(onlyUpdateTicker: Boolean) {
 		notification.apply {
-			extras.putInt("ticker_icon", R.drawable.ic_gramophone_mono16)
-			// set to true if icon changed and SysUI has to dispose of cached one
-			extras.putBoolean("ticker_icon_switch", false)
 			// Keep the status bar lyrics scrolling
 			flags = flags.or(FLAG_ALWAYS_SHOW_TICKER)
 			// Only update the ticker (lyrics), and do not update other properties
