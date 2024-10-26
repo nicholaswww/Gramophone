@@ -703,14 +703,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (controller?.isPlaying != true || (!isStatusBarLyricsEnabled && hnw)) return
         val cPos = (controller?.contentPosition ?: 0).toULong()
         val nextUpdate = if (lyrics != null && lyrics is SemanticLyrics.SyncedLyrics) {
-            val syncedLyrics = lyrics as SemanticLyrics.SyncedLyrics
-            syncedLyrics.text.flatMap {
-                if (hnw) listOf(it.lyric.start) else
+            val syncedLyrics = lyrics as? SemanticLyrics.SyncedLyrics
+            syncedLyrics?.text?.flatMap {
+                if (hnw && it.lyric.start <= cPos) listOf() else if (hnw) listOf(it.lyric.start) else
                     (it.lyric.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
                     .let { i -> if (it.lyric.start > cPos) i + it.lyric.start else i }
-            }.minOrNull()
+            }?.minOrNull()
         } else if (lyricsLegacy != null) {
-            lyricsLegacy!!.find {
+            lyricsLegacy?.find {
                 (it.timeStamp ?: -2) > cPos.toLong()
             }?.timeStamp?.toULong()
         } else null
@@ -735,13 +735,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     fun getCurrentLyricIndex() =
         if (lyrics != null && lyrics is SemanticLyrics.SyncedLyrics) {
             val syncedLyrics = lyrics as SemanticLyrics.SyncedLyrics
-            syncedLyrics.text.indexOfFirst {
-                it.lyric.start > (controller?.currentPosition ?: 0).toULong()
-            }
+            syncedLyrics.text.indexOfLast {
+                it.lyric.start <= (controller?.currentPosition ?: 0).toULong()
+            }?.let { if (it == -1) null else -1 }
         } else if (lyricsLegacy != null) {
             lyricsLegacy?.indexOfLast {
                 (it.timeStamp ?: Long.MAX_VALUE) <= (controller?.currentPosition ?: 0)
-            }
+            }?.let { if (it == -1) null else -1 }
         } else null
 
     override fun onForegroundServiceStartNotAllowedException() {
