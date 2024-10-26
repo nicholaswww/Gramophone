@@ -3,6 +3,8 @@
 ![GitHub tag (with filter)](https://img.shields.io/github/v/tag/AkaneTan/Gramophone?style=flat-square&logoColor=white&labelColor=black&color=white)
 [![Static Badge](https://img.shields.io/badge/Telegram-Content?style=flat-square&logo=telegram&logoColor=black&color=white)](https://t.me/AkaneDev)
 
+[English](./readme.md)
+
 Android のスタンダードを厳密に準拠した media3 と マテリアルデザインライブラリを使用して構築された健全な音楽プレーヤーです。
 
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
@@ -35,14 +37,17 @@ Beta バージョンとプレビューは [Telegram チャンネル](https://t.m
 このアプリをビルドするには、[Android Studio](https://developer.android.com/studio) の最新 Beta 版と高速なネットワーク環境が必要です。
 
 ### パッケージタイプのセットアップ
-Gramophone には、アプリのパッケージを示すためのパッケージタイプがあります。パッケージタイプの文字列は `package.properties` という名前の外部ファイルから抽出されます。
+Gramophone には、アプリのパッケージを示すためのパッケージタイプがあります。<br>
+パッケージタイプの文字列は `package.properties` という名前の外部ファイルから抽出されます。
 
 お気に入りのテキストエディタを開いて、`releaseType=SelfBuilt` と入力してリポジトリのルートフォルダに `package.properties` として保存します。
 
-その後に Android Studio を起動して独自の署名をインポートします。これで Gramophone をビルドできるはずです。
+その後に Android Studio を起動して独自の署名をインポートします。<br>
+これで Gramophone をビルドできるはずです。
 
 ## ライセンス
-このプロジェクトは、GNU General Public License v3.0 に基づいてライセンスされています。詳細については、[LICENSE](https://github.com/AkaneTan/Gramophone/blob/beta/LICENSE) ファイルを参照してください。
+このプロジェクトは、GNU General Public License v3.0 に基づいてライセンスされています。<br>
+詳細については、[LICENSE](https://github.com/AkaneTan/Gramophone/blob/beta/LICENSE) ファイルを参照してください。
 
 ## 翻訳
 <a href="https://hosted.weblate.org/engage/gramophone/">
