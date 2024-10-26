@@ -737,11 +737,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             val syncedLyrics = lyrics as SemanticLyrics.SyncedLyrics
             syncedLyrics.text.indexOfLast {
                 it.lyric.start <= (controller?.currentPosition ?: 0).toULong()
-            }?.let { if (it == -1) null else -1 }
+            }.let { if (it == -1) null else it }
         } else if (lyricsLegacy != null) {
             lyricsLegacy?.indexOfLast {
                 (it.timeStamp ?: Long.MAX_VALUE) <= (controller?.currentPosition ?: 0)
-            }?.let { if (it == -1) null else -1 }
+            }?.let { if (it == -1) null else it }
         } else null
 
     override fun onForegroundServiceStartNotAllowedException() {
