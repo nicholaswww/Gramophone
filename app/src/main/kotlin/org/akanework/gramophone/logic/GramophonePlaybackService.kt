@@ -129,7 +129,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var mediaSession: MediaLibrarySession? = null
     var controller: MediaController? = null
         private set
-    private val sendLyrics = Runnable { scheduleSendingLyrics(true) }
+    private val sendLyrics = Runnable { scheduleSendingLyrics(false) }
     var lyrics: SemanticLyrics? = null
         private set
     var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
@@ -403,6 +403,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     // alongside with the mediaSession.
     override fun onDestroy() {
         instanceForWidgetAndOnlyWidget = null
+        unregisterReceiver(headSetReceiver)
+        unregisterReceiver(seekReceiver)
         // Important: this must happen before sending stop() as that changes state ENDED -> IDLE
         lastPlayedManager.save()
         mediaSession!!.player.stop()
@@ -412,8 +414,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaSession!!.release()
         mediaSession!!.player.release()
         mediaSession = null
-        unregisterReceiver(headSetReceiver)
-        unregisterReceiver(seekReceiver)
+        LyricWidgetProvider.update(this)
         super.onDestroy()
     }
 

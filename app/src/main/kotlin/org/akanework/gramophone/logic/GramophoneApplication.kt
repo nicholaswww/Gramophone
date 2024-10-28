@@ -43,6 +43,7 @@ import coil3.size.pxOrElse
 import coil3.util.Logger
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.logic.ui.BugHandlerActivity
+import org.akanework.gramophone.ui.LyricWidgetProvider
 import java.io.File
 import java.io.IOException
 import kotlin.system.exitProcess
@@ -100,6 +101,8 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                 val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
                 nm.cancel(DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID)
             }
+
+            LyricWidgetProvider.update(this)
         }.start()
     }
 

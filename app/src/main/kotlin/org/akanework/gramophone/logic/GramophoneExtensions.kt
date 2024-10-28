@@ -20,6 +20,7 @@ package org.akanework.gramophone.logic
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -34,9 +35,11 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.os.StrictMode
+import android.util.SizeF
 import android.view.View
 import android.view.ViewGroup.MarginLayoutParams
 import android.view.WindowInsets
+import android.widget.RemoteViews
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -73,7 +76,6 @@ import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVIC
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_SET_TIMER
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
-import org.akanework.gramophone.logic.utils.SemanticLyrics.LyricLineHolder
 import org.jetbrains.annotations.Contract
 import java.io.File
 import java.util.Locale
@@ -196,16 +198,6 @@ fun MediaController.setTimer(value: Int) {
             customExtras.putInt("duration", value)
         }, Bundle.EMPTY
     )
-}
-
-inline fun <reified T, reified U> HashMap<T, U>.putIfAbsentSupport(key: T, value: U) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        putIfAbsent(key, value)
-    } else {
-        // Duh...
-        if (!containsKey(key))
-            put(key, value)
-    }
 }
 
 inline fun <reified T> MutableList<T>.replaceAllSupport(operator: (T) -> T) {
@@ -393,6 +385,23 @@ inline fun Semaphore.runInBg(crossinline runnable: suspend () -> Unit) {
         }
     }
 }
+
+/*
+fun AppWidgetManager.createWidgetInSizes(appWidgetId: Int, creator: (SizeF?) -> RemoteViews): RemoteViews {
+    val sizes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        BundleCompat.getParcelableArrayList<SizeF>(
+            getAppWidgetOptions(appWidgetId),
+            AppWidgetManager.OPTION_APPWIDGET_SIZES,
+            SizeF::class.java
+        ).let { if (it.isNullOrEmpty()) null else it }
+    } else {
+        null
+    }
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !sizes.isNullOrEmpty()) {
+        RemoteViews(sizes.associateWith(creator))
+    } else creator(null)
+}
+*/
 
 // the whole point of this function is to do literally nothing at all (but without impacting
 // performance) in release builds and ignore StrictMode violations in debug builds
