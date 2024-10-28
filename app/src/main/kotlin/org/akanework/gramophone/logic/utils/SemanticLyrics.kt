@@ -349,7 +349,7 @@ sealed class SemanticLyrics : Parcelable {
 	data class LyricLineHolder(val lyric: LyricLine,
 	                     val isTranslated: Boolean) : Parcelable
 	@Parcelize
-	data class Word(val timeRange: @WriteWith<ULongRangeParceler>() ULongRange, val charRange: @WriteWith<IntRangeParceler>() IntRange) : Parcelable
+	data class Word(val timeRange: @WriteWith<ULongRangeParceler>() ULongRange, val charRange: @WriteWith<IntRangeParceler>() IntRange, val isRtl: Boolean) : Parcelable
 	object ULongRangeParceler : Parceler<ULongRange> {
 		override fun create(parcel: Parcel) = parcel.readLong().toULong()..parcel.readLong().toULong()
 
@@ -443,11 +443,13 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
 							// to time ratio. To avoid this estimation, add a last word
 							// sync point to the line after the text :)
 							current.first + (wout.map { it.timeRange.count() /
-									it.charRange.count().toFloat() }.average() *
+									it.charRange.count().toFloat() }.average()
+								.let { if (it.isNaN()) 100.0 else it } *
 									(current.second?.length ?: 0)).toULong()
 						}
 						if (endInclusive > current.first)
-							wout.add(Word(current.first..endInclusive, oIdx..<idx))
+							// isRtl is filled in later in splitBidirectionalWords
+							wout.add(Word(current.first..endInclusive, oIdx..<idx, isRtl = false))
 					}
 					wout
 				} else null

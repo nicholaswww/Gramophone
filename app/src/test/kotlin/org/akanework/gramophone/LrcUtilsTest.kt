@@ -60,9 +60,9 @@ class LrcUtilsTest {
 						"\"\"\"${i.text}\"\"\", words = ${i.words?.let { "listOf(${
 							it.map { "SemanticLyrics.Word(timeRange = ${it.timeRange.first}uL.." +
 									"${it.timeRange.last}uL, charRange = ${it.charRange.first}.." +
-									"${it.charRange.last})" }.joinToString()})" } ?: "null"}, " +
-						"speaker = ${i.speaker?.name?.let { "SpeakerEntity.$it" } ?: "null"}), " +
-						"${j.isTranslated}),")
+									"${it.charRange.last}, isRtl = ${it.isRtl})" }.joinToString()})"
+						} ?: "null"}, speaker = ${i.speaker?.name?.let { "SpeakerEntity.$it" } ?:
+						"null"}), ${j.isTranslated}),")
 			}
 			str.appendLine(")")
 		}
@@ -272,6 +272,18 @@ class LrcUtilsTest {
 		assertEquals(11000uL - 1uL, lrc[1].lyric.words!![1].timeRange.last)
 		assertEquals(11000uL, lrc[1].lyric.words!![2].timeRange.start)
 		assertEquals(11270uL, lrc[1].lyric.words!![2].timeRange.last)
+	}
+
+	@Test
+	fun testBidirectionalWordSplitting() {
+		parseSynced("[00:13.00] <00:13.00>یکtwo", trim = false) // make sure its not crashing
+		val lrc = parseSynced("[00:13.00] <00:13.00>یکtwo", trim = true)
+		assertNotNull(lrc)
+		assertEquals(1, lrc!!.size)
+		assertNotNull(lrc[0].lyric.words)
+		assertEquals(2, lrc[0].lyric.words!!.size)
+		assertEquals(0..<2, lrc[0].lyric.words!![0].charRange)
+		assertEquals(2..<5, lrc[0].lyric.words!![1].charRange)
 	}
 
 	@Test

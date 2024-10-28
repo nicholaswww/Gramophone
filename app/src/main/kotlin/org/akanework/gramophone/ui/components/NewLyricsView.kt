@@ -472,19 +472,19 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 						var baseOffset = if (line == firstLine && !alignmentOpposite) {
 							val il = StaticLayoutBuilderCompat.obtain(sb, layout.paint, Int.MAX_VALUE)
 								.setStart(layout.getLineStart(line)).setEnd(it.charRange.first)
-								.setIsRtl(false).build()
+								.build()
 							il.getLineWidth(0).toInt()
 						} else if (alignmentOpposite) {
 							val il = StaticLayoutBuilderCompat.obtain(sb, layout.paint,
 								Int.MAX_VALUE).setStart(max(it.charRange.first,
 								layout.getLineStart(line))).setEnd(layout.getLineEnd(line))
-								.setIsRtl(false).build()
+								.build()
 							width - il.getLineWidth(0).toInt()
 						} else 0
 						ia.add(baseOffset + if (layout.alignment == Layout.Alignment.ALIGN_CENTER) {
 							val il = StaticLayoutBuilderCompat.obtain(sb, layout.paint, Int.MAX_VALUE)
 								.setStart(layout.getLineStart(line)).setEnd(layout.getLineEnd(line))
-								.setIsRtl(false).build()
+								.build()
 							((width - il.getLineWidth(0)) / 2).toInt()
 						} else 0) // offset from left to start from text on line
 						ia.add(layout.getLineBottom(line) - layout.getLineTop(line)) // line height
