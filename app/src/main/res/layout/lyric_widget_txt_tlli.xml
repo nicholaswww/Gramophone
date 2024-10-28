@@ -4,6 +4,9 @@
 	android:layout_width="match_parent"
 	android:layout_height="wrap_content"
 	android:id="@+id/lyric_widget_item"
-	android:layout_gravity="start"
+	android:gravity="start"
 	android:textColor="@color/sl_lyric_text"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:textFontWeight="500"
+	tools:ignore="UnusedAttribute"
 	android:textSize="@dimen/lyric_widget_tl" />

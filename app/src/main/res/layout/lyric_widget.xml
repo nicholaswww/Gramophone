@@ -12,8 +12,9 @@
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
 		android:divider="@null"
+		android:scrollbars="none"
 		android:clipToPadding="false"
-		android:padding="8dp" />
+		android:padding="16dp" />
 
 	<TextView
 		android:id="@+id/empty_view"
