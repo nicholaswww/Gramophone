@@ -104,7 +104,8 @@ object LrcUtils {
                 // this estimation, add a word sync point to bidirectional barriers :)
                 val barrierTime = evilWord.timeRange.first + ((line.lyric.words.map {
                     it.timeRange.count() / it.charRange.count().toFloat()
-                }.average() * (barrier.first - evilWord.charRange.first))).toULong()
+                }.average().let { if (it.isNaN()) 100.0 else it } * (barrier.first -
+                        evilWord.charRange.first))).toULong()
                 val firstPart = Word(charRange = evilWord.charRange.first..<barrier.first,
                     timeRange = evilWord.timeRange.first..<barrierTime, isRtl = lastWasRtl)
                 val secondPart = Word(charRange = barrier.first..evilWord.charRange.last,

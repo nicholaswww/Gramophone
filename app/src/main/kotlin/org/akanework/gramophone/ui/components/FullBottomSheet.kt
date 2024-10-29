@@ -435,11 +435,11 @@ class FullBottomSheet
 		}
 		bottomSheetFullPreviousButton.setOnClickListener {
 			ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-			instance?.seekToPreviousMediaItem()
+			instance?.seekToPrevious()
 		}
 		bottomSheetFullNextButton.setOnClickListener {
 			ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-			instance?.seekToNextMediaItem()
+			instance?.seekToNext()
 		}
 		bottomSheetShuffleButton.addOnCheckedChangeListener { _, isChecked ->
 			instance?.shuffleModeEnabled = isChecked
@@ -1010,11 +1010,11 @@ class FullBottomSheet
 			}
 
 			KeyEvent.KEYCODE_DPAD_LEFT -> {
-				instance?.seekToPreviousMediaItem(); true
+				instance?.seekToPrevious(); true
 			}
 
 			KeyEvent.KEYCODE_DPAD_RIGHT -> {
-				instance?.seekToNextMediaItem(); true
+				instance?.seekToNext(); true
 			}
 
 			else -> super.onKeyDown(keyCode, event)

@@ -137,7 +137,7 @@ class PlayerBottomSheet private constructor(
 
         bottomSheetPreviewNextButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-            instance?.seekToNextMediaItem()
+            instance?.seekToNext()
         }
 
         activity.controllerViewModel.addControllerCallback(activity.lifecycle) { _, _ ->
