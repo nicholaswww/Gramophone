@@ -932,6 +932,14 @@ class FullBottomSheet
 		bottomSheetFullLyricView.updateLyricPositionFromPlaybackPos()
 	}
 
+	override fun onPositionDiscontinuity(
+		oldPosition: Player.PositionInfo,
+		newPosition: Player.PositionInfo,
+		reason: Int
+	) {
+		positionRunnable.run()
+	}
+
 	override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
 		bottomSheetShuffleButton.isChecked = shuffleModeEnabled
 	}
@@ -980,8 +988,8 @@ class FullBottomSheet
 				progressDrawable.animate = true
 			}
 			if (!runnableRunning) {
-				handler.postDelayed(positionRunnable, SLIDER_UPDATE_INTERVAL)
 				runnableRunning = true
+				handler.postDelayed(positionRunnable, SLIDER_UPDATE_INTERVAL)
 			}
 		} else if (playbackState != Player.STATE_BUFFERING) {
 			if (bottomSheetFullControllerButton.getTag(R.id.play_next) as Int? != 2) {
@@ -1171,7 +1179,6 @@ class FullBottomSheet
 
 	private val positionRunnable = object : Runnable {
 		override fun run() {
-			if (!runnableRunning) return
 			val position =
 				CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
 			val duration = instance?.currentMediaItem?.mediaMetadata?.durationMs
@@ -1184,7 +1191,7 @@ class FullBottomSheet
 				bottomSheetFullPosition.text = position
 			}
 			bottomSheetFullLyricView.updateLyricPositionFromPlaybackPos()
-			if (instance?.isPlaying == true) {
+			if (instance?.isPlaying == true && runnableRunning) {
 				handler.postDelayed(this, SLIDER_UPDATE_INTERVAL)
 			} else {
 				runnableRunning = false
