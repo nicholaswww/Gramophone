@@ -13,10 +13,10 @@ import kotlin.math.max
 import kotlin.math.min
 
 // Hacks, hacks, hacks...
-class MyGradientSpan(val grdWidth: Float, color: Int, highlightColor: Int) : CharacterStyle(), UpdateAppearance {
+class MyGradientSpan(val gradientWidth: Float, color: Int, highlightColor: Int) : CharacterStyle(), UpdateAppearance {
 	private val matrix = Matrix()
-	private var shader = LinearGradient(
-		0f, 50f, grdWidth, 50f,
+	private val shader = LinearGradient(
+		0f, 1f, gradientWidth, 1f,
 		highlightColor, color,
 		Shader.TileMode.CLAMP
 	)
@@ -28,13 +28,15 @@ class MyGradientSpan(val grdWidth: Float, color: Int, highlightColor: Int) : Cha
 	override fun updateDrawState(tp: TextPaint) {
 		tp.color = Color.WHITE
 		val o = 5 * ((lineCount / lineCountDivider) % (lineOffsets.size / 5))
-		val ourProgress = max(0f, min(1f, lerpInv(lineOffsets[o + 3].toFloat(), lineOffsets[o + 4]
+		val preOffsetFromLeft = lineOffsets[o].toFloat()
+		val ourProgressLtr = max(0f, min(1f, lerpInv(lineOffsets[o + 2].toFloat(), lineOffsets[o + 3]
 			.toFloat(), lerp(0f, totalCharsForProgress.toFloat(), progress))))
+		val ourProgress = if (lineOffsets[o + 4] == -1) 1f - ourProgressLtr else ourProgressLtr
 		shader.setLocalMatrix(matrix.apply {
 			reset()
-			postTranslate(lineOffsets[o].toFloat() + ((lineOffsets[o + 2]
-					+ (grdWidth * 3)) * ourProgress) - (grdWidth * 2), 0f)
-			postScale(1f, lineOffsets[o + 1] / 100f)
+			if (lineOffsets[o + 4] == -1) postRotate(180f, gradientWidth / 2f, 1f)
+			postTranslate(preOffsetFromLeft + (lineOffsets[o + 1] + gradientWidth * 2) * ourProgress
+					- gradientWidth * 2f, 0f)
 		})
 		tp.shader = shader
 		lineCount++

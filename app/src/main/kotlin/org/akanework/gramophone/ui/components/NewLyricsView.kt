@@ -47,7 +47,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 	private val translationTextSize = context.resources.getDimension(R.dimen.lyric_tl_text_size)
 	private val translationBackgroundTextSize = context.resources.getDimension(R.dimen.lyric_tl_bg_text_size)
 	private var colorSpanPool = mutableListOf<MyForegroundColorSpan>()
-	private val bounds = Rect()
 	private var spForRender: List<SbItem>? = null
 	private var spForMeasure: Pair<Pair<Int, Int>, List<SbItem>>? = null
 	private var lyrics: SemanticLyrics? = null
@@ -257,7 +256,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 			var gradientProgress = Float.NEGATIVE_INFINITY
 			val firstTs = lines?.get(i)?.lyric?.start ?: ULong.MIN_VALUE
 			val lastTs = lines?.get(i)?.lyric?.words?.lastOrNull()?.timeRange?.last ?: lines
-				?.find { it.lyric.start > lines[i].lyric.start }?.lyric?.start ?: Long.MAX_VALUE.toULong()
+				?.find { it.lyric.start > lines[i].lyric.start }?.lyric?.start?.minus(1uL) ?:
+				Long.MAX_VALUE.toULong()
 			val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs.toFloat(), lastTs.toFloat(),
 				0.5f) - firstTs.toFloat(), firstTs.toFloat()))
 			val highlight = posForRender >= firstTs - timeOffsetForUse.toULong() &&
@@ -462,37 +462,31 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 			}, (width * smallSizeFactor).toInt()).setAlignment(align).build()
 			SbItem(layout, sb, paddingTop.dpToPx(context), paddingBottom.dpToPx(context),
 				syncedLines?.get(i)?.lyric?.words?.map {
-					val isRtl = layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT
-					val alignmentOpposite = if (isRtl) layout.alignment == Layout.Alignment.ALIGN_NORMAL
-						else layout.alignment == Layout.Alignment.ALIGN_OPPOSITE
 					val ia = mutableListOf<Int>()
 					val firstLine = layout.getLineForOffset(it.charRange.first)
 					val lastLine = layout.getLineForOffset(it.charRange.last + 1)
 					for (line in firstLine..lastLine) {
-						var baseOffset = if (line == firstLine && !alignmentOpposite) {
-							val il = StaticLayoutBuilderCompat.obtain(sb, layout.paint, Int.MAX_VALUE)
-								.setStart(layout.getLineStart(line)).setEnd(it.charRange.first)
-								.build()
-							il.getLineWidth(0).toInt()
-						} else if (alignmentOpposite) {
-							val il = StaticLayoutBuilderCompat.obtain(sb, layout.paint,
-								Int.MAX_VALUE).setStart(max(it.charRange.first,
-								layout.getLineStart(line))).setEnd(layout.getLineEnd(line))
-								.build()
-							width - il.getLineWidth(0).toInt()
-						} else 0
-						ia.add(baseOffset + if (layout.alignment == Layout.Alignment.ALIGN_CENTER) {
-							val il = StaticLayoutBuilderCompat.obtain(sb, layout.paint, Int.MAX_VALUE)
-								.setStart(layout.getLineStart(line)).setEnd(layout.getLineEnd(line))
-								.build()
-							((width - il.getLineWidth(0)) / 2).toInt()
-						} else 0) // offset from left to start from text on line
-						ia.add(layout.getLineBottom(line) - layout.getLineTop(line)) // line height
-						layout.paint.getTextBounds(sb.toString(), max(it.charRange.first, layout
-							.getLineStart(line)), min(it.charRange.last + 1, layout.getLineEnd(line)), bounds)
-						ia.add(bounds.width()) // width of text in this line
-						ia.add(max(it.charRange.first, layout.getLineStart(line)) - it.charRange.first) // prefix chars
-						ia.add(min(layout.getLineEnd(line), it.charRange.last + 1) - it.charRange.first) // suffix chars
+						val firstInLine = max(it.charRange.first, layout.getLineStart(line))
+						val lastInLineExcl = min(it.charRange.last + 1, layout.getLineEnd(line))
+						val horizontalLeft = if (!it.isRtl && layout.getParagraphDirection(0) != Layout.DIR_RIGHT_TO_LEFT)
+							layout.getPrimaryHorizontal(firstInLine)
+						else if (!it.isRtl)
+							layout.getSecondaryHorizontal(firstInLine)
+						else if (layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT)
+							layout.getPrimaryHorizontal(lastInLineExcl - 1)
+						else layout.getSecondaryHorizontal(lastInLineExcl - 1)
+						val horizontalRight = if (!it.isRtl && layout.getParagraphDirection(0) != Layout.DIR_RIGHT_TO_LEFT)
+							layout.getPrimaryHorizontal(lastInLineExcl - 1)
+						else if (!it.isRtl)
+							layout.getSecondaryHorizontal(lastInLineExcl - 1)
+						else if (layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT)
+							layout.getPrimaryHorizontal(firstInLine)
+						else layout.getSecondaryHorizontal(firstInLine)
+						ia.add(horizontalLeft.toInt()) // offset from left to start of word
+						ia.add((horizontalRight - horizontalLeft).toInt()) // width of text in this line
+						ia.add(firstInLine - it.charRange.first) // prefix chars
+						ia.add((lastInLineExcl - 1) - it.charRange.first) // suffix chars
+						ia.add(if (it.isRtl) -1 else 1)
 					}
 					return@map ia
 				})

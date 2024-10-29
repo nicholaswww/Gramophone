@@ -9,9 +9,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.metadata.id3.BinaryFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
+import org.akanework.gramophone.logic.replaceAllSupport
 import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
 import java.io.File
 import java.nio.charset.Charset
+import kotlin.math.min
 
 object LrcUtils {
 
@@ -84,7 +86,7 @@ object LrcUtils {
 
     private fun splitBidirectionalWords(syncedLyrics: SemanticLyrics.SyncedLyrics): SemanticLyrics.SyncedLyrics {
         return SemanticLyrics.SyncedLyrics(syncedLyrics.text.map { line ->
-            if (line.lyric.words == null) return@map line
+            if (line.lyric.words.isNullOrEmpty()) return@map line
             val bidirectionalBarriers = findBidirectionalBarriers(line.lyric.text)
             val wordsWithBarriers = line.lyric.words.toMutableList()
             var lastWasRtl = false
@@ -92,20 +94,22 @@ object LrcUtils {
                 val evilWordIndex = if (barrier.first == -1) -1 else wordsWithBarriers.indexOfFirst {
                     it.charRange.contains(barrier.first) && it.charRange.start != barrier.first }
                 if (evilWordIndex == -1) {
+                    // Propagate the new direction (if there is a barrier after that, direction will
+                    // be corrected after it).
                     val wordIndex = if (barrier.first == -1) 0 else
                         wordsWithBarriers.indexOfFirst { it.charRange.start == barrier.first }
-                    if (wordsWithBarriers[wordIndex].isRtl != barrier.second)
-                        wordsWithBarriers[wordIndex] = wordsWithBarriers[wordIndex].copy(isRtl = barrier.second)
+                    wordsWithBarriers.replaceAllSupport(skipFirst = wordIndex) {
+                        if (it.isRtl != barrier.second) it.copy(isRtl = barrier.second) else it }
                     lastWasRtl = barrier.second
                     return@forEach
                 }
                 val evilWord = wordsWithBarriers[evilWordIndex]
                 // Estimate how long this word will take based on character to time ratio. To avoid
                 // this estimation, add a word sync point to bidirectional barriers :)
-                val barrierTime = evilWord.timeRange.first + ((line.lyric.words.map {
+                val barrierTime = min(evilWord.timeRange.first + ((line.lyric.words.map {
                     it.timeRange.count() / it.charRange.count().toFloat()
                 }.average().let { if (it.isNaN()) 100.0 else it } * (barrier.first -
-                        evilWord.charRange.first))).toULong()
+                        evilWord.charRange.first))).toULong(), evilWord.timeRange.last - 1uL)
                 val firstPart = Word(charRange = evilWord.charRange.first..<barrier.first,
                     timeRange = evilWord.timeRange.first..<barrierTime, isRtl = lastWasRtl)
                 val secondPart = Word(charRange = barrier.first..evilWord.charRange.last,

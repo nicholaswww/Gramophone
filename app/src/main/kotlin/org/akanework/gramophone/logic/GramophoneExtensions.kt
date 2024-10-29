@@ -200,8 +200,12 @@ fun MediaController.setTimer(value: Int) {
     )
 }
 
-inline fun <reified T> MutableList<T>.replaceAllSupport(operator: (T) -> T) {
+inline fun <reified T> MutableList<T>.replaceAllSupport(skipFirst: Int = 0, operator: (T) -> T) {
     val li = listIterator()
+    var skip = skipFirst
+    while (skip-- > 0) {
+        li.next()
+    }
     while (li.hasNext()) {
         li.set(operator(li.next()))
     }
