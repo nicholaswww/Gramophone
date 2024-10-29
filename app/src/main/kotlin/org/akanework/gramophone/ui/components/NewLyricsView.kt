@@ -1,5 +1,6 @@
 package org.akanework.gramophone.ui.components
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -12,6 +13,7 @@ import android.text.StaticLayout
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
 import androidx.core.graphics.ColorUtils
@@ -33,7 +35,6 @@ import org.akanework.gramophone.ui.MainActivity
 import kotlin.math.max
 import kotlin.math.min
 
-// TODO react to clicks
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
 	private val smallSizeFactor = 0.97f
@@ -240,7 +241,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 	}
 
 	override fun onDraw(canvas: Canvas) {
-		posForRender = instance?.currentPosition?.toULong() ?: 0uL // TODO do some mp3s go backwards sometimes lol??
+		posForRender = instance?.currentPosition?.toULong() ?: 0uL // TODO do some mp3s go backwards sometimes lol?? (update: they do?????)
 		if (spForRender == null) {
 			requestLayout()
 			return
@@ -416,6 +417,58 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 		canvas.restore()
 		if (animating)
 			invalidate()
+	}
+
+	@SuppressLint("ClickableViewAccessibility") // TODO https://developer.android.com/guide/topics/ui/accessibility/custom-views :(
+	override fun onTouchEvent(event: MotionEvent?): Boolean {
+		if (spForRender == null) {
+			requestLayout()
+		} else if (event?.action == MotionEvent.ACTION_UP) {
+			val y = event.y
+			var heightSoFar = 0
+			var foundItem = -1
+			val lines = (lyrics as? SemanticLyrics.SyncedLyrics)?.text
+			if (lines != null) {
+				spForRender!!.forEachIndexed { i, it ->
+					val firstTs = lines[i].lyric.start
+					val lastTs = lines[i].lyric.words?.lastOrNull()?.timeRange?.last ?: lines
+						.find { it.lyric.start > lines[i].lyric.start }?.lyric?.start?.minus(1uL)
+					?: Long.MAX_VALUE.toULong()
+					val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs.toFloat(),
+						lastTs.toFloat(), 0.5f) - firstTs.toFloat(), firstTs.toFloat()))
+					val highlight = posForRender >= firstTs - timeOffsetForUse.toULong() &&
+							posForRender <= lastTs + timeOffsetForUse.toULong()
+					val scaleInProgress = lerpInv(firstTs.toFloat() - timeOffsetForUse,
+						firstTs.toFloat() + timeOffsetForUse, posForRender.toFloat())
+					val scaleOutProgress = lerpInv(lastTs.toFloat() - timeOffsetForUse,
+						lastTs.toFloat() + timeOffsetForUse, posForRender.toFloat())
+					val hlScaleFactor =
+						// lerp() argument order is swapped because we divide by this factor
+						if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
+							lerp(smallSizeFactor, 1f,
+								scaleColorInterpolator.getInterpolation(scaleOutProgress))
+						else if (scaleInProgress >= 0f && scaleInProgress <= 1f)
+							lerp(1f, smallSizeFactor,
+								scaleColorInterpolator.getInterpolation(scaleInProgress))
+						else if (highlight)
+							smallSizeFactor
+						else 1f
+					val myHeight =
+						(it.paddingTop + it.layout.height + it.paddingBottom) / hlScaleFactor
+					if (y >= heightSoFar && y <= heightSoFar + myHeight)
+						foundItem = i
+					heightSoFar += myHeight.toInt()
+				}
+			}
+			if (foundItem != -1) {
+				instance?.seekTo(lines!![foundItem].lyric.start.toLong())
+				performClick()
+			}
+			return true
+		} else if (event?.action == MotionEvent.ACTION_DOWN) {
+			return true // this is needed so that we get the UP event we care about
+		}
+		return super.onTouchEvent(event)
 	}
 
 	override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
