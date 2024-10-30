@@ -38,8 +38,10 @@ import kotlin.math.min
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
 	private val smallSizeFactor = 0.97f
+	private val lyricAnimTime = 650f
+	private var currentScrollTarget: Int? = null
 	// TODO maybe reduce this to avoid really fast word skipping
-	private val scaleInAnimTime = 650f / 2
+	private val scaleInAnimTime = lyricAnimTime / 2f
 	private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
 	private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
 	private lateinit var typeface: Typeface
@@ -247,6 +249,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 			return
 		}
 		var animating = false
+		var heightSoFar = 0
+		var firstHighlight: Int? = null
 		canvas.save()
 		val lines = if (lyrics is SemanticLyrics.SyncedLyrics)
 				(lyrics as SemanticLyrics.SyncedLyrics).text else null
@@ -283,7 +287,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 			if ((scaleInProgress >= -.1f && scaleInProgress <= 1f) ||
 				(scaleOutProgress >= -.1f && scaleOutProgress <= 1f))
 				animating = true
-			canvas.translate(0f, it.paddingTop.toFloat() / hlScaleFactor)
+			if (highlight && firstHighlight == null)
+				firstHighlight = heightSoFar
+			heightSoFar += (it.paddingTop.toFloat() / hlScaleFactor).also { canvas.translate(0f, it) }.toInt()
 			if (highlight) {
 				canvas.save()
 				canvas.scale(1f / hlScaleFactor, 1f / hlScaleFactor)
@@ -412,11 +418,15 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 			it.layout.draw(canvas)
 			if (highlight || !alignmentNormal)
 				canvas.restore()
-			canvas.translate(0f, (it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor)
+			heightSoFar += ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor)
+				.also { canvas.translate(0f, it) }.toInt()
 		}
 		canvas.restore()
 		if (animating)
 			invalidate()
+		if (firstHighlight != null && firstHighlight != currentScrollTarget)
+			scrollView.smoothScrollTo(0, firstHighlight, lyricAnimTime.toInt())
+		currentScrollTarget = firstHighlight
 	}
 
 	@SuppressLint("ClickableViewAccessibility") // TODO https://developer.android.com/guide/topics/ui/accessibility/custom-views :(
@@ -550,5 +560,58 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 
 	data class SbItem(val layout: StaticLayout, val text: SpannableStringBuilder,
 	                  val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?)
+
+	// == start scroll ==
+	/* TODO
+	private lateinit var edgeEffectTop: EdgeEffect
+	private lateinit var edgeEffectBottom: EdgeEffect
+	private lateinit var edgeEffectLeft: EdgeEffect
+	private lateinit var edgeEffectRight: EdgeEffect
+
+	private var edgeEffectTopActive: Boolean = false
+	private var edgeEffectBottomActive: Boolean = false
+	private var edgeEffectLeftActive: Boolean = false
+	private var edgeEffectRightActive: Boolean = false
+
+	override fun computeScroll() {
+		super.computeScroll()
+
+		var needsInvalidate = false
+
+		// The scroller isn't finished, meaning a fling or
+		// programmatic pan operation is active.
+		if (scroller.computeScrollOffset()) {
+			val surfaceSize: Point = computeScrollSurfaceSize()
+			val currX: Int = scroller.currX
+			val currY: Int = scroller.currY
+
+			val (canScrollX: Boolean, canScrollY: Boolean) = currentViewport.run {
+				(left > AXIS_X_MIN || right < AXIS_X_MAX) to (top > AXIS_Y_MIN || bottom < AXIS_Y_MAX)
+			}
+
+			/*
+			 * If you are zoomed in, currX or currY is
+			 * outside of bounds, and you aren't already
+			 * showing overscroll, then render the overscroll
+			 * glow edge effect.
+			 */
+			if (canScrollX
+				&& currX < 0
+				&& edgeEffectLeft.isFinished
+				&& !edgeEffectLeftActive) {
+				edgeEffectLeft.onAbsorb(scroller.currVelocity.toInt())
+				edgeEffectLeftActive = true
+				needsInvalidate = true
+			} else if (canScrollX
+				&& currX > surfaceSize.x - contentRect.width()
+				&& edgeEffectRight.isFinished
+				&& !edgeEffectRightActive) {
+				edgeEffectRight.onAbsorb(scroller.currVelocity.toInt())
+				edgeEffectRightActive = true
+				needsInvalidate = true
+			}
+		}
+	}*/
+
 
 }
