@@ -68,23 +68,22 @@ class LyricWidgetProvider : AppWidgetProvider() {
 
 	companion object {
 		fun update(context: Context) {
-			/*val awm = AppWidgetManager.getInstance(context)
-			LyricWidgetProvider().onUpdate(context, awm, awm.appWidgetIds(context))*/
+			val awm = AppWidgetManager.getInstance(context)
+			LyricWidgetProvider().onUpdate(context, awm, awm.appWidgetIds(context))
 		}
 		fun adapterUpdate(context: Context) {
-			/*val awm = AppWidgetManager.getInstance(context)
+			val awm = AppWidgetManager.getInstance(context)
 			for (appWidgetId in awm.appWidgetIds(context)) {
 				awm.notifyAppWidgetViewDataChanged(appWidgetId, R.id.list_view)
-			}*/
+			}
 		}
 		fun hasWidget(context: Context): Boolean {
-			/*val awm = AppWidgetManager.getInstance(context)
+			val awm = AppWidgetManager.getInstance(context)
 			return awm.getAppWidgetIds(ComponentName(context,
-				LyricWidgetProvider::class.java)).isNotEmpty()*/
-			return false
+				LyricWidgetProvider::class.java)).isNotEmpty()
 		}
-		//private fun AppWidgetManager.appWidgetIds(context: Context) =
-		//	getAppWidgetIds(ComponentName(context, LyricWidgetProvider::class.java))
+		private fun AppWidgetManager.appWidgetIds(context: Context) =
+			getAppWidgetIds(ComponentName(context, LyricWidgetProvider::class.java))
 	}
 }
 

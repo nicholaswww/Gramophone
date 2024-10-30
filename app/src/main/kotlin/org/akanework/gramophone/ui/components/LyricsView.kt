@@ -40,7 +40,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
 		removeAllViews()
 		recyclerView = null
 		newView = null
-		if (prefs.getBooleanStrict("lyric_ui", false) && false) {
+		if (prefs.getBooleanStrict("lyric_ui", false)) {
 			inflate(context, R.layout.lyric_view_v2, this)
 			newView = findViewById(R.id.lyric_view)
 			newView?.updateTextColor(defaultTextColor, highlightTextColor, defaultTextColorM,

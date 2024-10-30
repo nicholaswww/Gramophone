@@ -119,7 +119,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!--
         <receiver android:name=".ui.LyricWidgetProvider"
             android:exported="false">
             <intent-filter>
@@ -128,7 +127,6 @@
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/lyric_widget" />
         </receiver>
-        -->
 
         <service android:name=".ui.LyricWidgetService"
             android:permission="android.permission.BIND_REMOTEVIEWS" />

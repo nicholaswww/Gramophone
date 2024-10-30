@@ -260,7 +260,7 @@ class FullBottomSheet
 				GramophonePlaybackService.SERVICE_TIMER_CHANGED -> updateTimer()
 
 				GramophonePlaybackService.SERVICE_GET_LYRICS -> {
-					if (prefs.getBoolean("lyric_parser", false) && false) {
+					if (prefs.getBoolean("lyric_parser", false)) {
 						val parsedLyrics = instance?.getLyrics()
 						bottomSheetFullLyricView.updateLyrics(parsedLyrics)
 					} else {
