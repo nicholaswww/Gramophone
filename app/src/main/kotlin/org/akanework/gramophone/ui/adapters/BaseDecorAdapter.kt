@@ -34,7 +34,6 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.ItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.ui.getAdapterType
-import kotlin.random.Random
 
 open class BaseDecorAdapter<T : BaseAdapter<*>>(
     protected val adapter: T,
@@ -178,7 +177,6 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
                 controller?.shuffleModeEnabled = true
                 list.takeIf { it.isNotEmpty() }?.also {
                     controller?.setMediaItems(it)
-                    controller?.seekToDefaultPosition(Random.nextInt(0, it.size))
                     controller?.prepare()
                     controller?.play()
                 } ?: controller?.setMediaItems(listOf())
