@@ -126,8 +126,8 @@ class MediaControllerViewModel(application: Application) : AndroidViewModel(appl
 	): ListenableFuture<SessionResult> {
 		var future: ListenableFuture<SessionResult>? = null
 		val listenerIterator = customCommandListenersImpl.iterator()
-		while (future == null || (future.isDone &&
-					future.get().resultCode == SessionResult.RESULT_ERROR_NOT_SUPPORTED)) {
+		while (listenerIterator.hasNext() && (future == null || (future.isDone &&
+					future.get().resultCode == SessionResult.RESULT_ERROR_NOT_SUPPORTED))) {
 			future = listenerIterator.next()(controller, command, args)
 		}
 		return future
