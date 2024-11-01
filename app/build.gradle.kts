@@ -18,7 +18,7 @@ plugins {
 android {
     val releaseType = if (project.hasProperty("releaseType")) project.properties["releaseType"].toString()
         else readProperties(file("../package.properties")).getProperty("releaseType")
-    val myVersionName = "." + "git rev-parse --short=6 HEAD".runCommand(workingDir = rootDir)
+    val myVersionName = "." + "git rev-parse --short=7 HEAD".runCommand(workingDir = rootDir)
     if (releaseType.contains("\"")) {
         throw IllegalArgumentException("releaseType must not contain \"")
     }
