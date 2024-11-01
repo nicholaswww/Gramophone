@@ -130,7 +130,7 @@ class MediaControllerViewModel(application: Application) : AndroidViewModel(appl
 					future.get().resultCode == SessionResult.RESULT_ERROR_NOT_SUPPORTED))) {
 			future = listenerIterator.next()(controller, command, args)
 		}
-		return future
+		return future ?: super.onCustomCommand(controller, command, args)
 	}
 
 	private class LifecycleHost : LifecycleOwner {
