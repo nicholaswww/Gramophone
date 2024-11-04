@@ -114,7 +114,7 @@ private sealed class SyntacticLrc {
 					continue
 				}
 				if (pendingBgNewLine) {
-					out.add(NewLine())
+					out.add(NewLine.SyntheticNewLine())
 					pendingBgNewLine = false
 					continue
 				}
