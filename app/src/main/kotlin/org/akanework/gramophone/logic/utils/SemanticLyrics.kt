@@ -95,31 +95,28 @@ private sealed class SyntacticLrc {
 			val out = mutableListOf<SyntacticLrc>()
 			var isBgSpeaker = false
 			while (pos < text.length) {
-				if (isBgSpeaker) {
-					if (pos + 2 < text.length && text.regionMatches(pos, "]\r\n", 0, 3)) {
-						out.add(NewLine())
-						pos += 3
-						isBgSpeaker = false
-						continue
-					}
-					if (pos + 1 < text.length && (text.regionMatches(pos, "]\r", 0, 2) ||
-								text.regionMatches(pos, "]\n", 0, 2))) {
-						out.add(NewLine())
-						pos += 2
-						isBgSpeaker = false
-						continue
-					}
-				} else {
-					if (pos + 1 < text.length && text.regionMatches(pos, "\r\n", 0, 2)) {
-						out.add(NewLine())
-						pos += 2
-						continue
-					}
-					if (text[pos] == '\n' || text[pos] == '\r') {
-						out.add(NewLine())
-						pos++
-						continue
-					}
+				var pendingBgNewLine = false
+				if (isBgSpeaker && text[pos] == ']') {
+					pos++
+					isBgSpeaker = false
+					pendingBgNewLine = true
+				}
+				if (pos < text.length && pos + 1 < text.length && text.regionMatches(pos, "\r\n", 0, 2)) {
+					out.add(NewLine())
+					pos += 2
+					pendingBgNewLine = false
+					continue
+				}
+				if (pos < text.length && (text[pos] == '\n' || text[pos] == '\r')) {
+					out.add(NewLine())
+					pos++
+					pendingBgNewLine = false
+					continue
+				}
+				if (pendingBgNewLine) {
+					out.add(NewLine())
+					pendingBgNewLine = false
+					continue
 				}
 				val tmMatch = timeMarksRegex.matchAt(text, pos)
 				if (tmMatch != null) {
