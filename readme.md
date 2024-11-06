@@ -10,6 +10,8 @@ A sane music player built with media3 and material design library that is follow
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
      alt="Get it on F-Droid"
      height="80">](https://f-droid.org/packages/org.akanework.gramophone/)
+[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height="80">](https://apt.izzysoft.de/fdroid/index/apk/org.akanework.gramophone)
+[<img src="https://play.google.com/intl/en_us/badges/images/generic/en-play-badge.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=org.akanework.gramophone)
 
 ## Features
 - Up-to-date material 3 design
@@ -53,6 +55,8 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## Notice
 - For bug reporting: [Telegram](https://t.me/FoedusDiscussion)
+- GitHub/F-Droid/IzzyOnDroid certificate SHA-256 digest: f451197ad7b80bd1bc981ba38a2c49d471856fb38bcc333676d6e8f8f3ce5d6e
+- Play Store certificate SHA-256 digest: 178869b0f9130d145b53404df4d4e5e311095406cb3c51a3e7a4b03bb3e87786
 
 ## Friends
 [SongSync](https://github.com/lambada10/songsync)
