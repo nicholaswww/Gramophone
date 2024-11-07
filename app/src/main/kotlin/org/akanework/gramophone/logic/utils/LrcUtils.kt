@@ -57,9 +57,9 @@ object LrcUtils {
             val plainTextData =
                 if (meta is VorbisComment && meta.key == "LYRICS") // ogg / flac
                     meta.value
-                else if (meta is BinaryFrame && meta.id == "USLT") // mp3 / other id3 based
-                    UsltFrameDecoder.decode(ParsableByteArray(meta.data))
-                else if (meta is TextInformationFrame && meta.id == "USLT") // m4a
+                else if (meta is BinaryFrame && (meta.id == "USLT" || meta.id == "SYLT")) // mp3 / other id3 based
+                    UsltFrameDecoder.decode(ParsableByteArray(meta.data)) // SYLT is also used to store lrc lyrics encoded in USLT format
+                else if (meta is TextInformationFrame && (meta.id == "USLT" || meta.id == "SYLT")) // m4a
                     meta.values.joinToString("\n")
                 else null
             return plainTextData?.let { parseLyrics(it, parserOptions) } ?: continue
