@@ -306,7 +306,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 						gradientProgress = lerpInv(gradientStartTime, gradientEndTime,
 							posForRender.toFloat())
 						if (gradientProgress >= 0f && gradientProgress <= 1f)
-							spanStartGradient = word.charRange.first
+							spanStartGradient = word.charRange.first // TODO be greedy and eat as much as the line as can be eaten (is in same text direction). to fix japanese text moving bug
 					}
 				} else {
 					spanEnd = it.text.length
