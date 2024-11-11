@@ -86,7 +86,6 @@ class MainActivity : AppCompatActivity() {
         private set
     lateinit var intentSender: ActivityResultLauncher<IntentSenderRequest>
         private set
-    var intentSenderAction: (() -> Boolean)? = null
 
     /**
      * updateLibrary:
@@ -112,17 +111,7 @@ class MainActivity : AppCompatActivity() {
         lifecycle.addObserver(controllerViewModel)
         enableEdgeToEdgeProperly()
         autoPlay = intent?.extras?.getBoolean(PLAYBACK_AUTO_START_FOR_FGS, false) == true
-        intentSender = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
-            if (it.resultCode == RESULT_OK) {
-                if (intentSenderAction != null) {
-                    intentSenderAction!!()
-                } else {
-                    Toast.makeText(this, getString(
-                        R.string.delete_in_progress), Toast.LENGTH_LONG).show()
-                }
-            }
-            intentSenderAction = null
-        }
+        intentSender = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {}
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(object :
             FragmentLifecycleCallbacks() {

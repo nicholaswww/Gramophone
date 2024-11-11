@@ -20,6 +20,8 @@ package org.akanework.gramophone.ui.adapters
 import android.net.Uri
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.IntentSenderRequest
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ShareCompat
 import androidx.core.content.FileProvider
@@ -41,6 +43,7 @@ import org.akanework.gramophone.ui.components.NowPlayingDrawable
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
+import uk.akane.libphonograph.manipulator.ItemManipulator
 import java.util.GregorianCalendar
 
 
@@ -278,41 +281,24 @@ class SongAdapter(
                     true
                 }
 
-                /*R.id.delete -> {
-                    val doDelete: (() -> (() -> Pair<IntentSender?, () -> Boolean>)) -> Unit = { r ->
-                        val res = r()()
-                        if (res.first == null) {
-                            res.second()
-                        } else {
-                            if (mainActivity.intentSenderAction == null) {
-                                mainActivity.intentSenderAction = res.second
-                                mainActivity.intentSender.launch(
-                                    IntentSenderRequest.Builder(res.first!!).build()
-                                )
-                            } else {
-                                Toast.makeText(
-                                    context, context.getString(
-                                        R.string.delete_in_progress
-                                    ), Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        }
-                    }
-                    val res = MediaStoreUtils.deleteSong(context, item)
-                    if (res.first) {
+                R.id.delete -> {
+                    val res = ItemManipulator.deleteSong(context, item.mediaId.toLong())
+                    if (res.continueDelete != null) {
                         AlertDialog.Builder(context)
                             .setTitle(R.string.delete)
                             .setMessage(item.mediaMetadata.title)
                             .setPositiveButton(R.string.yes) { _, _ ->
-                                doDelete(res.second)
+                                res.continueDelete?.invoke()
                             }
                             .setNegativeButton(R.string.no) { _, _ -> }
                             .show()
                     } else {
-                        doDelete(res.second)
+                        mainActivity.intentSender.launch(
+                            IntentSenderRequest.Builder(res.startSystemDialog!!).build()
+                        )
                     }
                     true
-                }*/
+                }
 
                 R.id.share -> {
                     val mediaItem = viewModel.mediaItemList.value?.find {
