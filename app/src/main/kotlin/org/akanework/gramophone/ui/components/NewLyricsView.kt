@@ -257,6 +257,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 		spForRender!!.forEachIndexed { i, it ->
 			var spanEnd = -1
 			var spanStartGradient = -1
+			var realGradientStart = -1
+			var realGradientEnd = -1
 			var wordIdx: Int? = null
 			var gradientProgress = Float.NEGATIVE_INFINITY
 			val firstTs = lines?.get(i)?.lyric?.start ?: ULong.MIN_VALUE
@@ -305,8 +307,24 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 							firstTs.toFloat() - timeOffsetForUse), gradientEndTime - 1f)
 						gradientProgress = lerpInv(gradientStartTime, gradientEndTime,
 							posForRender.toFloat())
-						if (gradientProgress >= 0f && gradientProgress <= 1f)
-							spanStartGradient = word.charRange.first // TODO be greedy and eat as much as the line as can be eaten (is in same text direction). to fix japanese text moving bug
+						if (gradientProgress >= 0f && gradientProgress <= 1f) {
+							spanStartGradient = word.charRange.first
+							// be greedy and eat as much as the line as can be eaten (text that is
+							// same line + is in same text direction). improves font rendering for
+							// japanese if font rendering renders whole text in one pass
+							val wordStartLine = it.layout.getLineForOffset(word.charRange.first)
+							val wordEndLine = it.layout.getLineForOffset(word.charRange.endInclusive)
+							val firstCharOnStartLine = it.layout.getLineStart(wordStartLine)
+							val lastCharOnEndLineExcl = it.layout.getLineEnd(wordEndLine)
+							realGradientStart = lines[i].lyric.words?.lastOrNull {
+								it.charRange.first >= firstCharOnStartLine && it.charRange.last <
+										word.charRange.first && it.isRtl != word.isRtl }?.charRange
+								?.last?.plus(1) ?: firstCharOnStartLine
+							realGradientEnd = lines[i].lyric.words?.firstOrNull {
+								it.charRange.first > word.charRange.last && it.charRange.last <
+										lastCharOnEndLineExcl && it.isRtl != word.isRtl }?.charRange
+								?.first ?: lastCharOnEndLineExcl
+						}
 					}
 				} else {
 					spanEnd = it.text.length
@@ -322,7 +340,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 			}
 			if (gradientProgress >= -.1f && gradientProgress <= 1f)
 				animating = true
-			val spanEndWithoutGradient = if (spanStartGradient == -1) spanEnd else spanStartGradient
+			val spanEndWithoutGradient = if (realGradientStart == -1) spanEnd else realGradientStart
 			val inColorAnim = (scaleInProgress >= 0f && scaleInProgress <= 1f && gradientProgress ==
 					Float.NEGATIVE_INFINITY) || (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
 			var colorSpan = it.text.getSpans<MyForegroundColorSpan>().firstOrNull()
@@ -404,7 +422,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 								else -> makeGradientSpan()
 							}
 						}
-					it.text.setSpan(gradientSpan, spanStartGradient, spanEnd,
+					it.text.setSpan(gradientSpan, realGradientStart, realGradientEnd,
 						Spanned.SPAN_INCLUSIVE_INCLUSIVE)
 				}
 			}

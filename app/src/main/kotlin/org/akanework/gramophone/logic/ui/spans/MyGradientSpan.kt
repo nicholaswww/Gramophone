@@ -34,9 +34,12 @@ class MyGradientSpan(val gradientWidth: Float, color: Int, highlightColor: Int) 
 		val ourProgress = if (lineOffsets[o + 4] == -1) 1f - ourProgressLtr else ourProgressLtr
 		shader.setLocalMatrix(matrix.apply {
 			reset()
+			//val overhangToRemove = max(0f, min(((lineOffsets[o + 1] + gradientWidth) * ourProgress) - lineOffsets[o + 1], gradientWidth - 1))
+			val overhangToRemove = gradientWidth - 1f
+			postScale((1f / gradientWidth) * (gradientWidth - overhangToRemove), 1f)
 			if (lineOffsets[o + 4] == -1) postRotate(180f, gradientWidth / 2f, 1f)
-			postTranslate(preOffsetFromLeft + (lineOffsets[o + 1] + gradientWidth * 2) * ourProgress
-					- gradientWidth * 2f, 0f)
+			postTranslate(preOffsetFromLeft + lineOffsets[o + 1] * ourProgress, 0f)
+			postTranslate(gradientWidth * (ourProgress - 1f), 0f)
 		})
 		tp.shader = shader
 		lineCount++
