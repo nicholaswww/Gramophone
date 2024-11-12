@@ -52,7 +52,7 @@ class EndedWorkaroundPlayer(player: ExoPlayer) : ForwardingPlayer(player), Playe
 
     override fun getPlaybackState(): Int {
         if (isEnded) return STATE_ENDED
-        return super.playbackState
+        return super.getPlaybackState()
     }
 
     fun setShuffleOrder(
