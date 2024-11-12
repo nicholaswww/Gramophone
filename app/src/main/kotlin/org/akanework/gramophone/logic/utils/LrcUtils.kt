@@ -9,11 +9,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.metadata.id3.BinaryFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
-import org.akanework.gramophone.logic.replaceAllSupport
-import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
 import java.io.File
 import java.nio.charset.Charset
 import kotlin.math.min
+import org.akanework.gramophone.logic.replaceAllSupport
+import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
 
 object LrcUtils {
 
@@ -23,17 +23,17 @@ object LrcUtils {
 
     @VisibleForTesting
     fun parseLyrics(lyrics: String, parserOptions: LrcParserOptions): SemanticLyrics? {
-         return (try {
-             parseTtml(lyrics, parserOptions.trim)
-         } catch (e: Exception) {
-             Log.e(TAG, Log.getStackTraceString(e))
-             SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText))
+        return (try {
+            parseTtml(lyrics, parserOptions.trim)
+        } catch (e: Exception) {
+            Log.e(TAG, Log.getStackTraceString(e))
+            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText))
         } ?: try {
-             parseSrt(lyrics, parserOptions.trim)
-         } catch (e: Exception) {
-             Log.e(TAG, Log.getStackTraceString(e))
-             SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText))
-         } ?: try {
+            parseSrt(lyrics, parserOptions.trim)
+        } catch (e: Exception) {
+            Log.e(TAG, Log.getStackTraceString(e))
+            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText))
+        } ?: try {
             parseLrc(lyrics, parserOptions.trim, parserOptions.multiLine)
         } catch (e: Exception) {
             Log.e(TAG, Log.getStackTraceString(e))
@@ -42,11 +42,14 @@ object LrcUtils {
             if (it is SemanticLyrics.SyncedLyrics)
                 splitBidirectionalWords(it)
             else it
-         }
+        }
     }
 
     @OptIn(UnstableApi::class)
-    fun extractAndParseLyrics(metadata: Metadata, parserOptions: LrcParserOptions): SemanticLyrics? {
+    fun extractAndParseLyrics(
+        metadata: Metadata,
+        parserOptions: LrcParserOptions
+    ): SemanticLyrics? {
         for (i in 0..<metadata.length()) {
             val meta = metadata.get(i)
             // TODO https://id3.org/id3v2.4.0-frames implement SYLT
@@ -70,7 +73,12 @@ object LrcUtils {
     @OptIn(UnstableApi::class)
     fun loadAndParseLyricsFile(musicFile: File?, parserOptions: LrcParserOptions): SemanticLyrics? {
         val lrcFile = musicFile?.let { File(it.parentFile, it.nameWithoutExtension + ".lrc") }
-        return loadTextFile(lrcFile, parserOptions.errorText)?.let { parseLyrics(it, parserOptions) }
+        return loadTextFile(lrcFile, parserOptions.errorText)?.let {
+            parseLyrics(
+                it,
+                parserOptions
+            )
+        }
     }
 
     private fun loadTextFile(lrcFile: File?, errorText: String?): String? {
@@ -91,15 +99,18 @@ object LrcUtils {
             val wordsWithBarriers = line.lyric.words.toMutableList()
             var lastWasRtl = false
             bidirectionalBarriers.forEach { barrier ->
-                val evilWordIndex = if (barrier.first == -1) -1 else wordsWithBarriers.indexOfFirst {
-                    it.charRange.contains(barrier.first) && it.charRange.start != barrier.first }
+                val evilWordIndex =
+                    if (barrier.first == -1) -1 else wordsWithBarriers.indexOfFirst {
+                        it.charRange.contains(barrier.first) && it.charRange.start != barrier.first
+                    }
                 if (evilWordIndex == -1) {
                     // Propagate the new direction (if there is a barrier after that, direction will
                     // be corrected after it).
                     val wordIndex = if (barrier.first == -1) 0 else
                         wordsWithBarriers.indexOfFirst { it.charRange.start == barrier.first }
                     wordsWithBarriers.replaceAllSupport(skipFirst = wordIndex) {
-                        if (it.isRtl != barrier.second) it.copy(isRtl = barrier.second) else it }
+                        if (it.isRtl != barrier.second) it.copy(isRtl = barrier.second) else it
+                    }
                     lastWasRtl = barrier.second
                     return@forEach
                 }
@@ -110,10 +121,14 @@ object LrcUtils {
                     it.timeRange.count() / it.charRange.count().toFloat()
                 }.average().let { if (it.isNaN()) 100.0 else it } * (barrier.first -
                         evilWord.charRange.first))).toULong(), evilWord.timeRange.last - 1uL)
-                val firstPart = Word(charRange = evilWord.charRange.first..<barrier.first,
-                    timeRange = evilWord.timeRange.first..<barrierTime, isRtl = lastWasRtl)
-                val secondPart = Word(charRange = barrier.first..evilWord.charRange.last,
-                    timeRange = barrierTime..evilWord.timeRange.last, isRtl = barrier.second)
+                val firstPart = Word(
+                    charRange = evilWord.charRange.first..<barrier.first,
+                    timeRange = evilWord.timeRange.first..<barrierTime, isRtl = lastWasRtl
+                )
+                val secondPart = Word(
+                    charRange = barrier.first..evilWord.charRange.last,
+                    timeRange = barrierTime..evilWord.timeRange.last, isRtl = barrier.second
+                )
                 wordsWithBarriers[evilWordIndex] = firstPart
                 wordsWithBarriers.add(evilWordIndex + 1, secondPart)
                 lastWasRtl = barrier.second
@@ -122,14 +137,26 @@ object LrcUtils {
         })
     }
 
-    private val ltr = arrayOf(Character.DIRECTIONALITY_LEFT_TO_RIGHT, Character.DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING, Character.DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE)
-    private val rtl = arrayOf(Character.DIRECTIONALITY_RIGHT_TO_LEFT, Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC, Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING, Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE)
+    private val ltr =
+        arrayOf(
+            Character.DIRECTIONALITY_LEFT_TO_RIGHT,
+            Character.DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING,
+            Character.DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE
+        )
+    private val rtl =
+        arrayOf(
+            Character.DIRECTIONALITY_RIGHT_TO_LEFT,
+            Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC,
+            Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING,
+            Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE
+        )
+
     private fun findBidirectionalBarriers(text: String): List<Pair<Int, Boolean>> {
         val barriers = mutableListOf<Pair<Int, Boolean>>()
         if (text.isEmpty()) return barriers
         var previousDirection = text.find {
-	        val dir = Character.getDirectionality(it)
-	        dir in ltr || dir in rtl
+            val dir = Character.getDirectionality(it)
+            dir in ltr || dir in rtl
         }?.let { Character.getDirectionality(it) in rtl } == true
         barriers.add(Pair(-1, previousDirection))
         for (i in 0 until text.length) {
@@ -145,7 +172,10 @@ object LrcUtils {
     }
 
     @OptIn(UnstableApi::class)
-    fun extractAndParseLyricsLegacy(metadata: Metadata, parserOptions: LrcParserOptions): MutableList<MediaStoreUtils.Lyric>? {
+    fun extractAndParseLyricsLegacy(
+        metadata: Metadata,
+        parserOptions: LrcParserOptions
+    ): MutableList<MediaStoreUtils.Lyric>? {
         for (i in 0..<metadata.length()) {
             val meta = metadata.get(i)
             val data =
@@ -170,7 +200,10 @@ object LrcUtils {
     }
 
     @OptIn(UnstableApi::class)
-    fun loadAndParseLyricsFileLegacy(musicFile: File?, parserOptions: LrcParserOptions): MutableList<MediaStoreUtils.Lyric>? {
+    fun loadAndParseLyricsFileLegacy(
+        musicFile: File?,
+        parserOptions: LrcParserOptions
+    ): MutableList<MediaStoreUtils.Lyric>? {
         val lrcFile = musicFile?.let { File(it.parentFile, it.nameWithoutExtension + ".lrc") }
         return loadTextFile(lrcFile, parserOptions.errorText)?.let {
             try {
@@ -178,7 +211,8 @@ object LrcUtils {
             } catch (e: Exception) {
                 Log.e(TAG, Log.getStackTraceString(e))
                 null
-            } }
+            }
+        }
     }
 
     private fun parseLrcStringLegacy(
@@ -196,7 +230,9 @@ object LrcUtils {
             val matches = timeMarksRegex.findAll(line).toList()
             if (matches.isEmpty()) return@forEach
 
-            val lyricContent = line.substring(matches.last().range.last + 1).let { if (parserOptions.trim) it.trim() else it }
+            val lyricContent =
+                line.substring(matches.last().range.last + 1)
+                    .let { if (parserOptions.trim) it.trim() else it }
 
             matches.forEach { match ->
                 val timeString = match.groupValues[1] + match.groupValues[2]
@@ -210,7 +246,8 @@ object LrcUtils {
                 val lyricLine = if (parserOptions.multiLine) {
                     val startIndex = lrcContent.indexOf(line) + match.value.length
                     val endIndex = findEndIndex(lrcContent, startIndex, timeMarksRegex)
-                    lrcContent.substring(startIndex, endIndex).let { if (parserOptions.trim) it.trim() else it }
+                    lrcContent.substring(startIndex, endIndex)
+                        .let { if (parserOptions.trim) it.trim() else it }
                 } else {
                     lyricContent
                 }
@@ -341,7 +378,12 @@ private class UsltFrameDecoder {
                 2
         }
 
-        private fun decodeStringIfValid(data: ByteArray, from: Int, to: Int, charset: Charset): String {
+        private fun decodeStringIfValid(
+            data: ByteArray,
+            from: Int,
+            to: Int,
+            charset: Charset
+        ): String {
             return if (to <= from || to > data.size) {
                 ""
             } else String(data, from, to - from, charset)

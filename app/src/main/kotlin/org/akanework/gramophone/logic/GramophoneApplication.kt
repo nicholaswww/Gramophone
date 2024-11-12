@@ -41,12 +41,12 @@ import coil3.fetch.ImageFetchResult
 import coil3.request.NullRequestDataException
 import coil3.size.pxOrElse
 import coil3.util.Logger
-import org.akanework.gramophone.BuildConfig
-import org.akanework.gramophone.logic.ui.BugHandlerActivity
-import org.akanework.gramophone.ui.LyricWidgetProvider
 import java.io.File
 import java.io.IOException
 import kotlin.system.exitProcess
+import org.akanework.gramophone.BuildConfig
+import org.akanework.gramophone.logic.ui.BugHandlerActivity
+import org.akanework.gramophone.ui.LyricWidgetProvider
 
 /**
  * GramophoneApplication
@@ -71,12 +71,17 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             // Use StrictMode to find anti-pattern issues
             StrictMode.setThreadPolicy(
                 ThreadPolicy.Builder()
-                    .detectAll().permitDiskReads() // permit disk reads due to media3 setMetadata() TODO extra player thread
-                    .penaltyLog().penaltyDialog().build())
+                    .detectAll()
+                    .permitDiskReads() // permit disk reads due to media3 setMetadata() TODO extra player thread
+                    .penaltyLog()
+                    .penaltyDialog()
+                    .build()
+            )
             StrictMode.setVmPolicy(
                 VmPolicy.Builder()
                     .detectAll()
-                    .penaltyLog().penaltyDeath().build())
+                    .penaltyLog().penaltyDeath().build()
+            )
         }
         // This is a separate thread to avoid disk read on main thread and improve startup time
         Thread {
@@ -119,36 +124,38 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                         return@Factory Fetcher {
                             ImageFetchResult(
                                 ThumbnailUtils.createAudioThumbnail(file, options.size.let {
-                                        Size(it.width.pxOrElse { size?.width ?: 10000 },
-                                            it.height.pxOrElse { size?.height ?: 10000 })
-                                    }, null).asImage(), true, DataSource.DISK)
+                                    Size(it.width.pxOrElse { size?.width ?: 10000 },
+                                        it.height.pxOrElse { size?.height ?: 10000 })
+                                }, null).asImage(), true, DataSource.DISK
+                            )
                         }
                     })
                 }
             }
             .run {
                 if (!BuildConfig.DEBUG) this else
-                logger(object : Logger {
-                    override var minLevel = Logger.Level.Verbose
-                    override fun log(
-                        tag: String,
-                        level: Logger.Level,
-                        message: String?,
-                        throwable: Throwable?
-                    ) {
-                        if (level < minLevel) return
-                        val priority = level.ordinal + 2 // obviously the best way to do it
-                        if (message != null) {
-                            Log.println(priority, tag, message)
+                    logger(object : Logger {
+                        override var minLevel = Logger.Level.Verbose
+                        override fun log(
+                            tag: String,
+                            level: Logger.Level,
+                            message: String?,
+                            throwable: Throwable?
+                        ) {
+                            if (level < minLevel) return
+                            val priority = level.ordinal + 2 // obviously the best way to do it
+                            if (message != null) {
+                                Log.println(priority, tag, message)
+                            }
+                            // Let's keep the log readable and ignore normal events' stack traces.
+                            if (throwable != null && throwable !is NullRequestDataException
+                                && (throwable !is IOException
+                                        || throwable.message != "No album art found")
+                            ) {
+                                Log.println(priority, tag, Log.getStackTraceString(throwable))
+                            }
                         }
-                        // Let's keep the log readable and ignore normal events' stack traces.
-                        if (throwable != null && throwable !is NullRequestDataException
-                            && (throwable !is IOException
-                                    || throwable.message != "No album art found")) {
-                            Log.println(priority, tag, Log.getStackTraceString(throwable))
-                        }
-                    }
-                })
+                    })
             }
             .build()
     }

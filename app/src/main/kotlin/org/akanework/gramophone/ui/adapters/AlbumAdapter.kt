@@ -60,7 +60,8 @@ class AlbumAdapter(
         null,
         false,
         isSubFragment = isSubFragment,
-        fallbackSpans = fallbackSpans) {
+        fallbackSpans = fallbackSpans
+    ) {
         updateList(albumList, now = true, false)
     }
 

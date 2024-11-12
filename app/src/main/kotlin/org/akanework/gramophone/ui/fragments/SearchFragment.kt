@@ -68,9 +68,11 @@ class SearchFragment : BaseFragment(false) {
         editText = rootView.findViewById(R.id.edit_text)
         val recyclerView = rootView.findViewById<MyRecyclerView>(R.id.recyclerview)
         val songAdapter =
-            SongAdapter(this, listOf(),
+            SongAdapter(
+                this, listOf(),
                 true, null, false, isSubFragment = true,
-                allowDiffUtils = true, rawOrderExposed = true)
+                allowDiffUtils = true, rawOrderExposed = true
+            )
         val returnButton = rootView.findViewById<Button>(R.id.return_button)
 
         recyclerView.enableEdgeToEdgePaddingListener(ime = true)
@@ -96,9 +98,9 @@ class SearchFragment : BaseFragment(false) {
                     libraryViewModel.mediaItemList.value?.filter {
                         val isMatchingTitle = it.mediaMetadata.title?.contains(text, true) == true
                         val isMatchingAlbum =
-	                        it.mediaMetadata.albumTitle?.contains(text, true) == true
+                            it.mediaMetadata.albumTitle?.contains(text, true) == true
                         val isMatchingArtist =
-	                        it.mediaMetadata.artist?.contains(text, true) == true
+                            it.mediaMetadata.artist?.contains(text, true) == true
                         isMatchingTitle || isMatchingAlbum || isMatchingArtist
                     }?.let {
                         filteredList.addAll(

@@ -76,22 +76,32 @@ class ViewPagerFragment : BaseFragment(true) {
 
         appBarLayout = rootView.findViewById(R.id.appbarlayout)
         appBarLayout.enableEdgeToEdgePaddingListener()
-        topAppBar.overflowIcon = AppCompatResources.getDrawable(requireContext(), R.drawable.ic_more_vert_alt_topappbar)
+        topAppBar.overflowIcon =
+            AppCompatResources.getDrawable(requireContext(), R.drawable.ic_more_vert_alt_topappbar)
 
         topAppBar.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.search -> {
                     (requireActivity() as MainActivity).startFragment(SearchFragment())
                 }
+
                 R.id.equalizer -> {
-                    val intent = Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
-                        // EXTRA_PACKAGE_NAME is probably not needed but might as well add for good measure
-                        putExtra(AudioEffect.EXTRA_PACKAGE_NAME, requireContext().packageName)
-                        putExtra(AudioEffect.EXTRA_AUDIO_SESSION, (requireActivity() as MainActivity).getPlayer()?.getSessionId())
-                        putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
-                    }
+                    val intent =
+                        Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
+                            // EXTRA_PACKAGE_NAME is probably not needed but might as well add for good measure
+                            putExtra(AudioEffect.EXTRA_PACKAGE_NAME, requireContext().packageName)
+                            putExtra(
+                                AudioEffect.EXTRA_AUDIO_SESSION,
+                                (requireActivity() as MainActivity).getPlayer()?.getSessionId()
+                            )
+                            putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+                        }
                     try {
-                        if (Settings.System.getString(requireContext().contentResolver, "firebase.test.lab") != "true") {
+                        if (Settings.System.getString(
+                                requireContext().contentResolver,
+                                "firebase.test.lab"
+                            ) != "true"
+                        ) {
                             (requireActivity() as MainActivity).startingActivity.launch(intent)
                         }
                     } catch (_: ActivityNotFoundException) {
@@ -103,6 +113,7 @@ class ViewPagerFragment : BaseFragment(true) {
                         ).show()
                     }
                 }
+
                 R.id.refresh -> {
                     val activity = requireActivity() as MainActivity
                     val playerLayout = activity.playerBottomSheet
@@ -159,9 +170,11 @@ class ViewPagerFragment : BaseFragment(true) {
                         snackBar.show()
                     }
                 }
+
                 R.id.settings -> {
                     (requireActivity() as MainActivity).startFragment(MainSettingsFragment())
                 }
+
                 R.id.shuffle -> {
                     val controller = (requireActivity() as MainActivity).getPlayer()
                     libraryViewModel.mediaItemList.value?.takeIf { it.isNotEmpty() }?.also {
@@ -181,7 +194,13 @@ class ViewPagerFragment : BaseFragment(true) {
 
         // Set this to 9999 so it won't lag anymore.
         viewPager2.offscreenPageLimit = 9999
-        val adapter = ViewPager2Adapter(childFragmentManager, viewLifecycleOwner.lifecycle, requireContext(), viewPager2)
+        val adapter =
+            ViewPager2Adapter(
+                childFragmentManager,
+                viewLifecycleOwner.lifecycle,
+                requireContext(),
+                viewPager2
+            )
         viewPager2.adapter = adapter
         TabLayoutMediator(tabLayout, viewPager2) { tab, position ->
             tab.text = getString(adapter.getLabelResId(position))
@@ -198,7 +217,8 @@ class ViewPagerFragment : BaseFragment(true) {
                     lp.marginEnd = if (position == tabLayout.tabCount - 1)
                         resources.getDimension(R.dimen.tab_layout_content_padding).toInt() else 0
                     tab.view.layoutParams = lp
-                } catch (_: IllegalStateException) {}
+                } catch (_: IllegalStateException) {
+                }
             }
         }.attach()
 

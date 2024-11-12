@@ -111,7 +111,8 @@ class MainActivity : AppCompatActivity() {
         lifecycle.addObserver(controllerViewModel)
         enableEdgeToEdgeProperly()
         autoPlay = intent?.extras?.getBoolean(PLAYBACK_AUTO_START_FOR_FGS, false) == true
-        intentSender = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {}
+        intentSender =
+            registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {}
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(object :
             FragmentLifecycleCallbacks() {
@@ -233,7 +234,8 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         // https://github.com/androidx/media/issues/805
         if (needsMissingOnDestroyCallWorkarounds()
-            && (getPlayer()?.playWhenReady != true || getPlayer()?.mediaItemCount == 0)) {
+            && (getPlayer()?.playWhenReady != true || getPlayer()?.mediaItemCount == 0)
+        ) {
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             nm.cancel(DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID)
         }

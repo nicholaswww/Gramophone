@@ -27,8 +27,8 @@ class DetailDialogFragment : BaseFragment(false) {
 
     private val libraryViewModel: LibraryViewModel by activityViewModels()
 
-	@OptIn(UnstableApi::class)
-	override fun onCreateView(
+    @OptIn(UnstableApi::class)
+    override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -77,7 +77,8 @@ class DetailDialogFragment : BaseFragment(false) {
             genreTextView.text = mediaMetadata.genre
         }
         if (mediaMetadata.releaseYear != null || mediaMetadata.recordingYear != null) {
-            yearTextView.text = (mediaMetadata.releaseYear ?: mediaMetadata.recordingYear)?.toLocaleString()
+            yearTextView.text =
+                (mediaMetadata.releaseYear ?: mediaMetadata.recordingYear)?.toLocaleString()
         }
         mediaMetadata.durationMs?.let { durationTextView.text = convertDurationToTimeStamp(it) }
         mimeTypeTextView.text = mediaItem.localConfiguration?.mimeType ?: "(null)"

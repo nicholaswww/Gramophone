@@ -62,12 +62,13 @@ object MediaStoreUtils {
             context.resources.getInteger(R.integer.filter_default_sec)
         )
         val folderFilter = prefs.getStringSet("folderFilter", setOf()) ?: setOf()
-        return Reader.readFromMediaStore(context,
+        return Reader.readFromMediaStore(
+            context,
             { uri, mediaId, mimeType, title, writer, compilation, composer, artist,
-                              albumTitle, albumArtist, artworkUri, cdTrackNumber, trackNumber,
-                              discNumber, genre, recordingDay, recordingMonth, recordingYear,
-                              releaseYear, artistId, albumId, genreId, author, addDate, duration,
-                              modifiedDate ->
+                albumTitle, albumArtist, artworkUri, cdTrackNumber, trackNumber,
+                discNumber, genre, recordingDay, recordingMonth, recordingYear,
+                releaseYear, artistId, albumId, genreId, author, addDate, duration,
+                modifiedDate ->
                 return@readFromMediaStore MediaItem
                     .Builder()
                     .setUri(uri)
@@ -124,7 +125,11 @@ object MediaStoreUtils {
         )
     }
 
-    fun updateLibraryWithInCoroutine(libraryViewModel: LibraryViewModel, context: Context, then: (() -> Unit)?) {
+    fun updateLibraryWithInCoroutine(
+        libraryViewModel: LibraryViewModel,
+        context: Context,
+        then: (() -> Unit)?
+    ) {
         val pairObject = getAllSongs(context)
         CoroutineScope(Dispatchers.Main).launch {
             libraryViewModel.mediaItemList.value = pairObject.songList

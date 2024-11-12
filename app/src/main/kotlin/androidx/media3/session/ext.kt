@@ -5,12 +5,13 @@ import android.os.Looper
 // see MeiZuLyricsMediaNotificationProvider
 
 var isManualNotificationUpdate = false
-	private set
+    private set
+
 // onUpdateNotificationInternal is package-private
 fun MediaSessionService.doUpdateNotification(session: MediaSession) {
-	if (Looper.myLooper() != session.player.applicationLooper)
-		throw UnsupportedOperationException("wrong looper for doUpdateNotification")
-	isManualNotificationUpdate = true
-	onUpdateNotificationInternal(session, false)
-	isManualNotificationUpdate = false
+    if (Looper.myLooper() != session.player.applicationLooper)
+        throw UnsupportedOperationException("wrong looper for doUpdateNotification")
+    isManualNotificationUpdate = true
+    onUpdateNotificationInternal(session, false)
+    isManualNotificationUpdate = false
 }

@@ -30,17 +30,19 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession.MediaItemsWithStartPosition
+import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.logic.use
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
-import java.nio.charset.StandardCharsets
 
 @OptIn(UnstableApi::class)
-class LastPlayedManager(context: Context,
-                        private val controller: EndedWorkaroundPlayer) {
+class LastPlayedManager(
+    context: Context,
+    private val controller: EndedWorkaroundPlayer
+) {
 
     companion object {
         private const val TAG = "LastPlayedManager"
@@ -83,8 +85,10 @@ class LastPlayedManager(context: Context,
         val ended = controller.playbackState == Player.STATE_ENDED
         CoroutineScope(Dispatchers.Default).launch {
             if (BuildConfig.DEBUG) {
-                Log.d(TAG, "saving playlist (${data.mediaItems.size} items, repeat $repeatMode, " +
-                        "shuffle $shuffleModeEnabled, ended $ended)...")
+                Log.d(
+                    TAG, "saving playlist (${data.mediaItems.size} items, repeat $repeatMode, " +
+                            "shuffle $shuffleModeEnabled, ended $ended)..."
+                )
             }
             val lastPlayed = PrefsListUtils.dump(
                 data.mediaItems.map {
@@ -143,7 +147,12 @@ class LastPlayedManager(context: Context,
         }
         CoroutineScope(Dispatchers.Default).launch {
             val seed = try {
-                CircularShuffleOrder.Persistent.deserialize(prefs.getString("shuffle_persist", null))
+                CircularShuffleOrder.Persistent.deserialize(
+                    prefs.getString(
+                        "shuffle_persist",
+                        null
+                    )
+                )
             } catch (e: Exception) {
                 eraseShuffleOrder()
                 throw e
@@ -166,95 +175,98 @@ class LastPlayedManager(context: Context,
                 )
                 val data = MediaItemsWithStartPosition(
                     PrefsListUtils.parse(lastPlayedLst, lastPlayedGrp)
-                    .map {
-                        val b = SafeDelimitedStringDecat(":", it)
-                        val mediaId = b.readStringUnsafe()
-                        val uri = b.readUri()
-                        val mimeType = b.readStringSafe()
-                        val title = b.readStringSafe()
-                        val artist = b.readStringSafe()
-                        val album = b.readStringSafe()
-                        val albumArtist = b.readStringSafe()
-                        val imgUri = b.readUri()
-                        val trackNumber = b.readInt()
-                        val discNumber = b.readInt()
-                        val recordingYear = b.readInt()
-                        val releaseYear = b.readInt()
-                        val isBrowsable = b.readBool()
-                        val isPlayable = b.readBool()
-                        val addDate = b.readLong()
-                        val writer = b.readStringSafe()
-                        val compilation = b.readStringSafe()
-                        val composer = b.readStringSafe()
-                        val genre = b.readStringSafe()
-                        val recordingDay = b.readInt()
-                        val recordingMonth = b.readInt()
-                        val artistId = b.readLong()
-                        val albumId = b.readLong()
-                        val genreId = b.readLong()
-                        val author = b.readStringSafe()
-                        val cdTrackNumber = b.readInt()
-                        val duration = b.readLong()
-                        val path = b.readStringUnsafe()
-                        val modifiedDate = b.readLong()
-                        MediaItem.Builder()
-                            .setUri(uri)
-                            .setMediaId(mediaId!!)
-                            .setMimeType(mimeType)
-                            .setMediaMetadata(
-                                MediaMetadata
-                                    .Builder()
-                                    .setTitle(title)
-                                    .setArtist(artist)
-                                    .setWriter(writer)
-                                    .setComposer(composer)
-                                    .setGenre(genre)
-                                    .setCompilation(compilation)
-                                    .setRecordingDay(recordingDay)
-                                    .setRecordingMonth(recordingMonth)
-                                    .setAlbumTitle(album)
-                                    .setAlbumArtist(albumArtist)
-                                    .setArtworkUri(imgUri)
-                                    .setTrackNumber(trackNumber)
-                                    .setDiscNumber(discNumber)
-                                    .setRecordingYear(recordingYear)
-                                    .setReleaseYear(releaseYear)
-                                    .setDurationMs(duration)
-                                    .setIsBrowsable(isBrowsable)
-                                    .setIsPlayable(isPlayable)
-                                    .setExtras(Bundle().apply {
-                                        if (addDate != null) {
-                                            putLong("AddDate", addDate)
-                                        }
-                                        if (artistId != null) {
-                                            putLong("ArtistId", artistId)
-                                        }
-                                        if (albumId != null) {
-                                            putLong("AlbumId", albumId)
-                                        }
-                                        if (genreId != null) {
-                                            putLong("GenreId", genreId)
-                                        }
-                                        if (cdTrackNumber != null) {
-                                            putInt("CdTrackNumber", cdTrackNumber)
-                                        }
-                                        putString("Author", author)
-                                        putString("Path", path)
-                                        if (modifiedDate != null) {
-                                            putLong("ModifiedDate", modifiedDate)
-                                        }
-                                    })
-                                    .build()
-                            )
-                            .build()
-                    },
+                        .map {
+                            val b = SafeDelimitedStringDecat(":", it)
+                            val mediaId = b.readStringUnsafe()
+                            val uri = b.readUri()
+                            val mimeType = b.readStringSafe()
+                            val title = b.readStringSafe()
+                            val artist = b.readStringSafe()
+                            val album = b.readStringSafe()
+                            val albumArtist = b.readStringSafe()
+                            val imgUri = b.readUri()
+                            val trackNumber = b.readInt()
+                            val discNumber = b.readInt()
+                            val recordingYear = b.readInt()
+                            val releaseYear = b.readInt()
+                            val isBrowsable = b.readBool()
+                            val isPlayable = b.readBool()
+                            val addDate = b.readLong()
+                            val writer = b.readStringSafe()
+                            val compilation = b.readStringSafe()
+                            val composer = b.readStringSafe()
+                            val genre = b.readStringSafe()
+                            val recordingDay = b.readInt()
+                            val recordingMonth = b.readInt()
+                            val artistId = b.readLong()
+                            val albumId = b.readLong()
+                            val genreId = b.readLong()
+                            val author = b.readStringSafe()
+                            val cdTrackNumber = b.readInt()
+                            val duration = b.readLong()
+                            val path = b.readStringUnsafe()
+                            val modifiedDate = b.readLong()
+                            MediaItem.Builder()
+                                .setUri(uri)
+                                .setMediaId(mediaId!!)
+                                .setMimeType(mimeType)
+                                .setMediaMetadata(
+                                    MediaMetadata
+                                        .Builder()
+                                        .setTitle(title)
+                                        .setArtist(artist)
+                                        .setWriter(writer)
+                                        .setComposer(composer)
+                                        .setGenre(genre)
+                                        .setCompilation(compilation)
+                                        .setRecordingDay(recordingDay)
+                                        .setRecordingMonth(recordingMonth)
+                                        .setAlbumTitle(album)
+                                        .setAlbumArtist(albumArtist)
+                                        .setArtworkUri(imgUri)
+                                        .setTrackNumber(trackNumber)
+                                        .setDiscNumber(discNumber)
+                                        .setRecordingYear(recordingYear)
+                                        .setReleaseYear(releaseYear)
+                                        .setDurationMs(duration)
+                                        .setIsBrowsable(isBrowsable)
+                                        .setIsPlayable(isPlayable)
+                                        .setExtras(Bundle().apply {
+                                            if (addDate != null) {
+                                                putLong("AddDate", addDate)
+                                            }
+                                            if (artistId != null) {
+                                                putLong("ArtistId", artistId)
+                                            }
+                                            if (albumId != null) {
+                                                putLong("AlbumId", albumId)
+                                            }
+                                            if (genreId != null) {
+                                                putLong("GenreId", genreId)
+                                            }
+                                            if (cdTrackNumber != null) {
+                                                putInt("CdTrackNumber", cdTrackNumber)
+                                            }
+                                            putString("Author", author)
+                                            putString("Path", path)
+                                            if (modifiedDate != null) {
+                                                putLong("ModifiedDate", modifiedDate)
+                                            }
+                                        })
+                                        .build()
+                                )
+                                .build()
+                        },
                     lastPlayedIdx,
                     lastPlayedPos
                 )
                 runCallback(callback, seed) {
                     if (BuildConfig.DEBUG) {
-                        Log.d(TAG, "restoring playlist (${data.mediaItems.size} items, repeat $repeatMode, " +
-                                "shuffle $shuffleModeEnabled, ended $ended)...")
+                        Log.d(
+                            TAG,
+                            "restoring playlist (${data.mediaItems.size} items, repeat $repeatMode, " +
+                                    "shuffle $shuffleModeEnabled, ended $ended)..."
+                        )
                     }
                     controller.isEnded = ended
                     controller.repeatMode = repeatMode
@@ -266,7 +278,8 @@ class LastPlayedManager(context: Context,
             } catch (e: Exception) {
                 try {
                     this@LastPlayedManager.eraseShuffleOrder()
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
                 Log.e(TAG, Log.getStackTraceString(e))
                 runCallback(callback, seed) { null }
                 return@launch
@@ -276,10 +289,14 @@ class LastPlayedManager(context: Context,
 }
 
 @OptIn(UnstableApi::class)
-private inline fun runCallback(crossinline callback: (MediaItemsWithStartPosition?,
-                                                      CircularShuffleOrder.Persistent) -> Unit,
-                               seed: CircularShuffleOrder.Persistent,
-                               noinline parameter: () -> MediaItemsWithStartPosition?) {
+private inline fun runCallback(
+    crossinline callback: (
+        MediaItemsWithStartPosition?,
+        CircularShuffleOrder.Persistent
+    ) -> Unit,
+    seed: CircularShuffleOrder.Persistent,
+    noinline parameter: () -> MediaItemsWithStartPosition?
+) {
     CoroutineScope(Dispatchers.Main).launch { callback(parameter(), seed) }
 }
 

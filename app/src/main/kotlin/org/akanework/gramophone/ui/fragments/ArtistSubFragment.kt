@@ -29,6 +29,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
+import kotlin.properties.Delegates
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
@@ -38,7 +39,6 @@ import org.akanework.gramophone.ui.LibraryViewModel
 import org.akanework.gramophone.ui.adapters.AlbumAdapter
 import org.akanework.gramophone.ui.adapters.SongAdapter
 import org.akanework.gramophone.ui.components.GridPaddingDecoration
-import kotlin.properties.Delegates
 
 /**
  * ArtistSubFragment:
@@ -85,7 +85,8 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
                 it.albumArtistItemList else it.artistItemList
         }.value!![position]
         spans = if (requireContext().resources.configuration.orientation
-            == Configuration.ORIENTATION_PORTRAIT) 2 else 4
+            == Configuration.ORIENTATION_PORTRAIT
+        ) 2 else 4
         albumAdapter = AlbumAdapter(
             this, item.albumList.toMutableList(), true,
             fallbackSpans = spans
@@ -108,9 +109,11 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
             }
         }
         val ih = DefaultItemHeightHelper.concatItemHeightHelper(albumAdapter.itemHeightHelper,
-            { albumAdapter.concatAdapter.itemCount }, songAdapter.itemHeightHelper)
+            { albumAdapter.concatAdapter.itemCount }, songAdapter.itemHeightHelper
+        )
         recyclerView!!.enableEdgeToEdgePaddingListener()
-        recyclerView!!.adapter = ConcatAdapter(albumAdapter.concatAdapter, songAdapter.concatAdapter)
+        recyclerView!!.adapter =
+            ConcatAdapter(albumAdapter.concatAdapter, songAdapter.concatAdapter)
         recyclerView!!.addItemDecoration(gridPaddingDecoration)
         recyclerView!!.setAppBar(appBarLayout)
         recyclerView!!.fastScroll(this, ih)

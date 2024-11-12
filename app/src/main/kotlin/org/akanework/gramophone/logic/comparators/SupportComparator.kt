@@ -37,7 +37,11 @@ class SupportComparator<T, U>(
             return Comparator { _, _ -> 0 }
         }
 
-        fun <T> createInversionComparator(cmp: Comparator<T>, invert: Boolean = false, fallback: Comparator<T>? = null):
+        fun <T> createInversionComparator(
+            cmp: Comparator<T>,
+            invert: Boolean = false,
+            fallback: Comparator<T>? = null
+        ):
                 Comparator<T> {
             if (!invert) return cmp
             return SupportComparator(cmp, fallback, true) { it }

@@ -20,7 +20,6 @@ package org.akanework.gramophone.logic
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -35,11 +34,9 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.os.StrictMode
-import android.util.SizeF
 import android.view.View
 import android.view.ViewGroup.MarginLayoutParams
 import android.view.WindowInsets
-import android.widget.RemoteViews
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -64,6 +61,8 @@ import androidx.media3.session.SessionCommand
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
+import java.io.File
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -77,8 +76,6 @@ import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVIC
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.jetbrains.annotations.Contract
-import java.io.File
-import java.util.Locale
 
 fun Player.playOrPause() {
     if (isPlaying) {
@@ -97,14 +94,18 @@ fun MediaItem.getFile(): File? {
 }
 
 fun Activity.closeKeyboard(view: View) {
-    if (ViewCompat.getRootWindowInsets(window.decorView)?.isVisible(WindowInsetsCompat.Type.ime()) == true) {
+    if (ViewCompat.getRootWindowInsets(window.decorView)
+            ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+    ) {
         WindowInsetsControllerCompat(window, view).hide(WindowInsetsCompat.Type.ime())
     }
 }
 
 fun Activity.showKeyboard(view: View) {
     view.requestFocus()
-    if (ViewCompat.getRootWindowInsets(window.decorView)?.isVisible(WindowInsetsCompat.Type.ime()) == false) {
+    if (ViewCompat.getRootWindowInsets(window.decorView)
+            ?.isVisible(WindowInsetsCompat.Type.ime()) == false
+    ) {
         WindowInsetsControllerCompat(window, view).show(WindowInsetsCompat.Type.ime())
     }
 }
@@ -233,10 +234,10 @@ fun MediaController.getLyrics(): SemanticLyrics? =
 @OptIn(UnstableApi::class)
 @Suppress("UNCHECKED_CAST")
 fun MediaController.getSessionId(): Int? =
-	sendCustomCommand(
+    sendCustomCommand(
         SessionCommand(SERVICE_GET_SESSION, Bundle.EMPTY),
         Bundle.EMPTY
-	).get().extras.getInt("session", C.AUDIO_SESSION_ID_UNSET).let {
+    ).get().extras.getInt("session", C.AUDIO_SESSION_ID_UNSET).let {
         if (it == C.AUDIO_SESSION_ID_UNSET) null else it
     }
 
@@ -249,15 +250,18 @@ fun Handler.postAtFrontOfQueueAsync(callback: Runnable) {
     })
 }
 
-fun View.enableEdgeToEdgePaddingListener(ime: Boolean = false, top: Boolean = false,
-                                         extra: ((Insets) -> Unit)? = null) {
+fun View.enableEdgeToEdgePaddingListener(
+    ime: Boolean = false, top: Boolean = false,
+    extra: ((Insets) -> Unit)? = null
+) {
     if (fitsSystemWindows) throw IllegalArgumentException("must have fitsSystemWindows disabled")
     if (this is AppBarLayout) {
         if (ime) throw IllegalArgumentException("AppBarLayout must have ime flag disabled")
         // AppBarLayout fitsSystemWindows does not handle left/right for a good reason, it has
         // to be applied to children to look good; we rewrite fitsSystemWindows in a way mostly specific
         // to Gramophone to support shortEdges displayCutout
-        val collapsingToolbarLayout = children.find { it is CollapsingToolbarLayout } as CollapsingToolbarLayout?
+        val collapsingToolbarLayout =
+            children.find { it is CollapsingToolbarLayout } as CollapsingToolbarLayout?
         collapsingToolbarLayout?.let {
             // The CollapsingToolbarLayout mustn't consume insets, we handle padding here anyway
             ViewCompat.setOnApplyWindowInsetsListener(it) { _, insets -> insets }
@@ -272,23 +276,33 @@ fun View.enableEdgeToEdgePaddingListener(ime: Boolean = false, top: Boolean = fa
             (v as AppBarLayout).children.forEach {
                 if (it is CollapsingToolbarLayout) {
                     val es = expandedTitleMarginStart!! + if (it.layoutDirection
-                        == View.LAYOUT_DIRECTION_LTR) cutoutAndBars.left else cutoutAndBars.right
+                        == View.LAYOUT_DIRECTION_LTR
+                    ) cutoutAndBars.left else cutoutAndBars.right
                     if (es != it.expandedTitleMarginStart) it.expandedTitleMarginStart = es
                     val ee = expandedTitleMarginEnd!! + if (it.layoutDirection
-                        == View.LAYOUT_DIRECTION_RTL) cutoutAndBars.left else cutoutAndBars.right
+                        == View.LAYOUT_DIRECTION_RTL
+                    ) cutoutAndBars.left else cutoutAndBars.right
                     if (ee != it.expandedTitleMarginEnd) it.expandedTitleMarginEnd = ee
                 }
                 it.setPadding(cutoutAndBars.left, 0, cutoutAndBars.right, 0)
             }
             v.setPadding(0, cutoutAndBars.top, 0, 0)
-            val i = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()
-                    or WindowInsetsCompat.Type.displayCutout())
+            val i = insets.getInsetsIgnoringVisibility(
+                WindowInsetsCompat.Type.systemBars()
+                        or WindowInsetsCompat.Type.displayCutout()
+            )
             extra?.invoke(cutoutAndBars)
             return@setOnApplyWindowInsetsListener WindowInsetsCompat.Builder(insets)
-                .setInsets(WindowInsetsCompat.Type.systemBars()
-                        or WindowInsetsCompat.Type.displayCutout(), Insets.of(cutoutAndBars.left, 0, cutoutAndBars.right, cutoutAndBars.bottom))
-                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()
-                        or WindowInsetsCompat.Type.displayCutout(), Insets.of(i.left, 0, i.right, i.bottom))
+                .setInsets(
+                    WindowInsetsCompat.Type.systemBars()
+                            or WindowInsetsCompat.Type.displayCutout(),
+                    Insets.of(cutoutAndBars.left, 0, cutoutAndBars.right, cutoutAndBars.bottom)
+                )
+                .setInsetsIgnoringVisibility(
+                    WindowInsetsCompat.Type.systemBars()
+                            or WindowInsetsCompat.Type.displayCutout(),
+                    Insets.of(i.left, 0, i.right, i.bottom)
+                )
                 .build()
         }
     } else {
@@ -301,8 +315,10 @@ fun View.enableEdgeToEdgePaddingListener(ime: Boolean = false, top: Boolean = fa
                     WindowInsetsCompat.Type.displayCutout() or
                     if (ime) WindowInsetsCompat.Type.ime() else 0
             val i = insets.getInsets(mask)
-            v.setPadding(pl + i.left, pt + (if (top) i.top else 0), pr + i.right,
-                pb + i.bottom)
+            v.setPadding(
+                pl + i.left, pt + (if (top) i.top else 0), pr + i.right,
+                pb + i.bottom
+            )
             extra?.invoke(i)
             return@setOnApplyWindowInsetsListener WindowInsetsCompat.Builder(insets)
                 .setInsets(mask, Insets.NONE)
@@ -344,7 +360,8 @@ fun View.updateMargin(
 // enableEdgeToEdge() without enforcing contrast, magic based on androidx EdgeToEdge.kt
 fun ComponentActivity.enableEdgeToEdgeProperly() {
     if ((resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-        Configuration.UI_MODE_NIGHT_YES) {
+        Configuration.UI_MODE_NIGHT_YES
+    ) {
         enableEdgeToEdge(navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
     } else {
         val darkScrim = Color.argb(0x80, 0x1b, 0x1b, 0x1b)
@@ -426,7 +443,10 @@ inline fun <reified T> allowDiskAccessInStrictMode(relax: Boolean = false, doIt:
     } else doIt()
 }
 
-inline fun <reified T> SharedPreferences.use(relax: Boolean = false, doIt: SharedPreferences.() -> T): T {
+inline fun <reified T> SharedPreferences.use(
+    relax: Boolean = false,
+    doIt: SharedPreferences.() -> T
+): T {
     return allowDiskAccessInStrictMode(relax) { doIt() }
 }
 

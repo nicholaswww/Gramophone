@@ -57,7 +57,8 @@ class GeneralSubFragment : BaseFragment(true) {
 
         val rootView = inflater.inflate(R.layout.fragment_general_sub, container, false)
         val topAppBar = rootView.findViewById<MaterialToolbar>(R.id.topAppBar)
-        val collapsingToolbarLayout = rootView.findViewById<CollapsingToolbarLayout>(R.id.collapsingtoolbar)
+        val collapsingToolbarLayout =
+            rootView.findViewById<CollapsingToolbarLayout>(R.id.collapsingtoolbar)
         val recyclerView = rootView.findViewById<MyRecyclerView>(R.id.recyclerview)
         val appBarLayout = rootView.findViewById<AppBarLayout>(R.id.appbarlayout)
         appBarLayout.enableEdgeToEdgePaddingListener()

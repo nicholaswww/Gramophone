@@ -46,6 +46,7 @@ import coil3.load
 import coil3.request.crossfade
 import coil3.request.error
 import com.google.android.material.button.MaterialButton
+import java.util.Collections
 import kotlinx.coroutines.sync.Semaphore
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
@@ -61,7 +62,6 @@ import org.akanework.gramophone.ui.components.NowPlayingDrawable
 import org.akanework.gramophone.ui.fragments.AdapterFragment
 import org.akanework.gramophone.ui.getAdapterType
 import uk.akane.libphonograph.items.Item
-import java.util.Collections
 
 abstract class BaseAdapter<T>(
     protected val fragment: Fragment,
@@ -86,14 +86,16 @@ abstract class BaseAdapter<T>(
     internal inline val layoutInflater: LayoutInflater
         get() = fragment.layoutInflater
     private val listHeight = context.resources.getDimensionPixelSize(R.dimen.list_height)
-    private val largerListHeight = context.resources.getDimensionPixelSize(R.dimen.larger_list_height)
+    private val largerListHeight =
+        context.resources.getDimensionPixelSize(R.dimen.larger_list_height)
     private var gridHeight: Int? = null
     private var lockedInGridSize = false
     private val sorter = Sorter(sortHelper, naturalOrderHelper, rawOrderExposed)
     val decorAdapter by lazy { createDecorAdapter() }
     override val concatAdapter by lazy { ConcatAdapter(decorAdapter, this) }
     override val itemHeightHelper by lazy {
-        DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, {1}, this) }
+        DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, { 1 }, this)
+    }
     private val handler = Handler(Looper.getMainLooper())
     private var bgHandlerThread: HandlerThread? = null
     private var bgHandler: Handler? = null
@@ -156,7 +158,7 @@ abstract class BaseAdapter<T>(
     private var reverseRaw = false
     var sortType: Sorter.Type
         get() = if (comparator == null && rawOrderExposed)
-                (if (reverseRaw) Sorter.Type.NativeOrderDescending else Sorter.Type.NativeOrder)
+            (if (reverseRaw) Sorter.Type.NativeOrderDescending else Sorter.Type.NativeOrder)
         else comparator?.type!!
         private set(value) {
             reverseRaw = value == Sorter.Type.NativeOrderDescending
@@ -170,7 +172,8 @@ abstract class BaseAdapter<T>(
     init {
         sortType =
             if (prefSortType != Sorter.Type.None && prefSortType != initialSortType
-                && sortTypes.contains(prefSortType) && !isSubFragment)
+                && sortTypes.contains(prefSortType) && !isSubFragment
+            )
                 prefSortType
             else
                 initialSortType
@@ -282,8 +285,9 @@ abstract class BaseAdapter<T>(
                         else comparator?.compare(o1, o2) ?: 0
                     }
                 }
-                val diff = if (((list.isNotEmpty() && newList.isNotEmpty()) || allowDiffUtils) && canDiff)
-                    DiffUtil.calculateDiff(SongDiffCallback(list, newList)) else null
+                val diff =
+                    if (((list.isNotEmpty() && newList.isNotEmpty()) || allowDiffUtils) && canDiff)
+                        DiffUtil.calculateDiff(SongDiffCallback(list, newList)) else null
                 val oldCount = list.size
                 val newCount = newList.size
                 {
@@ -372,16 +376,21 @@ abstract class BaseAdapter<T>(
     private fun calculateGridSizeIfNeeded() {
         if (layoutType != LayoutType.GRID) return
         if (recyclerView != null && recyclerView!!.width != 0) {
-            val cardPadding = context.resources.getDimensionPixelSize(R.dimen.grid_card_side_padding)
+            val cardPadding =
+                context.resources.getDimensionPixelSize(R.dimen.grid_card_side_padding)
             val marginTop = context.resources.getDimensionPixelSize(R.dimen.grid_card_margin_top)
-            val marginLabel = context.resources.getDimensionPixelSize(R.dimen.grid_card_margin_label)
-            val paddingBottom = context.resources.getDimensionPixelSize(R.dimen.grid_card_padding_bottom)
-            val labelHeight = context.resources.getDimensionPixelSize(R.dimen.grid_card_label_height)
+            val marginLabel =
+                context.resources.getDimensionPixelSize(R.dimen.grid_card_margin_label)
+            val paddingBottom =
+                context.resources.getDimensionPixelSize(R.dimen.grid_card_padding_bottom)
+            val labelHeight =
+                context.resources.getDimensionPixelSize(R.dimen.grid_card_label_height)
             // first find out cover's width...
             var w = recyclerView!!.width
             w -= recyclerView!!.paddingLeft + recyclerView!!.paddingRight // view padding
             w -= 2 * cardPadding // item decoration
-            w /= (layoutManager as? GridLayoutManager)?.spanCount ?: fallbackSpans // we want width of one item
+            w /= (layoutManager as? GridLayoutManager)?.spanCount
+                ?: fallbackSpans // we want width of one item
             w -= 2 * cardPadding // side padding
             // ...then use it to calculate height
             var h = w // cover is constrained 1:1

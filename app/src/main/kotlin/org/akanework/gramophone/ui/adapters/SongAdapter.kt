@@ -32,6 +32,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import java.io.File
+import java.util.GregorianCalendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -44,7 +45,6 @@ import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.manipulator.ItemManipulator
-import java.util.GregorianCalendar
 
 
 /**
@@ -68,7 +68,7 @@ class SongAdapter(
     naturalOrderHelper = if (canSort) helper else null,
     initialSortType = if (canSort)
         (if (helper != null) Sorter.Type.NaturalOrder else
-                (if (rawOrderExposed) Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending))
+            (if (rawOrderExposed) Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending))
     else Sorter.Type.None,
     canSort = canSort,
     pluralStr = R.plurals.songs,
@@ -142,20 +142,24 @@ class SongAdapter(
 
     init {
         mediaControllerViewModel.addRecreationalPlayerListener(
-            fragment.viewLifecycleOwner.lifecycle) {
+            fragment.viewLifecycleOwner.lifecycle
+        ) {
             currentMediaItem = it.currentMediaItem?.mediaId
-            currentIsPlaying = it.playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+            currentIsPlaying =
+                it.playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
             object : Player.Listener {
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     currentMediaItem = mediaItem?.mediaId
                 }
 
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                    currentIsPlaying = playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+                    currentIsPlaying =
+                        playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    currentIsPlaying = it.playWhenReady && playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+                    currentIsPlaying =
+                        it.playWhenReady && playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
                 }
             }
         }
@@ -335,6 +339,7 @@ class SongAdapter(
                     }
                     true
                 }
+
                 else -> false
             }
         }
@@ -401,7 +406,8 @@ class SongAdapter(
         }
 
         override fun getDiscAndTrack(item: MediaItem): Int {
-            return (item.mediaMetadata.discNumber ?: 0) * 1000 + (item.mediaMetadata.trackNumber ?: 0)
+            return (item.mediaMetadata.discNumber ?: 0) * 1000 + (item.mediaMetadata.trackNumber
+                ?: 0)
         }
 
         override fun getAddDate(item: MediaItem): Long {
@@ -410,15 +416,20 @@ class SongAdapter(
 
         override fun getReleaseDate(item: MediaItem): Long {
             if (item.mediaMetadata.releaseYear == null && item.mediaMetadata.releaseMonth == null
-                && item.mediaMetadata.releaseDay == null) {
-                return GregorianCalendar((item.mediaMetadata.recordingYear ?: 0) + 1900,
+                && item.mediaMetadata.releaseDay == null
+            ) {
+                return GregorianCalendar(
+                    (item.mediaMetadata.recordingYear ?: 0) + 1900,
                     (item.mediaMetadata.recordingMonth ?: 1) - 1,
-                    item.mediaMetadata.recordingDay ?: 0, 0, 0, 0)
+                    item.mediaMetadata.recordingDay ?: 0, 0, 0, 0
+                )
                     .timeInMillis
             }
-            return GregorianCalendar((item.mediaMetadata.releaseYear ?: 0) + 1900,
+            return GregorianCalendar(
+                (item.mediaMetadata.releaseYear ?: 0) + 1900,
                 (item.mediaMetadata.releaseMonth ?: 1) - 1,
-                item.mediaMetadata.releaseDay ?: 0, 0, 0, 0)
+                item.mediaMetadata.releaseDay ?: 0, 0, 0, 0
+            )
                 .timeInMillis
         }
 

@@ -6,7 +6,7 @@ import android.text.style.UpdateAppearance
 import androidx.annotation.ColorInt
 
 class MyForegroundColorSpan(@ColorInt var color: Int) : CharacterStyle(), UpdateAppearance {
-	override fun updateDrawState(tp: TextPaint) {
-		tp.color = color
-	}
+    override fun updateDrawState(tp: TextPaint) {
+        tp.color = color
+    }
 }

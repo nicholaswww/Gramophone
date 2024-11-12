@@ -73,6 +73,7 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
+import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -94,7 +95,6 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.akanework.gramophone.ui.MainActivity
-import kotlin.random.Random
 
 
 /**
@@ -125,6 +125,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         const val SERVICE_TIMER_CHANGED = "changed_timer"
         var instanceForWidgetAndOnlyWidget: GramophonePlaybackService? = null
     }
+
     private var lastSessionId = 0
     private var mediaSession: MediaLibrarySession? = null
     var controller: MediaController? = null
@@ -188,7 +189,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     private val seekReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val to = intent.extras?.getLong("seekTo", C.INDEX_UNSET.toLong()) ?: C.INDEX_UNSET.toLong()
+            val to =
+                intent.extras?.getLong("seekTo", C.INDEX_UNSET.toLong()) ?: C.INDEX_UNSET.toLong()
             if (to != C.INDEX_UNSET.toLong())
                 controller?.seekTo(to)
         }
@@ -205,17 +207,19 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             MeiZuLyricsMediaNotificationProvider(this) { lastSentHighlightedLyric }
         )
         if (mayThrowForegroundServiceStartNotAllowed()
-            || mayThrowForegroundServiceStartNotAllowedMiui()) {
-            nm.createNotificationChannel(NotificationChannelCompat.Builder(
-                NOTIFY_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_HIGH
-            ).apply {
-                setName(getString(R.string.fgs_failed_channel))
-                setVibrationEnabled(true)
-                setVibrationPattern(longArrayOf(0L, 200L))
-                setLightsEnabled(false)
-                setShowBadge(false)
-                setSound(null, null)
-            }.build()
+            || mayThrowForegroundServiceStartNotAllowedMiui()
+        ) {
+            nm.createNotificationChannel(
+                NotificationChannelCompat.Builder(
+                    NOTIFY_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_HIGH
+                ).apply {
+                    setName(getString(R.string.fgs_failed_channel))
+                    setVibrationEnabled(true)
+                    setVibrationPattern(longArrayOf(0L, 200L))
+                    setLightsEnabled(false)
+                    setShowBadge(false)
+                    setSound(null, null)
+                }.build()
             )
         } else if (nm.getNotificationChannel(NOTIFY_CHANNEL_ID) != null) {
             // for people who upgraded from S/S_V2 to newer version
@@ -430,7 +434,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
         if (session.isMediaNotificationController(controller)
             || session.isAutoCompanionController(controller)
-            || session.isAutomotiveController(controller)) {
+            || session.isAutomotiveController(controller)
+        ) {
             // currently, all custom actions are only useful when used by notification
             // other clients hopefully have repeat/shuffle buttons like MCT does
             for (commandButton in customCommands) {
@@ -563,13 +568,19 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lastPlayedManager.restore { items, factory ->
             applyShuffleSeed(true, factory.toFactory(this.controller!!))
             if (items == null) {
-                settable.setException(NullPointerException(
-                    "null MediaItemsWithStartPosition, see former logs for root cause"))
+                settable.setException(
+                    NullPointerException(
+                        "null MediaItemsWithStartPosition, see former logs for root cause"
+                    )
+                )
             } else if (items.mediaItems.isNotEmpty()) {
                 settable.set(items)
             } else {
-                settable.setException(IndexOutOfBoundsException(
-                    "LastPlayedManager restored empty MediaItemsWithStartPosition"))
+                settable.setException(
+                    IndexOutOfBoundsException(
+                        "LastPlayedManager restored empty MediaItemsWithStartPosition"
+                    )
+                )
             }
         }
         return settable
@@ -581,8 +592,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             val trim = prefs.getBoolean("trim_lyrics", true)
             val multiLine = prefs.getBoolean("lyric_multiline", false)
             val newParser = prefs.getBoolean("lyric_parser", false)
-            val options = LrcParserOptions(trim = trim, multiLine = multiLine,
-                errorText = getString(androidx.media3.session.R.string.error_message_io))
+            val options = LrcParserOptions(
+                trim = trim, multiLine = multiLine,
+                errorText = getString(androidx.media3.session.R.string.error_message_io)
+            )
             if (newParser) {
                 var lrc = loadAndParseLyricsFile(mediaItem?.getFile(), options)
                 if (lrc == null) {
@@ -655,10 +668,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         // (onTimelineChanged() runs before both this callback and onShuffleModeEnabledChanged(),
         // which means shuffleFactory != null is not a valid check)
         if (events.contains(EVENT_SHUFFLE_MODE_ENABLED_CHANGED) &&
-            shuffleFactory == null && !events.contains(Player.EVENT_TIMELINE_CHANGED)) {
+            shuffleFactory == null && !events.contains(Player.EVENT_TIMELINE_CHANGED)
+        ) {
             // when enabling shuffle, re-shuffle lists so that the first index is up to date
-            applyShuffleSeed(false) { c -> { CircularShuffleOrder(
-                it, c, controller!!.mediaItemCount, Random.nextLong()) } }
+            applyShuffleSeed(false) { c ->
+                {
+                    CircularShuffleOrder(
+                        it, c, controller!!.mediaItemCount, Random.nextLong()
+                    )
+                }
+            }
         }
     }
 
@@ -710,7 +729,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             syncedLyrics?.text?.flatMap {
                 if (hnw && it.lyric.start <= cPos) listOf() else if (hnw) listOf(it.lyric.start) else
                     (it.lyric.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
-                    .let { i -> if (it.lyric.start > cPos) i + it.lyric.start else i }
+                        .let { i -> if (it.lyric.start > cPos) i + it.lyric.start else i }
             }?.minOrNull()
         } else if (lyricsLegacy != null) {
             lyricsLegacy?.find {
@@ -728,8 +747,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
         val highlightedLyric = if (isStatusBarLyricsEnabled)
             getCurrentLyricIndex()?.let {
-                (lyrics as? SemanticLyrics.SyncedLyrics)?.text?.get(it)?.lyric?.text ?:
-                    lyricsLegacy?.get(it)?.content
+                (lyrics as? SemanticLyrics.SyncedLyrics)?.text?.get(it)?.lyric?.text
+                    ?: lyricsLegacy?.get(it)?.content
             }
         else null
         if (lastSentHighlightedLyric != highlightedLyric) {
@@ -753,10 +772,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onForegroundServiceStartNotAllowedException() {
         Log.w(TAG, "Failed to resume playback :/")
         if (mayThrowForegroundServiceStartNotAllowed()
-            || mayThrowForegroundServiceStartNotAllowedMiui()) {
+            || mayThrowForegroundServiceStartNotAllowedMiui()
+        ) {
             if (supportsNotificationPermission() && !hasNotificationPermission()) {
-                Log.e(TAG, Log.getStackTraceString(IllegalStateException(
-                    "onForegroundServiceStartNotAllowedException shouldn't be called on T+")))
+                Log.e(
+                    TAG, Log.getStackTraceString(
+                        IllegalStateException(
+                            "onForegroundServiceStartNotAllowedException shouldn't be called on T+"
+                        )
+                    )
+                )
                 return
             }
             @SuppressLint("MissingPermission") // false positive
@@ -788,8 +813,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
     }
 
-    private fun applyShuffleSeed(lazy: Boolean, factory:
-        (Int) -> ((CircularShuffleOrder) -> Unit) -> CircularShuffleOrder) {
+    private fun applyShuffleSeed(
+        lazy: Boolean, factory:
+            (Int) -> ((CircularShuffleOrder) -> Unit) -> CircularShuffleOrder
+    ) {
         if (lazy) {
             shuffleFactory = factory
         } else {

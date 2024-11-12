@@ -6,5 +6,12 @@ import coil3.request.ImageRequest
 import coil3.size.ScaleDrawable
 
 fun ImageRequest.Builder.placeholderScaleToFit(placeholder: Int) {
-	placeholder { ScaleDrawable(AppCompatResources.getDrawable(it.context, placeholder)!!).asImage() }
+    placeholder {
+        ScaleDrawable(
+            AppCompatResources.getDrawable(
+                it.context,
+                placeholder
+            )!!
+        ).asImage()
+    }
 }
