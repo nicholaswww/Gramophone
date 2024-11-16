@@ -493,7 +493,7 @@ abstract class BaseAdapter<T>(
         NONE, LIST, COMPACT_LIST, GRID
     }
 
-    open class StoreItemHelper<T : Item<MediaItem>>(
+    open class StoreItemHelper<T : Item>(
         typesSupported: Set<Sorter.Type> = setOf(
             Sorter.Type.ByTitleDescending, Sorter.Type.ByTitleAscending,
             Sorter.Type.BySizeDescending, Sorter.Type.BySizeAscending

@@ -36,13 +36,13 @@ import uk.akane.libphonograph.items.Playlist
  */
 class LibraryViewModel : ViewModel() {
     val mediaItemList: MutableLiveData<List<MediaItem>> = MutableLiveData()
-    val albumItemList: MutableLiveData<List<Album<MediaItem>>> = MutableLiveData()
-    val albumArtistItemList: MutableLiveData<List<Artist<MediaItem>>> = MutableLiveData()
-    val artistItemList: MutableLiveData<List<Artist<MediaItem>>> = MutableLiveData()
-    val genreItemList: MutableLiveData<List<Genre<MediaItem>>> = MutableLiveData()
-    val dateItemList: MutableLiveData<List<Date<MediaItem>>> = MutableLiveData()
-    val playlistList: MutableLiveData<List<Playlist<MediaItem>>> = MutableLiveData()
-    val folderStructure: MutableLiveData<FileNode<MediaItem>> = MutableLiveData()
-    val shallowFolderStructure: MutableLiveData<FileNode<MediaItem>> = MutableLiveData()
+    val albumItemList: MutableLiveData<List<Album>> = MutableLiveData()
+    val albumArtistItemList: MutableLiveData<List<Artist>> = MutableLiveData()
+    val artistItemList: MutableLiveData<List<Artist>> = MutableLiveData()
+    val genreItemList: MutableLiveData<List<Genre>> = MutableLiveData()
+    val dateItemList: MutableLiveData<List<Date>> = MutableLiveData()
+    val playlistList: MutableLiveData<List<Playlist>> = MutableLiveData()
+    val folderStructure: MutableLiveData<FileNode> = MutableLiveData()
+    val shallowFolderStructure: MutableLiveData<FileNode> = MutableLiveData()
     val allFolderSet: MutableLiveData<Set<String>> = MutableLiveData()
 }

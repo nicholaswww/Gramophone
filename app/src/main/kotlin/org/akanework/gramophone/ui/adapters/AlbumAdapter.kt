@@ -22,7 +22,6 @@ import androidx.activity.viewModels
 import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.MutableLiveData
-import androidx.media3.common.MediaItem
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.LibraryViewModel
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
@@ -30,11 +29,11 @@ import uk.akane.libphonograph.items.Album
 
 class AlbumAdapter(
     fragment: Fragment,
-    albumList: MutableLiveData<List<Album<MediaItem>>>?,
+    albumList: MutableLiveData<List<Album>>?,
     ownsView: Boolean = true,
     isSubFragment: Boolean = false,
     fallbackSpans: Int = 1
-) : BaseAdapter<Album<MediaItem>>
+) : BaseAdapter<Album>
     (
     fragment,
     liveData = albumList,
@@ -52,7 +51,7 @@ class AlbumAdapter(
 
     constructor(
         fragment: Fragment,
-        albumList: List<Album<MediaItem>>,
+        albumList: List<Album>,
         isSubFragment: Boolean = false,
         fallbackSpans: Int = 1
     ) : this(
@@ -65,7 +64,7 @@ class AlbumAdapter(
         updateList(albumList, now = true, false)
     }
 
-    override fun virtualTitleOf(item: Album<MediaItem>): String {
+    override fun virtualTitleOf(item: Album): String {
         return context.getString(R.string.unknown_album)
     }
 
@@ -82,7 +81,7 @@ class AlbumAdapter(
         }
     }
 
-    override fun onClick(item: Album<MediaItem>) {
+    override fun onClick(item: Album) {
         mainActivity.startFragment(GeneralSubFragment()) {
             putInt("Position", item.let {
                 if (ownsView) toRawPos(it) else {
@@ -93,7 +92,7 @@ class AlbumAdapter(
         }
     }
 
-    override fun onMenu(item: Album<MediaItem>, popupMenu: PopupMenu) {
+    override fun onMenu(item: Album, popupMenu: PopupMenu) {
         popupMenu.inflate(R.menu.more_menu_less)
 
         popupMenu.setOnMenuItemClickListener { it1 ->
@@ -120,18 +119,18 @@ class AlbumAdapter(
         }
     }
 
-    class StoreAlbumHelper : StoreItemHelper<Album<MediaItem>>(
+    class StoreAlbumHelper : StoreItemHelper<Album>(
         setOf(
             Sorter.Type.ByTitleDescending, Sorter.Type.ByTitleAscending,
             Sorter.Type.ByArtistDescending, Sorter.Type.ByArtistAscending,
             Sorter.Type.BySizeDescending, Sorter.Type.BySizeAscending
         )
     ) {
-        override fun getArtist(item: Album<MediaItem>): String? {
+        override fun getArtist(item: Album): String? {
             return item.albumArtist
         }
 
-        override fun getCover(item: Album<MediaItem>): Uri? {
+        override fun getCover(item: Album): Uri? {
             return item.cover ?: super.getCover(item)
         }
     }

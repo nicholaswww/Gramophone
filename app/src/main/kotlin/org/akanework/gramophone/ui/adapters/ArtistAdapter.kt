@@ -34,9 +34,9 @@ import uk.akane.libphonograph.items.Artist
  */
 class ArtistAdapter(
     fragment: Fragment,
-    private val artistList: MutableLiveData<List<Artist<MediaItem>>>,
-    private val albumArtists: MutableLiveData<List<Artist<MediaItem>>>,
-) : BaseAdapter<Artist<MediaItem>>
+    private val artistList: MutableLiveData<List<Artist>>,
+    private val albumArtists: MutableLiveData<List<Artist>>,
+) : BaseAdapter<Artist>
     (
     fragment,
     liveData = null,
@@ -48,7 +48,7 @@ class ArtistAdapter(
     defaultLayoutType = LayoutType.LIST
 ) {
 
-    override fun virtualTitleOf(item: Artist<MediaItem>): String {
+    override fun virtualTitleOf(item: Artist): String {
         return context.getString(R.string.unknown_artist)
     }
 
@@ -61,7 +61,7 @@ class ArtistAdapter(
         liveData = if (isAlbumArtist) albumArtists else artistList
     }
 
-    override fun onClick(item: Artist<MediaItem>) {
+    override fun onClick(item: Artist) {
         mainActivity.startFragment(ArtistSubFragment()) {
             putInt("Position", toRawPos(item))
             putInt(
@@ -74,7 +74,7 @@ class ArtistAdapter(
         }
     }
 
-    override fun onMenu(item: Artist<MediaItem>, popupMenu: PopupMenu) {
+    override fun onMenu(item: Artist, popupMenu: PopupMenu) {
         popupMenu.inflate(R.menu.more_menu_less)
 
         popupMenu.setOnMenuItemClickListener { it1 ->
@@ -102,7 +102,7 @@ class ArtistAdapter(
         }
     }
 
-    override fun createDecorAdapter(): BaseDecorAdapter<out BaseAdapter<Artist<MediaItem>>> {
+    override fun createDecorAdapter(): BaseDecorAdapter<out BaseAdapter<Artist>> {
         return ArtistDecorAdapter(this)
     }
 

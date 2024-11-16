@@ -30,8 +30,8 @@ import uk.akane.libphonograph.items.Genre
  */
 class GenreAdapter(
     fragment: Fragment,
-    genreList: MutableLiveData<List<Genre<MediaItem>>>,
-) : BaseAdapter<Genre<MediaItem>>
+    genreList: MutableLiveData<List<Genre>>,
+) : BaseAdapter<Genre>
     (
     fragment,
     liveData = genreList,
@@ -45,18 +45,18 @@ class GenreAdapter(
 
     override val defaultCover = R.drawable.ic_default_cover_genre
 
-    override fun virtualTitleOf(item: Genre<MediaItem>): String {
+    override fun virtualTitleOf(item: Genre): String {
         return context.getString(R.string.unknown_genre)
     }
 
-    override fun onClick(item: Genre<MediaItem>) {
+    override fun onClick(item: Genre) {
         mainActivity.startFragment(GeneralSubFragment()) {
             putInt("Position", toRawPos(item))
             putInt("Item", R.id.genres)
         }
     }
 
-    override fun onMenu(item: Genre<MediaItem>, popupMenu: PopupMenu) {
+    override fun onMenu(item: Genre, popupMenu: PopupMenu) {
         popupMenu.inflate(R.menu.more_menu_less)
 
         popupMenu.setOnMenuItemClickListener { it1 ->

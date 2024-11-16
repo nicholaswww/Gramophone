@@ -33,6 +33,7 @@ import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.ui.LibraryViewModel
 import org.akanework.gramophone.ui.adapters.SongAdapter
 import org.akanework.gramophone.ui.adapters.Sorter
+import uk.akane.libphonograph.dynamicitem.RecentlyAdded
 import uk.akane.libphonograph.reader.Reader
 
 /**
@@ -120,7 +121,7 @@ class GeneralSubFragment : BaseFragment(true) {
             R.id.playlist -> {
                 // Playlists
                 val item = libraryViewModel.playlistList.value!![position]
-                title = if (item is Reader.RecentlyAdded) {
+                title = if (item is RecentlyAdded) {
                     requireContext().getString(R.string.recently_added)
                 } else {
                     item.title ?: requireContext().getString(R.string.unknown_playlist)

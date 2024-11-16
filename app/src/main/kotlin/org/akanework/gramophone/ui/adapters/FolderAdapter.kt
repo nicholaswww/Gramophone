@@ -26,7 +26,6 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
-import androidx.media3.common.MediaItem
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -45,8 +44,8 @@ import uk.akane.libphonograph.items.FileNode
 
 class FolderAdapter(
     internal val fragment: Fragment,
-    private val liveData: MutableLiveData<FileNode<MediaItem>>
-) : AdapterFragment.BaseInterface<RecyclerView.ViewHolder>(), Observer<FileNode<MediaItem>> {
+    private val liveData: MutableLiveData<FileNode>
+) : AdapterFragment.BaseInterface<RecyclerView.ViewHolder>(), Observer<FileNode> {
     private val mainActivity = fragment.requireActivity() as MainActivity
     private val folderPopAdapter: FolderPopAdapter = FolderPopAdapter(this)
     private val folderAdapter: FolderListAdapter =
@@ -56,7 +55,7 @@ class FolderAdapter(
     override val concatAdapter: ConcatAdapter =
         ConcatAdapter(this, folderPopAdapter, folderAdapter, songAdapter)
     override val itemHeightHelper: ItemHeightHelper? = null
-    private var root: FileNode<MediaItem>? = null
+    private var root: FileNode? = null
     private var fileNodePath = ArrayList<String>()
     private var recyclerView: RecyclerView? = null
 
@@ -77,9 +76,9 @@ class FolderAdapter(
         recyclerView.layoutManager = null
     }
 
-    override fun onChanged(value: FileNode<MediaItem>) {
+    override fun onChanged(value: FileNode) {
         root = value
-        if (fileNodePath.isEmpty) {
+        if (fileNodePath.isEmpty()) {
             val stg = value.folderList.values.firstOrNull()
             val emu = stg?.folderList?.values?.firstOrNull()
             val usr = emu?.folderList?.values?.firstOrNull()
@@ -173,7 +172,7 @@ class FolderAdapter(
 
 
     private class FolderListAdapter(
-        private var folderList: List<FileNode<MediaItem>>,
+        private var folderList: List<FileNode>,
         private val activity: MainActivity,
         frag: FolderAdapter
     ) : FolderCardAdapter(frag), PopupTextProvider {
@@ -202,7 +201,7 @@ class FolderAdapter(
         override fun getItemCount(): Int = folderList.size
 
         @SuppressLint("NotifyDataSetChanged")
-        fun updateList(newCollection: Collection<FileNode<MediaItem>>, canDiff: Boolean) {
+        fun updateList(newCollection: Collection<FileNode>, canDiff: Boolean) {
             val newList = newCollection.toMutableList()
             if (canDiff) {
                 CoroutineScope(Dispatchers.Default).launch {
@@ -219,8 +218,8 @@ class FolderAdapter(
         }
 
         private inner class DiffCallback(
-            private val oldList: List<FileNode<MediaItem>>,
-            private val newList: List<FileNode<MediaItem>>,
+            private val oldList: List<FileNode>,
+            private val newList: List<FileNode>,
         ) : DiffUtil.Callback() {
             override fun getOldListSize() = oldList.size
 

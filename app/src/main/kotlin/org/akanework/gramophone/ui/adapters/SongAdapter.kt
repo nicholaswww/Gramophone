@@ -44,6 +44,8 @@ import org.akanework.gramophone.ui.components.NowPlayingDrawable
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
+import uk.akane.libphonograph.items.addDate
+import uk.akane.libphonograph.items.modifiedDate
 import uk.akane.libphonograph.manipulator.ItemManipulator
 
 
@@ -240,42 +242,6 @@ class SongAdapter(
                 }
 
                 R.id.details -> {
-                    /*
-                    val rootView = MaterialAlertDialogBuilder(mainActivity)
-                        .setView(R.layout.dialog_info_song)
-                        .setBackground(drawable)
-                        .setNeutralButton(R.string.dismiss) { dialog, _ ->
-                            dialog.dismiss()
-                        }
-                        .show()
-                    rootView.findViewById<TextView>(R.id.title)!!.text = item.mediaMetadata.title
-                    rootView.findViewById<TextView>(R.id.artist)!!.text = item.mediaMetadata.artist
-                    rootView.findViewById<TextView>(R.id.album)!!.text =
-                        item.mediaMetadata.albumTitle
-                    if (!item.mediaMetadata.albumArtist.isNullOrBlank()) {
-                        rootView.findViewById<TextView>(R.id.album_artist)!!.text =
-                            item.mediaMetadata.albumArtist
-                    }
-                    rootView.findViewById<TextView>(R.id.track_number)!!.text =
-                        item.mediaMetadata.trackNumber.toString()
-                    rootView.findViewById<TextView>(R.id.disc_number)!!.text =
-                        item.mediaMetadata.discNumber.toString()
-                    val year = item.mediaMetadata.releaseYear?.toString()
-                    if (year != null) {
-                        rootView.findViewById<TextView>(R.id.year)!!.text = year
-                    }
-                    val genre = item.mediaMetadata.genre?.toString()
-                    if (genre != null) {
-                        rootView.findViewById<TextView>(R.id.genre)!!.text = genre
-                    }
-                    rootView.findViewById<TextView>(R.id.path)!!.text =
-                        item.getFile()?.path
-                    rootView.findViewById<TextView>(R.id.mime)!!.text =
-                        item.mediaMetadata.extras!!.getString("MimeType")
-                    rootView.findViewById<TextView>(R.id.duration)!!.text =
-                        convertDurationToTimeStamp(item.mediaMetadata.extras!!.getLong("Duration"))
-
-                     */
                     val position = viewModel.mediaItemList.value?.indexOfFirst {
                         it.mediaId == item.mediaId
                     }
@@ -313,8 +279,7 @@ class SongAdapter(
                         ?: mediaItem.localConfiguration?.uri
                         ?: return@setOnMenuItemClickListener true
 
-                    val mimeType = mediaItem.mediaMetadata.extras?.getString("MIME_TYPE")
-                        ?: "audio/*"
+                    val mimeType = mediaItem.localConfiguration?.mimeType ?: "audio/*"
 
                     try {
                         val contentUri = if (uri.scheme == "file") {
@@ -411,7 +376,7 @@ class SongAdapter(
         }
 
         override fun getAddDate(item: MediaItem): Long {
-            return item.mediaMetadata.extras!!.getLong("AddDate")
+            return item.mediaMetadata.addDate ?: -1
         }
 
         override fun getReleaseDate(item: MediaItem): Long {
@@ -434,7 +399,7 @@ class SongAdapter(
         }
 
         override fun getModifiedDate(item: MediaItem): Long {
-            return item.mediaMetadata.extras!!.getLong("ModifiedDate")
+            return item.mediaMetadata.modifiedDate ?: -1
         }
     }
 }

@@ -37,6 +37,20 @@ import kotlinx.coroutines.launch
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.logic.use
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
+import uk.akane.libphonograph.items.EXTRA_ADD_DATE
+import uk.akane.libphonograph.items.EXTRA_ALBUM_ID
+import uk.akane.libphonograph.items.EXTRA_ARTIST_ID
+import uk.akane.libphonograph.items.EXTRA_AUTHOR
+import uk.akane.libphonograph.items.EXTRA_CD_TRACK_NUMBER
+import uk.akane.libphonograph.items.EXTRA_GENRE_ID
+import uk.akane.libphonograph.items.EXTRA_MODIFIED_DATE
+import uk.akane.libphonograph.items.addDate
+import uk.akane.libphonograph.items.albumId
+import uk.akane.libphonograph.items.artistId
+import uk.akane.libphonograph.items.author
+import uk.akane.libphonograph.items.cdTrackNumber
+import uk.akane.libphonograph.items.genreId
+import uk.akane.libphonograph.items.modifiedDate
 
 @OptIn(UnstableApi::class)
 class LastPlayedManager(
@@ -108,21 +122,22 @@ class LastPlayedManager(
                     b.writeInt(it.mediaMetadata.releaseYear)
                     b.writeBool(it.mediaMetadata.isBrowsable)
                     b.writeBool(it.mediaMetadata.isPlayable)
-                    b.writeLong(it.mediaMetadata.extras?.getLong("AddDate"))
+                    b.writeLong(it.mediaMetadata.addDate)
                     b.writeStringSafe(it.mediaMetadata.writer)
                     b.writeStringSafe(it.mediaMetadata.compilation)
                     b.writeStringSafe(it.mediaMetadata.composer)
                     b.writeStringSafe(it.mediaMetadata.genre)
                     b.writeInt(it.mediaMetadata.recordingDay)
                     b.writeInt(it.mediaMetadata.recordingMonth)
-                    b.writeLong(it.mediaMetadata.extras?.getLong("ArtistId"))
-                    b.writeLong(it.mediaMetadata.extras?.getLong("AlbumId"))
-                    b.writeLong(it.mediaMetadata.extras?.getLong("GenreId"))
-                    b.writeStringSafe(it.mediaMetadata.extras?.getString("Author"))
-                    b.writeInt(it.mediaMetadata.extras?.getInt("CdTrackNumber"))
+                    b.writeLong(it.mediaMetadata.artistId)
+                    b.writeLong(it.mediaMetadata.albumId)
+                    b.writeLong(it.mediaMetadata.genreId)
+                    b.writeStringSafe(it.mediaMetadata.author)
+                    b.skip() // used to be CdTrackNumber
                     b.writeLong(it.mediaMetadata.durationMs)
-                    b.writeStringUnsafe(it.mediaMetadata.extras?.getString("Path"))
-                    b.writeLong(it.mediaMetadata.extras?.getLong("ModifiedDate"))
+                    b.skip() // used to be Path
+                    b.writeLong(it.mediaMetadata.modifiedDate)
+                    b.writeStringSafe(it.mediaMetadata.cdTrackNumber)
                     b.toString()
                 })
             prefs.edit {
@@ -177,6 +192,7 @@ class LastPlayedManager(
                     PrefsListUtils.parse(lastPlayedLst, lastPlayedGrp)
                         .map {
                             val b = SafeDelimitedStringDecat(":", it)
+                            // add new entries at the bottom and remember they are null for upgrade path
                             val mediaId = b.readStringUnsafe()
                             val uri = b.readUri()
                             val mimeType = b.readStringSafe()
@@ -202,10 +218,11 @@ class LastPlayedManager(
                             val albumId = b.readLong()
                             val genreId = b.readLong()
                             val author = b.readStringSafe()
-                            val cdTrackNumber = b.readInt()
+                            b.skip() // used to be CdTrackNumber
                             val duration = b.readLong()
-                            val path = b.readStringUnsafe()
+                            b.skip() // used to be Path
                             val modifiedDate = b.readLong()
+                            val cdTrackNumber = b.readStringSafe()
                             MediaItem.Builder()
                                 .setUri(uri)
                                 .setMediaId(mediaId!!)
@@ -233,24 +250,21 @@ class LastPlayedManager(
                                         .setIsPlayable(isPlayable)
                                         .setExtras(Bundle().apply {
                                             if (addDate != null) {
-                                                putLong("AddDate", addDate)
+                                                putLong(EXTRA_ADD_DATE, addDate)
                                             }
                                             if (artistId != null) {
-                                                putLong("ArtistId", artistId)
+                                                putLong(EXTRA_ARTIST_ID, artistId)
                                             }
                                             if (albumId != null) {
-                                                putLong("AlbumId", albumId)
+                                                putLong(EXTRA_ALBUM_ID, albumId)
                                             }
                                             if (genreId != null) {
-                                                putLong("GenreId", genreId)
+                                                putLong(EXTRA_GENRE_ID, genreId)
                                             }
-                                            if (cdTrackNumber != null) {
-                                                putInt("CdTrackNumber", cdTrackNumber)
-                                            }
-                                            putString("Author", author)
-                                            putString("Path", path)
+                                            putString(EXTRA_CD_TRACK_NUMBER, cdTrackNumber)
+                                            putString(EXTRA_AUTHOR, author)
                                             if (modifiedDate != null) {
-                                                putLong("ModifiedDate", modifiedDate)
+                                                putLong(EXTRA_MODIFIED_DATE, modifiedDate)
                                             }
                                         })
                                         .build()
@@ -324,11 +338,11 @@ private class SafeDelimitedStringConcat(private val delimiter: String) {
     fun writeBase64(b: ByteArray?) = append(b?.let { Base64.encodeToString(it, Base64.DEFAULT) })
     fun writeStringSafe(s: CharSequence?) =
         writeBase64(s?.toString()?.toByteArray(StandardCharsets.UTF_8))
-
     fun writeInt(i: Int?) = append(i?.toString())
     fun writeLong(i: Long?) = append(i?.toString())
     fun writeBool(b: Boolean?) = append(b?.toString())
     fun writeUri(u: Uri?) = writeStringSafe(u?.toString())
+    fun skip() = append(null)
 }
 
 private class SafeDelimitedStringDecat(delimiter: String, str: String) {
@@ -347,6 +361,9 @@ private class SafeDelimitedStringDecat(delimiter: String, str: String) {
     fun readLong(): Long? = read()?.toLong()
     fun readBool(): Boolean? = read()?.toBooleanStrict()
     fun readUri(): Uri? = Uri.parse(readStringSafe())
+    fun skip() {
+        read()
+    }
 }
 
 private object PrefsListUtils {

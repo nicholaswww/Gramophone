@@ -34,6 +34,8 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.LibraryViewModel
 import uk.akane.libphonograph.reader.Reader
 import uk.akane.libphonograph.reader.ReaderResult
+import uk.akane.libphonograph.reader.SimpleReader
+import uk.akane.libphonograph.reader.SimpleReaderResult
 
 /**
  * [MediaStoreUtils] contains all the methods for reading
@@ -55,73 +57,18 @@ object MediaStoreUtils {
      * @return
      */
     @OptIn(UnstableApi::class)
-    private fun getAllSongs(context: Context): ReaderResult<MediaItem> {
+    private fun getAllSongs(context: Context): SimpleReaderResult {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val limitValue = if (BuildConfig.DISABLE_MEDIA_STORE_FILTER) 0 else prefs.getInt(
             "mediastore_filter",
             context.resources.getInteger(R.integer.filter_default_sec)
         )
         val folderFilter = prefs.getStringSet("folderFilter", setOf()) ?: setOf()
-        return Reader.readFromMediaStore(
+        return SimpleReader.readFromMediaStore(
             context,
-            { uri, mediaId, mimeType, title, writer, compilation, composer, artist,
-                albumTitle, albumArtist, artworkUri, cdTrackNumber, trackNumber,
-                discNumber, genre, recordingDay, recordingMonth, recordingYear,
-                releaseYear, artistId, albumId, genreId, author, addDate, duration,
-                modifiedDate ->
-                return@readFromMediaStore MediaItem
-                    .Builder()
-                    .setUri(uri)
-                    .setMediaId(mediaId.toString())
-                    .setMimeType(mimeType)
-                    .setMediaMetadata(
-                        MediaMetadata
-                            .Builder()
-                            .setIsBrowsable(false)
-                            .setIsPlayable(true)
-                            .setDurationMs(duration)
-                            .setTitle(title)
-                            .setWriter(writer)
-                            .setCompilation(compilation)
-                            .setComposer(composer)
-                            .setArtist(artist)
-                            .setAlbumTitle(albumTitle)
-                            .setAlbumArtist(albumArtist)
-                            .setArtworkUri(artworkUri)
-                            .setTrackNumber(trackNumber)
-                            .setDiscNumber(discNumber)
-                            .setGenre(genre)
-                            .setRecordingDay(recordingDay)
-                            .setRecordingMonth(recordingMonth)
-                            .setRecordingYear(recordingYear)
-                            .setReleaseYear(releaseYear)
-                            .setExtras(Bundle().apply {
-                                if (artistId != null) {
-                                    putLong("ArtistId", artistId)
-                                }
-                                if (albumId != null) {
-                                    putLong("AlbumId", albumId)
-                                }
-                                if (genreId != null) {
-                                    putLong("GenreId", genreId)
-                                }
-                                putString("Author", author)
-                                if (addDate != null) {
-                                    putLong("AddDate", addDate)
-                                }
-                                if (modifiedDate != null) {
-                                    putLong("ModifiedDate", modifiedDate)
-                                }
-                                cdTrackNumber?.toIntOrNull()
-                                    ?.let { it1 -> putInt("CdTrackNumber", it1) }
-                            })
-                            .build(),
-                    ).build()
-            },
             minSongLengthSeconds = limitValue.toLong(),
             blackListSet = folderFilter,
-            shouldUseEnhancedCoverReading = null,
-            shouldLoadPlaylists = true
+            shouldUseEnhancedCoverReading = null
         )
     }
 
@@ -133,14 +80,14 @@ object MediaStoreUtils {
         val pairObject = getAllSongs(context)
         CoroutineScope(Dispatchers.Main).launch {
             libraryViewModel.mediaItemList.value = pairObject.songList
-            libraryViewModel.albumItemList.value = pairObject.albumList!!
-            libraryViewModel.artistItemList.value = pairObject.artistList!!
-            libraryViewModel.albumArtistItemList.value = pairObject.albumArtistList!!
-            libraryViewModel.genreItemList.value = pairObject.genreList!!
-            libraryViewModel.dateItemList.value = pairObject.dateList!!
-            libraryViewModel.playlistList.value = pairObject.playlistList!!
-            libraryViewModel.folderStructure.value = pairObject.folderStructure!!
-            libraryViewModel.shallowFolderStructure.value = pairObject.shallowFolder!!
+            libraryViewModel.albumItemList.value = pairObject.albumList
+            libraryViewModel.artistItemList.value = pairObject.artistList
+            libraryViewModel.albumArtistItemList.value = pairObject.albumArtistList
+            libraryViewModel.genreItemList.value = pairObject.genreList
+            libraryViewModel.dateItemList.value = pairObject.dateList
+            libraryViewModel.playlistList.value = pairObject.playlistList
+            libraryViewModel.folderStructure.value = pairObject.folderStructure
+            libraryViewModel.shallowFolderStructure.value = pairObject.shallowFolder
             libraryViewModel.allFolderSet.value = pairObject.folders
             then?.let { it() }
         }

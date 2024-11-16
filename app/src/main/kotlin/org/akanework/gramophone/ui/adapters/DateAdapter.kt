@@ -30,8 +30,8 @@ import uk.akane.libphonograph.items.Date
  */
 class DateAdapter(
     fragment: Fragment,
-    dateList: MutableLiveData<List<Date<MediaItem>>>,
-) : BaseAdapter<Date<MediaItem>>
+    dateList: MutableLiveData<List<Date>>,
+) : BaseAdapter<Date>
     (
     fragment,
     liveData = dateList,
@@ -45,18 +45,18 @@ class DateAdapter(
 
     override val defaultCover = R.drawable.ic_default_cover_date
 
-    override fun virtualTitleOf(item: Date<MediaItem>): String {
+    override fun virtualTitleOf(item: Date): String {
         return context.getString(R.string.unknown_year)
     }
 
-    override fun onClick(item: Date<MediaItem>) {
+    override fun onClick(item: Date) {
         mainActivity.startFragment(GeneralSubFragment()) {
             putInt("Position", toRawPos(item))
             putInt("Item", R.id.dates)
         }
     }
 
-    override fun onMenu(item: Date<MediaItem>, popupMenu: PopupMenu) {
+    override fun onMenu(item: Date, popupMenu: PopupMenu) {
         popupMenu.inflate(R.menu.more_menu_less)
 
         popupMenu.setOnMenuItemClickListener { it1 ->
