@@ -19,14 +19,11 @@ package org.akanework.gramophone.ui.adapters
 
 import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.MutableLiveData
-import androidx.media3.common.MediaItem
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
 import uk.akane.libphonograph.items.Playlist
-import uk.akane.libphonograph.reader.Reader
 
 /**
  * [PlaylistAdapter] is an adapter for displaying artists.

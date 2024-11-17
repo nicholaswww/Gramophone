@@ -174,6 +174,19 @@ class MyRecyclerView(context: Context, attributeSet: AttributeSet?, defStyleAttr
         if (offset == 0) ah?.hideScrollbar()
     }
 
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        // Let's clean up some resources by pretending the view is gone (a detached view is as good
+        // as gone for our purposes anyway)
+        adapter?.onDetachedFromRecyclerView(this)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // We're so back
+        adapter?.onAttachedToRecyclerView(this)
+    }
+
     abstract class Adapter<VH : ViewHolder> : RecyclerView.Adapter<VH>() {
         final override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
             super.onAttachedToRecyclerView(recyclerView)

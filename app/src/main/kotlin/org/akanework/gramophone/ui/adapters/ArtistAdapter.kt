@@ -17,16 +17,12 @@
 
 package org.akanework.gramophone.ui.adapters
 
-import android.util.Log
+import android.content.SharedPreferences
 import android.view.MenuItem
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.edit
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.MutableLiveData
-import androidx.media3.common.MediaItem
 import androidx.preference.PreferenceManager
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.SharedFlow
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.ui.MainActivity
@@ -37,11 +33,14 @@ import uk.akane.libphonograph.items.Artist
  * [ArtistAdapter] is an adapter for displaying artists.
  */
 class ArtistAdapter(
-    fragment: Fragment
+    fragment: Fragment,
+    private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(fragment.requireContext()),
+    var isAlbumArtist: Boolean = prefs.getBooleanStrict("isDisplayingAlbumArtist", false)
 ) : BaseAdapter<Artist>
     (
     fragment,
-    liveData = null,
+    liveData = (fragment.requireActivity() as MainActivity).let { if (isAlbumArtist)
+        it.reader.albumArtistListFlow else it.reader.artistListFlow },
     sortHelper = StoreItemHelper(),
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
@@ -54,28 +53,7 @@ class ArtistAdapter(
         return context.getString(R.string.unknown_artist)
     }
 
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-    var isAlbumArtist = prefs.getBooleanStrict("isDisplayingAlbumArtist", false)
-        private set
-
     override val defaultCover = R.drawable.ic_default_cover_artist
-
-    init {
-        liveData = if (isAlbumArtist) mainActivity.reader.albumArtistListFlow else
-            mainActivity.reader.artistListFlow
-        liveData?.let {
-            if (it is SharedFlow<List<Artist>>) {
-                it.replayCache.lastOrNull()?.let {
-                    updateList(it, now = true, canDiff = false)
-                }
-            } else {
-                // TODO if we don't have a SharedFlow we'd be missing the above fast path and waste
-                //  cycles reloading the list after view was layout-ed. should use viewmodel in
-                //  callers to keep permanent SharedFlow and remove this code path entirely
-                Log.w("BaseAdapter", "liveData is non-null but not SharedFlow")
-            }
-        }
-    }
 
     override fun onClick(item: Artist) {
         mainActivity.startFragment(ArtistSubFragment()) {
@@ -122,15 +100,6 @@ class ArtistAdapter(
         return ArtistDecorAdapter(this)
     }
 
-    private fun setAlbumArtist(albumArtist: Boolean) {
-        isAlbumArtist = albumArtist
-        prefs.edit { putBoolean("isDisplayingAlbumArtist", isAlbumArtist) }
-        stopObserving()
-        liveData = if (isAlbumArtist) mainActivity.reader.albumArtistListFlow else
-            mainActivity.reader.artistListFlow
-        startObserving()
-    }
-
     private class ArtistDecorAdapter(
         artistAdapter: ArtistAdapter
     ) : BaseDecorAdapter<ArtistAdapter>(artistAdapter, R.plurals.artists) {
@@ -144,7 +113,17 @@ class ArtistAdapter(
             return when (menuItem.itemId) {
                 R.id.album_artist -> {
                     menuItem.isChecked = !menuItem.isChecked
-                    adapter.setAlbumArtist(menuItem.isChecked)
+                    adapter.isAlbumArtist = menuItem.isChecked
+
+                    adapter.prefs.edit {
+                        putBoolean(
+                            "isDisplayingAlbumArtist",
+                            adapter.isAlbumArtist
+                        )
+                    }
+                    adapter.liveDataAgent.value =
+                        if (adapter.isAlbumArtist) adapter.mainActivity.reader.albumArtistListFlow else
+                            adapter.mainActivity.reader.artistListFlow
                     true
                 }
 

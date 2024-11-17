@@ -28,7 +28,7 @@ import uk.akane.libphonograph.items.Album
 
 class AlbumAdapter(
     fragment: Fragment,
-    liveData: Flow<List<Album>>? = (fragment.requireActivity() as MainActivity).reader.albumListFlow,
+    liveData: Flow<List<Album>> = (fragment.requireActivity() as MainActivity).reader.albumListFlow,
     ownsView: Boolean = true,
     isSubFragment: Boolean = false,
     fallbackSpans: Int = 1
@@ -45,20 +45,6 @@ class AlbumAdapter(
     isSubFragment = isSubFragment,
     fallbackSpans = fallbackSpans
 ) {
-    constructor(
-        fragment: Fragment,
-        albumList: List<Album>,
-        isSubFragment: Boolean = false,
-        fallbackSpans: Int = 1
-    ) : this(
-        fragment,
-        null,
-        false,
-        isSubFragment = isSubFragment,
-        fallbackSpans = fallbackSpans
-    ) {
-        updateList(albumList, now = true, false)
-    }
 
     override fun virtualTitleOf(item: Album): String {
         return context.getString(R.string.unknown_album)

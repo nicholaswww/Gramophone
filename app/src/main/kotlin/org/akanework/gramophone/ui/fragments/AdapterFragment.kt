@@ -79,14 +79,6 @@ class AdapterFragment : BaseFragment(null) {
         }
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        // TODO is this really needed? if yes, move it to MyRecyclerView to make it global
-        adapter.concatAdapter.adapters.forEach {
-            it.onDetachedFromRecyclerView(recyclerView)
-        }
-    }
-
     abstract class BaseInterface<T : RecyclerView.ViewHolder>
         : MyRecyclerView.Adapter<T>(), PopupTextProvider {
         abstract val concatAdapter: ConcatAdapter

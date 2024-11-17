@@ -27,7 +27,6 @@ import androidx.core.app.ShareCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.lifecycle.MutableLiveData
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -104,7 +103,7 @@ class SongAdapter(
         rawOrderExposed,
         fallbackSpans
     ) {
-        updateList(songList, now = true, false)
+        updateList(songList, false)
     }
 
     fun getSongList() = list

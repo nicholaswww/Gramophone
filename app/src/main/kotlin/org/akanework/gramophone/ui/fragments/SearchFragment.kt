@@ -83,7 +83,7 @@ class SearchFragment : BaseFragment(false) {
         editText.addTextChangedListener { rawText ->
             // TODO sort results by match quality? (using NaturalOrderHelper)
             if (rawText.isNullOrBlank()) {
-                songAdapter.updateList(listOf(), now = true, true)
+                songAdapter.updateList(listOf(), true)
             } else {
                 // make sure the user doesn't edit away our text while we are filtering
                 val text = rawText.toString()
@@ -105,7 +105,7 @@ class SearchFragment : BaseFragment(false) {
                         )
                     }
                     handler.post {
-                        songAdapter.updateList(filteredList, now = true, true)
+                        songAdapter.updateList(filteredList, true)
                     }
                 }
             }

@@ -31,8 +31,10 @@ import androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import kotlin.properties.Delegates
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
@@ -96,7 +98,7 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
         albumAdapter.decorAdapter.jumpDownPos = albumAdapter.concatAdapter.itemCount
         songAdapter = SongAdapter(
             this,
-            item.map { it.songList }, true, null, false,
+            item.map { it.songList }, canSort = true, helper = null, ownsView = false,
             isSubFragment = true, fallbackSpans = spans / 2 // one song takes 2 spans
         )
         songAdapter.decorAdapter.jumpUpPos = 0
@@ -126,8 +128,10 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
         val title = item.map { it.title ?: requireContext().getString(R.string.unknown_artist) }
         lifecycleScope.launch {
             title.collect {
-                // Show title text.
-                topAppBar.title = it
+                withContext(Dispatchers.Main) {
+                    // Show title text.
+                    topAppBar.title = it
+                }
             }
         }
 

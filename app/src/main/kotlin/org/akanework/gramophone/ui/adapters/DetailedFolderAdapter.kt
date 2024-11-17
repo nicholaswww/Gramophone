@@ -24,7 +24,6 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DiffUtil
@@ -71,7 +70,9 @@ class DetailedFolderAdapter(
         this.scope = CoroutineScope(Dispatchers.Default)
         this.scope!!.launch {
             liveData.collect {
-                onChanged(it)
+                withContext(Dispatchers.Main) {
+                    onChanged(it)
+                }
             }
         }
         recyclerView.layoutManager = LinearLayoutManager(recyclerView.context)
@@ -115,7 +116,7 @@ class DetailedFolderAdapter(
         val doUpdate = { canDiff: Boolean ->
             folderPopAdapter.enabled = fileNodePath.isNotEmpty()
             folderAdapter.updateList(item?.folderList?.values ?: listOf(), canDiff)
-            songAdapter.updateList(item?.songList ?: listOf(), now = true, false)
+            songAdapter.updateList(item?.songList ?: listOf(), false)
         }
         recyclerView.let {
             if (it == null || invertedDirection == null) {

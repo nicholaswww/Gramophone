@@ -28,10 +28,12 @@ import androidx.media3.common.util.UnstableApi
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.lastOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.ui.MyRecyclerView
@@ -141,8 +143,10 @@ class GeneralSubFragment : BaseFragment(true) {
 
         lifecycleScope.launch {
             title.collect {
-                // Show title text.
-                collapsingToolbarLayout.title = it
+                withContext(Dispatchers.Main) {
+                    // Show title text.
+                    collapsingToolbarLayout.title = it
+                }
             }
         }
 
@@ -150,7 +154,7 @@ class GeneralSubFragment : BaseFragment(true) {
             SongAdapter(
                 this,
                 itemList,
-                true,
+                canSort = true,
                 helper,
                 ownsView = true,
                 isSubFragment = true

@@ -21,7 +21,6 @@ import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Handler
-import android.os.HandlerThread
 import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
@@ -32,9 +31,6 @@ import android.widget.TextView
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Observer
-import androidx.media3.common.MediaItem
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DiffUtil
@@ -46,18 +42,18 @@ import coil3.load
 import coil3.request.crossfade
 import coil3.request.error
 import com.google.android.material.button.MaterialButton
-import java.util.Collections
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.dropWhile
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getStringStrict
@@ -75,7 +71,7 @@ import uk.akane.libphonograph.items.Item
 
 abstract class BaseAdapter<T>(
     protected val fragment: Fragment,
-    protected var liveData: Flow<List<T>>?,
+    liveData: Flow<List<T>>?,
     sortHelper: Sorter.Helper<T>,
     naturalOrderHelper: Sorter.NaturalOrderHelper<T>?,
     initialSortType: Sorter.Type,
@@ -90,6 +86,10 @@ abstract class BaseAdapter<T>(
 ) : AdapterFragment.BaseInterface<BaseAdapter<T>.ViewHolder>(), PopupTextProvider, ItemHeightHelper {
 
     val context = fragment.requireContext()
+    protected val listAgent = if (liveData == null) MutableStateFlow(listOf<T>()) else null
+    protected val liveDataAgent = MutableStateFlow((liveData ?: listAgent)!!)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val flow = liveDataAgent.flatMapLatest { it }
     protected inline val mainActivity
         get() = context as MainActivity
     internal inline val layoutInflater: LayoutInflater
@@ -108,8 +108,8 @@ abstract class BaseAdapter<T>(
         DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, { 1 }, this)
     }
     private val handler = Handler(Looper.getMainLooper())
-    private val rawList = ArrayList<T>((liveData as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
-    protected val list = ArrayList<T>((liveData as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
+    private val rawList = ArrayList<T>((flow as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
+    protected val list = ArrayList<T>((flow as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
     private var comparator: Sorter.HintedComparator<T>? = null
     private var layoutManager: RecyclerView.LayoutManager? = null
     private var listLock = Semaphore(1)
@@ -186,18 +186,18 @@ abstract class BaseAdapter<T>(
                 prefSortType
             else
                 initialSortType
-        liveData?.let {
-            if (it is SharedFlow<List<T>>) {
-                it.replayCache.lastOrNull()?.let {
-                    updateList(it, now = true, canDiff = false)
-                }
-            } else {
-                // TODO if we don't have a SharedFlow we'd be missing the above fast path and waste
-                //  cycles reloading the list after view was layout-ed. should use viewmodel in
-                //  callers to keep permanent SharedFlow and remove this code path entirely
-                Log.w("BaseAdapter", "liveData is non-null but not SharedFlow")
+        /*
+        if (flow is SharedFlow<List<T>>) { // TODO this can never succeed
+            flow.replayCache.lastOrNull()?.let {
+                updateListInternal(it, now = true, canDiff = false)
             }
+        } else {
+            // TODO if we don't have a SharedFlow we'd be missing the above fast path and waste
+            //  cycles reloading the list after view was layout-ed. should use viewmodel in
+            //  callers to keep permanent SharedFlow and remove this code path entirely
+            Log.w("BaseAdapter", "liveData is non-null but not SharedFlow")
         }
+         */
         layoutType =
             if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType && !isSubFragment)
                 prefLayoutType
@@ -227,26 +227,13 @@ abstract class BaseAdapter<T>(
                 applyLayoutManager()
             }
         }
-        startObserving()
-    }
-
-    protected fun startObserving() {
-        if (recyclerView != null) {
-            this.scope = CoroutineScope(Dispatchers.Default)
-            this.scope!!.launch {
-                liveData?.let {
-                    it.collect {
-                        updateList(it, now = false, canDiff = true)
-                    }
+        this.scope = CoroutineScope(Dispatchers.Default)
+        this.scope!!.launch {
+            flow.collect {
+                withContext(Dispatchers.Main) {
+                    updateListInternal(it, now = false, canDiff = true)
                 }
             }
-        }
-    }
-
-    protected fun stopObserving() {
-        if (recyclerView != null) {
-            this.scope!!.cancel()
-            this.scope = null
         }
     }
 
@@ -255,7 +242,8 @@ abstract class BaseAdapter<T>(
         if (layoutType == LayoutType.GRID) {
             recyclerView.removeItemDecoration(gridPaddingDecoration)
         }
-        stopObserving()
+        this.scope!!.cancel()
+        this.scope = null
         this.recyclerView = null
         if (ownsView) {
             recyclerView.layoutManager = null
@@ -287,7 +275,7 @@ abstract class BaseAdapter<T>(
 
     fun sort(selector: Sorter.Type) {
         sortType = selector
-        updateList(null, now = false, canDiff = true)
+        updateListInternal(null, now = false, canDiff = true)
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -297,7 +285,7 @@ abstract class BaseAdapter<T>(
         // to prevent funny IndexOutOfBoundsException crashes
         val newList = ArrayList(srcList ?: rawList)
         if (!listLock.tryAcquire()) {
-            throw IllegalStateException("listLock already held, add now = true to the caller")
+            throw IllegalStateException("listLock already held, add now = true to the caller (I am ${javaClass.name})")
         }
         return {
             try {
@@ -340,7 +328,14 @@ abstract class BaseAdapter<T>(
         }
     }
 
-    fun updateList(newList: List<T>? = null, now: Boolean, canDiff: Boolean) {
+    fun updateList(newList: List<T>, canDiff: Boolean) { // now is true for all callees
+        // TODO what about now / canDiff
+        runBlocking {
+            listAgent!!.emit(newList)
+        }
+    }
+
+    fun updateListInternal(newList: List<T>? = null, now: Boolean, canDiff: Boolean) {
         // The replay cache may cause us seeing the same list more than one.
         if (lastList === newList) return
         lastList = newList
