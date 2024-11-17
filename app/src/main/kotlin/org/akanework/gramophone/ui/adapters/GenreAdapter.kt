@@ -22,6 +22,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.MutableLiveData
 import androidx.media3.common.MediaItem
 import org.akanework.gramophone.R
+import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.Genre
 
@@ -30,11 +31,10 @@ import uk.akane.libphonograph.items.Genre
  */
 class GenreAdapter(
     fragment: Fragment,
-    genreList: MutableLiveData<List<Genre>>,
 ) : BaseAdapter<Genre>
     (
     fragment,
-    liveData = genreList,
+    liveData = (fragment.requireActivity() as MainActivity).reader.genreListFlow,
     sortHelper = StoreItemHelper(),
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,

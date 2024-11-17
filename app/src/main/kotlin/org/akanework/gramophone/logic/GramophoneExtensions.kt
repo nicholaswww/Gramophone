@@ -407,6 +407,9 @@ inline fun Semaphore.runInBg(crossinline runnable: suspend () -> Unit) {
     }
 }
 
+val Context.gramophoneApplication
+    get() = this.applicationContext as GramophoneApplication
+
 /*
 fun AppWidgetManager.createWidgetInSizes(appWidgetId: Int, creator: (SizeF?) -> RemoteViews): RemoteViews {
     val sizes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

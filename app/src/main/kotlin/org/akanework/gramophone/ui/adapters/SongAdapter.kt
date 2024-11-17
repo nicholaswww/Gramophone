@@ -35,10 +35,11 @@ import java.io.File
 import java.util.GregorianCalendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
-import org.akanework.gramophone.ui.LibraryViewModel
+import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.MediaControllerViewModel
 import org.akanework.gramophone.ui.components.NowPlayingDrawable
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
@@ -54,7 +55,7 @@ import uk.akane.libphonograph.manipulator.ItemManipulator
  */
 class SongAdapter(
     fragment: Fragment,
-    songList: MutableLiveData<List<MediaItem>>?,
+    songList: Flow<List<MediaItem>>? = (fragment.requireActivity() as MainActivity).reader.songListFlow,
     canSort: Boolean,
     helper: Sorter.NaturalOrderHelper<MediaItem>?,
     ownsView: Boolean,
@@ -110,7 +111,6 @@ class SongAdapter(
 
     fun getActivity() = mainActivity
 
-    private val viewModel: LibraryViewModel by fragment.activityViewModels()
     private val mediaControllerViewModel: MediaControllerViewModel by fragment.activityViewModels()
     private var idToPosMap: HashMap<String, Int>? = null
     private var currentMediaItem: String? = null
@@ -204,7 +204,7 @@ class SongAdapter(
                 R.id.album -> {
                     CoroutineScope(Dispatchers.Default).launch {
                         val positionAlbum =
-                            viewModel.albumItemList.value?.indexOfFirst {
+                            mainActivity.reader.albumListFlow.replayCache.lastOrNull()?.indexOfFirst {
                                 (it.title == item.mediaMetadata.albumTitle) &&
                                         (it.songList.contains(item))
                             }
@@ -223,7 +223,7 @@ class SongAdapter(
                 R.id.artist -> {
                     CoroutineScope(Dispatchers.Default).launch {
                         val positionArtist =
-                            viewModel.artistItemList.value?.indexOfFirst {
+                            mainActivity.reader.artistListFlow.replayCache.lastOrNull()?.indexOfFirst {
                                 val isMatching =
                                     (it.title == item.mediaMetadata.artist) &&
                                             (it.songList.contains(item))
@@ -242,7 +242,7 @@ class SongAdapter(
                 }
 
                 R.id.details -> {
-                    val position = viewModel.mediaItemList.value?.indexOfFirst {
+                    val position = mainActivity.reader.songListFlow.replayCache.lastOrNull()?.indexOfFirst {
                         it.mediaId == item.mediaId
                     }
                     mainActivity.startFragment(DetailDialogFragment()) {
@@ -271,7 +271,7 @@ class SongAdapter(
                 }
 
                 R.id.share -> {
-                    val mediaItem = viewModel.mediaItemList.value?.find {
+                    val mediaItem = mainActivity.reader.songListFlow.replayCache.lastOrNull()?.find {
                         it.mediaId == item.mediaId
                     } ?: return@setOnMenuItemClickListener true
 

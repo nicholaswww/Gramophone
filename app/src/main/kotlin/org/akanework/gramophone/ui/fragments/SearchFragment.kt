@@ -26,7 +26,6 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import androidx.core.widget.addTextChangedListener
-import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -39,7 +38,6 @@ import org.akanework.gramophone.logic.closeKeyboard
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.showKeyboard
 import org.akanework.gramophone.logic.ui.MyRecyclerView
-import org.akanework.gramophone.ui.LibraryViewModel
 import org.akanework.gramophone.ui.adapters.SongAdapter
 
 /**
@@ -52,7 +50,6 @@ import org.akanework.gramophone.ui.adapters.SongAdapter
 class SearchFragment : BaseFragment(false) {
     // TODO this class leaks InsetSourceControl
     private val handler = Handler(Looper.getMainLooper())
-    private val libraryViewModel: LibraryViewModel by activityViewModels()
     private val filteredList: MutableList<MediaItem> = mutableListOf()
     private lateinit var editText: EditText
 
@@ -95,7 +92,7 @@ class SearchFragment : BaseFragment(false) {
                     // Clear the list from the last search.
                     filteredList.clear()
                     // Filter the library.
-                    libraryViewModel.mediaItemList.value?.filter {
+                    mainActivity.reader.songListFlow.replayCache.lastOrNull()?.filter {
                         val isMatchingTitle = it.mediaMetadata.title?.contains(text, true) == true
                         val isMatchingAlbum =
                             it.mediaMetadata.albumTitle?.contains(text, true) == true

@@ -22,6 +22,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.MutableLiveData
 import androidx.media3.common.MediaItem
 import org.akanework.gramophone.R
+import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
 import uk.akane.libphonograph.items.Playlist
@@ -32,11 +33,10 @@ import uk.akane.libphonograph.reader.Reader
  */
 class PlaylistAdapter(
     fragment: Fragment,
-    playlistList: MutableLiveData<List<Playlist>>,
 ) : BaseAdapter<Playlist>
     (
     fragment,
-    liveData = playlistList,
+    liveData = (fragment.requireActivity() as MainActivity).reader.playlistListFlow,
     sortHelper = StoreItemHelper(),
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,

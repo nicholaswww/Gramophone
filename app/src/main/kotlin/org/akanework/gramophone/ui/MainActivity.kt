@@ -48,13 +48,14 @@ import coil3.imageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgeProperly
+import org.akanework.gramophone.logic.gramophoneApplication
 import org.akanework.gramophone.logic.hasScopedStorageV2
 import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import org.akanework.gramophone.logic.needsMissingOnDestroyCallWorkarounds
 import org.akanework.gramophone.logic.postAtFrontOfQueueAsync
-import org.akanework.gramophone.logic.utils.MediaStoreUtils.updateLibraryWithInCoroutine
 import org.akanework.gramophone.ui.components.PlayerBottomSheet
 import org.akanework.gramophone.ui.fragments.BaseFragment
 
@@ -73,7 +74,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Import our viewModels.
-    val libraryViewModel: LibraryViewModel by viewModels()
     val controllerViewModel: MediaControllerViewModel by viewModels()
     val startingActivity =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
@@ -87,15 +87,12 @@ class MainActivity : AppCompatActivity() {
     lateinit var intentSender: ActivityResultLauncher<IntentSenderRequest>
         private set
 
-    /**
-     * updateLibrary:
-     *   Calls [updateLibraryWithInCoroutine] in MediaStoreUtils and updates library.
-     */
     fun updateLibrary(then: (() -> Unit)? = null) {
         // If library load takes more than 3s, exit splash to avoid ANR
         if (!ready) handler.postDelayed(reportFullyDrawnRunnable, 3000)
         CoroutineScope(Dispatchers.Default).launch {
-            updateLibraryWithInCoroutine(libraryViewModel, this@MainActivity) {
+            this@MainActivity.gramophoneApplication.reader.refresh()
+            withContext(Dispatchers.Main) {
                 if (!ready) reportFullyDrawn()
                 then?.let { it() }
             }
@@ -169,7 +166,7 @@ class MainActivity : AppCompatActivity() {
             )
         } else {
             // If all permissions are granted, we can update library now.
-            if (libraryViewModel.mediaItemList.value == null) {
+            if (this@MainActivity.gramophoneApplication.reader.songListFlow.replayCache.isEmpty()) {
                 updateLibrary()
             } else reportFullyDrawn() // <-- when recreating activity due to rotation
         }
@@ -254,4 +251,7 @@ class MainActivity : AppCompatActivity() {
     fun consumeAutoPlay(): Boolean {
         return autoPlay.also { autoPlay = false }
     }
+
+    inline val reader
+        get() = gramophoneApplication.reader
 }

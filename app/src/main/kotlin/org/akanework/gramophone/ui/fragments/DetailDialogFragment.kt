@@ -8,7 +8,6 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.OptIn
-import androidx.fragment.app.activityViewModels
 import androidx.media3.common.util.UnstableApi
 import coil3.load
 import coil3.request.crossfade
@@ -21,11 +20,8 @@ import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.logic.toLocaleString
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
-import org.akanework.gramophone.ui.LibraryViewModel
 
 class DetailDialogFragment : BaseFragment(false) {
-
-    private val libraryViewModel: LibraryViewModel by activityViewModels()
 
     @OptIn(UnstableApi::class)
     override fun onCreateView(
@@ -40,7 +36,7 @@ class DetailDialogFragment : BaseFragment(false) {
             requireActivity().supportFragmentManager.popBackStack()
         }
         val pos = requireArguments().getInt("Position")
-        val vmv = libraryViewModel.mediaItemList.value
+        val vmv = mainActivity.reader.songListFlow.replayCache.lastOrNull()
         if (vmv == null || vmv.size <= pos) {
             Log.e("DetailDialogFragment", "$vmv with size ${vmv?.size} didn't contain $pos")
             parentFragmentManager.popBackStack()

@@ -724,13 +724,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val hnw = !LyricWidgetProvider.hasWidget(this)
         if (controller?.isPlaying != true || (!isStatusBarLyricsEnabled && hnw)) return
         val cPos = (controller?.contentPosition ?: 0).toULong()
-        val nextUpdate = if (lyrics != null && lyrics is SemanticLyrics.SyncedLyrics) {
-            val syncedLyrics = lyrics as? SemanticLyrics.SyncedLyrics
-            syncedLyrics?.text?.flatMap {
+        val syncedLyrics = lyrics as? SemanticLyrics.SyncedLyrics
+        val nextUpdate = if (syncedLyrics != null) {
+            syncedLyrics.text.flatMap {
                 if (hnw && it.lyric.start <= cPos) listOf() else if (hnw) listOf(it.lyric.start) else
                     (it.lyric.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
                         .let { i -> if (it.lyric.start > cPos) i + it.lyric.start else i }
-            }?.minOrNull()
+            }.minOrNull()
         } else if (lyricsLegacy != null) {
             lyricsLegacy?.find {
                 (it.timeStamp ?: -2) > cPos.toLong()
@@ -762,10 +762,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             val syncedLyrics = lyrics as SemanticLyrics.SyncedLyrics
             syncedLyrics.text.indexOfLast {
                 it.lyric.start <= (controller?.currentPosition ?: 0).toULong()
+                        && !it.isTranslated
             }.let { if (it == -1) null else it }
         } else if (lyricsLegacy != null) {
             lyricsLegacy?.indexOfLast {
                 (it.timeStamp ?: Long.MAX_VALUE) <= (controller?.currentPosition ?: 0)
+                        && !it.isTranslation
             }?.let { if (it == -1) null else it }
         } else null
 

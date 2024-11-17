@@ -22,15 +22,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.lastOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.ui.MyRecyclerView
-import org.akanework.gramophone.ui.LibraryViewModel
+import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.adapters.SongAdapter
 import org.akanework.gramophone.ui.adapters.Sorter
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
@@ -46,15 +51,13 @@ import uk.akane.libphonograph.reader.Reader
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 class GeneralSubFragment : BaseFragment(true) {
-    private val libraryViewModel: LibraryViewModel by activityViewModels()
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View? {
 
-        lateinit var itemList: List<MediaItem>
+        lateinit var itemList: Flow<List<MediaItem>>
 
         val rootView = inflater.inflate(R.layout.fragment_general_sub, container, false)
         val topAppBar = rootView.findViewById<MaterialToolbar>(R.id.topAppBar)
@@ -64,7 +67,7 @@ class GeneralSubFragment : BaseFragment(true) {
         val appBarLayout = rootView.findViewById<AppBarLayout>(R.id.appbarlayout)
         appBarLayout.enableEdgeToEdgePaddingListener()
 
-        if (libraryViewModel.albumItemList.value == null) {
+        if (mainActivity.reader.albumListFlow.replayCache.lastOrNull() == null) {
             // TODO make it wait for lib load instead of breaking state restore
             // (still better than crashing, though)
             requireActivity().supportFragmentManager.popBackStack()
@@ -72,17 +75,17 @@ class GeneralSubFragment : BaseFragment(true) {
         }
         val bundle = requireArguments()
         val itemType = bundle.getInt("Item")
-        val position = bundle.getInt("Position")
+        val position = bundle.getInt("Position") // TODO get rid of position, prone to break
 
-        val title: String?
+        val title: Flow<String>
 
         var helper: Sorter.NaturalOrderHelper<MediaItem>? = null
 
         when (itemType) {
             R.id.album -> {
-                val item = libraryViewModel.albumItemList.value!![position]
-                title = item.title ?: requireContext().getString(R.string.unknown_album)
-                itemList = item.songList
+                val item = mainActivity.reader.albumListFlow.map { it[position] }
+                title = item.map { it.title ?: requireContext().getString(R.string.unknown_album) }
+                itemList = item.map { it.songList }
                 helper =
                     Sorter.NaturalOrderHelper {
                         it.mediaMetadata.trackNumber?.plus(
@@ -99,16 +102,16 @@ class GeneralSubFragment : BaseFragment(true) {
 
             R.id.genres -> {
                 // Genres
-                val item = libraryViewModel.genreItemList.value!![position]
-                title = item.title ?: requireContext().getString(R.string.unknown_genre)
-                itemList = item.songList
+                val item = mainActivity.reader.genreListFlow.map { it[position] }
+                title = item.map { it.title ?: requireContext().getString(R.string.unknown_genre) }
+                itemList = item.map { it.songList }
             }
 
             R.id.dates -> {
                 // Dates
-                val item = libraryViewModel.dateItemList.value!![position]
-                title = item.title ?: requireContext().getString(R.string.unknown_year)
-                itemList = item.songList
+                val item = mainActivity.reader.dateListFlow.map { it[position] }
+                title = item.map { it.title ?: requireContext().getString(R.string.unknown_year) }
+                itemList = item.map { it.songList }
             }
 
             /*R.id.album_artist -> {
@@ -120,21 +123,28 @@ class GeneralSubFragment : BaseFragment(true) {
 
             R.id.playlist -> {
                 // Playlists
-                val item = libraryViewModel.playlistList.value!![position]
-                title = if (item is RecentlyAdded) {
-                    requireContext().getString(R.string.recently_added)
-                } else {
-                    item.title ?: requireContext().getString(R.string.unknown_playlist)
+                val item = mainActivity.reader.playlistListFlow.map { it[position] }
+                title = item.map {
+                    if (it is RecentlyAdded) {
+                        requireContext().getString(R.string.recently_added)
+                    } else {
+                        it.title ?: requireContext().getString(R.string.unknown_playlist)
+                    }
                 }
-                itemList = item.songList
-                helper = Sorter.NaturalOrderHelper { itemList.indexOf(it) }
+                itemList = item.map { it.songList }
+                helper = Sorter.NaturalOrderHelper {
+                    mainActivity.reader.playlistListFlow.replayCache.last()[position].songList.indexOf(it) }
             }
 
             else -> throw IllegalArgumentException()
         }
 
-        // Show title text.
-        collapsingToolbarLayout.title = title
+        lifecycleScope.launch {
+            title.collect {
+                // Show title text.
+                collapsingToolbarLayout.title = it
+            }
+        }
 
         val songAdapter =
             SongAdapter(

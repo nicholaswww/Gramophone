@@ -29,7 +29,6 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.ui.ItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
-import org.akanework.gramophone.ui.LibraryViewModel
 import org.akanework.gramophone.ui.adapters.AlbumAdapter
 import org.akanework.gramophone.ui.adapters.ArtistAdapter
 import org.akanework.gramophone.ui.adapters.DateAdapter
@@ -47,8 +46,6 @@ import org.akanework.gramophone.ui.adapters.SongAdapter
  * @author nift4
  */
 class AdapterFragment : BaseFragment(null) {
-    private val libraryViewModel: LibraryViewModel by activityViewModels()
-
     private lateinit var adapter: BaseInterface<*>
     private lateinit var recyclerView: MyRecyclerView
 
@@ -60,23 +57,23 @@ class AdapterFragment : BaseFragment(null) {
         val rootView = inflater.inflate(R.layout.fragment_recyclerview, container, false)
         recyclerView = rootView.findViewById(R.id.recyclerview)
         recyclerView.enableEdgeToEdgePaddingListener()
-        adapter = createAdapter(libraryViewModel)
+        adapter = createAdapter()
         recyclerView.adapter = adapter.concatAdapter
         recyclerView.setAppBar((requireParentFragment() as ViewPagerFragment).appBarLayout)
         recyclerView.fastScroll(adapter, adapter.itemHeightHelper)
         return rootView
     }
 
-    private fun createAdapter(v: LibraryViewModel): BaseInterface<*> {
+    private fun createAdapter(): BaseInterface<*> {
         return when (arguments?.getInt("ID", -1)) {
-            R.id.songs -> SongAdapter(this, v.mediaItemList, true, null, true)
-            R.id.albums -> AlbumAdapter(this, v.albumItemList)
-            R.id.artists -> ArtistAdapter(this, v.artistItemList, v.albumArtistItemList)
-            R.id.genres -> GenreAdapter(this, v.genreItemList)
-            R.id.dates -> DateAdapter(this, v.dateItemList)
-            R.id.folders -> FolderAdapter(this, v.folderStructure)
-            R.id.detailed_folders -> DetailedFolderAdapter(this, v.shallowFolderStructure)
-            R.id.playlists -> PlaylistAdapter(this, v.playlistList)
+            R.id.songs -> SongAdapter(this, canSort = true, helper = null, ownsView = true)
+            R.id.albums -> AlbumAdapter(this)
+            R.id.artists -> ArtistAdapter(this)
+            R.id.genres -> GenreAdapter(this)
+            R.id.dates -> DateAdapter(this)
+            R.id.folders -> FolderAdapter(this)
+            R.id.detailed_folders -> DetailedFolderAdapter(this)
+            R.id.playlists -> PlaylistAdapter(this)
             -1, null -> throw IllegalArgumentException("unset ID value")
             else -> throw IllegalArgumentException("invalid ID value")
         }

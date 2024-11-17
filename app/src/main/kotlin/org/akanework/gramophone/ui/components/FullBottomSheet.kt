@@ -319,7 +319,7 @@ class FullBottomSheet
         }
 
         bottomSheetFullCover.setOnClickListener {
-            val position = activity.libraryViewModel.mediaItemList.value?.indexOfFirst {
+            val position = activity.reader.songListFlow.replayCache.lastOrNull()?.indexOfFirst {
                 it.mediaId == instance?.currentMediaItem?.mediaId
             }
             activity.startFragment(DetailDialogFragment()) {
@@ -330,7 +330,7 @@ class FullBottomSheet
         bottomSheetFullTitle.setOnClickListener {
             minimize?.invoke()
             val position = instance?.currentMediaItem?.mediaId?.let { currentMediaItemId ->
-                activity.libraryViewModel.albumItemList.value?.indexOfFirst { album ->
+                activity.reader.albumListFlow.replayCache.lastOrNull()?.indexOfFirst { album ->
                     album.songList.any { it.mediaId == currentMediaItemId }
                 }
             }
@@ -343,7 +343,7 @@ class FullBottomSheet
         bottomSheetFullSubtitle.setOnClickListener {
             minimize?.invoke()
             val position = instance?.currentMediaItem?.mediaId?.let { currentMediaItemId ->
-                activity.libraryViewModel.artistItemList.value?.indexOfFirst { artist ->
+                activity.reader.artistListFlow.replayCache.lastOrNull()?.indexOfFirst { artist ->
                     artist.songList.any { it.mediaId == currentMediaItemId }
                 }
             }

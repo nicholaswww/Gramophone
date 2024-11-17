@@ -30,7 +30,6 @@ import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.fragment.app.activityViewModels
 import androidx.media3.common.util.UnstableApi
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.AppBarLayout
@@ -43,9 +42,9 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.clone
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.getSessionId
+import org.akanework.gramophone.logic.gramophoneApplication
 import org.akanework.gramophone.logic.needsManualSnackBarInset
 import org.akanework.gramophone.logic.updateMargin
-import org.akanework.gramophone.ui.LibraryViewModel
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.adapters.ViewPager2Adapter
 import org.akanework.gramophone.ui.fragments.settings.MainSettingsFragment
@@ -59,7 +58,6 @@ import org.akanework.gramophone.ui.fragments.settings.MainSettingsFragment
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 class ViewPagerFragment : BaseFragment(true) {
-    private val libraryViewModel: LibraryViewModel by activityViewModels()
     lateinit var appBarLayout: AppBarLayout
         private set
 
@@ -80,9 +78,10 @@ class ViewPagerFragment : BaseFragment(true) {
             AppCompatResources.getDrawable(requireContext(), R.drawable.ic_more_vert_alt_topappbar)
 
         topAppBar.setOnMenuItemClickListener {
+            val activity = requireActivity() as MainActivity
             when (it.itemId) {
                 R.id.search -> {
-                    (requireActivity() as MainActivity).startFragment(SearchFragment())
+                    activity.startFragment(SearchFragment())
                 }
 
                 R.id.equalizer -> {
@@ -92,7 +91,7 @@ class ViewPagerFragment : BaseFragment(true) {
                             putExtra(AudioEffect.EXTRA_PACKAGE_NAME, requireContext().packageName)
                             putExtra(
                                 AudioEffect.EXTRA_AUDIO_SESSION,
-                                (requireActivity() as MainActivity).getPlayer()?.getSessionId()
+                                activity.getPlayer()?.getSessionId()
                             )
                             putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
                         }
@@ -102,7 +101,7 @@ class ViewPagerFragment : BaseFragment(true) {
                                 "firebase.test.lab"
                             ) != "true"
                         ) {
-                            (requireActivity() as MainActivity).startingActivity.launch(intent)
+                            activity.startingActivity.launch(intent)
                         }
                     } catch (_: ActivityNotFoundException) {
                         // Let's show a toast here if no system inbuilt EQ was found.
@@ -115,7 +114,6 @@ class ViewPagerFragment : BaseFragment(true) {
                 }
 
                 R.id.refresh -> {
-                    val activity = requireActivity() as MainActivity
                     val playerLayout = activity.playerBottomSheet
                     activity.updateLibrary {
                         val snackBar =
@@ -123,7 +121,7 @@ class ViewPagerFragment : BaseFragment(true) {
                                 requireView(),
                                 getString(
                                     R.string.refreshed_songs,
-                                    libraryViewModel.mediaItemList.value!!.size,
+                                    activity.gramophoneApplication.reader.songListFlow.replayCache.last().size,
                                 ),
                                 Snackbar.LENGTH_LONG,
                             )
@@ -172,12 +170,12 @@ class ViewPagerFragment : BaseFragment(true) {
                 }
 
                 R.id.settings -> {
-                    (requireActivity() as MainActivity).startFragment(MainSettingsFragment())
+                    activity.startFragment(MainSettingsFragment())
                 }
 
                 R.id.shuffle -> {
-                    val controller = (requireActivity() as MainActivity).getPlayer()
-                    libraryViewModel.mediaItemList.value?.takeIf { it.isNotEmpty() }?.also {
+                    val controller = activity.getPlayer()
+                    activity.reader.songListFlow.replayCache.lastOrNull()?.takeIf { it.isNotEmpty() }?.also {
                         controller?.shuffleModeEnabled = true
                         controller?.setMediaItems(it)
                         controller?.prepare()

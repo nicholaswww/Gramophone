@@ -17,6 +17,7 @@
 
 package org.akanework.gramophone.ui.adapters
 
+import android.util.Log
 import android.view.MenuItem
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.edit
@@ -24,8 +25,11 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.MutableLiveData
 import androidx.media3.common.MediaItem
 import androidx.preference.PreferenceManager
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharedFlow
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getBooleanStrict
+import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import uk.akane.libphonograph.items.Artist
 
@@ -33,9 +37,7 @@ import uk.akane.libphonograph.items.Artist
  * [ArtistAdapter] is an adapter for displaying artists.
  */
 class ArtistAdapter(
-    fragment: Fragment,
-    private val artistList: MutableLiveData<List<Artist>>,
-    private val albumArtists: MutableLiveData<List<Artist>>,
+    fragment: Fragment
 ) : BaseAdapter<Artist>
     (
     fragment,
@@ -55,10 +57,24 @@ class ArtistAdapter(
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
     var isAlbumArtist = prefs.getBooleanStrict("isDisplayingAlbumArtist", false)
         private set
+
     override val defaultCover = R.drawable.ic_default_cover_artist
 
     init {
-        liveData = if (isAlbumArtist) albumArtists else artistList
+        liveData = if (isAlbumArtist) mainActivity.reader.albumArtistListFlow else
+            mainActivity.reader.artistListFlow
+        liveData?.let {
+            if (it is SharedFlow<List<Artist>>) {
+                it.replayCache.lastOrNull()?.let {
+                    updateList(it, now = true, canDiff = false)
+                }
+            } else {
+                // TODO if we don't have a SharedFlow we'd be missing the above fast path and waste
+                //  cycles reloading the list after view was layout-ed. should use viewmodel in
+                //  callers to keep permanent SharedFlow and remove this code path entirely
+                Log.w("BaseAdapter", "liveData is non-null but not SharedFlow")
+            }
+        }
     }
 
     override fun onClick(item: Artist) {
@@ -109,11 +125,10 @@ class ArtistAdapter(
     private fun setAlbumArtist(albumArtist: Boolean) {
         isAlbumArtist = albumArtist
         prefs.edit { putBoolean("isDisplayingAlbumArtist", isAlbumArtist) }
-        if (recyclerView != null)
-            liveData?.removeObserver(this)
-        liveData = if (isAlbumArtist) albumArtists else artistList
-        if (recyclerView != null)
-            liveData?.observeForever(this)
+        stopObserving()
+        liveData = if (isAlbumArtist) mainActivity.reader.albumArtistListFlow else
+            mainActivity.reader.artistListFlow
+        startObserving()
     }
 
     private class ArtistDecorAdapter(

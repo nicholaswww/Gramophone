@@ -32,6 +32,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
@@ -43,10 +44,11 @@ import org.akanework.gramophone.ui.fragments.AdapterFragment
 import uk.akane.libphonograph.items.FileNode
 
 class DetailedFolderAdapter(
-    private val fragment: Fragment,
-    private val liveData: MutableLiveData<FileNode>
+    private val fragment: Fragment
 ) : AdapterFragment.BaseInterface<RecyclerView.ViewHolder>(), Observer<FileNode> {
     private val mainActivity = fragment.requireActivity() as MainActivity
+    private val liveData = mainActivity.reader.folderStructureFlow
+    private var scope: CoroutineScope? = null
     private val folderPopAdapter: FolderPopAdapter = FolderPopAdapter(this)
     private val folderAdapter: FolderListAdapter =
         FolderListAdapter(listOf(), mainActivity, this)
@@ -60,19 +62,25 @@ class DetailedFolderAdapter(
     private var recyclerView: MyRecyclerView? = null
 
     init {
-        liveData.value?.let { onChanged(it) }
+        liveData.replayCache.lastOrNull()?.let { onChanged(it) }
     }
 
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
         this.recyclerView = recyclerView
-        liveData.observeForever(this)
+        this.scope = CoroutineScope(Dispatchers.Default)
+        this.scope!!.launch {
+            liveData.collect {
+                onChanged(it)
+            }
+        }
         recyclerView.layoutManager = LinearLayoutManager(recyclerView.context)
     }
 
     override fun onDetachedFromRecyclerView(recyclerView: MyRecyclerView) {
         super.onDetachedFromRecyclerView(recyclerView)
-        liveData.removeObserver(this)
+        this.scope!!.cancel()
+        this.scope = null
         recyclerView.layoutManager = null
     }
 

@@ -47,6 +47,16 @@ import coil3.request.crossfade
 import coil3.request.error
 import com.google.android.material.button.MaterialButton
 import java.util.Collections
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
@@ -65,7 +75,7 @@ import uk.akane.libphonograph.items.Item
 
 abstract class BaseAdapter<T>(
     protected val fragment: Fragment,
-    protected var liveData: MutableLiveData<List<T>>?,
+    protected var liveData: Flow<List<T>>?,
     sortHelper: Sorter.Helper<T>,
     naturalOrderHelper: Sorter.NaturalOrderHelper<T>?,
     initialSortType: Sorter.Type,
@@ -77,19 +87,20 @@ abstract class BaseAdapter<T>(
     private val allowDiffUtils: Boolean = false,
     private val canSort: Boolean = true,
     private val fallbackSpans: Int = 1
-) : AdapterFragment.BaseInterface<BaseAdapter<T>.ViewHolder>(), Observer<List<T>>,
-    PopupTextProvider, ItemHeightHelper {
+) : AdapterFragment.BaseInterface<BaseAdapter<T>.ViewHolder>(), PopupTextProvider, ItemHeightHelper {
 
     val context = fragment.requireContext()
     protected inline val mainActivity
         get() = context as MainActivity
     internal inline val layoutInflater: LayoutInflater
         get() = fragment.layoutInflater
+    protected var scope: CoroutineScope? = null
     private val listHeight = context.resources.getDimensionPixelSize(R.dimen.list_height)
     private val largerListHeight =
         context.resources.getDimensionPixelSize(R.dimen.larger_list_height)
     private var gridHeight: Int? = null
     private var lockedInGridSize = false
+    private var lastList: List<T>? = null
     private val sorter = Sorter(sortHelper, naturalOrderHelper, rawOrderExposed)
     val decorAdapter by lazy { createDecorAdapter() }
     override val concatAdapter by lazy { ConcatAdapter(decorAdapter, this) }
@@ -97,10 +108,8 @@ abstract class BaseAdapter<T>(
         DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, { 1 }, this)
     }
     private val handler = Handler(Looper.getMainLooper())
-    private var bgHandlerThread: HandlerThread? = null
-    private var bgHandler: Handler? = null
-    private val rawList = ArrayList<T>(liveData?.value?.size ?: 0)
-    protected val list = ArrayList<T>(liveData?.value?.size ?: 0)
+    private val rawList = ArrayList<T>((liveData as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
+    protected val list = ArrayList<T>((liveData as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
     private var comparator: Sorter.HintedComparator<T>? = null
     private var layoutManager: RecyclerView.LayoutManager? = null
     private var listLock = Semaphore(1)
@@ -177,7 +186,18 @@ abstract class BaseAdapter<T>(
                 prefSortType
             else
                 initialSortType
-        liveData?.value?.let { updateList(it, now = true, canDiff = false) }
+        liveData?.let {
+            if (it is SharedFlow<List<T>>) {
+                it.replayCache.lastOrNull()?.let {
+                    updateList(it, now = true, canDiff = false)
+                }
+            } else {
+                // TODO if we don't have a SharedFlow we'd be missing the above fast path and waste
+                //  cycles reloading the list after view was layout-ed. should use viewmodel in
+                //  callers to keep permanent SharedFlow and remove this code path entirely
+                Log.w("BaseAdapter", "liveData is non-null but not SharedFlow")
+            }
+        }
         layoutType =
             if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType && !isSubFragment)
                 prefLayoutType
@@ -197,10 +217,6 @@ abstract class BaseAdapter<T>(
         val moreButton: MaterialButton = view.findViewById(R.id.more)
     }
 
-    fun getFrozenList(): List<T> {
-        return Collections.unmodifiableList(list)
-    }
-
     @SuppressLint("NotifyDataSetChanged")
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
@@ -211,10 +227,26 @@ abstract class BaseAdapter<T>(
                 applyLayoutManager()
             }
         }
-        liveData?.observeForever(this)
-        bgHandlerThread = HandlerThread(BaseAdapter::class.qualifiedName).apply {
-            start()
-            bgHandler = Handler(looper)
+        startObserving()
+    }
+
+    protected fun startObserving() {
+        if (recyclerView != null) {
+            this.scope = CoroutineScope(Dispatchers.Default)
+            this.scope!!.launch {
+                liveData?.let {
+                    it.collect {
+                        updateList(it, now = false, canDiff = true)
+                    }
+                }
+            }
+        }
+    }
+
+    protected fun stopObserving() {
+        if (recyclerView != null) {
+            this.scope!!.cancel()
+            this.scope = null
         }
     }
 
@@ -223,14 +255,11 @@ abstract class BaseAdapter<T>(
         if (layoutType == LayoutType.GRID) {
             recyclerView.removeItemDecoration(gridPaddingDecoration)
         }
+        stopObserving()
         this.recyclerView = null
         if (ownsView) {
             recyclerView.layoutManager = null
         }
-        liveData?.removeObserver(this)
-        bgHandler = null
-        bgHandlerThread!!.quitSafely()
-        bgHandlerThread = null
     }
 
     private fun applyLayoutManager() {
@@ -244,10 +273,6 @@ abstract class BaseAdapter<T>(
             recyclerView?.addItemDecoration(gridPaddingDecoration)
         }
         recyclerView?.scrollToPosition(scrollPosition)
-    }
-
-    override fun onChanged(value: List<T>) {
-        updateList(value, now = false, canDiff = true)
     }
 
     override fun getItemCount(): Int = list.size
@@ -316,10 +341,13 @@ abstract class BaseAdapter<T>(
     }
 
     fun updateList(newList: List<T>? = null, now: Boolean, canDiff: Boolean) {
+        // The replay cache may cause us seeing the same list more than one.
+        if (lastList === newList) return
+        lastList = newList
         val doSort = sort(newList, canDiff)
-        if (now || bgHandler == null) doSort()()
+        if (now || scope == null) doSort()()
         else {
-            bgHandler!!.post {
+            scope!!.launch {
                 val apply = doSort()
                 handler.post {
                     apply()
