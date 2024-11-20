@@ -87,6 +87,7 @@ class Sorter<T>(
         ByReleaseDateDescending, ByReleaseDateAscending,
         ByModifiedDateDescending, ByModifiedDateAscending,
         ByDiscAndTrack,
+
         /* do not use NativeOrder for something other than title or edit getSupportedTypes */
         None, NativeOrder, NativeOrderDescending
     }
@@ -122,16 +123,24 @@ class Sorter<T>(
             }
 
             Type.ByArtistDescending -> {
-                SupportComparator.createAlphanumericComparator(true, {
-                    sortingHelper.getArtist(it) ?: ""
-                }, getComparator(if (rawOrderExposed)
-                    Type.NativeOrderDescending else Type.ByTitleDescending))
+                SupportComparator.createAlphanumericComparator(
+                    true, {
+                        sortingHelper.getArtist(it) ?: ""
+                    }, getComparator(
+                        if (rawOrderExposed)
+                            Type.NativeOrderDescending else Type.ByTitleDescending
+                    )
+                )
             }
 
             Type.ByArtistAscending -> {
-                SupportComparator.createAlphanumericComparator(false, {
-                    sortingHelper.getArtist(it) ?: ""
-                }, getComparator(if (rawOrderExposed) Type.NativeOrder else Type.ByTitleAscending))
+                SupportComparator.createAlphanumericComparator(
+                    false,
+                    {
+                        sortingHelper.getArtist(it) ?: ""
+                    },
+                    getComparator(if (rawOrderExposed) Type.NativeOrder else Type.ByTitleAscending)
+                )
             }
 
             Type.ByAlbumTitleDescending -> {
@@ -219,7 +228,8 @@ class Sorter<T>(
             Type.None -> SupportComparator.createDummyComparator()
 
             else -> throw IllegalStateException("this code is unreachable")
-        })
+        }
+        )
     }
 
     fun getFastScrollHintFor(item: T, sortType: Type): String? {

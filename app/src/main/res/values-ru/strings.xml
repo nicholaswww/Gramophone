@@ -130,7 +130,7 @@
     <string name="settings_color_accuracy_summary">Более точная генерация цветов</string>
     <string name="settings_experimental_settings_summary">Тестирование функций, разное</string>
     <string name="settings_blacklist">Чёрный список</string>
-    <string name="sort_by_add_date">Добавить дату</string>
+    <string name="sort_by_add_date">Дата добавления</string>
     <string name="settings_lyrics_configuration">Конфигурация текста</string>
     <string name="sort_by_modified_date">Дата изменения</string>
     <string name="settings_play_on_launch_summary">Играть музыку при запуске</string>
@@ -147,8 +147,7 @@
     <string name="delete_failed">Не удалось удалить песню</string>
     <string name="dialog_edit_metadata">Редактировать</string>
     <string name="album_cover">Обложка альбома</string>
-    <string name="delete_in_progress">Уже удаляется другая песня</string>
-    <string name="settings_crash_application_summary">Crash-O-Matic 3000</string>
+	<string name="settings_crash_application_summary">Crash-O-Matic 3000</string>
     <string name="dialog_lyrics">Текст песни</string>
     <string name="settings_preference_category_application">Приложение</string>
     <string name="settings_category_basic_info">Основная информация</string>
@@ -156,14 +155,12 @@
     <string name="settings_category_misc">Разное</string>
     <string name="preference_category_quality">Качество</string>
     <string name="settings_category_full_player">Плеер</string>
-    <string name="deny_images">Откажитесь от разрешения «Фото и видео»</string>
+    <string name="deny_images"><![CDATA[Пожалуйста, откажите от разрешения \"Фото и видео\"]]></string>
     <string name="crash_clipboard">Журнал сбоев скопирован в буфер обмена</string>
-    <string name="grant_images">Пожалуйста, дайте разрешение на «Фото и видео»</string>
+    <string name="grant_images"><![CDATA[Пожалуйста, предоставьте разрешение \"Фото и видео\"]]></string>
     <string name="settings_trim_lyrics">Удалить пробелы вокруг текста песни</string>
     <string name="settings_lyrics_multiline">Чтение многострочных текстов песен</string>
     <string name="settings_lyrics_multiline_summary">Все строки между точками синхронизации рассматриваются как один единый текст</string>
-    <string name="settings_lyrics_contrast">Режим высокой контрастности</string>
-    <string name="settings_lyrics_contrast_summary">Полезно, если вы хотите видеть неактивные строки текста</string>
     <string name="current_playlist">Текущий плейлист</string>
     <string name="timer">Таймер сна</string>
     <string name="sort_by_release_date">Дата выхода</string>
@@ -175,7 +172,7 @@
     <string name="fgs_failed_channel">Не удалось возобновить воспроизведение</string>
     <string name="timer_expiry">Таймер сна приостановит музыку на %s</string>
     <string name="separator_dot">•</string>
-    <string name="grant_audio">Пожалуйста, предоставьте разрешение на «Музыку и аудио»</string>
+    <string name="grant_audio"><![CDATA[Пожалуйста, предоставьте разрешение \"Музыка и аудио\"]]></string>
     <string name="app_name">Gramophone</string>
     <string name="settings_preference_category_home">Главный экран</string>
     <string name="tab_order">Настроить порядок вкладок</string>
@@ -195,4 +192,11 @@
     <string name="expand_less">Закрыть</string>
     <string name="skip_previous">Перейти к предыдущему</string>
     <string name="position_slider">Ползунок положения</string>
+    <string name="settings_lyrics_parser">Новый парсер текста песни</string>
+    <string name="settings_lyrics_ui">Включить новый дизайн текста песни</string>
+    <string name="settings_lyrics_parser_summary">Включить новый парсер текста песни, который поддерживает синхронизацию по словам, индикатор говорящего, смещение и др.</string>
+    <string name="settings_status_bar_lyrics_title">Текст песни в строке состояния</string>
+    <string name="settings_lyrics_ui_summary">Экспериментальный дизайн с текстом песни по словам и расширенными возможностями</string>
+    <string name="settings_status_bar_lyrics_summary">Включить метод показа текста песни MeiZu в строке состояния (доступно только на некоторых устройствах)</string>
+    <string name="lyric_widget_description">Виджет, показывающий тексты песен, воспроизводимых в данный момент</string>
 </resources>

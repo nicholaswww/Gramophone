@@ -117,8 +117,7 @@
     <string name="settings_lyrics_bold">粗體歌詞</string>
     <string name="settings_lyrics_center">中心對齊</string>
     <string name="settings_lyrics_configuration_summary">設定歌詞外觀</string>
-    <string name="delete_in_progress">已經正在刪除另外一首歌曲</string>
-    <string name="delete_failed">歌曲刪除失敗</string>
+	<string name="delete_failed">歌曲刪除失敗</string>
     <string name="dialog_edit_metadata">編輯</string>
     <string name="album_cover">專輯封面</string>
     <string name="settings_blacklist">黑名單</string>
@@ -135,8 +134,6 @@
     <string name="settings_preference_category_application">應用程式</string>
     <string name="settings_category_full_player">完整播放器</string>
     <string name="album_covers_enhance_desc">支援高品質歌曲封面，並允許專輯與歌曲封面不同（需要相片存取權限）</string>
-    <string name="settings_lyrics_contrast">高對比度模式</string>
-    <string name="settings_lyrics_contrast_summary">如果您想實際看到未使用的歌詞行列，這將非常有用。</string>
     <string name="sort_by_release_date">發佈日期</string>
     <string name="album_covers_enhance">增強的專輯封面載入功能</string>
     <string name="settings_lyric">歌詞</string>
@@ -161,4 +158,9 @@
     <string name="timer_expiry">睡眠計時器會在 %s 時暫停音樂</string>
     <string name="settings_lyrics_configuration">歌詞配置</string>
     <string name="grant_audio">請授予「音樂與音訊」權限</string>
+    <string name="app_name">Gramophone</string>
+    <string name="separator_dot">•</string>
+    <string name="settings_preference_category_home">主畫面</string>
+    <string name="tab_order">配置標籤順序</string>
+    <string name="tab_order_summary">應用將在啟動時顯示第一個標籤。分隔符後的標籤將被隱藏。</string>
 </resources>

@@ -37,6 +37,9 @@ import org.akanework.gramophone.ui.MainActivity
  */
 abstract class BaseFragment(val wantsPlayer: Boolean? = null) : Fragment() {
 
+    protected val mainActivity
+        get() = requireActivity() as MainActivity
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Enable material transitions.

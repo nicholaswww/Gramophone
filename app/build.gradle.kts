@@ -18,7 +18,7 @@ plugins {
 android {
     val releaseType = if (project.hasProperty("releaseType")) project.properties["releaseType"].toString()
         else readProperties(file("../package.properties")).getProperty("releaseType")
-    val myVersionName = "." + "git rev-parse --short=6 HEAD".runCommand(workingDir = rootDir)
+    val myVersionName = "." + "git rev-parse --short=7 HEAD".runCommand(workingDir = rootDir)
     if (releaseType.contains("\"")) {
         throw IllegalArgumentException("releaseType must not contain \"")
     }
@@ -104,8 +104,8 @@ android {
         // keep support for it for a while.
         minSdk = 21
         targetSdk = 34
-        versionCode = 16
-        versionName = "1.0.14"
+        versionCode = 17
+        versionName = "1.0.15"
         if (releaseType != "Release") {
             versionNameSuffix = myVersionName
         }

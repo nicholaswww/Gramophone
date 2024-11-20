@@ -137,7 +137,7 @@ class PlayerBottomSheet private constructor(
 
         bottomSheetPreviewNextButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-            instance?.seekToNextMediaItem()
+            instance?.seekToNext()
         }
 
         activity.controllerViewModel.addControllerCallback(activity.lifecycle) { _, _ ->
@@ -215,13 +215,14 @@ class PlayerBottomSheet private constructor(
         doOnLayout { // wait for CoordinatorLayout to finish to allow getting behaviour
             standardBottomSheetBehavior = MyBottomSheetBehavior.from(this)
             fullPlayer.minimize = {
-                standardBottomSheetBehavior!!.state = BottomSheetBehavior.STATE_COLLAPSED }
+                standardBottomSheetBehavior!!.state = BottomSheetBehavior.STATE_COLLAPSED
+            }
             bottomSheetBackCallback = object : OnBackPressedCallback(enabled = false) {
                 override fun handleOnBackStarted(backEvent: BackEventCompat) {
-                    if (fullPlayer.bottomSheetFullLyricRecyclerView.visibility ==
+                    if (fullPlayer.bottomSheetFullLyricView.visibility ==
                         VISIBLE
                     ) {
-                        fullPlayer.bottomSheetFullLyricRecyclerView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
+                        fullPlayer.bottomSheetFullLyricView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
                         fullPlayer.bottomSheetLyricButton.isChecked = false
                     } else {
                         standardBottomSheetBehavior!!.startBackProgress(backEvent)
@@ -229,7 +230,7 @@ class PlayerBottomSheet private constructor(
                 }
 
                 override fun handleOnBackProgressed(backEvent: BackEventCompat) {
-                    if (fullPlayer.bottomSheetFullLyricRecyclerView.visibility ==
+                    if (fullPlayer.bottomSheetFullLyricView.visibility ==
                         VISIBLE
                     ) {
                         // TODO
@@ -239,10 +240,10 @@ class PlayerBottomSheet private constructor(
                 }
 
                 override fun handleOnBackPressed() {
-                    if (fullPlayer.bottomSheetFullLyricRecyclerView.visibility ==
+                    if (fullPlayer.bottomSheetFullLyricView.visibility ==
                         VISIBLE
                     ) {
-                        fullPlayer.bottomSheetFullLyricRecyclerView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
+                        fullPlayer.bottomSheetFullLyricView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
                         fullPlayer.bottomSheetLyricButton.isChecked = false
                     } else {
                         standardBottomSheetBehavior!!.handleBackInvoked()
@@ -250,10 +251,10 @@ class PlayerBottomSheet private constructor(
                 }
 
                 override fun handleOnBackCancelled() {
-                    if (fullPlayer.bottomSheetFullLyricRecyclerView.visibility ==
+                    if (fullPlayer.bottomSheetFullLyricView.visibility ==
                         VISIBLE
                     ) {
-                        fullPlayer.bottomSheetFullLyricRecyclerView.fadInAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
+                        fullPlayer.bottomSheetFullLyricView.fadInAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
                         fullPlayer.bottomSheetLyricButton.isChecked = false
                     } else {
                         standardBottomSheetBehavior!!.cancelBackProgress()
@@ -318,7 +319,8 @@ class PlayerBottomSheet private constructor(
 
     private fun dispatchBottomSheetInsets() {
         if (lastMeasuredHeight == previewPlayer.measuredHeight &&
-            lastActuallyVisible == actuallyVisible) return
+            lastActuallyVisible == actuallyVisible
+        ) return
         if (BuildConfig.DEBUG) Log.i(TAG, "dispatching bottom sheet insets")
         lastMeasuredHeight = previewPlayer.measuredHeight
         lastActuallyVisible = actuallyVisible
@@ -332,8 +334,10 @@ class PlayerBottomSheet private constructor(
 
     override fun dispatchApplyWindowInsets(platformInsets: WindowInsets): WindowInsets {
         val insets = WindowInsetsCompat.toWindowInsetsCompat(platformInsets)
-        val myInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars()
-                or WindowInsetsCompat.Type.displayCutout())
+        val myInsets = insets.getInsets(
+            WindowInsetsCompat.Type.systemBars()
+                    or WindowInsetsCompat.Type.displayCutout()
+        )
         // We here have to set up inset padding manually as the bottom sheet won't know what
         // View is behind the status bar, paddingTopSystemWindowInsets just allows it to go
         // behind it, which differs from the other padding*SystemWindowInsets. We can't use the
@@ -353,13 +357,19 @@ class PlayerBottomSheet private constructor(
                 dispatchBottomSheetInsets()
             }
         }
-        val i = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()
-                or WindowInsetsCompat.Type.displayCutout())
+        val i = insets.getInsetsIgnoringVisibility(
+            WindowInsetsCompat.Type.systemBars()
+                    or WindowInsetsCompat.Type.displayCutout()
+        )
         return WindowInsetsCompat.Builder(insets)
-            .setInsets(WindowInsetsCompat.Type.systemBars()
-                    or WindowInsetsCompat.Type.displayCutout(), Insets.of(0, myInsets.top, 0, 0))
-            .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()
-                    or WindowInsetsCompat.Type.displayCutout(), Insets.of(0, i.top, 0, 0))
+            .setInsets(
+                WindowInsetsCompat.Type.systemBars()
+                        or WindowInsetsCompat.Type.displayCutout(), Insets.of(0, myInsets.top, 0, 0)
+            )
+            .setInsetsIgnoringVisibility(
+                WindowInsetsCompat.Type.systemBars()
+                        or WindowInsetsCompat.Type.displayCutout(), Insets.of(0, i.top, 0, 0)
+            )
             .build()
             .toWindowInsets()!!
     }

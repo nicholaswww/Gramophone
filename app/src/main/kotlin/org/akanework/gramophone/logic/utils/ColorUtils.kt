@@ -44,7 +44,8 @@ object ColorUtils {
         ColorUtils.colorToHSL(color, hsl)
 
         if ((context.resources.configuration.uiMode and
-            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES) {
+                    Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        ) {
             hsl[2] *= colorType.lightingDark
             hsl[2] = min(hsl[2], 1f)
             hsl[1] *= colorType.chromaDark

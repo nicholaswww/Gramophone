@@ -26,6 +26,8 @@ import androidx.preference.PreferenceManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
+import kotlin.io.path.Path
+import kotlin.io.path.name
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.playOrPause
@@ -35,8 +37,6 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.components.FullBottomSheet.Companion.SLIDER_UPDATE_INTERVAL
 import org.akanework.gramophone.ui.components.SquigglyProgress
-import kotlin.io.path.Path
-import kotlin.io.path.name
 
 class AudioPreviewActivity : AppCompatActivity() {
 

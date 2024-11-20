@@ -20,6 +20,7 @@ package org.akanework.gramophone.logic
 import android.app.Application
 import android.app.NotificationManager
 import android.content.Intent
+import android.content.SharedPreferences
 import android.media.ThumbnailUtils
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
@@ -41,11 +42,22 @@ import coil3.fetch.ImageFetchResult
 import coil3.request.NullRequestDataException
 import coil3.size.pxOrElse
 import coil3.util.Logger
-import org.akanework.gramophone.BuildConfig
-import org.akanework.gramophone.logic.ui.BugHandlerActivity
 import java.io.File
 import java.io.IOException
 import kotlin.system.exitProcess
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import org.akanework.gramophone.BuildConfig
+import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.ui.BugHandlerActivity
+import org.akanework.gramophone.ui.LyricWidgetProvider
+import uk.akane.libphonograph.reader.FlowReader
+import uk.akane.libphonograph.reader.FlowReaderConfiguration
 
 /**
  * GramophoneApplication
@@ -53,7 +65,7 @@ import kotlin.system.exitProcess
  * @author AkaneTan, nift4
  */
 class GramophoneApplication : Application(), SingletonImageLoader.Factory,
-    Thread.UncaughtExceptionHandler {
+    Thread.UncaughtExceptionHandler, SharedPreferences.OnSharedPreferenceChangeListener {
 
     companion object {
         private const val TAG = "GramophoneApplication"
@@ -63,6 +75,14 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
         Thread.setDefaultUncaughtExceptionHandler(this)
     }
 
+    val minSongLengthSecondsFlow = MutableSharedFlow<Long>(replay = 1)
+    val blackListSetFlow = MutableSharedFlow<Set<String>>(replay = 1)
+    val shouldUseEnhancedCoverReadingFlow = if (hasScopedStorageWithMediaTypes()) null else
+        MutableSharedFlow<Boolean?>(replay = 1)
+    val recentlyAddedFilterSecondFlow = MutableStateFlow(1_209_600L)
+    lateinit var reader: FlowReader
+        private set
+
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
@@ -70,16 +90,29 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             // Use StrictMode to find anti-pattern issues
             StrictMode.setThreadPolicy(
                 ThreadPolicy.Builder()
-                    .detectAll().permitDiskReads() // permit disk reads due to media3 setMetadata() TODO extra player thread
-                    .penaltyLog().penaltyDialog().build())
+                    .detectAll()
+                    .permitDiskReads() // permit disk reads due to media3 setMetadata() TODO extra player thread
+                    .penaltyLog()
+                    .penaltyDialog()
+                    .build()
+            )
             StrictMode.setVmPolicy(
                 VmPolicy.Builder()
                     .detectAll()
-                    .penaltyLog().penaltyDeath().build())
+                    .penaltyLog().penaltyDeath().build()
+            )
         }
+        reader = FlowReader(this,
+            if (BuildConfig.DISABLE_MEDIA_STORE_FILTER) MutableStateFlow(0) else
+                minSongLengthSecondsFlow,
+            blackListSetFlow,
+            if (hasScopedStorageWithMediaTypes()) MutableStateFlow(null) else
+                shouldUseEnhancedCoverReadingFlow!!,
+            recentlyAddedFilterSecondFlow,
+            MutableStateFlow(true))
         // This is a separate thread to avoid disk read on main thread and improve startup time
-        Thread {
-            val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        CoroutineScope(Dispatchers.Default).launch {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
             // Set application theme when launching.
             when (prefs.getString("theme_mode", "0")) {
                 "0" -> {
@@ -95,12 +128,32 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                 }
             }
 
+            onSharedPreferenceChanged(prefs, null) // reload all values
+            prefs.registerOnSharedPreferenceChangeListener(this@GramophoneApplication)
+
             // https://github.com/androidx/media/issues/805
             if (needsMissingOnDestroyCallWorkarounds()) {
                 val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
                 nm.cancel(DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID)
             }
-        }.start()
+
+            LyricWidgetProvider.update(this@GramophoneApplication)
+        }
+    }
+
+    override fun onSharedPreferenceChanged(prefs: SharedPreferences, key: String?) {
+        runBlocking {
+            if (key == null || key == "mediastore_filter") {
+                minSongLengthSecondsFlow.emit(prefs.getInt("mediastore_filter",
+                        resources.getInteger(R.integer.filter_default_sec)).toLong())
+            }
+            if (key == null || key == "folderFilter") {
+                blackListSetFlow.emit(prefs.getStringSet("folderFilter", setOf()) ?: setOf())
+            }
+            if ((key == null || key == "album_covers") && !hasScopedStorageWithMediaTypes()) {
+                shouldUseEnhancedCoverReadingFlow!!.emit(prefs.getBoolean("album_covers", false))
+            }
+        }
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
@@ -116,36 +169,38 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                         return@Factory Fetcher {
                             ImageFetchResult(
                                 ThumbnailUtils.createAudioThumbnail(file, options.size.let {
-                                        Size(it.width.pxOrElse { size?.width ?: 10000 },
-                                            it.height.pxOrElse { size?.height ?: 10000 })
-                                    }, null).asImage(), true, DataSource.DISK)
+                                    Size(it.width.pxOrElse { size?.width ?: 10000 },
+                                        it.height.pxOrElse { size?.height ?: 10000 })
+                                }, null).asImage(), true, DataSource.DISK
+                            )
                         }
                     })
                 }
             }
             .run {
                 if (!BuildConfig.DEBUG) this else
-                logger(object : Logger {
-                    override var minLevel = Logger.Level.Verbose
-                    override fun log(
-                        tag: String,
-                        level: Logger.Level,
-                        message: String?,
-                        throwable: Throwable?
-                    ) {
-                        if (level < minLevel) return
-                        val priority = level.ordinal + 2 // obviously the best way to do it
-                        if (message != null) {
-                            Log.println(priority, tag, message)
+                    logger(object : Logger {
+                        override var minLevel = Logger.Level.Verbose
+                        override fun log(
+                            tag: String,
+                            level: Logger.Level,
+                            message: String?,
+                            throwable: Throwable?
+                        ) {
+                            if (level < minLevel) return
+                            val priority = level.ordinal + 2 // obviously the best way to do it
+                            if (message != null) {
+                                Log.println(priority, tag, message)
+                            }
+                            // Let's keep the log readable and ignore normal events' stack traces.
+                            if (throwable != null && throwable !is NullRequestDataException
+                                && (throwable !is IOException
+                                        || throwable.message != "No album art found")
+                            ) {
+                                Log.println(priority, tag, Log.getStackTraceString(throwable))
+                            }
                         }
-                        // Let's keep the log readable and ignore normal events' stack traces.
-                        if (throwable != null && throwable !is NullRequestDataException
-                            && (throwable !is IOException
-                                    || throwable.message != "No album art found")) {
-                            Log.println(priority, tag, Log.getStackTraceString(throwable))
-                        }
-                    }
-                })
+                    })
             }
             .build()
     }

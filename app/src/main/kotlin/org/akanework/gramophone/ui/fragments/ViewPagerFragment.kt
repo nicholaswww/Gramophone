@@ -30,7 +30,6 @@ import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.fragment.app.activityViewModels
 import androidx.media3.common.util.UnstableApi
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.AppBarLayout
@@ -43,9 +42,9 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.clone
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.getSessionId
+import org.akanework.gramophone.logic.gramophoneApplication
 import org.akanework.gramophone.logic.needsManualSnackBarInset
 import org.akanework.gramophone.logic.updateMargin
-import org.akanework.gramophone.ui.LibraryViewModel
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.adapters.ViewPager2Adapter
 import org.akanework.gramophone.ui.fragments.settings.MainSettingsFragment
@@ -59,7 +58,6 @@ import org.akanework.gramophone.ui.fragments.settings.MainSettingsFragment
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 class ViewPagerFragment : BaseFragment(true) {
-    private val libraryViewModel: LibraryViewModel by activityViewModels()
     lateinit var appBarLayout: AppBarLayout
         private set
 
@@ -76,23 +74,34 @@ class ViewPagerFragment : BaseFragment(true) {
 
         appBarLayout = rootView.findViewById(R.id.appbarlayout)
         appBarLayout.enableEdgeToEdgePaddingListener()
-        topAppBar.overflowIcon = AppCompatResources.getDrawable(requireContext(), R.drawable.ic_more_vert_alt)
+        topAppBar.overflowIcon =
+            AppCompatResources.getDrawable(requireContext(), R.drawable.ic_more_vert_alt_topappbar)
 
         topAppBar.setOnMenuItemClickListener {
+            val activity = requireActivity() as MainActivity
             when (it.itemId) {
                 R.id.search -> {
-                    (requireActivity() as MainActivity).startFragment(SearchFragment())
+                    activity.startFragment(SearchFragment())
                 }
+
                 R.id.equalizer -> {
-                    val intent = Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
-                        // EXTRA_PACKAGE_NAME is probably not needed but might as well add for good measure
-                        putExtra(AudioEffect.EXTRA_PACKAGE_NAME, requireContext().packageName)
-                        putExtra(AudioEffect.EXTRA_AUDIO_SESSION, (requireActivity() as MainActivity).getPlayer()?.getSessionId())
-                        putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
-                    }
+                    val intent =
+                        Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
+                            // EXTRA_PACKAGE_NAME is probably not needed but might as well add for good measure
+                            putExtra(AudioEffect.EXTRA_PACKAGE_NAME, requireContext().packageName)
+                            putExtra(
+                                AudioEffect.EXTRA_AUDIO_SESSION,
+                                activity.getPlayer()?.getSessionId()
+                            )
+                            putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+                        }
                     try {
-                        if (Settings.System.getString(requireContext().contentResolver, "firebase.test.lab") != "true") {
-                            (requireActivity() as MainActivity).startingActivity.launch(intent)
+                        if (Settings.System.getString(
+                                requireContext().contentResolver,
+                                "firebase.test.lab"
+                            ) != "true"
+                        ) {
+                            activity.startingActivity.launch(intent)
                         }
                     } catch (_: ActivityNotFoundException) {
                         // Let's show a toast here if no system inbuilt EQ was found.
@@ -103,8 +112,8 @@ class ViewPagerFragment : BaseFragment(true) {
                         ).show()
                     }
                 }
+
                 R.id.refresh -> {
-                    val activity = requireActivity() as MainActivity
                     val playerLayout = activity.playerBottomSheet
                     activity.updateLibrary {
                         val snackBar =
@@ -112,7 +121,7 @@ class ViewPagerFragment : BaseFragment(true) {
                                 requireView(),
                                 getString(
                                     R.string.refreshed_songs,
-                                    libraryViewModel.mediaItemList.value!!.size,
+                                    activity.gramophoneApplication.reader.songListFlow.replayCache.last().size,
                                 ),
                                 Snackbar.LENGTH_LONG,
                             )
@@ -159,8 +168,19 @@ class ViewPagerFragment : BaseFragment(true) {
                         snackBar.show()
                     }
                 }
+
                 R.id.settings -> {
-                    (requireActivity() as MainActivity).startFragment(MainSettingsFragment())
+                    activity.startFragment(MainSettingsFragment())
+                }
+
+                R.id.shuffle -> {
+                    val controller = activity.getPlayer()
+                    activity.reader.songListFlow.replayCache.lastOrNull()?.takeIf { it.isNotEmpty() }?.also {
+                        controller?.shuffleModeEnabled = true
+                        controller?.setMediaItems(it)
+                        controller?.prepare()
+                        controller?.play()
+                    } ?: controller?.setMediaItems(listOf())
                 }
 
                 else -> throw IllegalStateException()
@@ -172,22 +192,31 @@ class ViewPagerFragment : BaseFragment(true) {
 
         // Set this to 9999 so it won't lag anymore.
         viewPager2.offscreenPageLimit = 9999
-        val adapter = ViewPager2Adapter(childFragmentManager, viewLifecycleOwner.lifecycle, requireContext(), viewPager2)
+        val adapter =
+            ViewPager2Adapter(
+                childFragmentManager,
+                viewLifecycleOwner.lifecycle,
+                requireContext(),
+                viewPager2
+            )
         viewPager2.adapter = adapter
         TabLayoutMediator(tabLayout, viewPager2) { tab, position ->
             tab.text = getString(adapter.getLabelResId(position))
             tab.view.post {
-                /*
-                 * Add margin to last and first tab.
-                 * There's no attribute to let you set margin
-                 * to the last tab.
-                 */
-                val lp = tab.view.layoutParams as ViewGroup.MarginLayoutParams
-                lp.marginStart = if (position == 0)
-                    resources.getDimension(R.dimen.tab_layout_content_padding).toInt() else 0
-                lp.marginEnd = if (position == tabLayout.tabCount - 1)
-                    resources.getDimension(R.dimen.tab_layout_content_padding).toInt() else 0
-                tab.view.layoutParams = lp
+                try {
+                    /*
+                     * Add margin to last and first tab.
+                     * There's no attribute to let you set margin
+                     * to the last tab.
+                     */
+                    val lp = tab.view.layoutParams as ViewGroup.MarginLayoutParams
+                    lp.marginStart = if (position == 0)
+                        resources.getDimension(R.dimen.tab_layout_content_padding).toInt() else 0
+                    lp.marginEnd = if (position == tabLayout.tabCount - 1)
+                        resources.getDimension(R.dimen.tab_layout_content_padding).toInt() else 0
+                    tab.view.layoutParams = lp
+                } catch (_: IllegalStateException) {
+                }
             }
         }.attach()
 

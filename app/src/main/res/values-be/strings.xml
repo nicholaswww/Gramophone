@@ -151,8 +151,7 @@
     <string name="settings_lyrics_center_summary">Выкарыстоўваць выраўноўванне па цэнтры для тэкстаў песень</string>
     <string name="dialog_lyrics">Тэкст песні</string>
     <string name="settings_title_bold_summary">Выкарыстоўваць тоўсты загаловак для прайгравальніка</string>
-    <string name="delete_in_progress">Ужо выдаляецца іншая песня</string>
-    <string name="deny_images">Адмоўцеся ад дазволу «Фота і відэа»</string>
+	<string name="deny_images">Адмоўцеся ад дазволу «Фота і відэа»</string>
     <string name="grant_images">Калі ласка, дайце дазвол на «Фота і відэа»</string>
     <string name="settings_color_accuracy_summary">Больш дакладная генерацыя колеру</string>
     <string name="crash_clipboard">Журнал збояў скапіяваны ў буфер абмену</string>
@@ -160,8 +159,6 @@
     <string name="settings_trim_lyrics">Выдаліць прабелы вакол тэксту песні</string>
     <string name="settings_lyrics_multiline">Чытанне шматрадковых тэкстаў песень</string>
     <string name="settings_lyrics_multiline_summary">Усе радкі паміж кропкамі сінхранізацыі разглядаюцца як адзіны тэкст</string>
-    <string name="settings_lyrics_contrast">Рэжым высокай кантраснасці</string>
-    <string name="settings_lyrics_contrast_summary">Карысна, калі вы хочаце бачыць неактыўныя радкі тэксту</string>
     <string name="current_playlist">Бягучы плэйліст</string>
     <string name="timer">Таймер сну</string>
     <string name="sort_by_release_date">Дата выхаду</string>

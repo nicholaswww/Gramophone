@@ -75,10 +75,10 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
     // view is not laid out until interim target position is reached, we can detect the case before
     // scrolling slows down and reschedule another interim target scroll
     private static final float TARGET_SEEK_EXTRA_SCROLL_RATIO = 1.2f;
-    private final DisplayMetrics mDisplayMetrics;
     protected final LinearInterpolator mLinearInterpolator = new LinearInterpolator();
     protected final TimeInterpolator mDecelerateInterpolator =
-        new PathInterpolator(0.4f, 0.2f, 0f, 1f);
+            new PathInterpolator(0.4f, 0.2f, 0f, 1f);
+    private final DisplayMetrics mDisplayMetrics;
     @SuppressLint("UnknownNullness") // b/240775049: Cannot annotate properly
     protected PointF mTargetVector;
     // Temporary variables to keep track of the interim scroll target. These values do not
@@ -102,6 +102,7 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
 
     /**
      * {@inheritDoc}
+     *
      * @noinspection NullableProblems
      */
     @Override
@@ -125,6 +126,7 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
 
     /**
      * {@inheritDoc}
+     *
      * @noinspection NullableProblems
      */
     @Override
@@ -138,7 +140,7 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
             return;
         }
         if (DEBUG && mTargetVector != null
-            && (mTargetVector.x * dx < 0 || mTargetVector.y * dy < 0)) {
+                && (mTargetVector.x * dx < 0 || mTargetVector.y * dy < 0)) {
             throw new IllegalStateException("Scroll happened in the opposite direction"
                     + " of the target. Some calculations are wrong");
         }
@@ -225,7 +227,7 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
      */
     protected int getHorizontalSnapPreference() {
         return mTargetVector == null || mTargetVector.x == 0 ? SNAP_TO_ANY :
-        mTargetVector.x > 0 ? SNAP_TO_END : SNAP_TO_START;
+                mTargetVector.x > 0 ? SNAP_TO_END : SNAP_TO_START;
     }
 
     /**
@@ -239,7 +241,7 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
      */
     protected int getVerticalSnapPreference() {
         return mTargetVector == null || mTargetVector.y == 0 ? SNAP_TO_ANY :
-        mTargetVector.y > 0 ? SNAP_TO_END : SNAP_TO_START;
+                mTargetVector.y > 0 ? SNAP_TO_END : SNAP_TO_START;
     }
 
     /**
@@ -268,8 +270,8 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
         // interim target. Since we track the distance travelled in onSeekTargetStep callback, it
         // won't actually scroll more than what we need.
         action.update((int) (mInterimTargetDx * TARGET_SEEK_EXTRA_SCROLL_RATIO),
-            (int) (mInterimTargetDy * TARGET_SEEK_EXTRA_SCROLL_RATIO),
-            (int) (time * TARGET_SEEK_EXTRA_SCROLL_RATIO), mLinearInterpolator);
+                (int) (mInterimTargetDy * TARGET_SEEK_EXTRA_SCROLL_RATIO),
+                (int) (time * TARGET_SEEK_EXTRA_SCROLL_RATIO), mLinearInterpolator);
     }
 
     private int clampApplyScroll(int tmpDt, int dt) {
@@ -289,22 +291,22 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
             snapPreference) {
         switch (snapPreference) {
             case SNAP_TO_START:
-            return boxStart - viewStart;
+                return boxStart - viewStart;
             case SNAP_TO_END:
-            return boxEnd - viewEnd;
+                return boxEnd - viewEnd;
             case SNAP_TO_ANY:
-            final int dtStart = boxStart - viewStart;
-            if (dtStart > 0) {
-                return dtStart;
-            }
-            final int dtEnd = boxEnd - viewEnd;
-            if (dtEnd < 0) {
-                return dtEnd;
-            }
-            break;
+                final int dtStart = boxStart - viewStart;
+                if (dtStart > 0) {
+                    return dtStart;
+                }
+                final int dtEnd = boxEnd - viewEnd;
+                if (dtEnd < 0) {
+                    return dtEnd;
+                }
+                break;
             default:
-            throw new IllegalArgumentException("snap preference should be one of the"
-                    + " constants defined in SmoothScroller, starting with SNAP_");
+                throw new IllegalArgumentException("snap preference should be one of the"
+                        + " constants defined in SmoothScroller, starting with SNAP_");
         }
         return 0;
     }
@@ -327,7 +329,7 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
             return 0;
         }
         final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
-        view.getLayoutParams();
+                view.getLayoutParams();
         final int top = layoutManager.getDecoratedTop(view) - params.topMargin;
         final int bottom = layoutManager.getDecoratedBottom(view) + params.bottomMargin;
         final int start = layoutManager.getPaddingTop();
@@ -353,7 +355,7 @@ public class CustomSmoothScroller extends RecyclerView.SmoothScroller {
             return 0;
         }
         final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
-        view.getLayoutParams();
+                view.getLayoutParams();
         final int left = layoutManager.getDecoratedLeft(view) - params.leftMargin;
         final int right = layoutManager.getDecoratedRight(view) + params.rightMargin;
         final int start = layoutManager.getPaddingLeft();

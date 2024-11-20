@@ -121,16 +121,13 @@
     <string name="dialog_edit_metadata">Muuda</string>
     <string name="dialog_lyrics">Laulusõnad</string>
     <string name="delete_failed">Pala kustutamine ei õnnestunud</string>
-    <string name="delete_in_progress">Teise pala kustutamine on veel pooleli</string>
-    <string name="album_covers_enhance">Albumi kaanepildi tõhusam laadimine</string>
+    <string name="album_covers_enhance">Albumi tõhustatud kaanepiltide laadimine</string>
     <string name="album_covers_enhance_desc">Kasuta parema kvaliteediga kaanepilte ning luba albumi ja palade kaanepiltidel erineda (eeldab õigust avada fotosid ja pildifaile)</string>
-    <string name="deny_images">Palun keela ligipääs fotodele ja videotele</string>
-    <string name="grant_images">Palun luba ligipääs fotodele ja videotele</string>
-    <string name="grant_audio">Palun luba ligipääs muusikale ja helile</string>
+    <string name="deny_images"><![CDATA[Palun keela \"Fotod ja videod\" õigused]]></string>
+    <string name="grant_images"><![CDATA[Palun luba \"Fotod ja videod\" õigused]]></string>
+    <string name="grant_audio"><![CDATA[Palun luba \"Muusika ja heli\" õigused]]></string>
     <string name="crash_clipboard">Krahhilogi on kopeeritud lõikelauale</string>
     <string name="settings_trim_lyrics">Eemalda laulusõnu ümbritsevad tühikud</string>
-    <string name="settings_lyrics_contrast">Suure kontrastsusega vaade</string>
-    <string name="settings_lyrics_contrast_summary">See vaade on abiks, kui soovid laulusõnade seda osa, mis hetkel pole esitamisel</string>
     <string name="timer">Unetaimer</string>
     <string name="current_playlist">Praegune esitusloend</string>
     <string name="fgs_failed_title">Muusika esitamise jätkamine ei õnnestunud</string>
@@ -185,4 +182,15 @@
     <string name="skip_previous">Hüppa eelmise juurde</string>
     <string name="position_slider">Asukoha liugur</string>
     <string name="app_name">Gramophone</string>
+    <string name="settings_lyrics_parser">Uus laulusõnade esitaja</string>
+    <string name="settings_lyrics_parser_summary">Võta kasutusele uus laulusõnade esitaja, mis oskab sõnahaaval sünkroniseerimist, hääle tuvastamist ja muud olulist</string>
+    <string name="settings_lyrics_ui">Võta kasutusele uus laulusõnade kasutajaliides</string>
+    <string name="settings_lyrics_ui_summary">Testjärgus kasutajaliides oskab laulusõnu kuvada sõnahaaval ning muud olulist</string>
+    <string name="settings_status_bar_lyrics_title">Laulusõnad olekuribal</string>
+    <string name="settings_status_bar_lyrics_summary">Võta kasutusele MeiZu meetod, mis võimaldab kuvada laulusõnu olekuribal (see meetod ei tööta kõikides nutiseadmetes)</string>
+    <string name="lyric_widget_description">Vidin, mis näitab hetkel esitatava meedia laulusõnu</string>
+    <string name="home_menu_shuffle">Sega kõik lood</string>
+    <string name="no">Ei</string>
+    <string name="delete">Kustuta</string>
+    <string name="yes">Jah</string>
 </resources>

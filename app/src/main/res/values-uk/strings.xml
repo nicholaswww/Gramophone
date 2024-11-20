@@ -122,8 +122,7 @@
     <string name="settings_color_accuracy">Точність передачі кольору</string>
     <string name="settings_lyrics_configuration_summary">Налаштуйте вигляд тексту пісні</string>
     <string name="album_cover">Обкладинка альбому</string>
-    <string name="delete_in_progress">Ще одна пісня вже видаляється</string>
-    <string name="settings_preference_category_application">Застосунок</string>
+	<string name="settings_preference_category_application">Застосунок</string>
     <string name="settings_crash_application">Збій застосунка</string>
     <string name="delete_failed">Не вдалося видалити пісню</string>
     <string name="dialog_edit_metadata">Редагувати</string>
@@ -158,9 +157,7 @@
     <string name="sort_by_modified_date">Дата зміни</string>
     <string name="settings_lyrics_multiline">Читання багаторядкового тексту пісень</string>
     <string name="settings_lyrics_multiline_summary">Усі рядки між точками синхронізації розглядаються як один текст</string>
-    <string name="settings_lyrics_contrast">Режим високої контрастності</string>
-    <string name="settings_lyrics_center_summary">Використовувати вирівнювання центром для текстів пісень</string>
-    <string name="settings_lyrics_contrast_summary">Корисно, якщо ви хочете побачити неактивні рядки тексту</string>
+	<string name="settings_lyrics_center_summary">Використовувати вирівнювання центром для текстів пісень</string>
     <string name="settings_title_bold_summary">Використовуйте жирний заголовок для гравця програвача</string>
     <string name="current_playlist">Поточний список відтворення</string>
     <string name="timer">Таймер сну</string>

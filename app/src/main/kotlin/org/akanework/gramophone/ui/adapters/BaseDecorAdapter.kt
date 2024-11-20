@@ -34,7 +34,6 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.ItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.ui.getAdapterType
-import kotlin.random.Random
 
 open class BaseDecorAdapter<T : BaseAdapter<*>>(
     protected val adapter: T,
@@ -71,8 +70,10 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
             popupMenu.inflate(R.menu.sort_menu)
             val buttonMap = mapOf(
                 Pair(R.id.natural, Sorter.Type.NaturalOrder),
-                Pair(R.id.name, if (adapter.sortTypes.contains(Sorter.Type.NativeOrder))
-                    Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending),
+                Pair(
+                    R.id.name, if (adapter.sortTypes.contains(Sorter.Type.NativeOrder))
+                        Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending
+                ),
                 Pair(R.id.artist, Sorter.Type.ByArtistAscending),
                 Pair(R.id.album, Sorter.Type.ByAlbumTitleAscending),
                 Pair(R.id.size, Sorter.Type.BySizeDescending),
@@ -178,7 +179,6 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
                 controller?.shuffleModeEnabled = true
                 list.takeIf { it.isNotEmpty() }?.also {
                     controller?.setMediaItems(it)
-                    controller?.seekToDefaultPosition(Random.nextInt(0, it.size))
                     controller?.prepare()
                     controller?.play()
                 } ?: controller?.setMediaItems(listOf())

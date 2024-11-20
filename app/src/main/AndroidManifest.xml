@@ -4,6 +4,9 @@
 
     <uses-feature android:name="android.hardware.faketouch" android:required="false"/>
 
+    <!-- Notifications (for error handling on MIUI) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"
+        android:minSdkVersion="33" />
     <!-- Read music files (Android 13 and later) (includes .lrc and thumbnails) -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"
         android:minSdkVersion="33" />
@@ -26,7 +29,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
         android:minSdkVersion="34" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Remove ExoPlayer permission as we don't network playback for now -->
+    <!-- Remove ExoPlayer permission as we don't network playback -->
     <uses-permission
         android:name="android.permission.ACCESS_NETWORK_STATE"
         tools:node="remove" />
@@ -115,6 +118,19 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <receiver android:name=".ui.LyricWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/lyric_widget" />
+        </receiver>
+
+        <service android:name=".ui.LyricWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
     </application>
 
     <queries>

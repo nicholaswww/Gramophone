@@ -45,7 +45,7 @@ jobs:
         run: echo releaseType=Nicholas > package.properties
 
       - name: Create signing files
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p ~/.gradle
           echo "${{ secrets.KEYSTORE_SECRET }}" | base64 -d > ~/key.jks
@@ -54,16 +54,16 @@ jobs:
           echo "AKANE_RELEASE_KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> ~/.gradle/gradle.properties
           echo "AKANE_RELEASE_KEY_PASSWORD=${{ secrets.KEY_PWD }}" >> ~/.gradle/gradle.properties
 
-      - name: Build with Gradle for push
-        if: github.event_name == 'push'
+      - name: Build with Gradle
+        if: github.event_name != 'pull_request'
         run: ./gradlew :app:assembleRelease
   
       - name: Build with Gradle for pull request
         if: github.event_name == 'pull_request'
         run: ./gradlew :app:assembleDebug
 
-      - name: Find apk for push
-        if: github.event_name == 'push'
+      - name: Find apk
+        if: github.event_name != 'pull_request'
         run: |
           APK_FILE=$(find app/build/outputs/apk/release -name '*.apk')
           echo "APK_FILE=$APK_FILE" >> $GITHUB_ENV

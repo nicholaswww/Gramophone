@@ -61,19 +61,21 @@ import androidx.media3.session.SessionCommand
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
+import java.io.File
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_LYRICS
+import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_LYRICS_LEGACY
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_SESSION
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_QUERY_TIMER
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_SET_TIMER
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
+import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.jetbrains.annotations.Contract
-import java.io.File
-import java.util.Locale
 
 fun Player.playOrPause() {
     if (isPlaying) {
@@ -92,14 +94,18 @@ fun MediaItem.getFile(): File? {
 }
 
 fun Activity.closeKeyboard(view: View) {
-    if (ViewCompat.getRootWindowInsets(window.decorView)?.isVisible(WindowInsetsCompat.Type.ime()) == true) {
+    if (ViewCompat.getRootWindowInsets(window.decorView)
+            ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+    ) {
         WindowInsetsControllerCompat(window, view).hide(WindowInsetsCompat.Type.ime())
     }
 }
 
 fun Activity.showKeyboard(view: View) {
     view.requestFocus()
-    if (ViewCompat.getRootWindowInsets(window.decorView)?.isVisible(WindowInsetsCompat.Type.ime()) == false) {
+    if (ViewCompat.getRootWindowInsets(window.decorView)
+            ?.isVisible(WindowInsetsCompat.Type.ime()) == false
+    ) {
         WindowInsetsControllerCompat(window, view).show(WindowInsetsCompat.Type.ime())
     }
 }
@@ -195,40 +201,43 @@ fun MediaController.setTimer(value: Int) {
     )
 }
 
-inline fun <reified T, reified U> HashMap<T, U>.putIfAbsentSupport(key: T, value: U) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        putIfAbsent(key, value)
-    } else {
-        // Duh...
-        if (!containsKey(key))
-            put(key, value)
-    }
-}
-
-inline fun <reified T> MutableList<T>.replaceAllSupport(operator: (T) -> T) {
+inline fun <reified T> MutableList<T>.replaceAllSupport(skipFirst: Int = 0, operator: (T) -> T) {
     val li = listIterator()
+    var skip = skipFirst
+    while (skip-- > 0) {
+        li.next()
+    }
     while (li.hasNext()) {
         li.set(operator(li.next()))
     }
 }
 
 @Suppress("UNCHECKED_CAST")
-fun MediaController.getLyrics(): MutableList<MediaStoreUtils.Lyric>? =
+fun MediaController.getLyricsLegacy(): MutableList<MediaStoreUtils.Lyric>? =
     sendCustomCommand(
-        SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
+        SessionCommand(SERVICE_GET_LYRICS_LEGACY, Bundle.EMPTY),
         Bundle.EMPTY
     ).get().extras.let {
         (BundleCompat.getParcelableArray(it, "lyrics", MediaStoreUtils.Lyric::class.java)
                 as Array<MediaStoreUtils.Lyric>?)?.toMutableList()
     }
 
+@Suppress("UNCHECKED_CAST")
+fun MediaController.getLyrics(): SemanticLyrics? =
+    sendCustomCommand(
+        SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
+        Bundle.EMPTY
+    ).get().extras.let {
+        BundleCompat.getParcelable<SemanticLyrics>(it, "lyrics", SemanticLyrics::class.java)
+    }
+
 @OptIn(UnstableApi::class)
 @Suppress("UNCHECKED_CAST")
 fun MediaController.getSessionId(): Int? =
-	sendCustomCommand(
+    sendCustomCommand(
         SessionCommand(SERVICE_GET_SESSION, Bundle.EMPTY),
         Bundle.EMPTY
-	).get().extras.getInt("session", C.AUDIO_SESSION_ID_UNSET).let {
+    ).get().extras.getInt("session", C.AUDIO_SESSION_ID_UNSET).let {
         if (it == C.AUDIO_SESSION_ID_UNSET) null else it
     }
 
@@ -241,15 +250,18 @@ fun Handler.postAtFrontOfQueueAsync(callback: Runnable) {
     })
 }
 
-fun View.enableEdgeToEdgePaddingListener(ime: Boolean = false, top: Boolean = false,
-                                         extra: ((Insets) -> Unit)? = null) {
+fun View.enableEdgeToEdgePaddingListener(
+    ime: Boolean = false, top: Boolean = false,
+    extra: ((Insets) -> Unit)? = null
+) {
     if (fitsSystemWindows) throw IllegalArgumentException("must have fitsSystemWindows disabled")
     if (this is AppBarLayout) {
         if (ime) throw IllegalArgumentException("AppBarLayout must have ime flag disabled")
         // AppBarLayout fitsSystemWindows does not handle left/right for a good reason, it has
         // to be applied to children to look good; we rewrite fitsSystemWindows in a way mostly specific
         // to Gramophone to support shortEdges displayCutout
-        val collapsingToolbarLayout = children.find { it is CollapsingToolbarLayout } as CollapsingToolbarLayout?
+        val collapsingToolbarLayout =
+            children.find { it is CollapsingToolbarLayout } as CollapsingToolbarLayout?
         collapsingToolbarLayout?.let {
             // The CollapsingToolbarLayout mustn't consume insets, we handle padding here anyway
             ViewCompat.setOnApplyWindowInsetsListener(it) { _, insets -> insets }
@@ -264,23 +276,33 @@ fun View.enableEdgeToEdgePaddingListener(ime: Boolean = false, top: Boolean = fa
             (v as AppBarLayout).children.forEach {
                 if (it is CollapsingToolbarLayout) {
                     val es = expandedTitleMarginStart!! + if (it.layoutDirection
-                        == View.LAYOUT_DIRECTION_LTR) cutoutAndBars.left else cutoutAndBars.right
+                        == View.LAYOUT_DIRECTION_LTR
+                    ) cutoutAndBars.left else cutoutAndBars.right
                     if (es != it.expandedTitleMarginStart) it.expandedTitleMarginStart = es
                     val ee = expandedTitleMarginEnd!! + if (it.layoutDirection
-                        == View.LAYOUT_DIRECTION_RTL) cutoutAndBars.left else cutoutAndBars.right
+                        == View.LAYOUT_DIRECTION_RTL
+                    ) cutoutAndBars.left else cutoutAndBars.right
                     if (ee != it.expandedTitleMarginEnd) it.expandedTitleMarginEnd = ee
                 }
                 it.setPadding(cutoutAndBars.left, 0, cutoutAndBars.right, 0)
             }
             v.setPadding(0, cutoutAndBars.top, 0, 0)
-            val i = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()
-                    or WindowInsetsCompat.Type.displayCutout())
+            val i = insets.getInsetsIgnoringVisibility(
+                WindowInsetsCompat.Type.systemBars()
+                        or WindowInsetsCompat.Type.displayCutout()
+            )
             extra?.invoke(cutoutAndBars)
             return@setOnApplyWindowInsetsListener WindowInsetsCompat.Builder(insets)
-                .setInsets(WindowInsetsCompat.Type.systemBars()
-                        or WindowInsetsCompat.Type.displayCutout(), Insets.of(cutoutAndBars.left, 0, cutoutAndBars.right, cutoutAndBars.bottom))
-                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()
-                        or WindowInsetsCompat.Type.displayCutout(), Insets.of(i.left, 0, i.right, i.bottom))
+                .setInsets(
+                    WindowInsetsCompat.Type.systemBars()
+                            or WindowInsetsCompat.Type.displayCutout(),
+                    Insets.of(cutoutAndBars.left, 0, cutoutAndBars.right, cutoutAndBars.bottom)
+                )
+                .setInsetsIgnoringVisibility(
+                    WindowInsetsCompat.Type.systemBars()
+                            or WindowInsetsCompat.Type.displayCutout(),
+                    Insets.of(i.left, 0, i.right, i.bottom)
+                )
                 .build()
         }
     } else {
@@ -293,8 +315,10 @@ fun View.enableEdgeToEdgePaddingListener(ime: Boolean = false, top: Boolean = fa
                     WindowInsetsCompat.Type.displayCutout() or
                     if (ime) WindowInsetsCompat.Type.ime() else 0
             val i = insets.getInsets(mask)
-            v.setPadding(pl + i.left, pt + (if (top) i.top else 0), pr + i.right,
-                pb + i.bottom)
+            v.setPadding(
+                pl + i.left, pt + (if (top) i.top else 0), pr + i.right,
+                pb + i.bottom
+            )
             extra?.invoke(i)
             return@setOnApplyWindowInsetsListener WindowInsetsCompat.Builder(insets)
                 .setInsets(mask, Insets.NONE)
@@ -336,7 +360,8 @@ fun View.updateMargin(
 // enableEdgeToEdge() without enforcing contrast, magic based on androidx EdgeToEdge.kt
 fun ComponentActivity.enableEdgeToEdgeProperly() {
     if ((resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-        Configuration.UI_MODE_NIGHT_YES) {
+        Configuration.UI_MODE_NIGHT_YES
+    ) {
         enableEdgeToEdge(navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
     } else {
         val darkScrim = Color.argb(0x80, 0x1b, 0x1b, 0x1b)
@@ -382,6 +407,26 @@ inline fun Semaphore.runInBg(crossinline runnable: suspend () -> Unit) {
     }
 }
 
+val Context.gramophoneApplication
+    get() = this.applicationContext as GramophoneApplication
+
+/*
+fun AppWidgetManager.createWidgetInSizes(appWidgetId: Int, creator: (SizeF?) -> RemoteViews): RemoteViews {
+    val sizes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        BundleCompat.getParcelableArrayList<SizeF>(
+            getAppWidgetOptions(appWidgetId),
+            AppWidgetManager.OPTION_APPWIDGET_SIZES,
+            SizeF::class.java
+        ).let { if (it.isNullOrEmpty()) null else it }
+    } else {
+        null
+    }
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !sizes.isNullOrEmpty()) {
+        RemoteViews(sizes.associateWith(creator))
+    } else creator(null)
+}
+*/
+
 // the whole point of this function is to do literally nothing at all (but without impacting
 // performance) in release builds and ignore StrictMode violations in debug builds
 inline fun <reified T> allowDiskAccessInStrictMode(relax: Boolean = false, doIt: () -> T): T {
@@ -401,7 +446,10 @@ inline fun <reified T> allowDiskAccessInStrictMode(relax: Boolean = false, doIt:
     } else doIt()
 }
 
-inline fun <reified T> SharedPreferences.use(relax: Boolean = false, doIt: SharedPreferences.() -> T): T {
+inline fun <reified T> SharedPreferences.use(
+    relax: Boolean = false,
+    doIt: SharedPreferences.() -> T
+): T {
     return allowDiskAccessInStrictMode(relax) { doIt() }
 }
 
@@ -433,6 +481,11 @@ fun Context.hasImagePermission() =
     checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
             PackageManager.PERMISSION_GRANTED
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+fun Context.hasNotificationPermission() =
+    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+
 @Suppress("NOTHING_TO_INLINE")
 inline fun needsMissingOnDestroyCallWorkarounds(): Boolean =
     Build.VERSION.SDK_INT == Build.VERSION_CODES.UPSIDE_DOWN_CAKE
@@ -443,6 +496,10 @@ inline fun needsManualSnackBarInset(): Boolean =
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun hasOsClipboardDialog(): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun supportsNotificationPermission(): Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
 @Suppress("NOTHING_TO_INLINE")
@@ -461,3 +518,8 @@ inline fun hasScopedStorageWithMediaTypes(): Boolean =
 inline fun mayThrowForegroundServiceStartNotAllowed(): Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun mayThrowForegroundServiceStartNotAllowedMiui(): Boolean =
+    Build.MANUFACTURER.lowercase() == "xiaomi" &&
+            Build.VERSION.SDK_INT == Build.VERSION_CODES.TIRAMISU

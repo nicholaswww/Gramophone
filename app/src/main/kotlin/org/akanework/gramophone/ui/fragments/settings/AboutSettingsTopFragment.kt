@@ -68,7 +68,11 @@ class AboutSettingsTopFragment : BasePreferenceFragment() {
             versionTextView.text =
                 BuildConfig.VERSION_NAME
         } else if (preference.key == "contributors") {
-            if (Settings.System.getString(requireContext().contentResolver, "firebase.test.lab") != "true") {
+            if (Settings.System.getString(
+                    requireContext().contentResolver,
+                    "firebase.test.lab"
+                ) != "true"
+            ) {
                 LibsBuilder()
                     // This line could technically be deleted, but this saves us some reflection
                     // and hence makes ProGuard + resource shrinking work without weird hacks.

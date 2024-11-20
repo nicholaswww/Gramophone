@@ -55,7 +55,7 @@
             android:gravity="start"
             android:singleLine="true"
             android:textColor="?attr/colorOnSurface"
-            android:textFontWeight="500"
+            app:textFontWeight="500"
             android:textSize="15sp"
             tools:text="Example Title" />
 
@@ -67,7 +67,7 @@
             android:gravity="start"
             android:singleLine="true"
             android:textColor="?attr/colorOnSurfaceVariant"
-            android:textFontWeight="500"
+            app:textFontWeight="500"
             android:textSize="15sp"
             tools:text="Example Artist" />
 

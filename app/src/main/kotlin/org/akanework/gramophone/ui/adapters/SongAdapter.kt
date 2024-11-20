@@ -20,28 +20,33 @@ package org.akanework.gramophone.ui.adapters
 import android.net.Uri
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.IntentSenderRequest
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ShareCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.lifecycle.MutableLiveData
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import java.io.File
+import java.util.GregorianCalendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
-import org.akanework.gramophone.ui.LibraryViewModel
+import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.MediaControllerViewModel
 import org.akanework.gramophone.ui.components.NowPlayingDrawable
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
-import java.util.GregorianCalendar
+import uk.akane.libphonograph.items.addDate
+import uk.akane.libphonograph.items.modifiedDate
+import uk.akane.libphonograph.manipulator.ItemManipulator
 
 
 /**
@@ -49,7 +54,7 @@ import java.util.GregorianCalendar
  */
 class SongAdapter(
     fragment: Fragment,
-    songList: MutableLiveData<List<MediaItem>>?,
+    songList: Flow<List<MediaItem>>? = (fragment.requireActivity() as MainActivity).reader.songListFlow,
     canSort: Boolean,
     helper: Sorter.NaturalOrderHelper<MediaItem>?,
     ownsView: Boolean,
@@ -65,7 +70,7 @@ class SongAdapter(
     naturalOrderHelper = if (canSort) helper else null,
     initialSortType = if (canSort)
         (if (helper != null) Sorter.Type.NaturalOrder else
-                (if (rawOrderExposed) Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending))
+            (if (rawOrderExposed) Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending))
     else Sorter.Type.None,
     canSort = canSort,
     pluralStr = R.plurals.songs,
@@ -98,14 +103,13 @@ class SongAdapter(
         rawOrderExposed,
         fallbackSpans
     ) {
-        updateList(songList, now = true, false)
+        updateList(songList, false)
     }
 
     fun getSongList() = list
 
     fun getActivity() = mainActivity
 
-    private val viewModel: LibraryViewModel by fragment.activityViewModels()
     private val mediaControllerViewModel: MediaControllerViewModel by fragment.activityViewModels()
     private var idToPosMap: HashMap<String, Int>? = null
     private var currentMediaItem: String? = null
@@ -139,20 +143,24 @@ class SongAdapter(
 
     init {
         mediaControllerViewModel.addRecreationalPlayerListener(
-            fragment.viewLifecycleOwner.lifecycle) {
+            fragment.viewLifecycleOwner.lifecycle
+        ) {
             currentMediaItem = it.currentMediaItem?.mediaId
-            currentIsPlaying = it.playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+            currentIsPlaying =
+                it.playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
             object : Player.Listener {
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     currentMediaItem = mediaItem?.mediaId
                 }
 
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                    currentIsPlaying = playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+                    currentIsPlaying =
+                        playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    currentIsPlaying = it.playWhenReady && playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+                    currentIsPlaying =
+                        it.playWhenReady && playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
                 }
             }
         }
@@ -195,7 +203,7 @@ class SongAdapter(
                 R.id.album -> {
                     CoroutineScope(Dispatchers.Default).launch {
                         val positionAlbum =
-                            viewModel.albumItemList.value?.indexOfFirst {
+                            mainActivity.reader.albumListFlow.replayCache.lastOrNull()?.indexOfFirst {
                                 (it.title == item.mediaMetadata.albumTitle) &&
                                         (it.songList.contains(item))
                             }
@@ -214,7 +222,7 @@ class SongAdapter(
                 R.id.artist -> {
                     CoroutineScope(Dispatchers.Default).launch {
                         val positionArtist =
-                            viewModel.artistItemList.value?.indexOfFirst {
+                            mainActivity.reader.artistListFlow.replayCache.lastOrNull()?.indexOfFirst {
                                 val isMatching =
                                     (it.title == item.mediaMetadata.artist) &&
                                             (it.songList.contains(item))
@@ -233,43 +241,7 @@ class SongAdapter(
                 }
 
                 R.id.details -> {
-                    /*
-                    val rootView = MaterialAlertDialogBuilder(mainActivity)
-                        .setView(R.layout.dialog_info_song)
-                        .setBackground(drawable)
-                        .setNeutralButton(R.string.dismiss) { dialog, _ ->
-                            dialog.dismiss()
-                        }
-                        .show()
-                    rootView.findViewById<TextView>(R.id.title)!!.text = item.mediaMetadata.title
-                    rootView.findViewById<TextView>(R.id.artist)!!.text = item.mediaMetadata.artist
-                    rootView.findViewById<TextView>(R.id.album)!!.text =
-                        item.mediaMetadata.albumTitle
-                    if (!item.mediaMetadata.albumArtist.isNullOrBlank()) {
-                        rootView.findViewById<TextView>(R.id.album_artist)!!.text =
-                            item.mediaMetadata.albumArtist
-                    }
-                    rootView.findViewById<TextView>(R.id.track_number)!!.text =
-                        item.mediaMetadata.trackNumber.toString()
-                    rootView.findViewById<TextView>(R.id.disc_number)!!.text =
-                        item.mediaMetadata.discNumber.toString()
-                    val year = item.mediaMetadata.releaseYear?.toString()
-                    if (year != null) {
-                        rootView.findViewById<TextView>(R.id.year)!!.text = year
-                    }
-                    val genre = item.mediaMetadata.genre?.toString()
-                    if (genre != null) {
-                        rootView.findViewById<TextView>(R.id.genre)!!.text = genre
-                    }
-                    rootView.findViewById<TextView>(R.id.path)!!.text =
-                        item.getFile()?.path
-                    rootView.findViewById<TextView>(R.id.mime)!!.text =
-                        item.mediaMetadata.extras!!.getString("MimeType")
-                    rootView.findViewById<TextView>(R.id.duration)!!.text =
-                        convertDurationToTimeStamp(item.mediaMetadata.extras!!.getLong("Duration"))
-
-                     */
-                    val position = viewModel.mediaItemList.value?.indexOfFirst {
+                    val position = mainActivity.reader.songListFlow.replayCache.lastOrNull()?.indexOfFirst {
                         it.mediaId == item.mediaId
                     }
                     mainActivity.startFragment(DetailDialogFragment()) {
@@ -278,44 +250,27 @@ class SongAdapter(
                     true
                 }
 
-                /*R.id.delete -> {
-                    val doDelete: (() -> (() -> Pair<IntentSender?, () -> Boolean>)) -> Unit = { r ->
-                        val res = r()()
-                        if (res.first == null) {
-                            res.second()
-                        } else {
-                            if (mainActivity.intentSenderAction == null) {
-                                mainActivity.intentSenderAction = res.second
-                                mainActivity.intentSender.launch(
-                                    IntentSenderRequest.Builder(res.first!!).build()
-                                )
-                            } else {
-                                Toast.makeText(
-                                    context, context.getString(
-                                        R.string.delete_in_progress
-                                    ), Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        }
-                    }
-                    val res = MediaStoreUtils.deleteSong(context, item)
-                    if (res.first) {
+                R.id.delete -> {
+                    val res = ItemManipulator.deleteSong(context, item.mediaId.toLong())
+                    if (res.continueDelete != null) {
                         AlertDialog.Builder(context)
                             .setTitle(R.string.delete)
                             .setMessage(item.mediaMetadata.title)
                             .setPositiveButton(R.string.yes) { _, _ ->
-                                doDelete(res.second)
+                                res.continueDelete?.invoke()
                             }
                             .setNegativeButton(R.string.no) { _, _ -> }
                             .show()
                     } else {
-                        doDelete(res.second)
+                        mainActivity.intentSender.launch(
+                            IntentSenderRequest.Builder(res.startSystemDialog!!).build()
+                        )
                     }
                     true
-                }*/
+                }
 
                 R.id.share -> {
-                    val mediaItem = viewModel.mediaItemList.value?.find {
+                    val mediaItem = mainActivity.reader.songListFlow.replayCache.lastOrNull()?.find {
                         it.mediaId == item.mediaId
                     } ?: return@setOnMenuItemClickListener true
 
@@ -323,8 +278,7 @@ class SongAdapter(
                         ?: mediaItem.localConfiguration?.uri
                         ?: return@setOnMenuItemClickListener true
 
-                    val mimeType = mediaItem.mediaMetadata.extras?.getString("MIME_TYPE")
-                        ?: "audio/*"
+                    val mimeType = mediaItem.localConfiguration?.mimeType ?: "audio/*"
 
                     try {
                         val contentUri = if (uri.scheme == "file") {
@@ -349,6 +303,7 @@ class SongAdapter(
                     }
                     true
                 }
+
                 else -> false
             }
         }
@@ -415,29 +370,35 @@ class SongAdapter(
         }
 
         override fun getDiscAndTrack(item: MediaItem): Int {
-            return (item.mediaMetadata.discNumber ?: 0) * 1000 + (item.mediaMetadata.trackNumber ?: 0)
+            return (item.mediaMetadata.discNumber ?: 0) * 1000 + (item.mediaMetadata.trackNumber
+                ?: 0)
         }
 
         override fun getAddDate(item: MediaItem): Long {
-            return item.mediaMetadata.extras!!.getLong("AddDate")
+            return item.mediaMetadata.addDate ?: -1
         }
 
         override fun getReleaseDate(item: MediaItem): Long {
             if (item.mediaMetadata.releaseYear == null && item.mediaMetadata.releaseMonth == null
-                && item.mediaMetadata.releaseDay == null) {
-                return GregorianCalendar((item.mediaMetadata.recordingYear ?: 0) + 1900,
+                && item.mediaMetadata.releaseDay == null
+            ) {
+                return GregorianCalendar(
+                    (item.mediaMetadata.recordingYear ?: 0) + 1900,
                     (item.mediaMetadata.recordingMonth ?: 1) - 1,
-                    item.mediaMetadata.recordingDay ?: 0, 0, 0, 0)
+                    item.mediaMetadata.recordingDay ?: 0, 0, 0, 0
+                )
                     .timeInMillis
             }
-            return GregorianCalendar((item.mediaMetadata.releaseYear ?: 0) + 1900,
+            return GregorianCalendar(
+                (item.mediaMetadata.releaseYear ?: 0) + 1900,
                 (item.mediaMetadata.releaseMonth ?: 1) - 1,
-                item.mediaMetadata.releaseDay ?: 0, 0, 0, 0)
+                item.mediaMetadata.releaseDay ?: 0, 0, 0, 0
+            )
                 .timeInMillis
         }
 
         override fun getModifiedDate(item: MediaItem): Long {
-            return item.mediaMetadata.extras!!.getLong("ModifiedDate")
+            return item.mediaMetadata.modifiedDate ?: -1
         }
     }
 }

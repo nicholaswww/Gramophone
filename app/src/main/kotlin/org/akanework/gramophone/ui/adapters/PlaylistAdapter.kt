@@ -19,23 +19,21 @@ package org.akanework.gramophone.ui.adapters
 
 import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.MutableLiveData
-import androidx.media3.common.MediaItem
 import org.akanework.gramophone.R
+import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
+import uk.akane.libphonograph.dynamicitem.RecentlyAdded
 import uk.akane.libphonograph.items.Playlist
-import uk.akane.libphonograph.reader.Reader
 
 /**
  * [PlaylistAdapter] is an adapter for displaying artists.
  */
 class PlaylistAdapter(
     fragment: Fragment,
-    playlistList: MutableLiveData<List<Playlist<MediaItem>>>,
-) : BaseAdapter<Playlist<MediaItem>>
+) : BaseAdapter<Playlist>
     (
     fragment,
-    liveData = playlistList,
+    liveData = (fragment.requireActivity() as MainActivity).reader.playlistListFlow,
     sortHelper = StoreItemHelper(),
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
@@ -46,21 +44,21 @@ class PlaylistAdapter(
 
     override val defaultCover = R.drawable.ic_default_cover_playlist
 
-    override fun virtualTitleOf(item: Playlist<MediaItem>): String {
+    override fun virtualTitleOf(item: Playlist): String {
         return context.getString(
-            if (item is Reader.RecentlyAdded<MediaItem>)
+            if (item is RecentlyAdded)
                 R.string.recently_added else R.string.unknown_playlist
         )
     }
 
-    override fun onClick(item: Playlist<MediaItem>) {
+    override fun onClick(item: Playlist) {
         mainActivity.startFragment(GeneralSubFragment()) {
             putInt("Position", toRawPos(item))
             putInt("Item", R.id.playlist)
         }
     }
 
-    override fun onMenu(item: Playlist<MediaItem>, popupMenu: PopupMenu) {
+    override fun onMenu(item: Playlist, popupMenu: PopupMenu) {
         popupMenu.inflate(R.menu.more_menu_less)
 
         popupMenu.setOnMenuItemClickListener { it1 ->
