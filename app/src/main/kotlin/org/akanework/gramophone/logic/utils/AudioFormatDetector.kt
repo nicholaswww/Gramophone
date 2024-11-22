@@ -89,7 +89,11 @@ class AudioFormatDetector {
                         if (!group.isTrackSelected(i)) continue
 
                         val format = group.getTrackFormat(i)
-                        val bitrate = calculateBitrate(player)
+                        val bitrate = if (format.bitrate != Format.NO_VALUE) {
+                            format.bitrate
+                        } else {
+                            calculateOverallBitrate(player)
+                        }
 
                         val rawSampleRate = format.sampleRate
                         val sampleRate = normalizeToStandardRate(rawSampleRate)
@@ -126,7 +130,7 @@ class AudioFormatDetector {
             return null
         }
 
-        private fun calculateBitrate(player: Player?): Int? {
+        private fun calculateOverallBitrate(player: Player?): Int? {
             if (player == null) return null
 
             val duration = player.duration
