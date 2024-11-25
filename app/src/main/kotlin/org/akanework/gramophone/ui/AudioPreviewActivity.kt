@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
 import android.view.View
 import android.widget.ImageView
 import android.widget.SeekBar
@@ -36,6 +37,7 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.components.FullBottomSheet.Companion.SLIDER_UPDATE_INTERVAL
 import org.akanework.gramophone.ui.components.SquigglyProgress
 
+@OptIn(UnstableApi::class)
 class AudioPreviewActivity : AppCompatActivity() {
 
     private lateinit var d: AlertDialog
@@ -54,15 +56,12 @@ class AudioPreviewActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var runnableRunning = false
     private var isUserTracking = false
-    private var lastKnownDuration = C.TIME_UNSET
     private val updateSliderRunnable = object : Runnable {
         override fun run() {
-            if (lastKnownDuration != player.duration) {
-                // midi duration does not seem to be available in any callback, midi extractor bug?
-                lastKnownDuration = player.duration
-                timeSlider.valueTo = player.duration.toFloat().coerceAtLeast(1f)
-                timeSeekbar.max = player.duration.toInt()
-                durationTextView.text = convertDurationToTimeStamp(player.duration)
+            val duration = player.currentMediaItem?.mediaMetadata?.durationMs
+            if (duration != null) {
+                timeSlider.valueTo = duration.toFloat().coerceAtLeast(1f)
+                timeSeekbar.max = duration.toInt()
             }
             val currentPosition = player.currentPosition.toFloat().coerceAtMost(timeSlider.valueTo)
                 .coerceAtLeast(timeSlider.valueFrom)
@@ -82,7 +81,6 @@ class AudioPreviewActivity : AppCompatActivity() {
     }
 
     // TODO and way to open this song in gramophone IF its part of library
-    @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
@@ -215,9 +213,28 @@ class AudioPreviewActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent) {
         if (intent.action == Intent.ACTION_VIEW) {
             intent.data?.let { uri ->
-                player.setMediaItem(MediaItem.fromUri(uri))
-                player.prepare()
-                player.play()
+                val projection = arrayOf(MediaStore.Audio.Media.DURATION)
+                contentResolver.query(
+                    uri, projection, null, null, null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val durationMs = cursor.getLong(
+                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                        )
+                        val mediaItem = MediaItem.Builder()
+                            .setMediaId(uri.toString())
+                            .setUri(uri)
+                            .setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setDurationMs(durationMs)
+                                    .build()
+                            )
+                            .build()
+                        player.setMediaItem(mediaItem)
+                        player.prepare()
+                        player.play()
+                    }
+                }
             }
         }
     }
@@ -274,6 +291,7 @@ class AudioPreviewActivity : AppCompatActivity() {
     private fun updateMediaMetadata(mediaMetadata: MediaMetadata) {
         audioTitle.text = mediaMetadata.title ?: getString(R.string.unknown_title)
         artistTextView.text = mediaMetadata.artist ?: getString(R.string.unknown_artist)
+        durationTextView.text = mediaMetadata.durationMs?.let { convertDurationToTimeStamp(it) }
         mediaMetadata.artworkData?.let {
             val bitmap = BitmapFactory.decodeByteArray(it, 0, it.size)
             albumArt.setImageBitmap(bitmap)
