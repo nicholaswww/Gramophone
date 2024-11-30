@@ -36,6 +36,7 @@ import android.os.Message
 import android.os.StrictMode
 import android.view.View
 import android.view.ViewGroup.MarginLayoutParams
+import android.view.ViewPropertyAnimator
 import android.view.WindowInsets
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -68,6 +69,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import org.akanework.gramophone.BuildConfig
+import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_AUDIO_FORMAT
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_LYRICS
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_LYRICS_LEGACY
@@ -126,12 +128,20 @@ fun TextView.setTextAnimation(
     completion: (() -> Unit)? = null,
     skipAnimation: Boolean = false
 ) {
+    (getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
+    (getTag(R.id.fade_in_animation) as ViewPropertyAnimator?)?.cancel()
+    val oldText = (getTag(androidx.core.R.id.text) as String?)
+    if (oldText != null)
+        this.text = oldText
+    if (oldText != null || text != null)
+        setTag(androidx.core.R.id.text, if (skipAnimation) null else text)
     if (skipAnimation) {
         this.text = text
         completion?.let { it() }
     } else if (this.text != text) {
         fadOutAnimation(duration) {
             this.text = text
+            setTag(androidx.core.R.id.text, null)
             fadInAnimation(duration) {
                 completion?.let {
                     it()
@@ -150,28 +160,32 @@ fun View.fadOutAnimation(
     visibility: Int = View.INVISIBLE,
     completion: (() -> Unit)? = null
 ) {
-    animate()
+    (getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
+    setTag(R.id.fade_out_animation, animate()
         .alpha(0f)
         .setDuration(duration)
         .withEndAction {
             this.visibility = visibility
+            setTag(R.id.fade_out_animation, null)
             completion?.let {
                 it()
             }
-        }
+        })
 }
 
 fun View.fadInAnimation(duration: Long = 300, completion: (() -> Unit)? = null) {
+    (getTag(R.id.fade_in_animation) as ViewPropertyAnimator?)?.cancel()
     alpha = 0f
     visibility = View.VISIBLE
-    animate()
+    setTag(R.id.fade_in_animation, animate()
         .alpha(1f)
         .setDuration(duration)
         .withEndAction {
+            setTag(R.id.fade_in_animation, null)
             completion?.let {
                 it()
             }
-        }
+        })
 }
 
 @Suppress("NOTHING_TO_INLINE")
