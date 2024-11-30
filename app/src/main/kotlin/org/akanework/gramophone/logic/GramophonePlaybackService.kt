@@ -140,7 +140,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         private set
     var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
         private set
-    private var shuffleFactory:
+    private var pendingShuffleFactoryForResumption:
             ((Int) -> ((CircularShuffleOrder) -> Unit) -> CircularShuffleOrder)? = null
     private lateinit var customCommands: List<CommandButton>
     private lateinit var handler: Handler
@@ -171,7 +171,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private val audioManager by lazy {
-        getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        getSystemService(AUDIO_SERVICE) as AudioManager
     }
 
     private var timerDuration: Long? = null
@@ -376,28 +376,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 )
                 .build()
         controller = MediaController.Builder(this, mediaSession!!.token).buildAsync().get()
-        handler.post {
-            if (mediaSession == null) return@post
-            lastPlayedManager.restore { items, factory ->
-                if (mediaSession == null) return@restore
-                applyShuffleSeed(true, factory.toFactory(controller!!))
-                if (items != null) {
-                    try {
-                        mediaSession?.player?.setMediaItems(
-                            items.mediaItems, items.startIndex, items.startPositionMs
-                        )
-                    } catch (e: IllegalSeekPositionException) {
-                        Log.e(TAG, "failed to restore: " + Log.getStackTraceString(e))
-                        // song was edited to be shorter and playback position doesn't exist anymore
-                    }
-                    // Prepare Player after UI thread is less busy (loads tracks, required for lyric)
-                    handler.post {
-                        controller?.prepare()
-                    }
-                }
-                lastPlayedManager.allowSavingState = true
-            }
-        }
         onShuffleModeEnabledChanged(controller!!.shuffleModeEnabled) // refresh custom commands
         controller!!.addListener(this)
         registerReceiver(
@@ -410,6 +388,39 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             IntentFilter("$packageName.SEEK_TO"),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
+        lastPlayedManager.restore { items, factory ->
+            if (mediaSession == null) return@restore
+            if (items != null) {
+                pendingShuffleFactoryForResumption = factory.toFactory(controller!!)
+                try {
+                    mediaSession?.player?.setMediaItems(
+                        items.mediaItems, items.startIndex, items.startPositionMs
+                    )
+                } catch (e: IllegalSeekPositionException) {
+                    // song was edited to be shorter and playback position doesn't exist anymore
+                    Log.e(TAG, "failed to restore with startPositionMs, trying without... "
+                            + Log.getStackTraceString(e))
+                    try {
+                        mediaSession?.player?.setMediaItems(
+                            items.mediaItems, items.startIndex, C.TIME_UNSET
+                        )
+                    } catch (e: IllegalSeekPositionException) {
+                        // whatever...
+                        Log.e(TAG, "failed to restore: " + Log.getStackTraceString(e))
+                        pendingShuffleFactoryForResumption = null
+                    }
+                }
+                handler.post {
+                    // Listener methods are called with .post() but queued inside setMediaItems() so
+                    // if we queue now, we always run after the listener was run
+                    if (pendingShuffleFactoryForResumption != null)
+                        throw IllegalStateException("shuffleFactory was not consumed during restore")
+                    // Prepare Player after UI thread is less busy (loads tracks, required for lyric)
+                    controller?.prepare()
+                }
+            }
+            lastPlayedManager.allowSavingState = true
+        }
     }
 
     // When destroying, we should release server side player
@@ -590,20 +601,27 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     ): ListenableFuture<MediaItemsWithStartPosition> {
         val settable = SettableFuture.create<MediaItemsWithStartPosition>()
         lastPlayedManager.restore { items, factory ->
-            applyShuffleSeed(true, factory.toFactory(this.controller!!))
             if (items == null) {
                 settable.setException(
                     NullPointerException(
                         "null MediaItemsWithStartPosition, see former logs for root cause"
-                    )
+                    ).also { Log.e(TAG, Log.getStackTraceString(it)) }
                 )
             } else if (items.mediaItems.isNotEmpty()) {
+                pendingShuffleFactoryForResumption = factory.toFactory(this.controller!!)
+                // This call will only sometimes set the playlist on our controller (it won't if
+                // the system is just asking for the last played song for display purposes)
                 settable.set(items)
+                handler.post {
+                    // Listener methods are called with .post() but queued inside set() so
+                    // if we queue now, we always run after the listener was run
+                    pendingShuffleFactoryForResumption = null
+                }
             } else {
                 settable.setException(
                     IndexOutOfBoundsException(
                         "LastPlayedManager restored empty MediaItemsWithStartPosition"
-                    )
+                    ).also { Log.e(TAG, Log.getStackTraceString(it)) }
                 )
             }
         }
@@ -701,15 +719,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         // (onTimelineChanged() runs before both this callback and onShuffleModeEnabledChanged(),
         // which means shuffleFactory != null is not a valid check)
         if (events.contains(EVENT_SHUFFLE_MODE_ENABLED_CHANGED) &&
-            shuffleFactory == null && !events.contains(Player.EVENT_TIMELINE_CHANGED)
+            pendingShuffleFactoryForResumption == null && !events.contains(Player.EVENT_TIMELINE_CHANGED)
         ) {
             // when enabling shuffle, re-shuffle lists so that the first index is up to date
-            applyShuffleSeed(false) { c ->
-                {
-                    CircularShuffleOrder(
-                        it, c, controller!!.mediaItemCount, Random.nextLong()
-                    )
-                }
+            (mediaSession?.player as EndedWorkaroundPlayer?)?.setShuffleOrder {
+                CircularShuffleOrder(
+                    it,
+                    controller!!.currentMediaItemIndex,
+                    controller!!.mediaItemCount,
+                    Random.nextLong()
+                )
             }
         }
     }
@@ -725,9 +744,18 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onTimelineChanged(timeline: Timeline, reason: Int) {
         super.onTimelineChanged(timeline, reason)
         if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
-            shuffleFactory?.let {
-                applyShuffleSeed(false, it)
-                shuffleFactory = null
+            pendingShuffleFactoryForResumption?.let {
+                controller?.let { controller ->
+                    (mediaSession?.player as EndedWorkaroundPlayer?)?.setShuffleOrder(
+                        try {
+                            it(controller.currentMediaItemIndex)
+                        } catch (e: IllegalStateException) {
+                            lastPlayedManager.eraseShuffleOrder()
+                            throw e
+                        }
+                    )
+                }
+                pendingShuffleFactoryForResumption = null
             }
         }
     }
@@ -844,25 +872,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         } else {
             handler.post {
                 throw IllegalStateException("onForegroundServiceStartNotAllowedException shouldn't be called on T+")
-            }
-        }
-    }
-
-    private fun applyShuffleSeed(
-        lazy: Boolean, factory:
-            (Int) -> ((CircularShuffleOrder) -> Unit) -> CircularShuffleOrder
-    ) {
-        if (lazy) {
-            shuffleFactory = factory
-        } else {
-            (mediaSession?.player as EndedWorkaroundPlayer?)?.let {
-                val data = try {
-                    factory(it.currentMediaItemIndex)
-                } catch (e: IllegalStateException) {
-                    lastPlayedManager.eraseShuffleOrder()
-                    throw e
-                }
-                it.setShuffleOrder(data)
             }
         }
     }

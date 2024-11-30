@@ -173,7 +173,7 @@ class LastPlayedManager(
                 throw e
             }
             try {
-                val lastPlayedLst = prefs.getStringSet("last_played_lst", null)
+                val lastPlayedLst = prefs.getStringSet("last_played_lst", null)?.map { it.toString() }?.toSet()
                 val lastPlayedGrp = prefs.getString("last_played_grp", null)
                 val lastPlayedIdx = prefs.getInt("last_played_idx", 0)
                 val lastPlayedPos = prefs.getLong("last_played_pos", 0)
@@ -369,12 +369,17 @@ private class SafeDelimitedStringDecat(delimiter: String, str: String) {
 private object PrefsListUtils {
     fun parse(stringSet: Set<String>, groupStr: String): List<String> {
         val groups = groupStr.split(",")
-        return groups.map { hashCode ->
-            stringSet.first { it.hashCode().toString() == hashCode }
+        return groups.map { hc ->
+            stringSet.firstOrNull { it.hashCode().toString() == hc } ?:
+                throw NoSuchElementException("tried to find \"$hc\" (from \"$groupStr\") in: " +
+                        stringSet.joinToString { it.hashCode().toString() })
         }
     }
 
-    fun dump(list: List<String>): Pair<Set<String>, String> {
-        return Pair(list.toSet(), list.joinToString(",") { it.hashCode().toString() })
+    fun dump(inList: List<String>): Pair<Set<String>, String> {
+        val list = inList.map { it.trim() }
+        return Pair(list.toSet(), list.joinToString(",") { it.hashCode().toString() }).also {
+            Log.e("gramo", "save ${it.first.joinToString { it.hashCode().toString() }} with groups ${it.second}")
+        }
     }
 }

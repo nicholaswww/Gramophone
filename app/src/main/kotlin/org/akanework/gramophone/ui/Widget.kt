@@ -165,7 +165,7 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
                 position
             )
         if (item == null && itemUnsynced == null && itemLegacy == null) return null
-        val isTranslation = item?.isTranslated ?: itemLegacy?.isTranslation == true
+        val isTranslation = item?.isTranslated ?: (itemLegacy?.isTranslation == true)
         val isBackground = item?.lyric?.speaker == SpeakerEntity.Background
         val isVoice2 = item?.lyric?.speaker == SpeakerEntity.Voice2
         val startTs = item?.lyric?.start?.toLong() ?: itemLegacy?.timeStamp ?: -1L

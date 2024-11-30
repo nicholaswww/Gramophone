@@ -58,7 +58,9 @@ class EndedWorkaroundPlayer(player: ExoPlayer) : ForwardingPlayer(player), Playe
     fun setShuffleOrder(
         shuffleOrderFactory: ((CircularShuffleOrder) -> Unit) -> CircularShuffleOrder
     ) {
-        val shuffleOrder = shuffleOrderFactory { shuffleOrder = it }
+        // This lambda is used by the CircularShuffleOrder to notify us ExoPlayer has changed the
+        // current shuffle order.
+        val shuffleOrder = shuffleOrderFactory { this.shuffleOrder = it }
         exoPlayer.setShuffleOrder(shuffleOrder)
         this.shuffleOrder = shuffleOrder
     }
