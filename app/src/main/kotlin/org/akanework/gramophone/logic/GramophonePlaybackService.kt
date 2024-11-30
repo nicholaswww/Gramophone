@@ -131,6 +131,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     private var lastSessionId = 0
     private var mediaSession: MediaLibrarySession? = null
+    val endedWorkaroundPlayer
+        get() = mediaSession?.player as EndedWorkaroundPlayer?
     var controller: MediaController? = null
         private set
     private val sendLyrics = Runnable { scheduleSendingLyrics(false) }
@@ -140,8 +142,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         private set
     var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
         private set
-    private var pendingShuffleFactoryForResumption:
-            ((Int) -> ((CircularShuffleOrder) -> Unit) -> CircularShuffleOrder)? = null
     private lateinit var customCommands: List<CommandButton>
     private lateinit var handler: Handler
     private lateinit var nm: NotificationManagerCompat
@@ -306,6 +306,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
         player.exoPlayer.audioSessionId = Util.generateAudioSessionIdV21(this)
         lastSessionId = player.exoPlayer.audioSessionId
+        player.setShuffleOrder { CircularShuffleOrder(it, 0, 0, Random.nextLong()) }
         broadcastAudioSession()
         lastPlayedManager = LastPlayedManager(this, player)
         lastPlayedManager.allowSavingState = false
@@ -391,7 +392,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lastPlayedManager.restore { items, factory ->
             if (mediaSession == null) return@restore
             if (items != null) {
-                pendingShuffleFactoryForResumption = factory.toFactory(controller!!)
+                if (endedWorkaroundPlayer?.nextShuffleOrder != null)
+                    throw IllegalStateException("shuffleFactory was found orphaned")
+                endedWorkaroundPlayer?.nextShuffleOrder = factory.toFactory()
                 try {
                     mediaSession?.player?.setMediaItems(
                         items.mediaItems, items.startIndex, items.startPositionMs
@@ -407,14 +410,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     } catch (e: IllegalSeekPositionException) {
                         // whatever...
                         Log.e(TAG, "failed to restore: " + Log.getStackTraceString(e))
-                        pendingShuffleFactoryForResumption = null
+                        endedWorkaroundPlayer?.nextShuffleOrder = null
                     }
                 }
+                if (endedWorkaroundPlayer?.nextShuffleOrder != null)
+                    throw IllegalStateException("shuffleFactory was not consumed during restore")
                 handler.post {
-                    // Listener methods are called with .post() but queued inside setMediaItems() so
-                    // if we queue now, we always run after the listener was run
-                    if (pendingShuffleFactoryForResumption != null)
-                        throw IllegalStateException("shuffleFactory was not consumed during restore")
                     // Prepare Player after UI thread is less busy (loads tracks, required for lyric)
                     controller?.prepare()
                 }
@@ -608,15 +609,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     ).also { Log.e(TAG, Log.getStackTraceString(it)) }
                 )
             } else if (items.mediaItems.isNotEmpty()) {
-                pendingShuffleFactoryForResumption = factory.toFactory(this.controller!!)
+                if (endedWorkaroundPlayer?.nextShuffleOrder != null)
+                    throw IllegalStateException("shuffleFactory was found orphaned")
+                endedWorkaroundPlayer?.nextShuffleOrder = factory.toFactory()
                 // This call will only sometimes set the playlist on our controller (it won't if
                 // the system is just asking for the last played song for display purposes)
                 settable.set(items)
-                handler.post {
-                    // Listener methods are called with .post() but queued inside set() so
-                    // if we queue now, we always run after the listener was run
-                    pendingShuffleFactoryForResumption = null
-                }
+                endedWorkaroundPlayer?.nextShuffleOrder = null
             } else {
                 settable.setException(
                     IndexOutOfBoundsException(
@@ -715,14 +714,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     override fun onEvents(player: Player, events: Player.Events) {
         super.onEvents(player, events)
-        // if timeline changed, handle shuffle update in onTimelineChanged() instead
-        // (onTimelineChanged() runs before both this callback and onShuffleModeEnabledChanged(),
-        // which means shuffleFactory != null is not a valid check)
-        if (events.contains(EVENT_SHUFFLE_MODE_ENABLED_CHANGED) &&
-            pendingShuffleFactoryForResumption == null && !events.contains(Player.EVENT_TIMELINE_CHANGED)
-        ) {
+        // if timeline changed, shuffle order is handled elsewhere instead (cloneAndInsert called by
+        // ExoPlayer for common case and nextShuffleOrder for resumption case)
+        if (events.contains(EVENT_SHUFFLE_MODE_ENABLED_CHANGED)
+            && !events.contains(Player.EVENT_TIMELINE_CHANGED)) {
             // when enabling shuffle, re-shuffle lists so that the first index is up to date
-            (mediaSession?.player as EndedWorkaroundPlayer?)?.setShuffleOrder {
+            endedWorkaroundPlayer?.setShuffleOrder {
                 CircularShuffleOrder(
                     it,
                     controller!!.currentMediaItemIndex,
@@ -738,25 +735,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaSession!!.setCustomLayout(ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
         if (needsMissingOnDestroyCallWorkarounds()) {
             handler.post { lastPlayedManager.save() }
-        }
-    }
-
-    override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-        super.onTimelineChanged(timeline, reason)
-        if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
-            pendingShuffleFactoryForResumption?.let {
-                controller?.let { controller ->
-                    (mediaSession?.player as EndedWorkaroundPlayer?)?.setShuffleOrder(
-                        try {
-                            it(controller.currentMediaItemIndex)
-                        } catch (e: IllegalStateException) {
-                            lastPlayedManager.eraseShuffleOrder()
-                            throw e
-                        }
-                    )
-                }
-                pendingShuffleFactoryForResumption = null
-            }
         }
     }
 

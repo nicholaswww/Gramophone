@@ -23,6 +23,9 @@ class EndedWorkaroundPlayer(player: ExoPlayer) : ForwardingPlayer(player), Playe
 
     val exoPlayer
         get() = wrappedPlayer as ExoPlayer
+    var nextShuffleOrder:
+            ((firstIndex: Int, mediaItemCount: Int, EndedWorkaroundPlayer) -> CircularShuffleOrder)?
+            = null
     var isEnded = false
         set(value) {
             if (BuildConfig.DEBUG) {
@@ -56,12 +59,14 @@ class EndedWorkaroundPlayer(player: ExoPlayer) : ForwardingPlayer(player), Playe
     }
 
     fun setShuffleOrder(
-        shuffleOrderFactory: ((CircularShuffleOrder) -> Unit) -> CircularShuffleOrder
+        shuffleOrderFactory: (EndedWorkaroundPlayer) -> CircularShuffleOrder
     ) {
-        // This lambda is used by the CircularShuffleOrder to notify us ExoPlayer has changed the
-        // current shuffle order.
-        val shuffleOrder = shuffleOrderFactory { this.shuffleOrder = it }
+        val shuffleOrder = shuffleOrderFactory(this)
         exoPlayer.setShuffleOrder(shuffleOrder)
+        this.shuffleOrder = shuffleOrder
+    }
+
+    fun onShuffleOrderChanged(shuffleOrder: CircularShuffleOrder) {
         this.shuffleOrder = shuffleOrder
     }
 

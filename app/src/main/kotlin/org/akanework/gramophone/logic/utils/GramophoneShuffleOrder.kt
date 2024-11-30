@@ -6,13 +6,14 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.source.ShuffleOrder
 import androidx.media3.session.MediaController
 import kotlin.random.Random
+import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
 
 /**
  * This shuffle order will take "firstIndex" as first song and play all songs after it.
  */
 @UnstableApi
 class CircularShuffleOrder private constructor(
-    private val listener: (CircularShuffleOrder) -> Unit,
+    private val listener: EndedWorkaroundPlayer,
     private val shuffled: IntArray,
     private val random: Random
 ) : ShuffleOrder {
@@ -48,7 +49,7 @@ class CircularShuffleOrder private constructor(
     }
 
     constructor(
-        listener: (CircularShuffleOrder) -> Unit,
+        listener: EndedWorkaroundPlayer,
         firstIndex: Int,
         length: Int,
         randomSeed: Long
@@ -56,7 +57,7 @@ class CircularShuffleOrder private constructor(
             this(listener, firstIndex, length, Random(randomSeed))
 
     private constructor(
-        listener: (CircularShuffleOrder) -> Unit,
+        listener: EndedWorkaroundPlayer,
         firstIndex: Int,
         length: Int,
         random: Random
@@ -68,7 +69,7 @@ class CircularShuffleOrder private constructor(
             )
 
     constructor(
-        listener: (CircularShuffleOrder) -> Unit,
+        listener: EndedWorkaroundPlayer,
         shuffledIndices: IntArray,
         randomSeed: Long
     ) :
@@ -101,6 +102,15 @@ class CircularShuffleOrder private constructor(
     // B,C,D will be shuffled among themselves to ie D,B,C and then this list will be inserted after
     // A so that song list will now be A,D,B,C,...
     override fun cloneAndInsert(insertionIndex: Int, insertionCount: Int): ShuffleOrder {
+        listener.nextShuffleOrder?.let { factory ->
+            listener.nextShuffleOrder = null
+            val nextShuffleOrder = factory(insertionIndex, shuffled.size + insertionCount, listener)
+            if (nextShuffleOrder.length != shuffled.size + insertionCount)
+                throw IllegalStateException("next shuffle order size ${nextShuffleOrder.length} " +
+                        "does not match requested ${shuffled.size + insertionCount}")
+                    .also { Log.e(TAG, Log.getStackTraceString(it)) }
+            return nextShuffleOrder.also { listener.onShuffleOrderChanged(it) }
+        }
         // the original list: [0, 1, 2] shuffled: [2, 0, 1] indexInShuffled: [1, 2, 0]
         // insertionIndex for adding after 1 would be 2, 2 is at index 0 in shuffled list, after 0
         // would be 1 so we want to insert into shuffled at index 1 here.
@@ -123,11 +133,17 @@ class CircularShuffleOrder private constructor(
         }
 
         return CircularShuffleOrder(listener, newShuffled, Random(random.nextLong()))
-            .also { listener(it) }
+            .also { listener.onShuffleOrderChanged(it) }
     }
 
     override fun cloneAndRemove(indexFrom: Int, indexToExclusive: Int): ShuffleOrder {
         val numberOfElementsToRemove = indexToExclusive - indexFrom
+        // short-circuit for performance and because this is allowed if nextShuffleOrder is set
+        if (numberOfElementsToRemove == shuffled.size)
+            return CircularShuffleOrder(listener, 0, 0, Random(random.nextLong()))
+                .also { listener.onShuffleOrderChanged(it) }
+        if (listener.nextShuffleOrder != null)
+            throw IllegalStateException("next shuffle order present but removing some items")
         val newShuffled = IntArray(shuffled.size - numberOfElementsToRemove)
         var foundElementsCount = 0
 
@@ -141,12 +157,11 @@ class CircularShuffleOrder private constructor(
         }
 
         return CircularShuffleOrder(listener, newShuffled, Random(random.nextLong()))
-            .also { listener(it) }
+            .also { listener.onShuffleOrderChanged(it) }
     }
 
     override fun cloneAndClear(): ShuffleOrder {
-        return CircularShuffleOrder(listener, 0, 0, Random(random.nextLong()))
-            .also { listener(it) }
+        return cloneAndRemove(0, shuffled.size)
     }
 
     class Persistent private constructor(private val seed: Long, private val data: IntArray?) {
@@ -168,20 +183,13 @@ class CircularShuffleOrder private constructor(
             return if (data != null) "$seed;${data.joinToString(",")}" else seed.toString()
         }
 
-        fun toFactory(controller: MediaController): (Int) -> ((CircularShuffleOrder) -> Unit) -> CircularShuffleOrder {
+        fun toFactory(): (Int, Int, EndedWorkaroundPlayer) -> CircularShuffleOrder {
             if (data == null) {
-                return { c -> { CircularShuffleOrder(it, c, controller.mediaItemCount, seed) } }
+                return { firstIndex, mediaItemCount, it ->
+                    CircularShuffleOrder(it, firstIndex, mediaItemCount, seed) }
             } else {
-                return { _ ->
-                    if (controller.mediaItemCount != data.size) {
-                        throw IllegalStateException(
-                            "CircularShuffleOrder.Persistable: " +
-                                    "${controller.mediaItemCount} != ${data.size}"
-                        ).also {
-                            Log.e(TAG, Log.getStackTraceString(it))
-                        }
-                    }
-                    { CircularShuffleOrder(it, data, seed) }
+                return { _, _, it ->
+                    CircularShuffleOrder(it, data, seed)
                 }
             }
         }
