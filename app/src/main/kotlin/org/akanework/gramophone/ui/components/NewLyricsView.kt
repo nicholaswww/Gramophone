@@ -631,11 +631,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             val speaker = syncedLines?.get(i)?.lyric?.speaker
             val align = if (prefs.getBooleanStrict("lyric_center", false))
                 Layout.Alignment.ALIGN_CENTER
-            else if (syncedLines != null && speaker == SpeakerEntity.Voice2)
+            else if (syncedLines != null && speaker?.isVoice2 == true)
                 Layout.Alignment.ALIGN_OPPOSITE
             else Layout.Alignment.ALIGN_NORMAL
             val tl = syncedLines != null && syncedLines[i].isTranslated
-            val bg = speaker == SpeakerEntity.Background
+            val bg = speaker?.isBackground == true
             val paddingTop = if (syncedLines?.get(i)?.isTranslated == true) 2 else 18
             val paddingBottom = if (i + 1 < (syncedLines?.size ?: -1) &&
                 syncedLines?.get(i + 1)?.isTranslated == true

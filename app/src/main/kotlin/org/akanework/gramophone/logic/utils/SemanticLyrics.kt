@@ -38,13 +38,14 @@ import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
  */
 
 @Parcelize
-enum class SpeakerEntity(val isWalaoke: Boolean) : Parcelable {
+enum class SpeakerEntity(val isWalaoke: Boolean, val isVoice2: Boolean = false, val isBackground: Boolean = false) : Parcelable {
     Male(true), // Walaoke
     Female(true), // Walaoke
     Duet(true), // Walaoke
-    Background(false), // iTunes
+    Background(false, isBackground = true), // iTunes
     Voice1(false), // iTunes
-    Voice2(false) // iTunes
+    Voice2(false, isVoice2 = true), // iTunes
+    Voice2Background(false, isVoice2 = true, isBackground = true) // iTunes
 }
 
 /*
@@ -201,7 +202,16 @@ private sealed class SyntacticLrc {
                     // if (out.isEmpty() || out.last() is NewLine) below.
                     if (!out.isEmpty() && out.last() !is NewLine)
                         out.add(NewLine.SyntheticNewLine())
-                    out.add(SpeakerTag(SpeakerEntity.Background))
+                    val lastWasV2 = out.subList(0, out.size - 1).indexOfLast { it is NewLine }
+                        .let { if (it < 0) null else it }?.let {
+                            (out.subList(it, out.size - 1).findLast { it is SpeakerTag }
+                                    as SpeakerTag?)?.speaker?.isVoice2
+                    } == true
+                    // TODO revisit this heuristic. iTunes bg lines are a child of the last main
+                    //  line and there is no "opposite" flag for background lines, but reality does
+                    //  not work that way. can main lines be empty in iTunes' lyrics?
+                    out.add(SpeakerTag(if (lastWasV2) SpeakerEntity.Voice2Background else
+                        SpeakerEntity.Background))
                     pos += 4
                     isBgSpeaker = true
                     continue

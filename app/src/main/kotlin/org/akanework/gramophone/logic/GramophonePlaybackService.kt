@@ -138,6 +138,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private val sendLyrics = Runnable { scheduleSendingLyrics(false) }
     var lyrics: SemanticLyrics? = null
         private set
+    val syncedLyrics
+        get() = lyrics as? SemanticLyrics.SyncedLyrics
     var audioFormat: AudioFormatInfo? = null
         private set
     var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
@@ -763,13 +765,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val hnw = !LyricWidgetProvider.hasWidget(this)
         if (controller?.isPlaying != true || (!isStatusBarLyricsEnabled && hnw)) return
         val cPos = (controller?.contentPosition ?: 0).toULong()
-        val syncedLyrics = lyrics as? SemanticLyrics.SyncedLyrics
         val nextUpdate = if (syncedLyrics != null) {
-            syncedLyrics.text.flatMap {
+            syncedLyrics?.text?.flatMap {
                 if (hnw && it.lyric.start <= cPos) listOf() else if (hnw) listOf(it.lyric.start) else
                     (it.lyric.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
                         .let { i -> if (it.lyric.start > cPos) i + it.lyric.start else i }
-            }.minOrNull()
+            }?.minOrNull()
         } else if (lyricsLegacy != null) {
             lyricsLegacy?.find {
                 (it.timeStamp ?: -2) > cPos.toLong()
@@ -785,9 +786,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             LyricWidgetProvider.adapterUpdate(this)
         val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
         val highlightedLyric = if (isStatusBarLyricsEnabled)
-            getCurrentLyricIndex()?.let {
-                (lyrics as? SemanticLyrics.SyncedLyrics)?.text?.get(it)?.lyric?.text
-                    ?: lyricsLegacy?.get(it)?.content
+            getCurrentLyricIndex(false)?.let {
+                syncedLyrics?.text?.get(it)?.lyric?.text ?: lyricsLegacy?.get(it)?.content
             }
         else null
         if (lastSentHighlightedLyric != highlightedLyric) {
@@ -796,17 +796,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
     }
 
-    fun getCurrentLyricIndex() =
-        if (lyrics != null && lyrics is SemanticLyrics.SyncedLyrics) {
-            val syncedLyrics = lyrics as SemanticLyrics.SyncedLyrics
-            syncedLyrics.text.indexOfLast {
+    fun getCurrentLyricIndex(withTranslation: Boolean) =
+        if (syncedLyrics != null) {
+            syncedLyrics?.text?.indexOfLast {
                 it.lyric.start <= (controller?.currentPosition ?: 0).toULong()
-                        && !it.isTranslated
-            }.let { if (it == -1) null else it }
+                        && (!it.isTranslated || withTranslation)
+            }?.let { if (it == -1) null else it }
         } else if (lyricsLegacy != null) {
             lyricsLegacy?.indexOfLast {
                 (it.timeStamp ?: Long.MAX_VALUE) <= (controller?.currentPosition ?: 0)
-                        && !it.isTranslation
+                        && (!it.isTranslation || withTranslation)
             }?.let { if (it == -1) null else it }
         } else null
 

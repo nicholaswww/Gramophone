@@ -1,6 +1,7 @@
 package org.akanework.gramophone.logic.utils.exoplayer
 
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -14,7 +15,7 @@ import org.akanework.gramophone.logic.utils.CircularShuffleOrder
  * update to STATE_ENDED and only then media3 will wrap around playlist for us. This is a workaround
  * to restore STATE_ENDED as well and fake it for media3 until it indeed wraps around playlist.
  */
-@UnstableApi
+@OptIn(UnstableApi::class)
 class EndedWorkaroundPlayer(player: ExoPlayer) : ForwardingPlayer(player), Player.Listener {
 
     companion object {

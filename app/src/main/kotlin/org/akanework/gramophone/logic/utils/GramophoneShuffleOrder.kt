@@ -1,6 +1,7 @@
 package org.akanework.gramophone.logic.utils
 
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.source.ShuffleOrder
@@ -11,7 +12,7 @@ import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
 /**
  * This shuffle order will take "firstIndex" as first song and play all songs after it.
  */
-@UnstableApi
+@OptIn(UnstableApi::class)
 class CircularShuffleOrder private constructor(
     private val listener: EndedWorkaroundPlayer,
     private val shuffled: IntArray,

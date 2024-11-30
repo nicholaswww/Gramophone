@@ -22,8 +22,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService
-import org.akanework.gramophone.logic.utils.SemanticLyrics
-import org.akanework.gramophone.logic.utils.SpeakerEntity
+
+private inline val service
+    get() = GramophonePlaybackService.instanceForWidgetAndOnlyWidget
 
 class LyricWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(
@@ -51,7 +52,8 @@ class LyricWidgetProvider : AppWidgetProvider() {
                         })
                     setEmptyView(R.id.list_view, R.id.empty_view)
                 }
-            // setting null first fixes outdated data related bugs but causes flicker. oh well
+            // setting null first fixes outdated data related bugs but causes flicker. hence we
+            // sparingly update the entire adapter.
             appWidgetManager.updateAppWidget(appWidgetId, null)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
@@ -106,7 +108,7 @@ class LyricWidgetService : RemoteViewsService() {
             SizeF(intent.getFloatExtra("width", -1f), intent.getFloatExtra("height", -1f))
         } else null*/
         return LyricRemoteViewsFactory(
-            this,
+            applicationContext,
             intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, 0)
         )
     }
@@ -120,8 +122,7 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
 
     override fun onDataSetChanged() {
         Handler(Looper.getMainLooper()).postDelayed({
-            val li =
-                GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.getCurrentLyricIndex()
+            val li = service?.getCurrentLyricIndex(true)
             val awm = AppWidgetManager.getInstance(context)
             if (li != null) {
                 awm.partiallyUpdateAppWidget(appWidgetId,
@@ -138,8 +139,7 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
     }
 
     override fun getCount(): Int {
-        return GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyrics?.unsyncedText?.size
-            ?: GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyricsLegacy?.size ?: 0
+        return service?.lyrics?.unsyncedText?.size ?: service?.lyricsLegacy?.size ?: 0
     }
 
     private val themeContext = ContextThemeWrapper(context, R.style.Theme_Gramophone)
@@ -149,43 +149,32 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
     override fun getViewAt(position: Int): RemoteViews? {
         val cPos = runBlocking {
             withContext(Dispatchers.Main) {
-                GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.controller?.contentPosition
+                service?.controller?.contentPosition
             }
         }
-        val item =
-            (GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyrics as? SemanticLyrics.SyncedLyrics?)?.text?.getOrNull(
-                position
-            )
-        val itemUnsynced =
-            GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyrics?.unsyncedText?.getOrNull(
-                position
-            )
-        val itemLegacy =
-            GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyricsLegacy?.getOrNull(
-                position
-            )
+        val item = service?.syncedLyrics?.text?.getOrNull(position)
+        val itemUnsynced = service?.lyrics?.unsyncedText?.getOrNull(position)
+        val itemLegacy = service?.lyricsLegacy?.getOrNull(position)
         if (item == null && itemUnsynced == null && itemLegacy == null) return null
-        val isTranslation = item?.isTranslated ?: (itemLegacy?.isTranslation == true)
-        val isBackground = item?.lyric?.speaker == SpeakerEntity.Background
-        val isVoice2 = item?.lyric?.speaker == SpeakerEntity.Voice2
+        val isTranslation = (item?.isTranslated ?: itemLegacy?.isTranslation) == true
+        val isBackground = item?.lyric?.speaker?.isBackground == true
+        val isVoice2 = item?.lyric?.speaker?.isVoice2 == true
         val startTs = item?.lyric?.start?.toLong() ?: itemLegacy?.timeStamp ?: -1L
         val endTs = item?.lyric?.words?.lastOrNull()?.timeRange?.last?.toLong()
-            ?: (GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyrics as? SemanticLyrics.SyncedLyrics?)?.text?.getOrNull(
-                position + 1
-            )?.lyric?.start?.toLong()
-            ?: GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyricsLegacy?.getOrNull(
-                position + 1
-            )?.timeStamp
+            ?: service?.syncedLyrics?.text?.find { it.lyric.start > item!!.lyric.start }?.lyric?.start?.toLong()?.minus(1)
+            ?: service?.lyricsLegacy?.find { (it.timeStamp ?: -1L) > (itemLegacy!!.timeStamp ?: -1L) }?.timeStamp?.minus(1)
             ?: Long.MAX_VALUE
         val isActive = startTs == -1L || cPos != null && cPos >= startTs && cPos <= endTs
         return RemoteViews(
             context.packageName, when {
-                isVoice2 && isTranslation -> R.layout.lyric_widget_txt_tlri
-                isVoice2 -> R.layout.lyric_widget_txt_nnri
-                isTranslation && isBackground -> R.layout.lyric_widget_txt_tbli
-                isTranslation -> R.layout.lyric_widget_txt_tlli
-                isBackground -> R.layout.lyric_widget_txt_bgli
-                else -> R.layout.lyric_widget_txt_nnli
+                isVoice2 && isTranslation && isBackground -> R.layout.lyric_widget_text_right_tlbg
+                isVoice2 && isTranslation -> R.layout.lyric_widget_text_right_tlbg
+                isVoice2 && isBackground -> R.layout.lyric_widget_text_right_bg
+                isVoice2 -> R.layout.lyric_widget_text_right
+                isTranslation && isBackground -> R.layout.lyric_widget_text_left_tlbg
+                isTranslation -> R.layout.lyric_widget_text_left_tl
+                isBackground -> R.layout.lyric_widget_text_left_bg
+                else -> R.layout.lyric_widget_text_left
             }
         ).apply {
             val sb = SpannableString(item?.lyric?.text ?: itemUnsynced ?: itemLegacy!!.content)
@@ -212,20 +201,10 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
     override fun getViewTypeCount(): Int {
         return 6
     }
-
     override fun getItemId(position: Int): Long {
-        val item =
-            (GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyrics as? SemanticLyrics.SyncedLyrics?)?.text?.getOrNull(
-                position
-            )
-        val itemUnsynced =
-            GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyrics?.unsyncedText?.getOrNull(
-                position
-            )
-        val itemLegacy =
-            GramophonePlaybackService.instanceForWidgetAndOnlyWidget?.lyricsLegacy?.getOrNull(
-                position
-            )
+        val item = service?.syncedLyrics?.text?.getOrNull(position)
+        val itemUnsynced = service?.lyrics?.unsyncedText?.getOrNull(position)
+        val itemLegacy = service?.lyricsLegacy?.getOrNull(position)
         if (item == null && itemUnsynced == null && itemLegacy == null) return 0L
         return ((item?.lyric?.text ?: itemUnsynced ?: itemLegacy!!.content).hashCode()).toLong()
             .shl(32) or
