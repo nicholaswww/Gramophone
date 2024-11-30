@@ -200,10 +200,10 @@ private sealed class SyntacticLrc {
                     // If you want to write [bg: into your lyrics, you'll probably have to add the
                     // conditional surrounding this comment into the
                     // if (out.isEmpty() || out.last() is NewLine) below.
-                    if (!out.isEmpty() && out.last() !is NewLine)
+                    if (out.isNotEmpty() && out.last() !is NewLine)
                         out.add(NewLine.SyntheticNewLine())
-                    val lastWasV2 = out.subList(0, out.size - 1).indexOfLast { it is NewLine }
-                        .let { if (it < 0) null else it }?.let {
+                    val lastWasV2 = out.isNotEmpty() && out.subList(0, out.size - 1)
+                        .indexOfLast { it is NewLine }.let { if (it < 0) null else it }?.let {
                             (out.subList(it, out.size - 1).findLast { it is SpeakerTag }
                                     as SpeakerTag?)?.speaker?.isVoice2
                     } == true

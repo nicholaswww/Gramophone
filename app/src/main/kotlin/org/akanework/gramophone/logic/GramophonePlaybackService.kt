@@ -721,6 +721,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (events.contains(EVENT_SHUFFLE_MODE_ENABLED_CHANGED)
             && !events.contains(Player.EVENT_TIMELINE_CHANGED)) {
             // when enabling shuffle, re-shuffle lists so that the first index is up to date
+            Log.i(TAG, "re-shuffling playlist")
             endedWorkaroundPlayer?.setShuffleOrder {
                 CircularShuffleOrder(
                     it,
