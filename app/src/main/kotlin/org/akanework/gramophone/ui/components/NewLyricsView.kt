@@ -19,6 +19,7 @@ import androidx.core.graphics.TypefaceCompat
 import androidx.core.text.getSpans
 import androidx.core.widget.NestedScrollView
 import androidx.preference.PreferenceManager
+import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
 import org.akanework.gramophone.R
@@ -35,6 +36,7 @@ import org.akanework.gramophone.ui.MainActivity
 
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
+    private val USE_BASE_TS = false
     private val smallSizeFactor = 0.97f
     private val lyricAnimTime = 650f
     private var currentScrollTarget: Int? = null
@@ -44,7 +46,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
     private lateinit var typeface: Typeface
-    private val grdWidth = context.resources.getDimension(R.dimen.lyric_gradient_size)
+    private val grdWidth = 1f//context.resources.getDimension(R.dimen.lyric_gradient_size) TODO
     private val defaultTextSize = context.resources.getDimension(R.dimen.lyric_text_size)
     private val translationTextSize = context.resources.getDimension(R.dimen.lyric_tl_text_size)
     private val translationBackgroundTextSize =
@@ -54,6 +56,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     private var spForMeasure: Pair<Pair<Int, Int>, List<SbItem>>? = null
     private var lyrics: SemanticLyrics? = null
     private var posForRender = 0uL
+    private var timebase = 0uL to 0L
     private val activity
         get() = context as MainActivity
     private val instance
@@ -248,7 +251,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     }
 
     fun updateLyricPositionFromPlaybackPos() {
-        if (instance?.currentPosition != posForRender.toLong())
+        val cPos = if (USE_BASE_TS) timebase.first + ((System.currentTimeMillis() -
+                timebase.second).toULong()) else (instance?.currentPosition?.toULong() ?: 0uL)
+        if (USE_BASE_TS && (cPos.toLong() - (instance?.currentPosition ?: 0L)).absoluteValue > 100L)
+            timebase = (instance?.currentPosition?.toULong() ?: 0uL) to System.currentTimeMillis()
+        if (cPos != posForRender)
             invalidate()
     }
 
@@ -283,9 +290,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     }
 
     override fun onDraw(canvas: Canvas) {
-        posForRender =
-            instance?.currentPosition?.toULong()
-                ?: 0uL // TODO do some mp3s go backwards sometimes lol?? (update: they do?????)
+        // TODO do some mp3s go backwards sometimes lol?? (update: they do?????)
+        posForRender = if (USE_BASE_TS) timebase.first + ((System.currentTimeMillis() -
+                timebase.second).toULong()) else (instance?.currentPosition?.toULong() ?: 0uL)
         if (spForRender == null) {
             requestLayout()
             return
@@ -399,13 +406,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                             realGradientStart = lines[i].lyric.words?.lastOrNull {
                                 it.charRange.first >= firstCharOnStartLine && it.charRange.last <
                                         word.charRange.first && it.isRtl != word.isRtl
-                            }?.charRange
-                                ?.last?.plus(1) ?: firstCharOnStartLine
+                            }?.charRange?.last?.plus(1) ?: firstCharOnStartLine
                             realGradientEnd = lines[i].lyric.words?.firstOrNull {
                                 it.charRange.first > word.charRange.last && it.charRange.last <
                                         lastCharOnEndLineExcl && it.isRtl != word.isRtl
-                            }?.charRange
-                                ?.first ?: lastCharOnEndLineExcl
+                            }?.charRange?.first ?: lastCharOnEndLineExcl
                         }
                     }
                 } else {
@@ -553,14 +558,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                     val lastTs = lines[i].lyric.words?.lastOrNull()?.timeRange?.last ?: lines
                         .find { it.lyric.start > lines[i].lyric.start }?.lyric?.start?.minus(1uL)
                     ?: Long.MAX_VALUE.toULong()
-                    val timeOffsetForUse = min(
-                        scaleInAnimTime, min(
-                            lerp(
-                                firstTs.toFloat(),
-                                lastTs.toFloat(), 0.5f
-                            ) - firstTs.toFloat(), firstTs.toFloat()
-                        )
-                    )
+                    val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs.toFloat(),
+                        lastTs.toFloat(), 0.5f) - firstTs.toFloat(), firstTs.toFloat()))
                     val highlight = posForRender >= firstTs - timeOffsetForUse.toULong() &&
                             posForRender <= lastTs + timeOffsetForUse.toULong()
                     val scaleInProgress = lerpInv(
@@ -620,6 +619,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         )
             spForMeasure = buildSpForMeasure(lyrics, right - left)
         spForRender = spForMeasure!!.second
+        timebase = (instance?.currentPosition?.toULong() ?: 0uL) to System.currentTimeMillis()
         invalidate()
     }
 
@@ -653,6 +653,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                     else -> defaultTextPaint
                 }, (width * smallSizeFactor).toInt()
             ).setAlignment(align).build()
+            val paragraphRtl = layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT
             SbItem(layout, sb, paddingTop.dpToPx(context), paddingBottom.dpToPx(context),
                 syncedLines?.get(i)?.lyric?.words?.map {
                     val ia = mutableListOf<Int>()
@@ -661,26 +662,27 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                     for (line in firstLine..lastLine) {
                         val firstInLine = max(it.charRange.first, layout.getLineStart(line))
                         val lastInLineExcl = min(it.charRange.last + 1, layout.getLineEnd(line))
+                        val lastInLineIncl = lastInLineExcl - 1
                         val horizontalLeft =
-                            if (!it.isRtl && layout.getParagraphDirection(0) != Layout.DIR_RIGHT_TO_LEFT)
-                                layout.getPrimaryHorizontal(firstInLine)
-                            else if (!it.isRtl)
-                                layout.getSecondaryHorizontal(firstInLine)
-                            else if (layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT)
-                                layout.getPrimaryHorizontal(lastInLineExcl - 1)
-                            else layout.getSecondaryHorizontal(lastInLineExcl - 1)
-                        val horizontalRight =
-                            if (!it.isRtl && layout.getParagraphDirection(0) != Layout.DIR_RIGHT_TO_LEFT)
-                                layout.getPrimaryHorizontal(lastInLineExcl - 1)
-                            else if (!it.isRtl)
-                                layout.getSecondaryHorizontal(lastInLineExcl - 1)
-                            else if (layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT)
+                            if (it.isRtl && paragraphRtl)
+                                layout.getPrimaryHorizontal(lastInLineIncl)
+                            else if (it.isRtl)
+                                layout.getSecondaryHorizontal(lastInLineIncl)
+                            else if (!paragraphRtl)
                                 layout.getPrimaryHorizontal(firstInLine)
                             else layout.getSecondaryHorizontal(firstInLine)
+                        val horizontalRight =
+                            if (it.isRtl && paragraphRtl)
+                                layout.getPrimaryHorizontal(firstInLine)
+                            else if (it.isRtl)
+                                layout.getSecondaryHorizontal(firstInLine)
+                            else if (!paragraphRtl)
+                                layout.getPrimaryHorizontal(lastInLineIncl)
+                            else layout.getSecondaryHorizontal(lastInLineIncl)
                         ia.add(horizontalLeft.toInt()) // offset from left to start of word
                         ia.add((horizontalRight - horizontalLeft).toInt()) // width of text in this line
                         ia.add(firstInLine - it.charRange.first) // prefix chars
-                        ia.add((lastInLineExcl - 1) - it.charRange.first) // suffix chars
+                        ia.add(lastInLineIncl - it.charRange.first) // suffix chars
                         ia.add(if (it.isRtl) -1 else 1)
                     }
                     return@map ia
@@ -701,7 +703,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     )
 
     // == start scroll ==
-    /* TODO
+    /* TODO + maybe center current line
     private lateinit var edgeEffectTop: EdgeEffect
     private lateinit var edgeEffectBottom: EdgeEffect
     private lateinit var edgeEffectLeft: EdgeEffect
