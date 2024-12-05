@@ -49,6 +49,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -71,7 +72,7 @@ import uk.akane.libphonograph.items.Item
 
 abstract class BaseAdapter<T>(
     protected val fragment: Fragment,
-    liveData: Flow<List<T>>?,
+    liveData: Flow<List<T>>,
     sortHelper: Sorter.Helper<T>,
     naturalOrderHelper: Sorter.NaturalOrderHelper<T>?,
     initialSortType: Sorter.Type,
@@ -86,8 +87,7 @@ abstract class BaseAdapter<T>(
 ) : AdapterFragment.BaseInterface<BaseAdapter<T>.ViewHolder>(), PopupTextProvider, ItemHeightHelper {
 
     val context = fragment.requireContext()
-    protected val listAgent = if (liveData == null) MutableStateFlow(listOf<T>()) else null
-    protected val liveDataAgent = MutableStateFlow((liveData ?: listAgent)!!)
+    protected val liveDataAgent = MutableStateFlow(liveData)
     @OptIn(ExperimentalCoroutinesApi::class)
     private val flow = liveDataAgent.flatMapLatest { it }
     protected inline val mainActivity
@@ -100,15 +100,13 @@ abstract class BaseAdapter<T>(
         context.resources.getDimensionPixelSize(R.dimen.larger_list_height)
     private var gridHeight: Int? = null
     private var lockedInGridSize = false
-    private var lastList: List<T>? = null
     private val sorter = Sorter(sortHelper, naturalOrderHelper, rawOrderExposed)
     val decorAdapter by lazy { createDecorAdapter() }
     override val concatAdapter by lazy { ConcatAdapter(decorAdapter, this) }
     override val itemHeightHelper by lazy {
         DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, { 1 }, this)
     }
-    private val handler = Handler(Looper.getMainLooper())
-    private val rawList = ArrayList<T>((flow as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
+    private var lastList: List<T>? = null
     protected val list = ArrayList<T>((flow as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
     private var comparator: Sorter.HintedComparator<T>? = null
     private var layoutManager: RecyclerView.LayoutManager? = null
@@ -186,18 +184,7 @@ abstract class BaseAdapter<T>(
                 prefSortType
             else
                 initialSortType
-        /*
-        if (flow is SharedFlow<List<T>>) { // TODO this can never succeed
-            flow.replayCache.lastOrNull()?.let {
-                updateListInternal(it, now = true, canDiff = false)
-            }
-        } else {
-            // TODO if we don't have a SharedFlow we'd be missing the above fast path and waste
-            //  cycles reloading the list after view was layout-ed. should use viewmodel in
-            //  callers to keep permanent SharedFlow and remove this code path entirely
-            Log.w("BaseAdapter", "liveData is non-null but not SharedFlow")
-        }
-         */
+        updateListInternal(runBlocking { flow.first() }, now = true, canDiff = false)
         layoutType =
             if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType && !isSubFragment)
                 prefLayoutType
@@ -279,16 +266,13 @@ abstract class BaseAdapter<T>(
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun sort(srcList: List<T>? = null, canDiff: Boolean): () -> () -> Unit {
-        // Ensure rawList is only accessed on UI thread
-        // and ensure calls to this method go in order
-        // to prevent funny IndexOutOfBoundsException crashes
-        val newList = ArrayList(srcList ?: rawList)
+    private suspend fun sort(srcList: List<T>, canDiff: Boolean) {
+        val newList = ArrayList(srcList)
         if (!listLock.tryAcquire()) {
             throw IllegalStateException("listLock already held, add now = true to the caller (I am ${javaClass.name})")
         }
-        return {
-            try {
+        try {
+            val diff = withContext(Dispatchers.Default) {
                 if (sortType == Sorter.Type.NativeOrderDescending) {
                     newList.reverse()
                 } else if (sortType != Sorter.Type.NativeOrder) {
@@ -298,54 +282,39 @@ abstract class BaseAdapter<T>(
                         else comparator?.compare(o1, o2) ?: 0
                     }
                 }
-                val diff =
-                    if (((list.isNotEmpty() && newList.isNotEmpty()) || allowDiffUtils) && canDiff)
-                        DiffUtil.calculateDiff(SongDiffCallback(list, newList)) else null
-                val oldCount = list.size
-                val newCount = newList.size
-                {
-                    try {
-                        if (srcList != null) {
-                            rawList.clear()
-                            rawList.addAll(srcList)
-                        }
-                        list.clear()
-                        list.addAll(newList)
-                        if (diff != null)
-                            diff.dispatchUpdatesTo(this)
-                        else
-                            notifyDataSetChanged()
-                        if (oldCount != newCount) decorAdapter.updateSongCounter()
-                        onListUpdated()
-                    } finally {
-                        listLock.release()
-                    }
-                }
-            } catch (e: Exception) {
-                listLock.release()
-                throw e
+                if (((list.isNotEmpty() && newList.isNotEmpty()) || allowDiffUtils) && canDiff)
+                    DiffUtil.calculateDiff(SongDiffCallback(list, newList)) else null
             }
-        }
-    }
-
-    fun updateList(newList: List<T>, canDiff: Boolean) { // now is true for all callees
-        // TODO what about now / canDiff
-        runBlocking {
-            listAgent!!.emit(newList)
+            list.clear()
+            list.addAll(newList)
+            if (diff != null)
+                diff.dispatchUpdatesTo(this@BaseAdapter)
+            else
+                notifyDataSetChanged()
+            if (list.size != newList.size) decorAdapter.updateSongCounter()
+            onListUpdated()
+        } finally {
+            listLock.release()
         }
     }
 
     fun updateListInternal(newList: List<T>? = null, now: Boolean, canDiff: Boolean) {
         // The replay cache may cause us seeing the same list more than one.
-        if (lastList === newList) return
-        lastList = newList
-        val doSort = sort(newList, canDiff)
-        if (now || scope == null) doSort()()
-        else {
+        if (newList != null) {
+            if (lastList === newList) return
+            lastList = newList
+        }
+        val list = lastList
+        if (list == null)
+            throw IllegalArgumentException("updateListInternal called with null value but no value is cached")
+        if (now || scope == null) {
+            runBlocking {
+                sort(list, canDiff)
+            }
+        } else {
             scope!!.launch {
-                val apply = doSort()
-                handler.post {
-                    apply()
+                withContext(Dispatchers.Main) {
+                    sort(list, canDiff)
                 }
             }
         }
@@ -499,7 +468,7 @@ abstract class BaseAdapter<T>(
     }
 
     protected fun toRawPos(item: T): Int {
-        return rawList.indexOf(item)
+        return lastList!!.indexOf(item)
     }
 
     final override fun getPopupText(view: View, position: Int): CharSequence {

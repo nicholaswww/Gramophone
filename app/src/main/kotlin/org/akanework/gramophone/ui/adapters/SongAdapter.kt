@@ -54,7 +54,7 @@ import uk.akane.libphonograph.manipulator.ItemManipulator
  */
 class SongAdapter(
     fragment: Fragment,
-    songList: Flow<List<MediaItem>>? = (fragment.requireActivity() as MainActivity).reader.songListFlow,
+    songList: Flow<List<MediaItem>> = (fragment.requireActivity() as MainActivity).reader.songListFlow,
     canSort: Boolean,
     helper: Sorter.NaturalOrderHelper<MediaItem>?,
     ownsView: Boolean,
@@ -81,30 +81,6 @@ class SongAdapter(
     allowDiffUtils = allowDiffUtils,
     fallbackSpans = fallbackSpans
 ) {
-
-    constructor(
-        fragment: Fragment,
-        songList: List<MediaItem>,
-        canSort: Boolean,
-        helper: Sorter.NaturalOrderHelper<MediaItem>?,
-        ownsView: Boolean,
-        isSubFragment: Boolean = false,
-        allowDiffUtils: Boolean = false,
-        rawOrderExposed: Boolean = !isSubFragment,
-        fallbackSpans: Int = 1
-    ) : this(
-        fragment,
-        null,
-        canSort,
-        helper,
-        ownsView,
-        isSubFragment,
-        allowDiffUtils,
-        rawOrderExposed,
-        fallbackSpans
-    ) {
-        updateList(songList, false)
-    }
 
     fun getSongList() = list
 

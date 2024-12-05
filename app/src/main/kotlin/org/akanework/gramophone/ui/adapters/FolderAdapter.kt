@@ -25,6 +25,7 @@ import android.view.animation.AnimationUtils
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
+import androidx.media3.common.MediaItem
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -32,6 +33,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
@@ -51,8 +53,9 @@ class FolderAdapter(
     private val folderPopAdapter: FolderPopAdapter = FolderPopAdapter(this)
     private val folderAdapter: FolderListAdapter =
         FolderListAdapter(listOf(), mainActivity, this)
+    private val songList = MutableStateFlow(listOf<MediaItem>())
     private val songAdapter: SongAdapter =
-        SongAdapter(fragment, listOf(), false, null, false)
+        SongAdapter(fragment, songList, false, null, false)
     override val concatAdapter: ConcatAdapter =
         ConcatAdapter(this, folderPopAdapter, folderAdapter, songAdapter)
     override val itemHeightHelper: ItemHeightHelper? = null
@@ -126,7 +129,7 @@ class FolderAdapter(
         val doUpdate = { canDiff: Boolean ->
             folderPopAdapter.enabled = fileNodePath.isNotEmpty()
             folderAdapter.updateList(item?.folderList?.values ?: listOf(), canDiff)
-            songAdapter.updateList(item?.songList ?: listOf(), false)
+            songList.value = item?.songList ?: listOf()
         }
         recyclerView.let {
             if (it == null || invertedDirection == null) {
