@@ -49,8 +49,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
@@ -108,7 +112,6 @@ abstract class BaseAdapter<T>(
     }
     private var lastList: List<T>? = null
     protected val list = ArrayList<T>((flow as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
-    private var comparator: Sorter.HintedComparator<T>? = null
     private var layoutManager: RecyclerView.LayoutManager? = null
     private var listLock = Semaphore(1)
     protected var recyclerView: MyRecyclerView? = null
@@ -162,28 +165,21 @@ abstract class BaseAdapter<T>(
             lockedInGridSize = false
             notifyDataSetChanged() // we change view type for all items
         }
-    private var reverseRaw = false
-    var sortType: Sorter.Type
-        get() = if (comparator == null && rawOrderExposed)
-            (if (reverseRaw) Sorter.Type.NativeOrderDescending else Sorter.Type.NativeOrder)
-        else comparator?.type!!
-        private set(value) {
-            reverseRaw = value == Sorter.Type.NativeOrderDescending
-            if (comparator?.type != value) {
-                comparator = sorter.getComparator(value)
-            }
-        }
+    val sortType: MutableStateFlow<Sorter.Type> = MutableStateFlow(
+        if (prefSortType != Sorter.Type.None && prefSortType != initialSortType
+            && sortTypes.contains(prefSortType) && !isSubFragment
+        )
+            prefSortType
+        else
+            initialSortType
+    )
+    private val comparator: SharedFlow<Sorter.HintedComparator<T>?> = sortType.map {
+        sorter.getComparator(it)
+    }.shareIn(CoroutineScope(Dispatchers.Default), SharingStarted.WhileSubscribed(5000))
     val sortTypes: Set<Sorter.Type>
         get() = if (canSort) sorter.getSupportedTypes() else setOf(Sorter.Type.None)
 
     init {
-        sortType =
-            if (prefSortType != Sorter.Type.None && prefSortType != initialSortType
-                && sortTypes.contains(prefSortType) && !isSubFragment
-            )
-                prefSortType
-            else
-                initialSortType
         updateListInternal(runBlocking { flow.first() }, now = true, canDiff = false)
         layoutType =
             if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType && !isSubFragment)
@@ -261,8 +257,8 @@ abstract class BaseAdapter<T>(
         )
 
     fun sort(selector: Sorter.Type) {
-        sortType = selector
-        updateListInternal(null, now = false, canDiff = true)
+        sortType.value = selector
+        //updateListInternal(null, now = false, canDiff = true) TODO
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -273,13 +269,15 @@ abstract class BaseAdapter<T>(
         }
         try {
             val diff = withContext(Dispatchers.Default) {
-                if (sortType == Sorter.Type.NativeOrderDescending) {
+                val st = sortType.first()
+                val cmp = comparator.first()
+                if (st == Sorter.Type.NativeOrderDescending) {
                     newList.reverse()
-                } else if (sortType != Sorter.Type.NativeOrder) {
+                } else if (st != Sorter.Type.NativeOrder) {
                     newList.sortWith { o1, o2 ->
                         if (isPinned(o1) && !isPinned(o2)) -1
                         else if (!isPinned(o1) && isPinned(o2)) 1
-                        else comparator?.compare(o1, o2) ?: 0
+                        else cmp?.compare(o1, o2) ?: 0
                     }
                 }
                 if (((list.isNotEmpty() && newList.isNotEmpty()) || allowDiffUtils) && canDiff)
@@ -477,7 +475,7 @@ abstract class BaseAdapter<T>(
         // if this crashes with IndexOutOfBoundsException, list access isn't guarded enough?
         // lib only ever gets popup text for what RecyclerView believes to be the first view
         return (if (position >= 1)
-            sorter.getFastScrollHintFor(list[position - 1], sortType)
+            sorter.getFastScrollHintFor(list[position - 1], sortType.value)
         else null) ?: "-"
     }
 
