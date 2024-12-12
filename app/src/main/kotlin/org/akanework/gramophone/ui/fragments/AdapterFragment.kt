@@ -21,7 +21,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
 import me.zhanghai.android.fastscroll.PopupTextProvider
@@ -33,7 +32,6 @@ import org.akanework.gramophone.ui.adapters.AlbumAdapter
 import org.akanework.gramophone.ui.adapters.ArtistAdapter
 import org.akanework.gramophone.ui.adapters.DateAdapter
 import org.akanework.gramophone.ui.adapters.DetailedFolderAdapter
-import org.akanework.gramophone.ui.adapters.FolderAdapter
 import org.akanework.gramophone.ui.adapters.GenreAdapter
 import org.akanework.gramophone.ui.adapters.PlaylistAdapter
 import org.akanework.gramophone.ui.adapters.SongAdapter
@@ -71,8 +69,8 @@ class AdapterFragment : BaseFragment(null) {
             R.id.artists -> ArtistAdapter(this)
             R.id.genres -> GenreAdapter(this)
             R.id.dates -> DateAdapter(this)
-            R.id.folders -> FolderAdapter(this)
-            R.id.detailed_folders -> DetailedFolderAdapter(this)
+            R.id.folders -> DetailedFolderAdapter(this, false)
+            R.id.detailed_folders -> DetailedFolderAdapter(this, true)
             R.id.playlists -> PlaylistAdapter(this)
             -1, null -> throw IllegalArgumentException("unset ID value")
             else -> throw IllegalArgumentException("invalid ID value")

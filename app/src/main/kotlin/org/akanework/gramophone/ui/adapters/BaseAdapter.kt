@@ -20,8 +20,6 @@ package org.akanework.gramophone.ui.adapters
 import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -45,16 +43,13 @@ import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
@@ -84,7 +79,7 @@ abstract class BaseAdapter<T>(
     val ownsView: Boolean,
     defaultLayoutType: LayoutType,
     private val isSubFragment: Boolean = false,
-    private val rawOrderExposed: Boolean = false,
+    rawOrderExposed: Boolean = false,
     private val allowDiffUtils: Boolean = false,
     private val canSort: Boolean = true,
     private val fallbackSpans: Int = 1
@@ -92,8 +87,6 @@ abstract class BaseAdapter<T>(
 
     val context = fragment.requireContext()
     protected val liveDataAgent = MutableStateFlow(liveData)
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val flow = liveDataAgent.flatMapLatest { it }
     protected inline val mainActivity
         get() = context as MainActivity
     internal inline val layoutInflater: LayoutInflater
@@ -110,10 +103,8 @@ abstract class BaseAdapter<T>(
     override val itemHeightHelper by lazy {
         DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, { 1 }, this)
     }
-    private var lastList: List<T>? = null
-    protected val list = ArrayList<T>((flow as? SharedFlow<List<T>>)?.replayCache?.lastOrNull()?.size ?: 0)
+    protected var list: Pair<List<T>, List<T>>
     private var layoutManager: RecyclerView.LayoutManager? = null
-    private var listLock = Semaphore(1)
     protected var recyclerView: MyRecyclerView? = null
         private set
 
@@ -173,14 +164,27 @@ abstract class BaseAdapter<T>(
         else
             initialSortType
     )
-    private val comparator: SharedFlow<Sorter.HintedComparator<T>?> = sortType.map {
-        sorter.getComparator(it)
-    }.shareIn(CoroutineScope(Dispatchers.Default), SharingStarted.WhileSubscribed(5000))
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val flow = liveDataAgent.flatMapLatest { it }.combine(sortType) { it, st ->
+        it to ArrayList(it).apply {
+            val cmp = sorter.getComparator(st)
+            if (st == Sorter.Type.NativeOrderDescending) {
+                reverse()
+            } else if (st != Sorter.Type.NativeOrder) {
+                sortWith { o1, o2 ->
+                    if (isPinned(o1) && !isPinned(o2)) -1
+                    else if (!isPinned(o1) && isPinned(o2)) 1
+                    else cmp?.compare(o1, o2) ?: 0
+                }
+            }
+        }.toList()
+    }
     val sortTypes: Set<Sorter.Type>
         get() = if (canSort) sorter.getSupportedTypes() else setOf(Sorter.Type.None)
 
     init {
-        updateListInternal(runBlocking { flow.first() }, now = true, canDiff = false)
+        list = runBlocking { flow.first() }
+        onListUpdated()
         layoutType =
             if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType && !isSubFragment)
                 prefLayoutType
@@ -210,11 +214,27 @@ abstract class BaseAdapter<T>(
                 applyLayoutManager()
             }
         }
-        this.scope = CoroutineScope(Dispatchers.Default)
-        this.scope!!.launch {
+        if (scope != null)
+            throw IllegalStateException("scope != null in onAttachedToRecyclerView")
+        scope = CoroutineScope(Dispatchers.Default)
+        scope!!.launch {
             flow.collect {
-                withContext(Dispatchers.Main) {
-                    updateListInternal(it, now = false, canDiff = true)
+                // The replay cache may cause us seeing the same list more than one. Make sure to
+                // use === (reference equals) to avoid performance hit.
+                if (list === it) return@collect
+                val diff = if ((list.second.isNotEmpty<T>() && it.second.isNotEmpty<T>())
+                    || allowDiffUtils)
+                            DiffUtil.calculateDiff(SongDiffCallback(list.second, it.second))
+                else null
+                val sizeChanged = list.second.size != it.second.size
+                withContext(Dispatchers.Main + NonCancellable) {
+                    list = it
+                    if (diff != null)
+                        diff.dispatchUpdatesTo(this@BaseAdapter)
+                    else
+                        notifyDataSetChanged()
+                    if (sizeChanged) decorAdapter.updateSongCounter()
+                    onListUpdated()
                 }
             }
         }
@@ -225,8 +245,8 @@ abstract class BaseAdapter<T>(
         if (layoutType == LayoutType.GRID) {
             recyclerView.removeItemDecoration(gridPaddingDecoration)
         }
-        this.scope!!.cancel()
-        this.scope = null
+        scope!!.cancel()
+        scope = null
         this.recyclerView = null
         if (ownsView) {
             recyclerView.layoutManager = null
@@ -246,7 +266,7 @@ abstract class BaseAdapter<T>(
         recyclerView?.scrollToPosition(scrollPosition)
     }
 
-    override fun getItemCount(): Int = list.size
+    override fun getItemCount(): Int = list.second.size
 
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -258,64 +278,6 @@ abstract class BaseAdapter<T>(
 
     fun sort(selector: Sorter.Type) {
         sortType.value = selector
-        //updateListInternal(null, now = false, canDiff = true) TODO
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    private suspend fun sort(srcList: List<T>, canDiff: Boolean) {
-        val newList = ArrayList(srcList)
-        if (!listLock.tryAcquire()) {
-            throw IllegalStateException("listLock already held, add now = true to the caller (I am ${javaClass.name})")
-        }
-        try {
-            val diff = withContext(Dispatchers.Default) {
-                val st = sortType.first()
-                val cmp = comparator.first()
-                if (st == Sorter.Type.NativeOrderDescending) {
-                    newList.reverse()
-                } else if (st != Sorter.Type.NativeOrder) {
-                    newList.sortWith { o1, o2 ->
-                        if (isPinned(o1) && !isPinned(o2)) -1
-                        else if (!isPinned(o1) && isPinned(o2)) 1
-                        else cmp?.compare(o1, o2) ?: 0
-                    }
-                }
-                if (((list.isNotEmpty() && newList.isNotEmpty()) || allowDiffUtils) && canDiff)
-                    DiffUtil.calculateDiff(SongDiffCallback(list, newList)) else null
-            }
-            list.clear()
-            list.addAll(newList)
-            if (diff != null)
-                diff.dispatchUpdatesTo(this@BaseAdapter)
-            else
-                notifyDataSetChanged()
-            if (list.size != newList.size) decorAdapter.updateSongCounter()
-            onListUpdated()
-        } finally {
-            listLock.release()
-        }
-    }
-
-    fun updateListInternal(newList: List<T>? = null, now: Boolean, canDiff: Boolean) {
-        // The replay cache may cause us seeing the same list more than one.
-        if (newList != null) {
-            if (lastList === newList) return
-            lastList = newList
-        }
-        val list = lastList
-        if (list == null)
-            throw IllegalArgumentException("updateListInternal called with null value but no value is cached")
-        if (now || scope == null) {
-            runBlocking {
-                sort(list, canDiff)
-            }
-        } else {
-            scope!!.launch {
-                withContext(Dispatchers.Main) {
-                    sort(list, canDiff)
-                }
-            }
-        }
     }
 
     protected open fun onListUpdated() {}
@@ -346,7 +308,7 @@ abstract class BaseAdapter<T>(
                 }
             }
         }
-        val item = list[position]
+        val item = list.second[position]
         holder.title.text = titleOf(item) ?: virtualTitleOf(item)
         holder.subTitle.text = subTitleOf(item)
         holder.songCover.load(coverOf(item)) {
@@ -466,7 +428,7 @@ abstract class BaseAdapter<T>(
     }
 
     protected fun toRawPos(item: T): Int {
-        return lastList!!.indexOf(item)
+        return list.first.indexOf(item)
     }
 
     final override fun getPopupText(view: View, position: Int): CharSequence {
@@ -475,7 +437,7 @@ abstract class BaseAdapter<T>(
         // if this crashes with IndexOutOfBoundsException, list access isn't guarded enough?
         // lib only ever gets popup text for what RecyclerView believes to be the first view
         return (if (position >= 1)
-            sorter.getFastScrollHintFor(list[position - 1], sortType.value)
+            sorter.getFastScrollHintFor(list.second[position - 1], sortType.value)
         else null) ?: "-"
     }
 
