@@ -53,7 +53,7 @@ class AlbumAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
         super.onBindViewHolder(holder, position, payloads)
         if (layoutType == LayoutType.GRID) {
-            val item = list?.second[position] ?: return
+            val item = list.second[position]
             holder.itemView.setOnLongClickListener {
                 val popupMenu = PopupMenu(it.context, it)
                 onMenu(item, popupMenu)
