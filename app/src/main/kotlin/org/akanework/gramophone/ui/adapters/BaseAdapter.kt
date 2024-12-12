@@ -47,9 +47,11 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
@@ -178,7 +180,7 @@ abstract class BaseAdapter<T>(
                 }
             }
         }.toList()
-    }
+    }.shareIn(CoroutineScope(Dispatchers.Default), SharingStarted.WhileSubscribed(5000), replay = 1)
     val sortTypes: Set<Sorter.Type>
         get() = if (canSort) sorter.getSupportedTypes() else setOf(Sorter.Type.None)
 
