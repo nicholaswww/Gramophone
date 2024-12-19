@@ -241,15 +241,15 @@ aboutLibraries {
 dependencies {
     implementation(project(":libphonograph:libPhonograph"))
     val media3Version = "1.4.1"
-    implementation("androidx.activity:activity-ktx:1.9.2")
+    implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.collection:collection-ktx:1.4.4")
+    implementation("androidx.collection:collection-ktx:1.4.5")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.2.0-beta01")
+    implementation("androidx.constraintlayout:constraintlayout:2.2.0")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.core:core-splashscreen:1.0.1")
     //implementation("androidx.datastore:datastore-preferences:1.1.0-rc01") TODO don't abuse shared prefs
-    implementation("androidx.fragment:fragment-ktx:1.8.4")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.6")
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-midi:$media3Version")
@@ -262,7 +262,7 @@ dependencies {
     implementation("com.mikepenz:aboutlibraries:$aboutLibsVersion")
     implementation("com.google.android.material:material:1.12.0")
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
-    implementation("io.coil-kt.coil3:coil:3.0.0-alpha10")
+    implementation("io.coil-kt.coil3:coil:3.0.4")
     //noinspection GradleDependency newer versions need java.nio which is api 26+
     //implementation("com.github.albfernandez:juniversalchardet:2.0.3") TODO
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")

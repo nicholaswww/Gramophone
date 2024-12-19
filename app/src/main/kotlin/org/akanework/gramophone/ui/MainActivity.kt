@@ -17,15 +17,19 @@
 
 package org.akanework.gramophone.ui
 
+import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.view.Choreographer
+import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
@@ -49,6 +53,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgeProperly
 import org.akanework.gramophone.logic.gramophoneApplication
@@ -126,6 +131,15 @@ class MainActivity : AppCompatActivity() {
 
         // Set content Views.
         setContentView(R.layout.activity_main)
+        if (BuildConfig.DEBUG) {
+            @SuppressLint("SetTextI18n")
+            findViewById<ViewGroup>(R.id.rootView).addView(TextView(this).apply {
+                text = "DEBUG"
+                setTextColor(Color.RED)
+                translationZ = 9999999f
+                translationX = 50f
+            })
+        }
         playerBottomSheet = findViewById(R.id.player_layout)
         val container = findViewById<FragmentContainerView>(R.id.container)
         // Modifies FragmentContainerView's insets to account for bottom sheet size.
