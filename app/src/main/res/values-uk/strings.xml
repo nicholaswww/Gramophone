@@ -174,7 +174,6 @@
     <string name="app_name">Грамофон</string>
     <string name="settings_preference_category_home">Головний екран</string>
     <string name="seekbar">Панель пошуку</string>
-    <string name="home_menu_shuffle">Перемішайте все</string>
     <string name="divider">Роздільник</string>
     <string name="tab_order">Налаштувати порядок вкладок</string>
     <string name="tab_order_summary">Програма відобразить першу вкладку під час запуску. Вкладки після роздільника будуть приховані.</string>

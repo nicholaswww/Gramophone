@@ -184,7 +184,6 @@
     <string name="skip_next">跳至下一个</string>
     <string name="settings_lyrics_parser_summary">启用新的歌词解析器，支持逐字同步、扬声器指示器、偏移等</string>
     <string name="seekbar">搜索栏</string>
-    <string name="home_menu_shuffle">随机播放全部</string>
     <string name="grant_audio"><![CDATA[请授予\“音乐和音频”\权限]]></string>
     <string name="delete">删除</string>
     <string name="yes">是</string>

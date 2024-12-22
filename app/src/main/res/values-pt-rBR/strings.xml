@@ -192,7 +192,6 @@
     <string name="tab_order_summary">O aplicativo mostrará a primeira guia na inicialização. As guias após o divisor ficarão ocultas.</string>
     <string name="play_all">Reproduzir tudo</string>
     <string name="settings_lyrics_parser_summary">Ativar novo analisador de letras que suporta sincronização palavra por palavra, indicador de alto-falante, deslocamento e muito mais</string>
-    <string name="home_menu_shuffle">Reproduzir no modo aleatório</string>
     <string name="delete">Excluir</string>
     <string name="yes">Sim</string>
     <string name="no">Não</string>

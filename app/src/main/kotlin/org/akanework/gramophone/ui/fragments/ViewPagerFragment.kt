@@ -173,16 +173,6 @@ class ViewPagerFragment : BaseFragment(true) {
                     activity.startFragment(MainSettingsFragment())
                 }
 
-                R.id.shuffle -> {
-                    val controller = activity.getPlayer()
-                    activity.reader.songListFlow.replayCache.lastOrNull()?.takeIf { it.isNotEmpty() }?.also {
-                        controller?.shuffleModeEnabled = true
-                        controller?.setMediaItems(it)
-                        controller?.prepare()
-                        controller?.play()
-                    } ?: controller?.setMediaItems(listOf())
-                }
-
                 else -> throw IllegalStateException()
             }
             true
