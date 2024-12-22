@@ -176,7 +176,6 @@ class MediaControllerViewModel(application: Application) : AndroidViewModel(appl
             if (lifecycleOne.currentState == Lifecycle.State.DESTROYED ||
                 lifecycleTwo.currentState == Lifecycle.State.DESTROYED
             ) {
-
                 // you cannot set DESTROYED before setting CREATED
                 if (lifecycle.currentState == Lifecycle.State.INITIALIZED)
                     lifecycleRegistry.currentState = Lifecycle.State.CREATED

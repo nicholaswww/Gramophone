@@ -54,7 +54,7 @@ import uk.akane.libphonograph.manipulator.ItemManipulator
  */
 class SongAdapter(
     fragment: Fragment,
-    songList: Flow<List<MediaItem>>? = (fragment.requireActivity() as MainActivity).reader.songListFlow,
+    songList: Flow<List<MediaItem>> = (fragment.requireActivity() as MainActivity).reader.songListFlow,
     canSort: Boolean,
     helper: Sorter.NaturalOrderHelper<MediaItem>?,
     ownsView: Boolean,
@@ -82,31 +82,7 @@ class SongAdapter(
     fallbackSpans = fallbackSpans
 ) {
 
-    constructor(
-        fragment: Fragment,
-        songList: List<MediaItem>,
-        canSort: Boolean,
-        helper: Sorter.NaturalOrderHelper<MediaItem>?,
-        ownsView: Boolean,
-        isSubFragment: Boolean = false,
-        allowDiffUtils: Boolean = false,
-        rawOrderExposed: Boolean = !isSubFragment,
-        fallbackSpans: Int = 1
-    ) : this(
-        fragment,
-        null,
-        canSort,
-        helper,
-        ownsView,
-        isSubFragment,
-        allowDiffUtils,
-        rawOrderExposed,
-        fallbackSpans
-    ) {
-        updateList(songList, false)
-    }
-
-    fun getSongList() = list
+    fun getSongList() = list.second
 
     fun getActivity() = mainActivity
 
@@ -169,7 +145,7 @@ class SongAdapter(
     override fun onListUpdated() {
         // TODO run this method on a different thread / in advance
         idToPosMap = hashMapOf()
-        list.forEachIndexed { i, item -> idToPosMap!![item.mediaId] = i }
+        list.second.forEachIndexed { i, item -> idToPosMap!![item.mediaId] = i }
     }
 
     override fun virtualTitleOf(item: MediaItem): String {
@@ -315,7 +291,7 @@ class SongAdapter(
                 holder.nowPlaying.drawable.level = if (currentIsPlaying == true) 1 else 0
                 return
             }
-            if (currentMediaItem == null || list[position].mediaId != currentMediaItem) {
+            if (currentMediaItem == null || getSongList()[position].mediaId != currentMediaItem) {
                 (holder.nowPlaying.drawable as? NowPlayingDrawable?)?.level2Done = Runnable {
                     holder.nowPlaying.visibility = View.GONE
                     holder.nowPlaying.setImageDrawable(null)
@@ -325,7 +301,7 @@ class SongAdapter(
             }
         } else {
             super.onBindViewHolder(holder, position, payloads)
-            if (currentMediaItem == null || list[position].mediaId != currentMediaItem)
+            if (currentMediaItem == null || getSongList()[position].mediaId != currentMediaItem)
                 return
         }
         holder.nowPlaying.setImageDrawable(NowPlayingDrawable()

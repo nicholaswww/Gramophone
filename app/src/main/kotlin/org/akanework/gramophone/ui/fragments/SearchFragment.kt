@@ -32,6 +32,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.appbar.AppBarLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.closeKeyboard
@@ -64,9 +65,10 @@ class SearchFragment : BaseFragment(false) {
         appBarLayout.enableEdgeToEdgePaddingListener()
         editText = rootView.findViewById(R.id.edit_text)
         val recyclerView = rootView.findViewById<MyRecyclerView>(R.id.recyclerview)
+        val songList = MutableStateFlow(listOf<MediaItem>())
         val songAdapter =
             SongAdapter(
-                this, listOf(),
+                this, songList,
                 true, null, false, isSubFragment = true,
                 allowDiffUtils = true, rawOrderExposed = true
             )
@@ -83,7 +85,7 @@ class SearchFragment : BaseFragment(false) {
         editText.addTextChangedListener { rawText ->
             // TODO sort results by match quality? (using NaturalOrderHelper)
             if (rawText.isNullOrBlank()) {
-                songAdapter.updateList(listOf(), true)
+                songList.value = listOf()
             } else {
                 // make sure the user doesn't edit away our text while we are filtering
                 val text = rawText.toString()
@@ -104,9 +106,7 @@ class SearchFragment : BaseFragment(false) {
                             it
                         )
                     }
-                    handler.post {
-                        songAdapter.updateList(filteredList, true)
-                    }
+                    songList.value = filteredList.toList()
                 }
             }
         }

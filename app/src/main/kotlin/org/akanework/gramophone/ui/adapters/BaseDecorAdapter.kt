@@ -64,7 +64,7 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
             if (adapter is SongAdapter) View.VISIBLE else View.GONE
         holder.counter.text = context.resources.getQuantityString(pluralStr, count, count)
         holder.sortButton.visibility =
-            if (adapter.sortType != Sorter.Type.None || adapter.ownsView) View.VISIBLE else View.GONE
+            if (adapter.sortType.value != Sorter.Type.None || adapter.ownsView) View.VISIBLE else View.GONE
         holder.sortButton.setOnClickListener { view ->
             val popupMenu = PopupMenu(context, view)
             popupMenu.inflate(R.menu.sort_menu)
@@ -93,16 +93,16 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
                 popupMenu.menu.findItem(it.key).isVisible = adapter.ownsView
             }
             popupMenu.menu.findItem(R.id.display).isVisible = adapter.ownsView
-            if (adapter.sortType != Sorter.Type.None) {
-                when (adapter.sortType) {
+            if (adapter.sortType.value != Sorter.Type.None) {
+                when (adapter.sortType.value) {
                     in buttonMap.values -> {
                         popupMenu.menu.findItem(
                             buttonMap.entries
-                                .first { it.value == adapter.sortType }.key
+                                .first { it.value == adapter.sortType.value }.key
                         ).isChecked = true
                     }
 
-                    else -> throw IllegalStateException("Invalid sortType ${adapter.sortType.name}")
+                    else -> throw IllegalStateException("Invalid sortType ${adapter.sortType.value.name}")
                 }
             }
             if (adapter.ownsView) {

@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.logic.gramophoneApplication
 
 class Reflections : AppCompatActivity() {
@@ -24,7 +25,10 @@ class Reflections : AppCompatActivity() {
 		val r = findViewById<RecyclerView>(R.id.recyclerview)
 		CoroutineScope(Dispatchers.Default).launch {
 			gramophoneApplication.reader.refresh()
-			r.adapter = ReflectionAdapter(gramophoneApplication.reader, null, { r.adapter = it }, false)
+			withContext(Dispatchers.Main) {
+				r.adapter =
+					ReflectionAdapter(gramophoneApplication.reader, null, { r.adapter = it }, false)
+			}
 		}
 	}
 }
