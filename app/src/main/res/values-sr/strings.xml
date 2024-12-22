@@ -175,7 +175,6 @@
     <string name="play_all">Pusti sve</string>
     <string name="sort">Sortiraj</string>
     <string name="app_name">Gramofon</string>
-    <string name="home_menu_shuffle">Promešaj sve</string>
     <string name="shuffle_all">Promešaj sve</string>
     <string name="settings_lyrics_ui_summary">Eksperimentalno korisničko sučelje za prikaz teksta reči po reč sa naprednim funkcijama</string>
     <string name="settings_lyrics_parser_summary">Omogućite novi parser teksta koji podržava sinhronizaciju reč po reč, indikator zvučnika, ofset i još mnogo toga</string>
