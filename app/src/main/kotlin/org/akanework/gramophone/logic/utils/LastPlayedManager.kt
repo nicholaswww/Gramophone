@@ -42,14 +42,12 @@ import uk.akane.libphonograph.items.EXTRA_ALBUM_ID
 import uk.akane.libphonograph.items.EXTRA_ARTIST_ID
 import uk.akane.libphonograph.items.EXTRA_AUTHOR
 import uk.akane.libphonograph.items.EXTRA_CD_TRACK_NUMBER
-import uk.akane.libphonograph.items.EXTRA_GENRE_ID
 import uk.akane.libphonograph.items.EXTRA_MODIFIED_DATE
 import uk.akane.libphonograph.items.addDate
 import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.items.author
 import uk.akane.libphonograph.items.cdTrackNumber
-import uk.akane.libphonograph.items.genreId
 import uk.akane.libphonograph.items.modifiedDate
 
 @OptIn(UnstableApi::class)
@@ -131,7 +129,7 @@ class LastPlayedManager(
                     b.writeInt(it.mediaMetadata.recordingMonth)
                     b.writeLong(it.mediaMetadata.artistId)
                     b.writeLong(it.mediaMetadata.albumId)
-                    b.writeLong(it.mediaMetadata.genreId)
+                    b.skip() // used to be GenreId
                     b.writeStringSafe(it.mediaMetadata.author)
                     b.skip() // used to be CdTrackNumber
                     b.writeLong(it.mediaMetadata.durationMs)
@@ -216,7 +214,7 @@ class LastPlayedManager(
                             val recordingMonth = b.readInt()
                             val artistId = b.readLong()
                             val albumId = b.readLong()
-                            val genreId = b.readLong()
+                            b.skip() // used to be GenreId
                             val author = b.readStringSafe()
                             b.skip() // used to be CdTrackNumber
                             val duration = b.readLong()
@@ -257,9 +255,6 @@ class LastPlayedManager(
                                             }
                                             if (albumId != null) {
                                                 putLong(EXTRA_ALBUM_ID, albumId)
-                                            }
-                                            if (genreId != null) {
-                                                putLong(EXTRA_GENRE_ID, genreId)
                                             }
                                             putString(EXTRA_CD_TRACK_NUMBER, cdTrackNumber)
                                             putString(EXTRA_AUTHOR, author)
