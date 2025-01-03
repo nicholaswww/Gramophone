@@ -92,7 +92,7 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
             == Configuration.ORIENTATION_PORTRAIT
         ) 2 else 4
         albumAdapter = AlbumAdapter(
-            this, item.map { it.albumList }, true,
+            this, item.map { it.albumList }, ownsView = false, isSubFragment = true,
             fallbackSpans = spans
         )
         albumAdapter.decorAdapter.jumpDownPos = albumAdapter.concatAdapter.itemCount

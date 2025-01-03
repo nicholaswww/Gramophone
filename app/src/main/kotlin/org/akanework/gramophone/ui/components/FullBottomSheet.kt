@@ -17,6 +17,7 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewPropertyAnimator
 import android.view.WindowInsets
 import android.widget.ImageView
 import android.widget.SeekBar
@@ -74,6 +75,7 @@ import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.clone
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.fadInAnimation
+import org.akanework.gramophone.logic.fadOutAnimation
 import org.akanework.gramophone.logic.getAudioFormat
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.getFile
@@ -657,12 +659,24 @@ class FullBottomSheet
     }
 
     private fun updateQualityIndicators(info: AudioFormatInfo?) {
-        if (info == null) {
-            bottomSheetFullQualityDetails.visibility = View.GONE
-            return
+        (bottomSheetFullQualityDetails.getTag(R.id.fade_in_animation) as ViewPropertyAnimator?)?.cancel()
+        (bottomSheetFullQualityDetails.getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
+        if (info == null && bottomSheetFullQualityDetails.visibility == INVISIBLE) return
+        val oldInfo = (bottomSheetFullQualityDetails.getTag(R.id.quality_details) as AudioFormatInfo?)
+        if (oldInfo != null)
+            applyQualityInfo(oldInfo)
+        if (oldInfo != null || info != null)
+            bottomSheetFullQualityDetails.setTag(R.id.quality_details, info)
+        bottomSheetFullQualityDetails.fadOutAnimation(300) {
+            bottomSheetFullQualityDetails.setTag(R.id.quality_details, null)
+            if (info == null)
+                return@fadOutAnimation
+            applyQualityInfo(info)
+            bottomSheetFullQualityDetails.fadInAnimation(300)
         }
-        bottomSheetFullQualityDetails.visibility = View.VISIBLE
+    }
 
+    private fun applyQualityInfo(info: AudioFormatInfo) {
         val icon = when (info.spatialFormat) {
             SpatialFormat.SURROUND_5_0,
             SpatialFormat.SURROUND_5_1,
