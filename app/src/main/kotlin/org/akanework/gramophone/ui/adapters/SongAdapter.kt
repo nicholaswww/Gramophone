@@ -25,6 +25,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ShareCompat
 import androidx.core.content.FileProvider
+import androidx.core.net.toFile
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.media3.common.C
@@ -319,11 +320,16 @@ class SongAdapter(
             Sorter.Type.ByAddDateDescending, Sorter.Type.ByAddDateAscending,
             Sorter.Type.ByReleaseDateDescending, Sorter.Type.ByReleaseDateAscending,
             Sorter.Type.ByModifiedDateDescending, Sorter.Type.ByModifiedDateAscending,
+            Sorter.Type.ByFilePathDescending, Sorter.Type.ByFilePathAscending,
             Sorter.Type.ByDiscAndTrack
         )
     ) : Sorter.Helper<MediaItem>(types) {
         override fun getId(item: MediaItem): String {
             return item.mediaId
+        }
+
+        override fun getFile(item: MediaItem): File {
+            return item.localConfiguration!!.uri.toFile()
         }
 
         override fun getTitle(item: MediaItem): String {
