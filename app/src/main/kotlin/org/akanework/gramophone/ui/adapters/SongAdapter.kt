@@ -301,7 +301,7 @@ class SongAdapter(
             }
         } else {
             super.onBindViewHolder(holder, position, payloads)
-            if (currentMediaItem == null || getSongList()[position].mediaId != currentMediaItem)
+            if (currentMediaItem == null || getSongList().getOrNull(position)?.mediaId != currentMediaItem)
                 return
         }
         holder.nowPlaying.setImageDrawable(NowPlayingDrawable()
@@ -309,6 +309,7 @@ class SongAdapter(
         holder.nowPlaying.visibility = View.VISIBLE
     }
 
+    // TODO support album year sort
     class MediaItemHelper(
         types: Set<Sorter.Type> = setOf(
             Sorter.Type.ByTitleDescending, Sorter.Type.ByTitleAscending,
@@ -359,14 +360,14 @@ class SongAdapter(
                 && item.mediaMetadata.releaseDay == null
             ) {
                 return GregorianCalendar(
-                    (item.mediaMetadata.recordingYear ?: 0) + 1900,
+                    item.mediaMetadata.recordingYear ?: 0,
                     (item.mediaMetadata.recordingMonth ?: 1) - 1,
                     item.mediaMetadata.recordingDay ?: 0, 0, 0, 0
                 )
                     .timeInMillis
             }
             return GregorianCalendar(
-                (item.mediaMetadata.releaseYear ?: 0) + 1900,
+                item.mediaMetadata.releaseYear ?: 0,
                 (item.mediaMetadata.releaseMonth ?: 1) - 1,
                 item.mediaMetadata.releaseDay ?: 0, 0, 0, 0
             )

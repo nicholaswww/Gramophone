@@ -18,6 +18,7 @@
 package org.akanework.gramophone.ui.adapters
 
 import android.net.Uri
+import java.io.File
 import org.akanework.gramophone.logic.comparators.SupportComparator
 import org.akanework.gramophone.logic.utils.CalculationUtils
 
@@ -39,6 +40,7 @@ class Sorter<T>(
         abstract fun getCover(item: T): Uri?
 
         open fun getArtist(item: T): String? = throw UnsupportedOperationException()
+        open fun getFile(item: T): File = throw UnsupportedOperationException()
         open fun getAlbumTitle(item: T): String? = throw UnsupportedOperationException()
         open fun getAlbumArtist(item: T): String? = throw UnsupportedOperationException()
         open fun getSize(item: T): Int = throw UnsupportedOperationException()
@@ -66,6 +68,9 @@ class Sorter<T>(
         fun canGetAddDate(): Boolean = typesSupported.contains(Type.ByAddDateAscending)
                 || typesSupported.contains(Type.ByAddDateDescending)
 
+        fun canGetFile(): Boolean = typesSupported.contains(Type.ByFilePathAscending)
+                || typesSupported.contains(Type.ByFilePathDescending)
+
         fun canGetReleaseDate(): Boolean = typesSupported.contains(Type.ByReleaseDateAscending)
                 || typesSupported.contains(Type.ByReleaseDateDescending)
 
@@ -86,6 +91,7 @@ class Sorter<T>(
         NaturalOrder, ByAddDateDescending, ByAddDateAscending,
         ByReleaseDateDescending, ByReleaseDateAscending,
         ByModifiedDateDescending, ByModifiedDateAscending,
+        ByFilePathDescending, ByFilePathAscending,
         ByDiscAndTrack,
 
         /* do not use NativeOrder for something other than title or edit getSupportedTypes */
@@ -155,6 +161,7 @@ class Sorter<T>(
                 }, getComparator(Type.ByDiscAndTrack))
             }
 
+            // TODO support choosing album artist > album year > disc/track
             Type.ByAlbumArtistDescending -> {
                 SupportComparator.createAlphanumericComparator(true, {
                     sortingHelper.getAlbumArtist(it) ?: ""
@@ -193,13 +200,15 @@ class Sorter<T>(
 
             Type.ByReleaseDateDescending -> {
                 SupportComparator.createInversionComparator(
-                    compareBy { sortingHelper.getReleaseDate(it) }, true
+                    compareBy { sortingHelper.getReleaseDate(it) }, true,
+                    if (sortingHelper.canGetDiskAndTrack()) getComparator(Type.ByDiscAndTrack) else null
                 )
             }
 
             Type.ByReleaseDateAscending -> {
                 SupportComparator.createInversionComparator(
-                    compareBy { sortingHelper.getReleaseDate(it) }, false
+                    compareBy { sortingHelper.getReleaseDate(it) }, false,
+                    if (sortingHelper.canGetDiskAndTrack()) getComparator(Type.ByDiscAndTrack) else null
                 )
             }
 
@@ -213,6 +222,18 @@ class Sorter<T>(
                 SupportComparator.createInversionComparator(
                     compareBy { sortingHelper.getModifiedDate(it) }, false
                 )
+            }
+
+            Type.ByFilePathDescending -> {
+                SupportComparator.createAlphanumericComparator(true, {
+                    sortingHelper.getFile(it).path
+                }, null)
+            }
+
+            Type.ByFilePathAscending -> {
+                SupportComparator.createAlphanumericComparator(false, {
+                    sortingHelper.getFile(it).path
+                }, null)
             }
 
             Type.ByDiscAndTrack -> {
@@ -235,19 +256,23 @@ class Sorter<T>(
     fun getFastScrollHintFor(item: T, sortType: Type): String? {
         return when (sortType) {
             Type.ByTitleDescending, Type.ByTitleAscending, Type.NativeOrder, Type.NativeOrderDescending -> {
-                (sortingHelper.getTitle(item) ?: "-").firstOrNull()?.toString()
+                sortingHelper.getTitle(item)?.firstOrNull()?.toString()
             }
 
             Type.ByArtistDescending, Type.ByArtistAscending -> {
-                (sortingHelper.getArtist(item) ?: "-").firstOrNull()?.toString()
+                sortingHelper.getArtist(item)?.firstOrNull()?.toString()
             }
 
             Type.ByAlbumTitleDescending, Type.ByAlbumTitleAscending -> {
-                (sortingHelper.getAlbumTitle(item) ?: "-").firstOrNull()?.toString()
+                sortingHelper.getAlbumTitle(item)?.firstOrNull()?.toString()
             }
 
             Type.ByAlbumArtistDescending, Type.ByAlbumArtistAscending -> {
-                (sortingHelper.getAlbumArtist(item) ?: "-").firstOrNull()?.toString()
+                sortingHelper.getAlbumArtist(item)?.firstOrNull()?.toString()
+            }
+
+            Type.ByFilePathDescending, Type.ByFilePathAscending -> {
+                null // can probably not do anything better
             }
 
             Type.BySizeDescending, Type.BySizeAscending -> {

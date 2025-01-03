@@ -41,10 +41,9 @@ class SupportComparator<T, U>(
             cmp: Comparator<T>,
             invert: Boolean = false,
             fallback: Comparator<T>? = null
-        ):
-                Comparator<T> {
-            if (!invert) return cmp
-            return SupportComparator(cmp, fallback, true) { it }
+        ): Comparator<T> {
+            if (!invert && fallback == null) return cmp
+            return SupportComparator(cmp, fallback, invert) { it }
         }
 
         fun <T> createAlphanumericComparator(

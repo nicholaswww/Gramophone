@@ -76,10 +76,12 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
                 ),
                 Pair(R.id.artist, Sorter.Type.ByArtistAscending),
                 Pair(R.id.album, Sorter.Type.ByAlbumTitleAscending),
+                Pair(R.id.album_artist, Sorter.Type.ByAlbumTitleAscending),
                 Pair(R.id.size, Sorter.Type.BySizeDescending),
                 Pair(R.id.add_date, Sorter.Type.ByAddDateDescending),
                 Pair(R.id.release_date, Sorter.Type.ByReleaseDateDescending),
-                Pair(R.id.mod_date, Sorter.Type.ByModifiedDateDescending)
+                Pair(R.id.mod_date, Sorter.Type.ByModifiedDateDescending),
+                Pair(R.id.file_path, Sorter.Type.ByFilePathAscending)
             )
             val layoutMap = mapOf(
                 Pair(R.id.list, BaseAdapter.LayoutType.LIST),

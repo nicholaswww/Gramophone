@@ -20,6 +20,7 @@ package org.akanework.gramophone.ui.adapters
 import android.net.Uri
 import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
+import java.util.GregorianCalendar
 import kotlinx.coroutines.flow.Flow
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.MainActivity
@@ -105,7 +106,8 @@ class AlbumAdapter(
         setOf(
             Sorter.Type.ByTitleDescending, Sorter.Type.ByTitleAscending,
             Sorter.Type.ByArtistDescending, Sorter.Type.ByArtistAscending,
-            Sorter.Type.BySizeDescending, Sorter.Type.BySizeAscending
+            Sorter.Type.BySizeDescending, Sorter.Type.BySizeAscending,
+            Sorter.Type.ByReleaseDateAscending, Sorter.Type.ByReleaseDateDescending
         )
     ) {
         override fun getArtist(item: Album): String? {
@@ -114,6 +116,10 @@ class AlbumAdapter(
 
         override fun getCover(item: Album): Uri? {
             return item.cover ?: super.getCover(item)
+        }
+
+        override fun getReleaseDate(item: Album): Long {
+            return GregorianCalendar(item.albumYear ?: 0, 0, 0, 0, 0, 0).timeInMillis
         }
     }
 }
