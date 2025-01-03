@@ -27,7 +27,7 @@
         <item
             android:id="@+id/album_artist"
             android:orderInCategory="4"
-            android:title="@string/album_artist"
+            android:title="@string/sort_by_album_artist"
             app:showAsAction="never" />
         <item
             android:id="@+id/size"
