@@ -46,13 +46,14 @@ class AudioFormatDetector {
             val isLossless: Boolean,
             val sourceChannels: Int,
             val deviceChannels: Int,
-            val isDownMixing: Boolean,
             val bitrate: Int?,
             val mimeType: String?,
             val spatialFormat: SpatialFormat,
             val encoderPadding: Int?,
             val encoderDelay: Int?
         ) : Parcelable {
+            val isDownMixing: Boolean
+                get() = sourceChannels > deviceChannels
             override fun toString(): String {
                 val outputStr = if (isDownMixing) {
                     "(Down mixed to $deviceChannels channels)"
@@ -102,8 +103,6 @@ class AudioFormatDetector {
                         val spatialFormat = detectSpatialFormat(format)
                         val sourceChannels = format.channelCount
 
-                        val isDownMixing = sourceChannels > deviceChannels
-
                         val quality = determineQualityTier(
                             sampleRate = sampleRate,
                             bitDepth = bitDepth,
@@ -117,7 +116,6 @@ class AudioFormatDetector {
                             isLossless = isLossless,
                             sourceChannels = sourceChannels,
                             deviceChannels = deviceChannels,
-                            isDownMixing = isDownMixing,
                             bitrate = bitrate,
                             mimeType = format.sampleMimeType,
                             spatialFormat = spatialFormat,
