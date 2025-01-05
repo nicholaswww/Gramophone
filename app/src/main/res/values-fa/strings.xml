@@ -186,7 +186,6 @@
     <string name="settings_lyrics_parser_summary">به کار انداختن تجزیه‌گر ترانۀ جدید که از همگام‌سازی کلمه‌به‌کلمه، نشانگر سخنگو، جابه‌جایی و بیشتر پشتیبانی می‌کند</string>
     <string name="settings_lyrics_ui">به کار انداختن رابط کاربری جدید ترانه</string>
     <string name="settings_lyrics_ui_summary">رابط کاربری آزمایشی برای نمایش ترانۀ کلمه‌به‌کلمه با قابلیت‌های پیشرفته</string>
-    <string name="home_menu_shuffle">بر زدن همه</string>
     <string name="settings_status_bar_lyrics_title">ترانۀ نوار وضعیت</string>
     <string name="settings_status_bar_lyrics_summary">به کار انداختن روش نمایشی ترانۀ MeiZu در نوار وضعیت (فقط در بعضی دستگاه‌ها در دسترس است)</string>
     <string name="lyric_widget_description">ویجتی که ترانۀ رسانۀ فعلی درحال پخش را نشان می‌دهد</string>
