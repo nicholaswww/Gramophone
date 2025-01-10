@@ -206,6 +206,8 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     }
 
     override fun uncaughtException(t: Thread, e: Throwable) {
+        // TODO convert to notification that opens BugHandlerActivity on click, and let JVM
+        // go through the normal exception process.
         val exceptionMessage = Log.getStackTraceString(e)
         val threadName = Thread.currentThread().name
         Log.e(TAG, "Error on thread $threadName:\n $exceptionMessage")
