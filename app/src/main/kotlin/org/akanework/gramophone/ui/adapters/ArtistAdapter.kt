@@ -105,13 +105,13 @@ class ArtistAdapter(
     ) : BaseDecorAdapter<ArtistAdapter>(artistAdapter, R.plurals.artists) {
 
         override fun onSortButtonPressed(popupMenu: PopupMenu) {
-            popupMenu.menu.findItem(R.id.album_artist).isVisible = true
-            popupMenu.menu.findItem(R.id.album_artist).isChecked = adapter.isAlbumArtist
+            popupMenu.menu.findItem(R.id.album_artist_checkbox).isVisible = true
+            popupMenu.menu.findItem(R.id.album_artist_checkbox).isChecked = adapter.isAlbumArtist
         }
 
         override fun onExtraMenuButtonPressed(menuItem: MenuItem): Boolean {
             return when (menuItem.itemId) {
-                R.id.album_artist -> {
+                R.id.album_artist_checkbox -> {
                     menuItem.isChecked = !menuItem.isChecked
                     adapter.isAlbumArtist = menuItem.isChecked
 
