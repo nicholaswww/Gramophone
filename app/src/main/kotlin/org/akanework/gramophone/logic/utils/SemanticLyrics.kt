@@ -362,10 +362,10 @@ sealed class SemanticLyrics : Parcelable {
     abstract val unsyncedText: List<String>
 
     @Parcelize
-    class UnsyncedLyrics(override val unsyncedText: List<String>) : SemanticLyrics()
+    data class UnsyncedLyrics(override val unsyncedText: List<String>) : SemanticLyrics()
 
     @Parcelize
-    class SyncedLyrics(val text: List<LyricLineHolder>) : SemanticLyrics() {
+    data class SyncedLyrics(val text: List<LyricLineHolder>) : SemanticLyrics() {
         override val unsyncedText: List<String>
             get() = text.map { it.lyric.text }
     }

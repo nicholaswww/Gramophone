@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Typeface
 import android.text.Layout
 import android.text.SpannableStringBuilder
@@ -11,6 +12,7 @@ import android.text.Spanned
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
@@ -248,6 +250,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         spForMeasure = null
         requestLayout()
         lyrics = parsedLyrics
+        Log.e("hi", lyrics.toString()) // TODO
     }
 
     fun updateLyricPositionFromPlaybackPos() {
@@ -672,13 +675,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                                 layout.getPrimaryHorizontal(firstInLine)
                             else layout.getSecondaryHorizontal(firstInLine)
                         val horizontalRight =
-                            if (it.isRtl && paragraphRtl)
-                                layout.getPrimaryHorizontal(firstInLine)
-                            else if (it.isRtl)
-                                layout.getSecondaryHorizontal(firstInLine)
-                            else if (!paragraphRtl)
-                                layout.getPrimaryHorizontal(lastInLineIncl)
-                            else layout.getSecondaryHorizontal(lastInLineIncl)
+                            horizontalLeft + if (firstInLine < lastInLineExcl)
+                                        layout.paint.measureText(layout.text, firstInLine, lastInLineExcl) * if (it.isRtl) -1f else 1f else 0f
                         ia.add(horizontalLeft.toInt()) // offset from left to start of word
                         ia.add((horizontalRight - horizontalLeft).toInt()) // width of text in this line
                         ia.add(firstInLine - it.charRange.first) // prefix chars
