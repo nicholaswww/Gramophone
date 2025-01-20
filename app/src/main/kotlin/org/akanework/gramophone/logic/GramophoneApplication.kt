@@ -49,7 +49,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.akanework.gramophone.BuildConfig
@@ -57,7 +56,6 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.BugHandlerActivity
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import uk.akane.libphonograph.reader.FlowReader
-import uk.akane.libphonograph.reader.FlowReaderConfiguration
 
 /**
  * GramophoneApplication
@@ -207,7 +205,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
 
     override fun uncaughtException(t: Thread, e: Throwable) {
         // TODO convert to notification that opens BugHandlerActivity on click, and let JVM
-        // go through the normal exception process.
+        //  go through the normal exception process.
         val exceptionMessage = Log.getStackTraceString(e)
         val threadName = Thread.currentThread().name
         Log.e(TAG, "Error on thread $threadName:\n $exceptionMessage")

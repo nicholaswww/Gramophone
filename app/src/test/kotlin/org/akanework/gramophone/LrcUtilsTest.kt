@@ -275,6 +275,12 @@ class LrcUtilsTest {
 	}
 
 	@Test
+	fun testCompressedWithSpaces() {
+		assertEquals(parseSynced("[00:01.00][00:20.01][00:99.00]Can we find a way back?"),
+			parseSynced("[00:01.00] [00:20.01] [00:99.00]Can we find a way back?"))
+	}
+
+	@Test
 	fun testBidirectionalWordSplitting() {
 		parseSynced("[00:13.00] <00:13.00>یکtwo", trim = false) // make sure its not crashing
 		val lrc = parseSynced("[00:13.00] <00:13.00>یکtwo", trim = true)
