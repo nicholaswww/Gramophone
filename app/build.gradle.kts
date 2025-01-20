@@ -24,7 +24,7 @@ android {
     }
 
     namespace = "org.akanework.gramophone"
-    compileSdk = 34
+    compileSdk = 35
 
     signingConfigs {
         create("release") {
@@ -103,7 +103,7 @@ android {
         // That said, supporting Android 5.0 costs tolerable amounts of tech debt and we plan to
         // keep support for it for a while.
         minSdk = 21
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 17
         versionName = "1.0.15"
         if (releaseType != "Release") {
@@ -240,17 +240,17 @@ aboutLibraries {
 
 dependencies {
     implementation(project(":libphonograph:libPhonograph"))
-    val media3Version = "1.4.1"
-    implementation("androidx.activity:activity-ktx:1.9.3")
+    val media3Version = "1.6.0-alpha01"
+    implementation("androidx.activity:activity-ktx:1.10.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.collection:collection-ktx:1.4.5")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.0")
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-splashscreen:1.2.0-alpha02")
     //implementation("androidx.datastore:datastore-preferences:1.1.0-rc01") TODO don't abuse shared prefs
     implementation("androidx.fragment:fragment-ktx:1.8.5")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-midi:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
