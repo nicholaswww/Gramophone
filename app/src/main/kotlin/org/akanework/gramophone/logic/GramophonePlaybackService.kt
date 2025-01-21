@@ -786,7 +786,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         else
             LyricWidgetProvider.adapterUpdate(this)
         val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
-        val highlightedLyric = if (isStatusBarLyricsEnabled)
+        val highlightedLyric = if (isStatusBarLyricsEnabled && controller?.playWhenReady == true)
             getCurrentLyricIndex(false)?.let {
                 syncedLyrics?.text?.get(it)?.lyric?.text ?: lyricsLegacy?.get(it)?.content
             }
