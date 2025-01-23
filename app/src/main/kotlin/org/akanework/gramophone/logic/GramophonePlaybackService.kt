@@ -727,7 +727,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private fun AudioSink.AudioTrackConfig.myToString(): String {
-        return "AudioTrackConfig{encoding=${ExoPlayerEncoding.get(encoding).name}, sampleRate=$sampleRate, channelConfig=${channelConfigToString(channelConfig)}, tunneling=$tunneling, offload=$offload, bufferSize=$bufferSize}"
+        return "AudioTrackConfig{encoding=${ExoPlayerEncoding.get(encoding).name}, sampleRate=$sampleRate, channelConfig=${channelConfigToString(this@GramophonePlaybackService, channelConfig)}, tunneling=$tunneling, offload=$offload, bufferSize=$bufferSize}"
     }
 
     enum class ExoPlayerEncoding(val enc: Int) {
