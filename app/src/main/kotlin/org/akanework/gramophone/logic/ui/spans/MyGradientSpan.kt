@@ -33,8 +33,8 @@ class MyGradientSpan(val gradientWidth: Float, color: Int, highlightColor: Int) 
         val preOffsetFromLeft = lineOffsets[o].toFloat()
         val textLength = lineOffsets[o + 1]
         val isRtl = lineOffsets[o + 4] == -1
-        val ourProgress = lerpInv(lineOffsets[o + 2].toFloat(), lineOffsets[o + 3].toFloat(),
-            lerp(0f, totalCharsForProgress.toFloat(), progress)).coerceIn(0f, 1f)
+        val ourProgress = 1f/*lerpInv(lineOffsets[o + 2].toFloat(), lineOffsets[o + 3].toFloat(),
+            lerp(0f, totalCharsForProgress.toFloat(), progress)).coerceIn(0f, 1f)*/
         val ourProgressD = if (isRtl) 1f - ourProgress else ourProgress
         shader.setLocalMatrix(matrix.apply {
             // step 0: gradient is |>>-------| where > is the gradient and - is clamping color
@@ -46,11 +46,11 @@ class MyGradientSpan(val gradientWidth: Float, color: Int, highlightColor: Int) 
             // step 1: if we need to squish the gradient, do it first: |>--------|
             postScale((1f / gradientWidth) * desiredWidth, 1f)
             // step 4: if we are in RTL mode, rotate from |---->>--| to |--<<----|
-            if (isRtl) postRotate(180f, gradientWidth / 2f, 1f)
+            if (isRtl) postRotate(180f, desiredWidth / 2f, 1f)
             // step 2: Move the gradient start to end of completed text
             // Example without squishing (not at end line yet): |---->>--|
             // Example with squishing: |------->|
-            postTranslate(textLength * lineOffsets[o + 4] * 1f /* ourProgressD TODO*/, 0f)
+            postTranslate(textLength * ourProgressD, 0f)
             // step 3: we want the end of the gradient be at the end of the completed text (AKA the
             // start of the non-completed text) so that the non-completed text is not colored. so,
             // subtract the gradient width again to move the gradient end to prev. gradient start

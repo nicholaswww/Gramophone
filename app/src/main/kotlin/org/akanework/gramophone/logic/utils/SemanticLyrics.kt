@@ -476,7 +476,23 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                         if (current.second == null)
                             continue // skip dummy words that only exist to provide time
                         val oIdx = idx
-                        idx += current.second?.length ?: 0
+                        idx += current.second!!.length
+                        // Make sure we do NOT include whitespace as part of the word. Whitespaces
+                        // do not have a strong bi-di flag assigned and hence ICU4J/AndroidBidi will
+                        // set bi-di transition point before whitespace. Rendering relies on being
+                        // able to change edge treatment with trailing flag in Layout which only
+                        // works on bi-di transition points. Additionally, excluding whitespace
+                        // allows us to scale gradient properly based on asking ourselves if the
+                        // next char is even rendered (or whitespace).
+                        // TODO is this working?
+                        val tts = current.second!!.trimStart()
+                        val tlts = current.second!!.length - tts.length
+                        val tt = tts.trimEnd()
+                        val tlte = tlts - tt.length
+                        val startIndex = oIdx + tlts
+                        val endIndex = idx - tlte
+                        if (startIndex == endIndex)
+                            continue // word contained only whitespace
                         val endInclusive = if (i + 1 < currentLine.size) {
                             // If we have a next word (with sync point), use its sync
                             // point minus 1ms as end point of this word
@@ -495,12 +511,11 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                                 it.timeRange.count() /
                                         it.charRange.count().toFloat()
                             }.average()
-                                .let { if (it.isNaN()) 100.0 else it } *
-                                    (current.second?.length ?: 0)).toULong()
+                                .let { if (it.isNaN()) 100.0 else it } * tt.length).toULong()
                         }
                         if (endInclusive > current.first)
                         // isRtl is filled in later in splitBidirectionalWords
-                            wout.add(Word(current.first..endInclusive, oIdx..<idx, isRtl = false))
+                            wout.add(Word(current.first..endInclusive, startIndex..<endIndex, isRtl = false))
                     }
                     wout
                 } else null

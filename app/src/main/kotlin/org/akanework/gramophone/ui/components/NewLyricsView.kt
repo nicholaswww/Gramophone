@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.Typeface
 import android.text.Layout
 import android.text.SpannableStringBuilder
@@ -38,7 +37,7 @@ import org.akanework.gramophone.ui.MainActivity
 
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
-    private val USE_BASE_TS = false
+    private val USE_BASE_TS = true
     private val smallSizeFactor = 0.97f
     private val lyricAnimTime = 650f
     private var currentScrollTarget: Int? = null
@@ -668,15 +667,14 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                         val lastInLineIncl = lastInLineExcl - 1
                         val horizontalLeft =
                             if (it.isRtl && paragraphRtl)
-                                layout.getPrimaryHorizontal(lastInLineIncl)
+                                layout.getPrimaryHorizontal(lastInLineExcl)
                             else if (it.isRtl)
-                                layout.getSecondaryHorizontal(lastInLineIncl)
+                                layout.getSecondaryHorizontal(lastInLineExcl)
                             else if (!paragraphRtl)
                                 layout.getPrimaryHorizontal(firstInLine)
                             else layout.getSecondaryHorizontal(firstInLine)
-                        val horizontalRight =
-                            horizontalLeft + if (firstInLine < lastInLineExcl)
-                                        layout.paint.measureText(layout.text, firstInLine, lastInLineExcl) * if (it.isRtl) -1f else 1f else 0f
+                        val w = 0f//layout.paint.measureText(layout.text, firstInLine, lastInLineExcl)
+                        val horizontalRight = horizontalLeft + if (firstInLine < lastInLineExcl) w else 0f
                         ia.add(horizontalLeft.toInt()) // offset from left to start of word
                         ia.add((horizontalRight - horizontalLeft).toInt()) // width of text in this line
                         ia.add(firstInLine - it.charRange.first) // prefix chars
