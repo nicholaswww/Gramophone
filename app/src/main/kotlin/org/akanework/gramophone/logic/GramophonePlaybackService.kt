@@ -25,6 +25,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
+import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.Uri
@@ -44,7 +45,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED
-import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
@@ -52,6 +52,8 @@ import androidx.media3.common.util.Util
 import androidx.media3.common.util.Util.isBitmapFactorySupportedMimeType
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
@@ -105,7 +107,7 @@ import org.akanework.gramophone.ui.MainActivity
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Listener,
-    MediaLibraryService.MediaLibrarySession.Callback, Player.Listener {
+    MediaLibraryService.MediaLibrarySession.Callback, Player.Listener, AnalyticsListener {
 
     companion object {
         private const val TAG = "GramoPlaybackService"
@@ -152,6 +154,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private lateinit var prefs: SharedPreferences
     private var lastSentHighlightedLyric: String? = null
     private var updatedLyricAtLeastOnce = false
+    private val audioTrackConfigs = mutableListOf<AudioSink.AudioTrackConfig>()
 
     private fun getRepeatCommand() =
         when (controller!!.repeatMode) {
@@ -306,6 +309,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (BuildConfig.DEBUG) {
             player.exoPlayer.addAnalyticsListener(EventLogger())
         }
+        player.exoPlayer.addAnalyticsListener(this)
         player.exoPlayer.audioSessionId = Util.generateAudioSessionIdV21(this)
         lastSessionId = player.exoPlayer.audioSessionId
         player.setShuffleOrder { CircularShuffleOrder(it, 0, 0, Random.nextLong()) }
@@ -493,7 +497,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onAudioSessionIdChanged(audioSessionId: Int) {
-        super.onAudioSessionIdChanged(audioSessionId)
+        super<Player.Listener>.onAudioSessionIdChanged(audioSessionId)
         broadcastAudioSessionClose()
         lastSessionId = audioSessionId
         broadcastAudioSession()
@@ -702,6 +706,164 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
     }
 
+    override fun onAudioTrackInitialized(
+        eventTime: AnalyticsListener.EventTime,
+        audioTrackConfig: AudioSink.AudioTrackConfig
+    ) {
+        audioTrackConfigs.add(audioTrackConfig)
+        if (audioTrackConfigs.size == 1) {
+            Log.i(TAG, "Btw: audio track is ${audioTrackConfigs[0].myToString()}")
+        }
+    }
+
+    override fun onAudioTrackReleased(
+        eventTime: AnalyticsListener.EventTime,
+        audioTrackConfig: AudioSink.AudioTrackConfig
+    ) {
+        audioTrackConfigs.remove(audioTrackConfig)
+        if (audioTrackConfigs.size == 1) {
+            Log.i(TAG, "Btw: audio track is ${audioTrackConfigs[0].myToString()}")
+        }
+    }
+
+    private fun AudioSink.AudioTrackConfig.myToString(): String {
+        return "AudioTrackConfig{encoding=${ExoPlayerEncoding.get(encoding).name}, sampleRate=$sampleRate, channelConfig=${channelConfigToString(channelConfig)}, tunneling=$tunneling, offload=$offload, bufferSize=$bufferSize}"
+    }
+
+    enum class ExoPlayerEncoding(val enc: Int) {
+        ENCODING_INVALID(C.ENCODING_INVALID),
+        ENCODING_PCM_8BIT(C.ENCODING_PCM_8BIT),
+        ENCODING_PCM_16BIT(C.ENCODING_PCM_16BIT),
+        ENCODING_PCM_16BIT_BIG_ENDIAN(C.ENCODING_PCM_16BIT_BIG_ENDIAN),
+        ENCODING_PCM_24BIT(C.ENCODING_PCM_24BIT),
+        ENCODING_PCM_24BIT_BIG_ENDIAN(C.ENCODING_PCM_24BIT_BIG_ENDIAN),
+        ENCODING_PCM_32BIT(C.ENCODING_PCM_32BIT),
+        ENCODING_PCM_32BIT_BIG_ENDIAN(C.ENCODING_PCM_32BIT_BIG_ENDIAN),
+        ENCODING_PCM_FLOAT(C.ENCODING_PCM_FLOAT),
+        ENCODING_MP3(C.ENCODING_MP3),
+        ENCODING_AAC_LC(C.ENCODING_AAC_LC),
+        ENCODING_AAC_HE_V1(C.ENCODING_AAC_HE_V1),
+        ENCODING_AAC_HE_V2(C.ENCODING_AAC_HE_V2),
+        ENCODING_AAC_XHE(C.ENCODING_AAC_XHE),
+        ENCODING_AAC_ELD(C.ENCODING_AAC_ELD),
+        ENCODING_AAC_ER_BSAC(C.ENCODING_AAC_ER_BSAC),
+        ENCODING_AC3(C.ENCODING_AC3),
+        ENCODING_E_AC3(C.ENCODING_E_AC3),
+        ENCODING_E_AC3_JOC(C.ENCODING_E_AC3_JOC),
+        ENCODING_AC4(C.ENCODING_AC4),
+        ENCODING_DTS(C.ENCODING_DTS),
+        ENCODING_DTS_HD(C.ENCODING_DTS_HD),
+        ENCODING_DOLBY_TRUEHD(C.ENCODING_DOLBY_TRUEHD),
+        ENCODING_OPUS(C.ENCODING_OPUS),
+        ENCODING_DTS_UHD_P2(C.ENCODING_DTS_UHD_P2);
+
+        companion object {
+            fun get(enc: Int) = ExoPlayerEncoding.entries.first { it.enc == enc }
+        }
+    }
+
+    private fun channelConfigToString(context: Context, format: Int): String {
+        return when (format) {
+            AudioFormat.CHANNEL_OUT_MONO -> context.getString(R.string.spk_channel_out_mono)
+            AudioFormat.CHANNEL_OUT_STEREO -> "CHANNEL_OUT_STEREO"
+            AudioFormat.CHANNEL_OUT_QUAD -> "CHANNEL_OUT_QUAD"
+            AudioFormat.CHANNEL_OUT_SURROUND -> "CHANNEL_OUT_SURROUND"
+            AudioFormat.CHANNEL_OUT_5POINT1 -> "CHANNEL_OUT_5POINT1"
+            AudioFormat.CHANNEL_OUT_6POINT1 -> "CHANNEL_OUT_6POINT1"
+            AudioFormat.CHANNEL_OUT_7POINT1_SURROUND -> "CHANNEL_OUT_7POINT1_SURROUND"
+            AudioFormat.CHANNEL_OUT_5POINT1POINT2 -> "CHANNEL_OUT_5POINT1POINT2"
+            AudioFormat.CHANNEL_OUT_5POINT1POINT4 -> "CHANNEL_OUT_5POINT1POINT4"
+            AudioFormat.CHANNEL_OUT_7POINT1POINT2 -> "CHANNEL_OUT_7POINT1POINT2"
+            AudioFormat.CHANNEL_OUT_7POINT1POINT4 -> "CHANNEL_OUT_7POINT1POINT4"
+            AudioFormat.CHANNEL_OUT_9POINT1POINT4 -> "CHANNEL_OUT_9POINT1POINT4"
+            AudioFormat.CHANNEL_OUT_9POINT1POINT6 -> "CHANNEL_OUT_9POINT1POINT6"
+            else -> {
+                var str = "CHANNEL_INVALID"
+                if ((format and AudioFormat.CHANNEL_OUT_FRONT_LEFT) != 0) {
+                    str += " | CHANNEL_OUT_FRONT_LEFT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_FRONT_RIGHT) != 0) {
+                    str += " | CHANNEL_OUT_FRONT_RIGHT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_FRONT_CENTER) != 0) {
+                    str += " | CHANNEL_OUT_FRONT_CENTER"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_LOW_FREQUENCY) != 0) {
+                    str += " | CHANNEL_OUT_LOW_FREQUENCY"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_BACK_LEFT) != 0) {
+                    str += " | CHANNEL_OUT_BACK_LEFT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_BACK_RIGHT) != 0) {
+                    str += " | CHANNEL_OUT_BACK_RIGHT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_FRONT_LEFT_OF_CENTER) != 0) {
+                    str += " | CHANNEL_OUT_FRONT_LEFT_OF_CENTER"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_FRONT_RIGHT_OF_CENTER) != 0) {
+                    str += " | CHANNEL_OUT_FRONT_RIGHT_OF_CENTER"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_BACK_CENTER) != 0) {
+                    str += " | CHANNEL_OUT_BACK_CENTER"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_SIDE_LEFT) != 0) {
+                    str += " | CHANNEL_OUT_SIDE_LEFT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_SIDE_RIGHT) != 0) {
+                    str += " | CHANNEL_OUT_SIDE_RIGHT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_TOP_CENTER) != 0) {
+                    str += " | CHANNEL_OUT_TOP_CENTER"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_TOP_FRONT_LEFT) != 0) {
+                    str += " | CHANNEL_OUT_TOP_FRONT_LEFT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_TOP_FRONT_CENTER) != 0) {
+                    str += " | CHANNEL_OUT_TOP_FRONT_CENTER"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_TOP_FRONT_RIGHT) != 0) {
+                    str += " | CHANNEL_OUT_TOP_FRONT_RIGHT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_TOP_BACK_LEFT) != 0) {
+                    str += " | CHANNEL_OUT_TOP_BACK_LEFT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_TOP_BACK_CENTER) != 0) {
+                    str += " | CHANNEL_OUT_TOP_BACK_CENTER"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_TOP_BACK_RIGHT) != 0) {
+                    str += " | CHANNEL_OUT_TOP_BACK_RIGHT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_TOP_SIDE_LEFT) != 0) {
+                    str += " | CHANNEL_OUT_TOP_SIDE_LEFT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_TOP_SIDE_RIGHT) != 0) {
+                    str += " | CHANNEL_OUT_TOP_SIDE_RIGHT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_BOTTOM_FRONT_LEFT) != 0) {
+                    str += " | CHANNEL_OUT_BOTTOM_FRONT_LEFT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_BOTTOM_FRONT_CENTER) != 0) {
+                    str += " | CHANNEL_OUT_BOTTOM_FRONT_CENTER"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_BOTTOM_FRONT_RIGHT) != 0) {
+                    str += " | CHANNEL_OUT_BOTTOM_FRONT_RIGHT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_LOW_FREQUENCY_2) != 0) {
+                    str += " | CHANNEL_OUT_LOW_FREQUENCY_2"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_FRONT_WIDE_LEFT) != 0) {
+                    str += " | CHANNEL_OUT_FRONT_WIDE_LEFT"
+                }
+                if ((format and AudioFormat.CHANNEL_OUT_FRONT_WIDE_RIGHT) != 0) {
+                    str += " | CHANNEL_OUT_FRONT_WIDE_RIGHT"
+                }
+                if (str != "CHANNEL_INVALID")
+                    str = str.substring("CHANNEL_INVALID | ".length)
+                str
+            }
+        }
+    }
+
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         lyrics = null
         lyricsLegacy = null
@@ -715,7 +877,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onEvents(player: Player, events: Player.Events) {
-        super.onEvents(player, events)
+        super<Player.Listener>.onEvents(player, events)
         // if timeline changed, shuffle order is handled elsewhere instead (cloneAndInsert called by
         // ExoPlayer for common case and nextShuffleOrder for resumption case)
         if (events.contains(EVENT_SHUFFLE_MODE_ENABLED_CHANGED)
@@ -742,7 +904,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onRepeatModeChanged(repeatMode: Int) {
-        super.onRepeatModeChanged(repeatMode)
+        super<Player.Listener>.onRepeatModeChanged(repeatMode)
         mediaSession!!.setCustomLayout(ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
         if (needsMissingOnDestroyCallWorkarounds()) {
             handler.post { lastPlayedManager.save() }
@@ -754,7 +916,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         newPosition: Player.PositionInfo,
         reason: Int
     ) {
-        super.onPositionDiscontinuity(oldPosition, newPosition, reason)
+        super<Player.Listener>.onPositionDiscontinuity(oldPosition, newPosition, reason)
         scheduleSendingLyrics(false)
     }
 
