@@ -738,6 +738,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lyricsLegacy = null
         scheduleSendingLyrics(true)
         lastPlayedManager.save()
+        MediaRoutes.printRoutes(this)
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
