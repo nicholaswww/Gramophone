@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.Layout
 import android.text.SpannableStringBuilder
@@ -37,7 +38,7 @@ import org.akanework.gramophone.ui.MainActivity
 
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
-    private val USE_BASE_TS = true
+    private val USE_BASE_TS = false
     private val smallSizeFactor = 0.97f
     private val lyricAnimTime = 650f
     private var currentScrollTarget: Int? = null
@@ -665,16 +666,20 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                         val firstInLine = max(it.charRange.first, layout.getLineStart(line))
                         val lastInLineExcl = min(it.charRange.last + 1, layout.getLineEnd(line))
                         val lastInLineIncl = lastInLineExcl - 1
-                        val horizontalLeft =
-                            if (it.isRtl && paragraphRtl)
-                                layout.getPrimaryHorizontal(lastInLineExcl)
-                            else if (it.isRtl)
-                                layout.getSecondaryHorizontal(lastInLineExcl)
-                            else if (!paragraphRtl)
+                        val horizontalStart = if (paragraphRtl == it.isRtl)
                                 layout.getPrimaryHorizontal(firstInLine)
                             else layout.getSecondaryHorizontal(firstInLine)
-                        val w = 0f//layout.paint.measureText(layout.text, firstInLine, lastInLineExcl)
-                        val horizontalRight = horizontalLeft + if (firstInLine < lastInLineExcl) w else 0f
+                        // TODO bounding boxes are still not correct in demo lrc for two words
+                        // Use StaticLayout instead of Paint.measureText() for V+ useBoundsForWidth
+                        val w = StaticLayoutBuilderCompat
+                            .obtain(layout.text, layout.paint, Int.MAX_VALUE)
+                            .setStart(firstInLine)
+                            .setEnd(lastInLineExcl)
+                            .build()
+                            .let { it.getLineRight(0) - it.getLineLeft(0) }
+                        val horizontalEnd = horizontalStart + w * if (it.isRtl) -1 else 1
+                        val horizontalLeft = min(horizontalStart, horizontalEnd)
+                        val horizontalRight = max(horizontalStart, horizontalEnd)
                         ia.add(horizontalLeft.toInt()) // offset from left to start of word
                         ia.add((horizontalRight - horizontalLeft).toInt()) // width of text in this line
                         ia.add(firstInLine - it.charRange.first) // prefix chars

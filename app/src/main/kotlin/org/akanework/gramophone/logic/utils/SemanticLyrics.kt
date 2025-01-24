@@ -485,12 +485,12 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                         // allows us to scale gradient properly based on asking ourselves if the
                         // next char is even rendered (or whitespace).
                         // TODO is this working?
-                        val tts = current.second!!.trimStart()
-                        val tlts = current.second!!.length - tts.length
-                        val tt = tts.trimEnd()
-                        val tlte = tlts - tt.length
-                        val startIndex = oIdx + tlts
-                        val endIndex = idx - tlte
+                        val textWithoutStartWhitespace = current.second!!.trimStart()
+                        val startWhitespaceLength = current.second!!.length - textWithoutStartWhitespace.length
+                        val textWithoutWhitespaces = textWithoutStartWhitespace.trimEnd()
+                        val endWhitespaceLength = textWithoutStartWhitespace.length - textWithoutWhitespaces.length
+                        val startIndex = oIdx + startWhitespaceLength
+                        val endIndex = idx - endWhitespaceLength
                         if (startIndex == endIndex)
                             continue // word contained only whitespace
                         val endInclusive = if (i + 1 < currentLine.size) {
@@ -507,11 +507,10 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                             // Estimate how long this word will take based on character
                             // to time ratio. To avoid this estimation, add a last word
                             // sync point to the line after the text :)
-                            current.first + (wout.map {
-                                it.timeRange.count() /
-                                        it.charRange.count().toFloat()
-                            }.average()
-                                .let { if (it.isNaN()) 100.0 else it } * tt.length).toULong()
+                            current.first + (wout.map { it.timeRange.count() /
+                                    it.charRange.count().toFloat() }.average().let {
+                                        if (it.isNaN()) 100.0 else it } *
+                                    textWithoutWhitespaces.length).toULong()
                         }
                         if (endInclusive > current.first)
                         // isRtl is filled in later in splitBidirectionalWords

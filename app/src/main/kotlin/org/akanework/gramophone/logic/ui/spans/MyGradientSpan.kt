@@ -33,7 +33,7 @@ class MyGradientSpan(val gradientWidth: Float, color: Int, highlightColor: Int) 
         val preOffsetFromLeft = lineOffsets[o].toFloat()
         val textLength = lineOffsets[o + 1]
         val isRtl = lineOffsets[o + 4] == -1
-        val ourProgress = 1f/*lerpInv(lineOffsets[o + 2].toFloat(), lineOffsets[o + 3].toFloat(),
+        val ourProgress = 0.6f/*lerpInv(lineOffsets[o + 2].toFloat(), lineOffsets[o + 3].toFloat(),
             lerp(0f, totalCharsForProgress.toFloat(), progress)).coerceIn(0f, 1f)*/
         val ourProgressD = if (isRtl) 1f - ourProgress else ourProgress
         shader.setLocalMatrix(matrix.apply {
