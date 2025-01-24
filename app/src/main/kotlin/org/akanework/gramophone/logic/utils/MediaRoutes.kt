@@ -31,6 +31,11 @@ object MediaRoutes {
             val router = MediaRouter2.getInstance(context)
             val route = router.systemController.selectedRoutes.firstOrNull()
             return route?.getAudioDeviceForRoute(context)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val router = MediaRouter2.getInstance(context)
+            val route = router.systemController.selectedRoutes.firstOrNull()
+            return route?.getAudioDeviceForRoute(context)
+                ?: MediaRouter.getInstance(context).selectedRoute.getAudioDeviceForRoute(context)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             return MediaRouter.getInstance(context).selectedRoute.getAudioDeviceForRoute(context)
         } else return null
@@ -52,7 +57,7 @@ object MediaRoutes {
         } else
             Log.e(TAG, "Falling back to alternative code path because: failed to parse address in $this")
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-            return MediaRouter.getInstance(context).selectedRoute.getAudioDeviceForRoute(context)
+            return null // type field new in U
         // These proper mapping are established since Android V (but U ones are usable):
         // https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/services/core/java/com/android/server/media/AudioManagerRouteController.java;l=604;drc=9500d2b91750c1fea05e6ab82f80a925179d5f3a
         return when (type) {
@@ -245,7 +250,7 @@ object MediaRoutes {
         }
 
     @RequiresApi(Build.VERSION_CODES.M)
-    fun AudioDeviceInfo.cleanUpProductName() = productName.let {
+    fun AudioDeviceInfo.cleanUpProductName(): CharSequence = productName.let {
         if (it.startsWith("USB-Audio - "))
             it.substring("USB-Audio - ".length)
         else it
