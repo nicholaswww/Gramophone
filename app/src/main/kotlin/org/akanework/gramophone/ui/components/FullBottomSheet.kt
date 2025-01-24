@@ -94,9 +94,9 @@ import org.akanework.gramophone.logic.startAnimation
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
 import org.akanework.gramophone.logic.updateMargin
-import org.akanework.gramophone.logic.utils.AudioFormatDetector.Companion.AudioFormatInfo
-import org.akanework.gramophone.logic.utils.AudioFormatDetector.Companion.AudioQuality
-import org.akanework.gramophone.logic.utils.AudioFormatDetector.Companion.SpatialFormat
+import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
+import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioQuality
+import org.akanework.gramophone.logic.utils.AudioFormatDetector.SpatialFormat
 import org.akanework.gramophone.logic.utils.CalculationUtils
 import org.akanework.gramophone.logic.utils.ColorUtils
 import org.akanework.gramophone.logic.utils.convertDurationToTimeStamp
@@ -683,11 +683,12 @@ class FullBottomSheet
             SpatialFormat.SURROUND_6_1,
             SpatialFormat.SURROUND_7_1 -> R.drawable.ic_surround_sound
 
-            SpatialFormat.DOLBY_ATMOS,
             SpatialFormat.DOLBY_AC3,
             SpatialFormat.DOLBY_AC4,
             SpatialFormat.DOLBY_EAC3,
             SpatialFormat.DOLBY_EAC3_JOC -> R.drawable.ic_dolby
+
+            // TODO dts icon
 
             else -> when (info.quality) {
                 AudioQuality.HIRES -> R.drawable.ic_high_res

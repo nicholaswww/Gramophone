@@ -76,7 +76,7 @@ import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVIC
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_SESSION
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_QUERY_TIMER
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_SET_TIMER
-import org.akanework.gramophone.logic.utils.AudioFormatDetector.Companion.AudioFormatInfo
+import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.jetbrains.annotations.Contract

@@ -25,7 +25,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
-import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.Uri
@@ -84,7 +83,7 @@ import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.MeiZuLyricsMediaNotificationProvider
 import org.akanework.gramophone.logic.utils.AudioFormatDetector
-import org.akanework.gramophone.logic.utils.AudioFormatDetector.Companion.AudioFormatInfo
+import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
 import org.akanework.gramophone.logic.utils.CircularShuffleOrder
 import org.akanework.gramophone.logic.utils.LastPlayedManager
 import org.akanework.gramophone.logic.utils.LrcUtils.LrcParserOptions
@@ -727,141 +726,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private fun AudioSink.AudioTrackConfig.myToString(): String {
-        return "AudioTrackConfig{encoding=${ExoPlayerEncoding.get(encoding).name}, sampleRate=$sampleRate, channelConfig=${channelConfigToString(this@GramophonePlaybackService, channelConfig)}, tunneling=$tunneling, offload=$offload, bufferSize=$bufferSize}"
-    }
-
-    enum class ExoPlayerEncoding(val enc: Int) {
-        ENCODING_INVALID(C.ENCODING_INVALID),
-        ENCODING_PCM_8BIT(C.ENCODING_PCM_8BIT),
-        ENCODING_PCM_16BIT(C.ENCODING_PCM_16BIT),
-        ENCODING_PCM_16BIT_BIG_ENDIAN(C.ENCODING_PCM_16BIT_BIG_ENDIAN),
-        ENCODING_PCM_24BIT(C.ENCODING_PCM_24BIT),
-        ENCODING_PCM_24BIT_BIG_ENDIAN(C.ENCODING_PCM_24BIT_BIG_ENDIAN),
-        ENCODING_PCM_32BIT(C.ENCODING_PCM_32BIT),
-        ENCODING_PCM_32BIT_BIG_ENDIAN(C.ENCODING_PCM_32BIT_BIG_ENDIAN),
-        ENCODING_PCM_FLOAT(C.ENCODING_PCM_FLOAT),
-        ENCODING_MP3(C.ENCODING_MP3),
-        ENCODING_AAC_LC(C.ENCODING_AAC_LC),
-        ENCODING_AAC_HE_V1(C.ENCODING_AAC_HE_V1),
-        ENCODING_AAC_HE_V2(C.ENCODING_AAC_HE_V2),
-        ENCODING_AAC_XHE(C.ENCODING_AAC_XHE),
-        ENCODING_AAC_ELD(C.ENCODING_AAC_ELD),
-        ENCODING_AAC_ER_BSAC(C.ENCODING_AAC_ER_BSAC),
-        ENCODING_AC3(C.ENCODING_AC3),
-        ENCODING_E_AC3(C.ENCODING_E_AC3),
-        ENCODING_E_AC3_JOC(C.ENCODING_E_AC3_JOC),
-        ENCODING_AC4(C.ENCODING_AC4),
-        ENCODING_DTS(C.ENCODING_DTS),
-        ENCODING_DTS_HD(C.ENCODING_DTS_HD),
-        ENCODING_DOLBY_TRUEHD(C.ENCODING_DOLBY_TRUEHD),
-        ENCODING_OPUS(C.ENCODING_OPUS),
-        ENCODING_DTS_UHD_P2(C.ENCODING_DTS_UHD_P2);
-
-        companion object {
-            fun get(enc: Int) = ExoPlayerEncoding.entries.first { it.enc == enc }
-        }
-    }
-
-    private fun channelConfigToString(context: Context, format: Int): String {
-        return when (format) {
-            AudioFormat.CHANNEL_OUT_MONO -> context.getString(R.string.spk_channel_out_mono)
-            AudioFormat.CHANNEL_OUT_STEREO -> "CHANNEL_OUT_STEREO"
-            AudioFormat.CHANNEL_OUT_QUAD -> "CHANNEL_OUT_QUAD"
-            AudioFormat.CHANNEL_OUT_SURROUND -> "CHANNEL_OUT_SURROUND"
-            AudioFormat.CHANNEL_OUT_5POINT1 -> "CHANNEL_OUT_5POINT1"
-            AudioFormat.CHANNEL_OUT_6POINT1 -> "CHANNEL_OUT_6POINT1"
-            AudioFormat.CHANNEL_OUT_7POINT1_SURROUND -> "CHANNEL_OUT_7POINT1_SURROUND"
-            AudioFormat.CHANNEL_OUT_5POINT1POINT2 -> "CHANNEL_OUT_5POINT1POINT2"
-            AudioFormat.CHANNEL_OUT_5POINT1POINT4 -> "CHANNEL_OUT_5POINT1POINT4"
-            AudioFormat.CHANNEL_OUT_7POINT1POINT2 -> "CHANNEL_OUT_7POINT1POINT2"
-            AudioFormat.CHANNEL_OUT_7POINT1POINT4 -> "CHANNEL_OUT_7POINT1POINT4"
-            AudioFormat.CHANNEL_OUT_9POINT1POINT4 -> "CHANNEL_OUT_9POINT1POINT4"
-            AudioFormat.CHANNEL_OUT_9POINT1POINT6 -> "CHANNEL_OUT_9POINT1POINT6"
-            else -> {
-                var str = "CHANNEL_INVALID"
-                if ((format and AudioFormat.CHANNEL_OUT_FRONT_LEFT) != 0) {
-                    str += " | CHANNEL_OUT_FRONT_LEFT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_FRONT_RIGHT) != 0) {
-                    str += " | CHANNEL_OUT_FRONT_RIGHT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_FRONT_CENTER) != 0) {
-                    str += " | CHANNEL_OUT_FRONT_CENTER"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_LOW_FREQUENCY) != 0) {
-                    str += " | CHANNEL_OUT_LOW_FREQUENCY"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_BACK_LEFT) != 0) {
-                    str += " | CHANNEL_OUT_BACK_LEFT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_BACK_RIGHT) != 0) {
-                    str += " | CHANNEL_OUT_BACK_RIGHT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_FRONT_LEFT_OF_CENTER) != 0) {
-                    str += " | CHANNEL_OUT_FRONT_LEFT_OF_CENTER"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_FRONT_RIGHT_OF_CENTER) != 0) {
-                    str += " | CHANNEL_OUT_FRONT_RIGHT_OF_CENTER"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_BACK_CENTER) != 0) {
-                    str += " | CHANNEL_OUT_BACK_CENTER"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_SIDE_LEFT) != 0) {
-                    str += " | CHANNEL_OUT_SIDE_LEFT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_SIDE_RIGHT) != 0) {
-                    str += " | CHANNEL_OUT_SIDE_RIGHT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_TOP_CENTER) != 0) {
-                    str += " | CHANNEL_OUT_TOP_CENTER"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_TOP_FRONT_LEFT) != 0) {
-                    str += " | CHANNEL_OUT_TOP_FRONT_LEFT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_TOP_FRONT_CENTER) != 0) {
-                    str += " | CHANNEL_OUT_TOP_FRONT_CENTER"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_TOP_FRONT_RIGHT) != 0) {
-                    str += " | CHANNEL_OUT_TOP_FRONT_RIGHT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_TOP_BACK_LEFT) != 0) {
-                    str += " | CHANNEL_OUT_TOP_BACK_LEFT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_TOP_BACK_CENTER) != 0) {
-                    str += " | CHANNEL_OUT_TOP_BACK_CENTER"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_TOP_BACK_RIGHT) != 0) {
-                    str += " | CHANNEL_OUT_TOP_BACK_RIGHT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_TOP_SIDE_LEFT) != 0) {
-                    str += " | CHANNEL_OUT_TOP_SIDE_LEFT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_TOP_SIDE_RIGHT) != 0) {
-                    str += " | CHANNEL_OUT_TOP_SIDE_RIGHT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_BOTTOM_FRONT_LEFT) != 0) {
-                    str += " | CHANNEL_OUT_BOTTOM_FRONT_LEFT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_BOTTOM_FRONT_CENTER) != 0) {
-                    str += " | CHANNEL_OUT_BOTTOM_FRONT_CENTER"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_BOTTOM_FRONT_RIGHT) != 0) {
-                    str += " | CHANNEL_OUT_BOTTOM_FRONT_RIGHT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_LOW_FREQUENCY_2) != 0) {
-                    str += " | CHANNEL_OUT_LOW_FREQUENCY_2"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_FRONT_WIDE_LEFT) != 0) {
-                    str += " | CHANNEL_OUT_FRONT_WIDE_LEFT"
-                }
-                if ((format and AudioFormat.CHANNEL_OUT_FRONT_WIDE_RIGHT) != 0) {
-                    str += " | CHANNEL_OUT_FRONT_WIDE_RIGHT"
-                }
-                if (str != "CHANNEL_INVALID")
-                    str = str.substring("CHANNEL_INVALID | ".length)
-                str
-            }
-        }
+        return "AudioTrackConfig{encoding=${AudioFormatDetector.Encoding.get(encoding).getString(this@GramophonePlaybackService)}, " +
+                "sampleRate=$sampleRate, channelConfig=${AudioFormatDetector.channelConfigToString(this@GramophonePlaybackService, channelConfig)}, tunneling=$tunneling, offload=$offload, bufferSize=$bufferSize}"
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
