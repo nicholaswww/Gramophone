@@ -91,6 +91,7 @@ import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyrics
 import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyricsLegacy
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFile
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFileLegacy
+import org.akanework.gramophone.logic.utils.MediaRoutes
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
@@ -712,6 +713,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         audioTrackConfigs.add(audioTrackConfig)
         if (audioTrackConfigs.size == 1) {
             Log.i(TAG, "Btw: audio track is ${audioTrackConfigs[0].myToString()}")
+            MediaRoutes.printRoutes(this)
         }
     }
 
@@ -722,6 +724,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         audioTrackConfigs.remove(audioTrackConfig)
         if (audioTrackConfigs.size == 1) {
             Log.i(TAG, "Btw: audio track is ${audioTrackConfigs[0].myToString()}")
+            MediaRoutes.printRoutes(this)
         }
     }
 
