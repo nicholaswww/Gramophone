@@ -52,7 +52,17 @@ object MediaRoutes {
         if (address != null) {
             if (address != "null")
                 audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-                    .find { it.address == address }?.let { return it }
+                    .find { it.address == address &&
+                            // if the internal speaker device has an address set, it will show up
+                            // as TYPE_BUILTIN_EARPIECE, TYPE_BUILTIN_SPEAKER_SAFE and
+                            // TYPE_TELEPHONY with the same address. just blacklist non-media types
+                            it.type != AudioDeviceInfo.TYPE_BUILTIN_EARPIECE &&
+                            it.type != AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE &&
+                            it.type != AudioDeviceInfo.TYPE_TELEPHONY &&
+                            it.type != AudioDeviceInfo.TYPE_BLUETOOTH_SCO &&
+                            it.type != AudioDeviceInfo.TYPE_BUS &&
+                            it.type != AudioDeviceInfo.TYPE_IP
+                    }?.let { return it }
             Log.w(TAG, "Falling back to alternative code path because: didn't find audio device with address $address")
         } else
             Log.e(TAG, "Falling back to alternative code path because: failed to parse address in $this")
