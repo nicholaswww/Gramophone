@@ -332,14 +332,14 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             var gradientProgress = Float.NEGATIVE_INFINITY
             val firstTs = lines?.get(i)?.start ?: ULong.MIN_VALUE
             val lastTs = lines?.get(i)?.end ?: ULong.MAX_VALUE
-            val timeOffsetForUse = 0f/*min(
+            val timeOffsetForUse = min(
                 scaleInAnimTime, min(
                     lerp(
                         firstTs.toFloat(), lastTs.toFloat(),
                         0.5f
                     ) - firstTs.toFloat(), firstTs.toFloat()
                 )
-            )*/
+            )
             val highlight = posForRender >= firstTs - timeOffsetForUse.toULong() &&
                     posForRender <= lastTs + timeOffsetForUse.toULong()
             val scaleInProgress = if (lines == null) 1f else lerpInv(
