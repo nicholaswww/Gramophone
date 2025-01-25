@@ -12,7 +12,6 @@ import android.text.Spanned
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
@@ -42,18 +41,18 @@ import org.akanework.gramophone.ui.MainActivity
 
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
-    private val USE_BASE_TS = true
+    private val useBaseTs = true
     private val smallSizeFactor = 0.97f
     private val lyricAnimTime = 650f
     private var currentScrollTarget: Int? = null
 
     // TODO maybe reduce this to avoid really fast word skipping
-    private val scaleInAnimTime = 10f//lyricAnimTime / 2f
+    private val scaleInAnimTime = lyricAnimTime / 2f
     private val isElegantTextHeight = false
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
     private lateinit var typeface: Typeface
-    private val grdWidth = 1f//context.resources.getDimension(R.dimen.lyric_gradient_size) TODO
+    private val grdWidth = context.resources.getDimension(R.dimen.lyric_gradient_size)
     private val defaultTextSize = context.resources.getDimension(R.dimen.lyric_text_size)
     private val translationTextSize = context.resources.getDimension(R.dimen.lyric_tl_text_size)
     private val translationBackgroundTextSize =
@@ -264,14 +263,13 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         spForMeasure = null
         requestLayout()
         lyrics = parsedLyrics
-        Log.e("hi", lyrics.toString()) // TODO
     }
 
     fun updateLyricPositionFromPlaybackPos() {
-        val cPos = if (USE_BASE_TS && instance?.isPlaying == true) timebase.first +
+        val cPos = if (useBaseTs && instance?.isPlaying == true) timebase.first +
                 ((System.currentTimeMillis() - timebase.second).toULong())
         else (instance?.currentPosition?.toULong() ?: 0uL)
-        if (USE_BASE_TS && (cPos.toLong() - (instance?.currentPosition ?: 0L)).absoluteValue > 10000L)
+        if (useBaseTs && (cPos.toLong() - (instance?.currentPosition ?: 0L)).absoluteValue > 500L)
             timebase = (instance?.currentPosition?.toULong() ?: 0uL) to System.currentTimeMillis()
         if (cPos != posForRender)
             invalidate()
@@ -308,8 +306,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     }
 
     override fun onDraw(canvas: Canvas) {
-        // TODO do some mp3s go backwards sometimes lol?? (update: they do?????)
-        posForRender = if (USE_BASE_TS && instance?.isPlaying == true) timebase.first +
+        // Some files cause currentPosition to go backwards. For a smoother lyric viewing UX,
+        // manually count seconds from last known position and only rely on player pos when it
+        // ends up being very different. Shouldn't cause lyric delays because if a file is played at
+        // 1x speed then X seconds of playback will have passed if you wait X seconds.
+        posForRender = if (useBaseTs && instance?.isPlaying == true) timebase.first +
                 ((System.currentTimeMillis() - timebase.second).toULong())
         else (instance?.currentPosition?.toULong() ?: 0uL)
         if (spForRender == null) {
@@ -331,14 +332,14 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             var gradientProgress = Float.NEGATIVE_INFINITY
             val firstTs = lines?.get(i)?.start ?: ULong.MIN_VALUE
             val lastTs = lines?.get(i)?.end ?: ULong.MAX_VALUE
-            val timeOffsetForUse = min(
+            val timeOffsetForUse = 0f/*min(
                 scaleInAnimTime, min(
                     lerp(
                         firstTs.toFloat(), lastTs.toFloat(),
                         0.5f
                     ) - firstTs.toFloat(), firstTs.toFloat()
                 )
-            )
+            )*/
             val highlight = posForRender >= firstTs - timeOffsetForUse.toULong() &&
                     posForRender <= lastTs + timeOffsetForUse.toULong()
             val scaleInProgress = if (lines == null) 1f else lerpInv(
@@ -514,7 +515,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             }
             var gradientSpan = it.text.getSpans<MyGradientSpan>().firstOrNull()
             val gradientSpanStart = gradientSpan?.let { j -> it.text.getSpanStart(j) } ?: -1
-            if (gradientSpanStart != realGradientStart) {
+            val gradientSpanEnd = gradientSpan?.let { j -> it.text.getSpanEnd(j) } ?: -1
+            if (gradientSpanStart != realGradientStart || gradientSpanEnd != realGradientEnd) {
                 if (gradientSpanStart != -1) {
                     it.text.removeSpan(gradientSpan!!)
                     if (realGradientStart == -1) {
@@ -687,7 +689,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 for (line in firstLine..lastLine) {
                     val firstInLine = max(it.charRange.first, layout.getLineStart(line))
                     val lastInLineExcl = min(it.charRange.last + 1, layout.getLineEnd(line))
-                    val lastInLineIncl = lastInLineExcl - 1
                     var horizontalStart = if (paragraphRtl == it.isRtl)
                         layout.getPrimaryHorizontal(firstInLine)
                     else layout.getSecondaryHorizontal(firstInLine)
@@ -734,9 +735,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                     val horizontalRight = max(horizontalStart, horizontalEnd)
                     ia.add(horizontalLeft.toInt()) // offset from left to start of word
                     ia.add((horizontalRight - horizontalLeft).roundToInt()) // width of text in this line
-                    ia.add(firstInLine - it.charRange.first) // prefix chars
-                    ia.add(lastInLineIncl - it.charRange.first) // suffix chars
-                    ia.add(it.charRange.first)
+                    ia.add(firstInLine - it.charRange.first)
+                    ia.add(lastInLineExcl - it.charRange.first)
                     ia.add(if (it.isRtl) -1 else 1)
                 }
                 return@map ia
