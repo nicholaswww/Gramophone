@@ -157,11 +157,10 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
         val itemLegacy = service?.lyricsLegacy?.getOrNull(position)
         if (item == null && itemUnsynced == null && itemLegacy == null) return null
         val isTranslation = (item?.isTranslated ?: itemLegacy?.isTranslation) == true
-        val isBackground = item?.lyric?.speaker?.isBackground == true
-        val isVoice2 = item?.lyric?.speaker?.isVoice2 == true
-        val startTs = item?.lyric?.start?.toLong() ?: itemLegacy?.timeStamp ?: -1L
-        val endTs = item?.lyric?.words?.lastOrNull()?.timeRange?.last?.toLong()
-            ?: service?.syncedLyrics?.text?.find { it.lyric.start > item!!.lyric.start }?.lyric?.start?.toLong()?.minus(1)
+        val isBackground = item?.speaker?.isBackground == true
+        val isVoice2 = item?.speaker?.isVoice2 == true
+        val startTs = item?.start?.toLong() ?: itemLegacy?.timeStamp ?: -1L
+        val endTs = item?.end?.toLong()
             ?: service?.lyricsLegacy?.find { (it.timeStamp ?: -1L) > (itemLegacy!!.timeStamp ?: -1L) }?.timeStamp?.minus(1)
             ?: Long.MAX_VALUE
         val isActive = startTs == -1L || cPos != null && cPos >= startTs && cPos <= endTs
@@ -177,9 +176,9 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
                 else -> R.layout.lyric_widget_text_left
             }
         ).apply {
-            val sb = SpannableString(item?.lyric?.text ?: itemUnsynced ?: itemLegacy!!.content)
+            val sb = SpannableString(item?.text ?: itemUnsynced ?: itemLegacy!!.content)
             if (isActive) {
-                val hlChar = item?.lyric?.words?.findLast { it.timeRange.start <= cPos!!.toULong() }
+                val hlChar = item?.words?.findLast { it.timeRange.start <= cPos!!.toULong() }
                     ?.charRange?.last?.plus(1) ?: sb.length
                 sb.setSpan(span, 0, hlChar, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
             }
@@ -206,9 +205,9 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
         val itemUnsynced = service?.lyrics?.unsyncedText?.getOrNull(position)
         val itemLegacy = service?.lyricsLegacy?.getOrNull(position)
         if (item == null && itemUnsynced == null && itemLegacy == null) return 0L
-        return ((item?.lyric?.text ?: itemUnsynced ?: itemLegacy!!.content).hashCode()).toLong()
+        return ((item?.text ?: itemUnsynced ?: itemLegacy!!.content).hashCode()).toLong()
             .shl(32) or
-                (item?.lyric?.start?.hashCode() ?: itemLegacy?.timeStamp?.hashCode()
+                (item?.start?.hashCode() ?: itemLegacy?.timeStamp?.hashCode()
                 ?: -1L).toLong()
     }
 

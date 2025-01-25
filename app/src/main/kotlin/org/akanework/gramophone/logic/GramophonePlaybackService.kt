@@ -800,9 +800,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val cPos = (controller?.contentPosition ?: 0).toULong()
         val nextUpdate = if (syncedLyrics != null) {
             syncedLyrics?.text?.flatMap {
-                if (hnw && it.lyric.start <= cPos) listOf() else if (hnw) listOf(it.lyric.start) else
-                    (it.lyric.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
-                        .let { i -> if (it.lyric.start > cPos) i + it.lyric.start else i }
+                if (hnw && it.start <= cPos) listOf() else if (hnw) listOf(it.start) else
+                    (it.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
+                        .let { i -> if (it.start > cPos) i + it.start else i }
             }?.minOrNull()
         } else if (lyricsLegacy != null) {
             lyricsLegacy?.find {
@@ -820,7 +820,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
         val highlightedLyric = if (isStatusBarLyricsEnabled && controller?.playWhenReady == true)
             getCurrentLyricIndex(false)?.let {
-                syncedLyrics?.text?.get(it)?.lyric?.text ?: lyricsLegacy?.get(it)?.content
+                syncedLyrics?.text?.get(it)?.text ?: lyricsLegacy?.get(it)?.content
             }
         else null
         if (lastSentHighlightedLyric != highlightedLyric) {
@@ -832,7 +832,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     fun getCurrentLyricIndex(withTranslation: Boolean) =
         if (syncedLyrics != null) {
             syncedLyrics?.text?.indexOfLast {
-                it.lyric.start <= (controller?.currentPosition ?: 0).toULong()
+                it.start <= (controller?.currentPosition ?: 0).toULong()
                         && (!it.isTranslated || withTranslation)
             }?.let { if (it == -1) null else it }
         } else if (lyricsLegacy != null) {

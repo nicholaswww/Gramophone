@@ -44,26 +44,25 @@ class LrcUtilsTest {
 		return a
 	}
 
-	private fun parseSynced(lrcContent: String, trim: Boolean? = null, multiline: Boolean? = null): List<SemanticLyrics.LyricLineHolder>? {
+	private fun parseSynced(lrcContent: String, trim: Boolean? = null, multiline: Boolean? = null): List<SemanticLyrics.LyricLine>? {
 		return (parse(lrcContent, trim, multiline, mustSkip = false) as SemanticLyrics.SyncedLyrics?)?.text
 	}
 
-	private fun lyricArrayToString(lrc: List<SemanticLyrics.LyricLineHolder>?): String {
-		val str = StringBuilder("val testData = ")
+	private fun lyricArrayToString(lrc: List<SemanticLyrics.LyricLine>?): String {
+		val str = StringBuilder()
 		if (lrc == null) {
 			str.appendLine("null")
 		} else {
 			str.appendLine("listOf(")
-			for (j in lrc) {
-				val i = j.lyric
-				str.appendLine("\tLyricLineHolder(LyricLine(start = ${i.start}uL, text = " +
-						"\"\"\"${i.text}\"\"\", words = ${i.words?.let { "listOf(${
+			for (i in lrc) {
+				str.appendLine("\tLyricLine(start = ${i.start}uL, text = " +
+						"\"\"\"${i.text}\"\"\", words = ${i.words?.let { "mutableListOf(${
 							it.joinToString { "SemanticLyrics.Word(timeRange = " +
 									"${it.timeRange.first}uL..${it.timeRange.last}uL, charRange = " +
 									"${it.charRange.first}..${it.charRange.last}, " +
 									"isRtl = ${it.isRtl})" }})"
 						} ?: "null"}, speaker = ${i.speaker?.name?.let { "SpeakerEntity.$it" } ?:
-						"null"}), ${j.isTranslated}),")
+						"null"}, end = ${i.end}uL, isTranslated = ${i.isTranslated}),")
 			}
 			str.appendLine(")")
 		}
@@ -137,7 +136,7 @@ class LrcUtilsTest {
 	fun testTemplateLrcZeroTimestamps() {
 		val lrc = parse(LrcTestData.AS_IT_WAS.replace("\\[(\\d{2}):(\\d{2})([.:]\\d+)?]".toRegex(), "[00:00.00]"), mustSkip = true)
 		assertNotNull(lrc)
-		assertEquals(LrcTestData.AS_IT_WAS_PARSED.map { it.lyric.text }, lrc!!.unsyncedText)
+		assertEquals(LrcTestData.AS_IT_WAS_PARSED.map { it.text }, lrc!!.unsyncedText)
 	}
 
 	@Test
@@ -150,10 +149,10 @@ class LrcUtilsTest {
 		assertNotEquals(lrcS!!, lrcM!!)
 		assertEquals(2, lrcS.size)
 		assertEquals(2, lrcM.size)
-		assertEquals("hello", lrcS[0].lyric.text)
-		assertEquals("hello\ngood morning", lrcM[0].lyric.text)
-		assertEquals("how are you?", lrcS[1].lyric.text)
-		assertEquals("how are you?", lrcM[1].lyric.text)
+		assertEquals("hello", lrcS[0].text)
+		assertEquals("hello\ngood morning", lrcM[0].text)
+		assertEquals("how are you?", lrcS[1].text)
+		assertEquals("how are you?", lrcM[1].text)
 	}
 
 	@Test
@@ -165,10 +164,10 @@ class LrcUtilsTest {
 		assertNotEquals(lrcS!!, lrcM!!)
 		assertEquals(2, lrcS.size)
 		assertEquals(2, lrcM.size)
-		assertEquals("hello", lrcS[0].lyric.text)
-		assertEquals("hello\ngood morning", lrcM[0].lyric.text)
-		assertEquals("how are you?", lrcS[1].lyric.text)
-		assertEquals("how are you?", lrcM[1].lyric.text)
+		assertEquals("hello", lrcS[0].text)
+		assertEquals("hello\ngood morning", lrcM[0].text)
+		assertEquals("how are you?", lrcS[1].text)
+		assertEquals("how are you?", lrcM[1].text)
 	}
 
 	@Test
@@ -176,10 +175,10 @@ class LrcUtilsTest {
 		val lrc = parseSynced("[offset:+3][00:00.004]hello\ngood morning\n[00:00.005]how are you?", multiline = true)
 		assertNotNull(lrc)
 		assertEquals(2, lrc!!.size)
-		assertEquals("hello\ngood morning", lrc[0].lyric.text)
-		assertEquals(1uL, lrc[0].lyric.start)
-		assertEquals("how are you?", lrc[1].lyric.text)
-		assertEquals(2uL, lrc[1].lyric.start)
+		assertEquals("hello\ngood morning", lrc[0].text)
+		assertEquals(1uL, lrc[0].start)
+		assertEquals("how are you?", lrc[1].text)
+		assertEquals(2uL, lrc[1].start)
 	}
 
 	@Test
@@ -187,10 +186,10 @@ class LrcUtilsTest {
 		val lrc = parseSynced("[offset:+200][00:00.004]hello\ngood morning\n[00:00.005]how are you?", multiline = true)
 		assertNotNull(lrc)
 		assertEquals(2, lrc!!.size)
-		assertEquals("hello\ngood morning", lrc[0].lyric.text)
-		assertEquals(0uL, lrc[0].lyric.start)
-		assertEquals("how are you?", lrc[1].lyric.text)
-		assertEquals(0uL, lrc[1].lyric.start)
+		assertEquals("hello\ngood morning", lrc[0].text)
+		assertEquals(0uL, lrc[0].start)
+		assertEquals("how are you?", lrc[1].text)
+		assertEquals(0uL, lrc[1].start)
 	}
 
 	@Test
@@ -198,10 +197,10 @@ class LrcUtilsTest {
 		val lrc = parseSynced("[offset:-200][00:00.004]hello\ngood morning\n[00:00.005]how are you?", multiline = true)
 		assertNotNull(lrc)
 		assertEquals(2, lrc!!.size)
-		assertEquals("hello\ngood morning", lrc[0].lyric.text)
-		assertEquals(204uL, lrc[0].lyric.start)
-		assertEquals("how are you?", lrc[1].lyric.text)
-		assertEquals(205uL, lrc[1].lyric.start)
+		assertEquals("hello\ngood morning", lrc[0].text)
+		assertEquals(204uL, lrc[0].start)
+		assertEquals("how are you?", lrc[1].text)
+		assertEquals(205uL, lrc[1].start)
 	}
 
 	@Test
@@ -210,10 +209,10 @@ class LrcUtilsTest {
 		assertNotNull(lrc)
 		assertEquals(2, lrc!!.size)
 		// Order is swapped because second timestamp is smaller thanks to offset
-		assertEquals("how are you?", lrc[0].lyric.text)
-		assertEquals(2uL, lrc[0].lyric.start)
-		assertEquals("hello\ngood morning", lrc[1].lyric.text)
-		assertEquals(204uL, lrc[1].lyric.start)
+		assertEquals("how are you?", lrc[0].text)
+		assertEquals(2uL, lrc[0].start)
+		assertEquals("hello\ngood morning", lrc[1].text)
+		assertEquals(204uL, lrc[1].start)
 	}
 
 	@Test
@@ -221,10 +220,10 @@ class LrcUtilsTest {
 		val lrc = parseSynced("<00:00.02>a<00:01.00>l\n<00:03.00>b")
 		assertNotNull(lrc)
 		assertEquals(2, lrc!!.size)
-		assertEquals("al", lrc[0].lyric.text)
-		assertEquals(20uL, lrc[0].lyric.start)
-		assertEquals("b", lrc[1].lyric.text)
-		assertEquals(3000uL, lrc[1].lyric.start)
+		assertEquals("al", lrc[0].text)
+		assertEquals(20uL, lrc[0].start)
+		assertEquals("b", lrc[1].text)
+		assertEquals(3000uL, lrc[1].start)
 	}
 
 	@Test
@@ -233,18 +232,19 @@ class LrcUtilsTest {
 		assertNotNull(lrc)
 		assertEquals(1, lrc!!.size)
 		assertEquals(false, lrc[0].isTranslated)
-		assertEquals("a", lrc[0].lyric.text)
-		assertEquals(20uL, lrc[0].lyric.start)
-		assertNotNull(lrc[0].lyric.words)
-		assertEquals(1, lrc[0].lyric.words!!.size)
-		assertEquals(0..<1, lrc[0].lyric.words!![0].charRange)
-		assertEquals(20uL..<1000uL, lrc[0].lyric.words!![0].timeRange)
+		assertEquals("a", lrc[0].text)
+		assertEquals(20uL, lrc[0].start)
+		assertNotNull(lrc[0].words)
+		assertEquals(1, lrc[0].words!!.size)
+		assertEquals(0..<1, lrc[0].words!![0].charRange)
+		assertEquals(20uL..<1000uL, lrc[0].words!![0].timeRange)
 	}
 
 	@Test
 	fun testTemplateLrcTranslationType1() {
 		val lrc = parseSynced(LrcTestData.ALL_STAR)
 		assertNotNull(lrc)
+		println(lyricArrayToString(lrc))
 		assertEquals(LrcTestData.ALL_STAR_PARSED, lrc)
 	}
 
@@ -269,25 +269,25 @@ class LrcUtilsTest {
 		val lrc = parseSynced("[00:00.100][00:10.100]hello<00:00.200>world<00:01.00>lol")
 		assertNotNull(lrc)
 		assertEquals(2, lrc!!.size)
-		assertEquals(100uL, lrc[0].lyric.start)
-		assertEquals(10100uL, lrc[1].lyric.start)
-		assertNotNull(lrc[0].lyric.words)
-		assertEquals(3, lrc[0].lyric.words!!.size)
-		assertEquals(100uL, lrc[0].lyric.words!![0].timeRange.start)
-		assertEquals(200uL - 1uL, lrc[0].lyric.words!![0].timeRange.last)
-		assertEquals(200uL, lrc[0].lyric.words!![1].timeRange.start)
-		assertEquals(1000uL - 1uL, lrc[0].lyric.words!![1].timeRange.last)
-		assertEquals(1000uL, lrc[0].lyric.words!![2].timeRange.start)
-		assertEquals(1270uL, lrc[0].lyric.words!![2].timeRange.last)
-		assertEquals(10100uL, lrc[1].lyric.start)
-		assertNotNull(lrc[1].lyric.words)
-		assertEquals(3, lrc[1].lyric.words!!.size)
-		assertEquals(10100uL, lrc[1].lyric.words!![0].timeRange.start)
-		assertEquals(10200uL - 1uL, lrc[1].lyric.words!![0].timeRange.last)
-		assertEquals(10200uL, lrc[1].lyric.words!![1].timeRange.start)
-		assertEquals(11000uL - 1uL, lrc[1].lyric.words!![1].timeRange.last)
-		assertEquals(11000uL, lrc[1].lyric.words!![2].timeRange.start)
-		assertEquals(11270uL, lrc[1].lyric.words!![2].timeRange.last)
+		assertEquals(100uL, lrc[0].start)
+		assertEquals(10100uL, lrc[1].start)
+		assertNotNull(lrc[0].words)
+		assertEquals(3, lrc[0].words!!.size)
+		assertEquals(100uL, lrc[0].words!![0].timeRange.start)
+		assertEquals(200uL - 1uL, lrc[0].words!![0].timeRange.last)
+		assertEquals(200uL, lrc[0].words!![1].timeRange.start)
+		assertEquals(1000uL - 1uL, lrc[0].words!![1].timeRange.last)
+		assertEquals(1000uL, lrc[0].words!![2].timeRange.start)
+		assertEquals(1270uL, lrc[0].words!![2].timeRange.last)
+		assertEquals(10100uL, lrc[1].start)
+		assertNotNull(lrc[1].words)
+		assertEquals(3, lrc[1].words!!.size)
+		assertEquals(10100uL, lrc[1].words!![0].timeRange.start)
+		assertEquals(10200uL - 1uL, lrc[1].words!![0].timeRange.last)
+		assertEquals(10200uL, lrc[1].words!![1].timeRange.start)
+		assertEquals(11000uL - 1uL, lrc[1].words!![1].timeRange.last)
+		assertEquals(11000uL, lrc[1].words!![2].timeRange.start)
+		assertEquals(11270uL, lrc[1].words!![2].timeRange.last)
 	}
 
 	@Test
@@ -302,10 +302,10 @@ class LrcUtilsTest {
 		val lrc = parseSynced("[00:13.00] <00:13.00>یکtwo", trim = true)
 		assertNotNull(lrc)
 		assertEquals(1, lrc!!.size)
-		assertNotNull(lrc[0].lyric.words)
-		assertEquals(2, lrc[0].lyric.words!!.size)
-		assertEquals(0..<2, lrc[0].lyric.words!![0].charRange)
-		assertEquals(2..<5, lrc[0].lyric.words!![1].charRange)
+		assertNotNull(lrc[0].words)
+		assertEquals(2, lrc[0].words!!.size)
+		assertEquals(0..<2, lrc[0].words!![0].charRange)
+		assertEquals(2..<5, lrc[0].words!![1].charRange)
 	}
 
 	@Test

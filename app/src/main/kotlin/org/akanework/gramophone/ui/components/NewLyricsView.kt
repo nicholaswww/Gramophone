@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Rect
 import android.graphics.Typeface
 import android.os.Build
 import android.text.Layout
@@ -49,7 +48,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     private var currentScrollTarget: Int? = null
 
     // TODO maybe reduce this to avoid really fast word skipping
-    private val scaleInAnimTime = lyricAnimTime / 2f
+    private val scaleInAnimTime = 10f//lyricAnimTime / 2f
     private val isElegantTextHeight = false
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -272,7 +271,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         val cPos = if (USE_BASE_TS && instance?.isPlaying == true) timebase.first +
                 ((System.currentTimeMillis() - timebase.second).toULong())
         else (instance?.currentPosition?.toULong() ?: 0uL)
-        if (USE_BASE_TS && (cPos.toLong() - (instance?.currentPosition ?: 0L)).absoluteValue > 100L)
+        if (USE_BASE_TS && (cPos.toLong() - (instance?.currentPosition ?: 0L)).absoluteValue > 10000L)
             timebase = (instance?.currentPosition?.toULong() ?: 0uL) to System.currentTimeMillis()
         if (cPos != posForRender)
             invalidate()
@@ -330,10 +329,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             var realGradientEnd = -1
             var wordIdx: Int? = null
             var gradientProgress = Float.NEGATIVE_INFINITY
-            val firstTs = lines?.get(i)?.lyric?.start ?: ULong.MIN_VALUE
-            val lastTs = lines?.get(i)?.lyric?.words?.lastOrNull()?.timeRange?.last ?: lines
-                ?.find { it.lyric.start > lines[i].lyric.start }?.lyric?.start?.minus(1uL)
-            ?: Long.MAX_VALUE.toULong()
+            val firstTs = lines?.get(i)?.start ?: ULong.MIN_VALUE
+            val lastTs = lines?.get(i)?.end ?: ULong.MAX_VALUE
             val timeOffsetForUse = min(
                 scaleInAnimTime, min(
                     lerp(
@@ -392,12 +389,12 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             if (highlight) {
                 canvas.save()
                 canvas.scale(1f / hlScaleFactor, 1f / hlScaleFactor)
-                if (lines != null && lines[i].lyric.words != null) {
+                if (lines != null && lines[i].words != null) {
                     wordIdx =
-                        lines[i].lyric.words?.indexOfLast { it.timeRange.start <= posForRender }
+                        lines[i].words?.indexOfLast { it.timeRange.start <= posForRender }
                     if (wordIdx == -1) wordIdx = null
                     if (wordIdx != null) {
-                        val word = lines[i].lyric.words!![wordIdx]
+                        val word = lines[i].words!![wordIdx]
                         spanEnd = word.charRange.last + 1 // get exclusive end
                         val gradientEndTime = min(
                             lastTs.toFloat() - timeOffsetForUse,
@@ -423,11 +420,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                                 it.layout.getLineForOffset(word.charRange.endInclusive)
                             val firstCharOnStartLine = it.layout.getLineStart(wordStartLine)
                             val lastCharOnEndLineExcl = it.layout.getLineEnd(wordEndLine)
-                            realGradientStart = lines[i].lyric.words?.lastOrNull {
+                            realGradientStart = lines[i].words?.lastOrNull {
                                 it.charRange.first >= firstCharOnStartLine && it.charRange.last <
                                         word.charRange.first && it.isRtl != word.isRtl
                             }?.charRange?.last?.plus(1) ?: firstCharOnStartLine
-                            realGradientEnd = lines[i].lyric.words?.firstOrNull {
+                            realGradientEnd = lines[i].words?.firstOrNull {
                                 it.charRange.first > word.charRange.last && it.charRange.last <
                                         lastCharOnEndLineExcl && it.isRtl != word.isRtl
                             }?.charRange?.first ?: lastCharOnEndLineExcl
@@ -452,25 +449,25 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                     Float.NEGATIVE_INFINITY) || (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
             var colorSpan = it.text.getSpans<MyForegroundColorSpan>().firstOrNull()
             val cachedEnd = colorSpan?.let { j -> it.text.getSpanEnd(j) } ?: -1
-            val defaultColorForLine = when (lines?.get(i)?.lyric?.speaker) {
+            val defaultColorForLine = when (lines?.get(i)?.speaker) {
                 SpeakerEntity.Male -> defaultTextColorM
                 SpeakerEntity.Female -> defaultTextColorF
                 SpeakerEntity.Duet -> defaultTextColorD
                 else -> defaultTextColor
             }
-            val highlightColorForLine = when (lines?.get(i)?.lyric?.speaker) {
+            val highlightColorForLine = when (lines?.get(i)?.speaker) {
                 SpeakerEntity.Male -> highlightTextColorM
                 SpeakerEntity.Female -> highlightTextColorF
                 SpeakerEntity.Duet -> highlightTextColorD
                 else -> highlightTextColor
             }
-            val wordActiveSpanForLine = when (lines?.get(i)?.lyric?.speaker) {
+            val wordActiveSpanForLine = when (lines?.get(i)?.speaker) {
                 SpeakerEntity.Male -> wordActiveSpanM.value
                 SpeakerEntity.Female -> wordActiveSpanF.value
                 SpeakerEntity.Duet -> wordActiveSpanD.value
                 else -> wordActiveSpan
             }
-            val gradientSpanPoolForLine = when (lines?.get(i)?.lyric?.speaker) {
+            val gradientSpanPoolForLine = when (lines?.get(i)?.speaker) {
                 SpeakerEntity.Male -> gradientSpanPoolM.value
                 SpeakerEntity.Female -> gradientSpanPoolF.value
                 SpeakerEntity.Duet -> gradientSpanPoolD.value
@@ -529,7 +526,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 if (realGradientStart != -1) {
                     if (gradientSpan == null)
                         gradientSpan = gradientSpanPoolForLine.getOrElse(0) {
-                            when (lines?.get(i)?.lyric?.speaker) {
+                            when (lines?.get(i)?.speaker) {
                                 SpeakerEntity.Male -> makeGradientSpanM()
                                 SpeakerEntity.Female -> makeGradientSpanF()
                                 SpeakerEntity.Duet -> makeGradientSpanD()
@@ -577,9 +574,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             val lines = (lyrics as? SemanticLyrics.SyncedLyrics)?.text
             if (lines != null) {
                 spForRender!!.forEachIndexed { i, it ->
-                    val firstTs = lines[i].lyric.start
-                    val lastTs = lines[i].lyric.words?.lastOrNull()?.timeRange?.last ?: lines
-                        .find { it.lyric.start > lines[i].lyric.start }?.lyric?.start?.minus(1uL)
+                    val firstTs = lines[i].start
+                    val lastTs = lines[i].words?.lastOrNull()?.timeRange?.last ?: lines
+                        .find { it.start > lines[i].start }?.start?.minus(1uL)
                     ?: Long.MAX_VALUE.toULong()
                     val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs.toFloat(),
                         lastTs.toFloat(), 0.5f) - firstTs.toFloat(), firstTs.toFloat()))
@@ -616,7 +613,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 }
             }
             if (foundItem != -1) {
-                instance?.seekTo(lines!![foundItem].lyric.start.toLong())
+                instance?.seekTo(lines!![foundItem].start.toLong())
                 performClick()
             }
             return true
@@ -657,7 +654,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         val tmpPaint = TextPaint()
         val spLines = lines.mapIndexed { i, it ->
             val sb = SpannableStringBuilder(it)
-            val speaker = syncedLines?.get(i)?.lyric?.speaker
+            val speaker = syncedLines?.get(i)?.speaker
             val align = if (prefs.getBooleanStrict("lyric_center", false))
                 Layout.Alignment.ALIGN_CENTER
             else if (syncedLines != null && speaker?.isVoice2 == true)
@@ -683,7 +680,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 }, (width * smallSizeFactor).toInt()
             ).setAlignment(align).build()
             val paragraphRtl = layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT
-            val lineOffsets = syncedLines?.get(i)?.lyric?.words?.map {
+            val lineOffsets = syncedLines?.get(i)?.words?.map {
                 val ia = mutableListOf<Int>()
                 val firstLine = layout.getLineForOffset(it.charRange.first)
                 val lastLine = layout.getLineForOffset(it.charRange.last + 1)

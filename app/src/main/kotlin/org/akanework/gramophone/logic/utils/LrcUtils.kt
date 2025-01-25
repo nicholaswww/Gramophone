@@ -12,6 +12,7 @@ import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import java.io.File
 import java.nio.charset.Charset
 import kotlin.math.min
+import org.akanework.gramophone.logic.forEachSupport
 import org.akanework.gramophone.logic.replaceAllSupport
 import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
 
@@ -38,10 +39,9 @@ object LrcUtils {
         } catch (e: Exception) {
             Log.e(TAG, Log.getStackTraceString(e))
             SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText))
-        })?.let {
+        })?.also {
             if (it is SemanticLyrics.SyncedLyrics)
                 splitBidirectionalWords(it)
-            else it
         }
     }
 
@@ -92,32 +92,31 @@ object LrcUtils {
         }
     }
 
-    private fun splitBidirectionalWords(syncedLyrics: SemanticLyrics.SyncedLyrics): SemanticLyrics.SyncedLyrics {
-        return SemanticLyrics.SyncedLyrics(syncedLyrics.text.map { line ->
-            if (line.lyric.words.isNullOrEmpty()) return@map line
-            val bidirectionalBarriers = findBidirectionalBarriers(line.lyric.text)
-            val wordsWithBarriers = line.lyric.words.toMutableList()
+    private fun splitBidirectionalWords(syncedLyrics: SemanticLyrics.SyncedLyrics) {
+        syncedLyrics.text.forEach { line ->
+            if (line.words.isNullOrEmpty()) return@forEach
+            val bidirectionalBarriers = findBidirectionalBarriers(line.text)
             var lastWasRtl = false
             bidirectionalBarriers.forEach { barrier ->
                 val evilWordIndex =
-                    if (barrier.first == -1) -1 else wordsWithBarriers.indexOfFirst {
+                    if (barrier.first == -1) -1 else line.words.indexOfFirst {
                         it.charRange.contains(barrier.first) && it.charRange.start != barrier.first
                     }
                 if (evilWordIndex == -1) {
                     // Propagate the new direction (if there is a barrier after that, direction will
                     // be corrected after it).
                     val wordIndex = if (barrier.first == -1) 0 else
-                        wordsWithBarriers.indexOfFirst { it.charRange.start == barrier.first }
-                    wordsWithBarriers.replaceAllSupport(skipFirst = wordIndex) {
-                        if (it.isRtl != barrier.second) it.copy(isRtl = barrier.second) else it
+                        line.words.indexOfFirst { it.charRange.start == barrier.first }
+                    line.words.forEachSupport(skipFirst = wordIndex) {
+                        it.isRtl = barrier.second
                     }
                     lastWasRtl = barrier.second
                     return@forEach
                 }
-                val evilWord = wordsWithBarriers[evilWordIndex]
+                val evilWord = line.words[evilWordIndex]
                 // Estimate how long this word will take based on character to time ratio. To avoid
                 // this estimation, add a word sync point to bidirectional barriers :)
-                val barrierTime = min(evilWord.timeRange.first + ((line.lyric.words.map {
+                val barrierTime = min(evilWord.timeRange.first + ((line.words.map {
                     it.timeRange.count() / it.charRange.count().toFloat()
                 }.average().let { if (it.isNaN()) 100.0 else it } * (barrier.first -
                         evilWord.charRange.first))).toULong(), evilWord.timeRange.last - 1uL)
@@ -129,12 +128,11 @@ object LrcUtils {
                     charRange = barrier.first..evilWord.charRange.last,
                     timeRange = barrierTime..evilWord.timeRange.last, isRtl = barrier.second
                 )
-                wordsWithBarriers[evilWordIndex] = firstPart
-                wordsWithBarriers.add(evilWordIndex + 1, secondPart)
+                line.words[evilWordIndex] = firstPart
+                line.words.add(evilWordIndex + 1, secondPart)
                 lastWasRtl = barrier.second
             }
-            line.copy(line.lyric.copy(words = wordsWithBarriers))
-        })
+        }
     }
 
     private val ltr =

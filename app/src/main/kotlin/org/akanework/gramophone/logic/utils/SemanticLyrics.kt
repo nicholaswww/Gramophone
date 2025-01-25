@@ -8,7 +8,6 @@ import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.WriteWith
 import org.akanework.gramophone.logic.utils.SemanticLyrics.LyricLine
-import org.akanework.gramophone.logic.utils.SemanticLyrics.LyricLineHolder
 import org.akanework.gramophone.logic.utils.SemanticLyrics.SyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.UnsyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
@@ -365,30 +364,26 @@ sealed class SemanticLyrics : Parcelable {
     data class UnsyncedLyrics(override val unsyncedText: List<String>) : SemanticLyrics()
 
     @Parcelize
-    data class SyncedLyrics(val text: List<LyricLineHolder>) : SemanticLyrics() {
+    data class SyncedLyrics(val text: List<LyricLine>) : SemanticLyrics() {
         override val unsyncedText: List<String>
-            get() = text.map { it.lyric.text }
+            get() = text.map { it.text }
     }
 
     @Parcelize
     data class LyricLine(
         val text: String,
         val start: ULong,
-        val words: List<Word>?,
-        val speaker: SpeakerEntity?
-    ) : Parcelable
-
-    @Parcelize
-    data class LyricLineHolder(
-        val lyric: LyricLine,
-        val isTranslated: Boolean
+        var end: ULong,
+        val words: MutableList<Word>?,
+        val speaker: SpeakerEntity?,
+        var isTranslated: Boolean
     ) : Parcelable
 
     @Parcelize
     data class Word(
-        val timeRange: @WriteWith<ULongRangeParceler>() ULongRange,
-        val charRange: @WriteWith<IntRangeParceler>() IntRange,
-        val isRtl: Boolean
+        var timeRange: @WriteWith<ULongRangeParceler>() ULongRange,
+        var charRange: @WriteWith<IntRangeParceler>() IntRange,
+        var isRtl: Boolean
     ) : Parcelable
 
     object ULongRangeParceler : Parceler<ULongRange> {
@@ -488,9 +483,11 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                         // next char is even rendered (or whitespace).
                         // TODO is this working?
                         val textWithoutStartWhitespace = current.second!!.trimStart()
-                        val startWhitespaceLength = current.second!!.length - textWithoutStartWhitespace.length
+                        val startWhitespaceLength =
+                            current.second!!.length - textWithoutStartWhitespace.length
                         val textWithoutWhitespaces = textWithoutStartWhitespace.trimEnd()
-                        val endWhitespaceLength = textWithoutStartWhitespace.length - textWithoutWhitespaces.length
+                        val endWhitespaceLength =
+                            textWithoutStartWhitespace.length - textWithoutWhitespaces.length
                         val startIndex = oIdx + startWhitespaceLength
                         val endIndex = idx - endWhitespaceLength
                         if (startIndex == endIndex)
@@ -509,14 +506,23 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                             // Estimate how long this word will take based on character
                             // to time ratio. To avoid this estimation, add a last word
                             // sync point to the line after the text :)
-                            current.first + (wout.map { it.timeRange.count() /
-                                    it.charRange.count().toFloat() }.average().let {
-                                        if (it.isNaN()) 100.0 else it } *
+                            current.first + (wout.map {
+                                it.timeRange.count() /
+                                        it.charRange.count().toFloat()
+                            }.average().let {
+                                if (it.isNaN()) 100.0 else it
+                            } *
                                     textWithoutWhitespaces.length).toULong()
                         }
                         if (endInclusive > current.first)
                         // isRtl is filled in later in splitBidirectionalWords
-                            wout.add(Word(current.first..endInclusive, startIndex..<endIndex, isRtl = false))
+                            wout.add(
+                                Word(
+                                    current.first..endInclusive,
+                                    startIndex..<endIndex,
+                                    isRtl = false
+                                )
+                            )
                     }
                     wout
                 } else null
@@ -544,14 +550,14 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                     }
                     val start = if (currentLine.isNotEmpty()) currentLine.first().first
                     else lastWordSyncPoint ?: lastSyncPoint!!
-                    out.add(LyricLine(text, start, words, speaker))
+                    out.add(LyricLine(text, start, 0uL /* filled later */, words, speaker, false /* filled later */))
                     compressed.forEach {
                         val diff = it - start
                         out.add(out.last().copy(start = it, words = words?.map {
                             it.copy(
                                 it.timeRange.start + diff..it.timeRange.last + diff
                             )
-                        }))
+                        }?.toMutableList()))
                     }
                 }
                 compressed.clear()
@@ -572,7 +578,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
     var previousTimestamp = 0uL
     val defaultIsWalaokeM = out.find { it.speaker?.isWalaoke == true } != null &&
             out.find { it.speaker?.isWalaoke == false } == null
-    return SyncedLyrics(out.flatMap {
+    val out2 = out.flatMap {
         if (sawNonBlank || it.text.isNotBlank()) {
             sawNonBlank = true
             listOf(it)
@@ -581,11 +587,17 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
         if (defaultIsWalaokeM && it.speaker == null)
             it.copy(speaker = SpeakerEntity.Male)
         else it
-    }.map {
-        LyricLineHolder(it, it.start == previousTimestamp).also {
-            previousTimestamp = it.lyric.start
-        }
-    })
+    }
+    out2.forEachIndexed { i, lyric ->
+        lyric.end = lyric.words?.lastOrNull()?.timeRange?.last
+            ?: (if (lyric.start == previousTimestamp) out2.find { it.start == lyric.start }
+                ?.words?.lastOrNull()?.timeRange?.last else null)
+                    ?: out2.find { it.start > lyric.start }?.start?.minus(1uL)
+                    ?: Long.MAX_VALUE.toULong()
+        lyric.isTranslated = lyric.start == previousTimestamp
+        previousTimestamp = lyric.start
+    }
+    return SyncedLyrics(out2)
 }
 
 fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
@@ -602,7 +614,7 @@ fun SemanticLyrics?.convertForLegacy(): MutableList<MediaStoreUtils.Lyric>? {
     if (this == null) return null
     if (this is SyncedLyrics) {
         return this.text.map {
-            MediaStoreUtils.Lyric(it.lyric.start.toLong(), it.lyric.text, it.isTranslated)
+            MediaStoreUtils.Lyric(it.start.toLong(), it.text, it.isTranslated)
         }.toMutableList()
     }
     return mutableListOf(MediaStoreUtils.Lyric(null, this.unsyncedText.joinToString("\n"), false))
