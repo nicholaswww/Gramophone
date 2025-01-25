@@ -58,9 +58,10 @@ class LrcUtilsTest {
 				val i = j.lyric
 				str.appendLine("\tLyricLineHolder(LyricLine(start = ${i.start}uL, text = " +
 						"\"\"\"${i.text}\"\"\", words = ${i.words?.let { "listOf(${
-							it.map { "SemanticLyrics.Word(timeRange = ${it.timeRange.first}uL.." +
-									"${it.timeRange.last}uL, charRange = ${it.charRange.first}.." +
-									"${it.charRange.last}, isRtl = ${it.isRtl})" }.joinToString()})"
+							it.joinToString { "SemanticLyrics.Word(timeRange = " +
+									"${it.timeRange.first}uL..${it.timeRange.last}uL, charRange = " +
+									"${it.charRange.first}..${it.charRange.last}, " +
+									"isRtl = ${it.isRtl})" }})"
 						} ?: "null"}, speaker = ${i.speaker?.name?.let { "SpeakerEntity.$it" } ?:
 						"null"}), ${j.isTranslated}),")
 			}
@@ -141,6 +142,7 @@ class LrcUtilsTest {
 
 	@Test
 	fun testSyntheticNewLineMultiLineParser() {
+		//                                                --|-- no newline here
 		val lrcS = parseSynced("[11:22.33]hello\ngood morning[33:44.55]how are you?", multiline = false)
 		assertNotNull(lrcS)
 		val lrcM = parseSynced("[11:22.33]hello\ngood morning[33:44.55]how are you?", multiline = true)
@@ -223,6 +225,20 @@ class LrcUtilsTest {
 		assertEquals(20uL, lrc[0].lyric.start)
 		assertEquals("b", lrc[1].lyric.text)
 		assertEquals(3000uL, lrc[1].lyric.start)
+	}
+
+	@Test
+	fun testOneLineOneWord() {
+		val lrc = parseSynced("[00:00.02]<00:00.02>a<00:01.00>")
+		assertNotNull(lrc)
+		assertEquals(1, lrc!!.size)
+		assertEquals(false, lrc[0].isTranslated)
+		assertEquals("a", lrc[0].lyric.text)
+		assertEquals(20uL, lrc[0].lyric.start)
+		assertNotNull(lrc[0].lyric.words)
+		assertEquals(1, lrc[0].lyric.words!!.size)
+		assertEquals(0..<1, lrc[0].lyric.words!![0].charRange)
+		assertEquals(20uL..<1000uL, lrc[0].lyric.words!![0].timeRange)
 	}
 
 	@Test

@@ -133,7 +133,7 @@ private sealed class SyntacticLrc {
                     // but hey, we tried. Can't do much about it.
                     // If you want to write something that looks like a timestamp into your lyrics,
                     // you'll probably have to delete the following three lines.
-                    if (!(out.lastOrNull() is NewLine || out.lastOrNull() is SyncPoint))
+                    if (!(out.lastOrNull() is NewLine? || out.lastOrNull() is SyncPoint))
                         out.add(NewLine.SyntheticNewLine())
                     out.add(SyncPoint(parseTime(tmMatch)))
                     pos += tmMatch.value.length
@@ -423,6 +423,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
     var lastWordSyncPoint: ULong? = null
     var speaker: SpeakerEntity? = null
     var hadLyricSinceWordSync = true
+    var hadWordSyncSinceNewLine = false
     var currentLine = mutableListOf<Pair<ULong, String?>>()
     var syncPointStreak = 0
     var compressed = mutableListOf<ULong>()
@@ -442,8 +443,8 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                 if (syncPointStreak > 1) {
                     compressed.add(ts)
                 } else {
-                    // if there's something in compressed at this point, would it be a bug?
-                    compressed.clear()
+                    if (compressed.isNotEmpty())
+                        throw IllegalStateException("while parsing lrc, $compressed not empty but syncPointStreak is 1; lrc file: $lyricText")
                     lastSyncPoint = ts
                 }
             }
@@ -460,6 +461,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                 if (lastSyncPoint == null)
                     lastSyncPoint = lastWordSyncPoint
                 hadLyricSinceWordSync = false
+                hadWordSyncSinceNewLine = true
             }
 
             element is SyntacticLrc.LyricText -> {
@@ -468,7 +470,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
             }
 
             element is SyntacticLrc.NewLine -> {
-                var words = if (currentLine.size > 1) {
+                var words = if (currentLine.size > 1 || hadWordSyncSinceNewLine) {
                     val wout = mutableListOf<Word>()
                     var idx = 0
                     for (i in currentLine.indices) {
@@ -502,7 +504,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                         ) {
                             // If we have a dedicated sync point just for the last word,
                             // use it. Similar to dummy words but for the last word only
-                            lastWordSyncPoint
+                            lastWordSyncPoint - 1uL // minus 1ms for consistency
                         } else {
                             // Estimate how long this word will take based on character
                             // to time ratio. To avoid this estimation, add a last word
@@ -556,6 +558,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                 currentLine.clear()
                 lastSyncPoint = null
                 lastWordSyncPoint = null
+                hadWordSyncSinceNewLine = false
                 // Walaoke extension speakers stick around unless another speaker is
                 // specified. (The default speaker - before one is chosen - is male.)
                 if (speaker?.isWalaoke != true)
