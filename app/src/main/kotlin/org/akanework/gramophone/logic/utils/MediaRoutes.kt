@@ -184,7 +184,8 @@ object MediaRoutes {
             return devicesByType.first()
         if (name == null)
             return devicesByType.find { type[0] == it.type } ?: devicesByType.first()
-        val devicesByName = devicesByType.filter { it.productName.contentEquals(name) }
+        val devicesByName = devicesByType.filter { it.productName.contentEquals(name)
+                || it.cleanUpProductName().contentEquals(name) }
         if (devicesByName.size == 1)
             return devicesByName[0]
         if (devicesByName.size > 1) {

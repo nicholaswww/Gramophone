@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.os.Build
 import android.text.Layout
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -18,12 +19,15 @@ import android.view.View
 import android.view.animation.PathInterpolator
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.TypefaceCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withTranslation
 import androidx.core.text.getSpans
 import androidx.core.widget.NestedScrollView
 import androidx.preference.PreferenceManager
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.getBooleanStrict
@@ -32,19 +36,21 @@ import org.akanework.gramophone.logic.ui.spans.MyGradientSpan
 import org.akanework.gramophone.logic.ui.spans.StaticLayoutBuilderCompat
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerp
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
+import org.akanework.gramophone.logic.utils.LrcUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.SpeakerEntity
 import org.akanework.gramophone.ui.MainActivity
 
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
-    private val USE_BASE_TS = false
+    private val USE_BASE_TS = true
     private val smallSizeFactor = 0.97f
     private val lyricAnimTime = 650f
     private var currentScrollTarget: Int? = null
 
     // TODO maybe reduce this to avoid really fast word skipping
     private val scaleInAnimTime = lyricAnimTime / 2f
+    private val isElegantTextHeight = false
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
     private lateinit var typeface: Typeface
@@ -77,49 +83,58 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     private var highlightTextColorD = 0
     private val defaultTextPaint = TextPaint().apply {
         color = Color.RED
+        isElegantTextHeight = this@NewLyricsView.isElegantTextHeight
         textSize = defaultTextSize
     }
     private val translationTextPaint = TextPaint().apply {
         color = Color.GREEN
+        isElegantTextHeight = this@NewLyricsView.isElegantTextHeight
         textSize = translationTextSize
     }
     private val translationBackgroundTextPaint = TextPaint().apply {
         color = Color.BLUE
+        isElegantTextHeight = this@NewLyricsView.isElegantTextHeight
         textSize = translationBackgroundTextSize
     }
     private val defaultTextPaintM = lazy {
         TextPaint().apply {
             color = defaultTextColorM
+            isElegantTextHeight = this@NewLyricsView.isElegantTextHeight
             textSize = defaultTextSize; typeface = this@NewLyricsView.typeface
         }
     }
     private val translationTextPaintM = lazy {
         TextPaint().apply {
             color = defaultTextColorM
+            isElegantTextHeight = this@NewLyricsView.isElegantTextHeight
             textSize = translationTextSize; typeface = this@NewLyricsView.typeface
         }
     }
     private val defaultTextPaintF = lazy {
         TextPaint().apply {
             color = defaultTextColorF
+            isElegantTextHeight = this@NewLyricsView.isElegantTextHeight
             textSize = defaultTextSize; typeface = this@NewLyricsView.typeface
         }
     }
     private val translationTextPaintF = lazy {
         TextPaint().apply {
             color = defaultTextColorF
+            isElegantTextHeight = this@NewLyricsView.isElegantTextHeight
             textSize = translationTextSize; typeface = this@NewLyricsView.typeface
         }
     }
     private val defaultTextPaintD = lazy {
         TextPaint().apply {
             color = defaultTextColorD
+            isElegantTextHeight = this@NewLyricsView.isElegantTextHeight
             textSize = defaultTextSize; typeface = this@NewLyricsView.typeface
         }
     }
     private val translationTextPaintD = lazy {
         TextPaint().apply {
             color = defaultTextColorD
+            isElegantTextHeight = this@NewLyricsView.isElegantTextHeight
             textSize = translationTextSize; typeface = this@NewLyricsView.typeface
         }
     }
@@ -254,8 +269,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     }
 
     fun updateLyricPositionFromPlaybackPos() {
-        val cPos = if (USE_BASE_TS) timebase.first + ((System.currentTimeMillis() -
-                timebase.second).toULong()) else (instance?.currentPosition?.toULong() ?: 0uL)
+        val cPos = if (USE_BASE_TS && instance?.isPlaying == true) timebase.first +
+                ((System.currentTimeMillis() - timebase.second).toULong())
+        else (instance?.currentPosition?.toULong() ?: 0uL)
         if (USE_BASE_TS && (cPos.toLong() - (instance?.currentPosition ?: 0L)).absoluteValue > 100L)
             timebase = (instance?.currentPosition?.toULong() ?: 0uL) to System.currentTimeMillis()
         if (cPos != posForRender)
@@ -294,8 +310,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 
     override fun onDraw(canvas: Canvas) {
         // TODO do some mp3s go backwards sometimes lol?? (update: they do?????)
-        posForRender = if (USE_BASE_TS) timebase.first + ((System.currentTimeMillis() -
-                timebase.second).toULong()) else (instance?.currentPosition?.toULong() ?: 0uL)
+        posForRender = if (USE_BASE_TS && instance?.isPlaying == true) timebase.first +
+                ((System.currentTimeMillis() - timebase.second).toULong())
+        else (instance?.currentPosition?.toULong() ?: 0uL)
         if (spForRender == null) {
             requestLayout()
             return
@@ -434,7 +451,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             val inColorAnim = (scaleInProgress >= 0f && scaleInProgress <= 1f && gradientProgress ==
                     Float.NEGATIVE_INFINITY) || (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
             var colorSpan = it.text.getSpans<MyForegroundColorSpan>().firstOrNull()
-            val cachedEnd = colorSpan?.let { j -> it.text.getSpanStart(j) } ?: -1
+            val cachedEnd = colorSpan?.let { j -> it.text.getSpanEnd(j) } ?: -1
             val defaultColorForLine = when (lines?.get(i)?.lyric?.speaker) {
                 SpeakerEntity.Male -> defaultTextColorM
                 SpeakerEntity.Female -> defaultTextColorF
@@ -500,16 +517,16 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             }
             var gradientSpan = it.text.getSpans<MyGradientSpan>().firstOrNull()
             val gradientSpanStart = gradientSpan?.let { j -> it.text.getSpanStart(j) } ?: -1
-            if (gradientSpanStart != spanStartGradient) {
+            if (gradientSpanStart != realGradientStart) {
                 if (gradientSpanStart != -1) {
                     it.text.removeSpan(gradientSpan!!)
-                    if (spanStartGradient == -1) {
+                    if (realGradientStart == -1) {
                         if (gradientSpanPoolForLine.size < 10)
                             gradientSpanPoolForLine.add(gradientSpan)
                         gradientSpan = null
                     }
                 }
-                if (spanStartGradient != -1) {
+                if (realGradientStart != -1) {
                     if (gradientSpan == null)
                         gradientSpan = gradientSpanPoolForLine.getOrElse(0) {
                             when (lines?.get(i)?.lyric?.speaker) {
@@ -526,10 +543,13 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 }
             }
             if (gradientSpan != null) {
-                gradientSpan.lineCount = 0
+                gradientSpan.runCount = 0
+                gradientSpan.lastLineCount = -1
                 gradientSpan.lineOffsets = it.words!![wordIdx!!]
                 gradientSpan.totalCharsForProgress = spanEnd - spanStartGradient
-                gradientSpan.lineCountDivider = if (!alignmentNormal) 2 else 1
+                // We get called once per run + one additional time per run if run direction isn't
+                // same as paragraph direction.
+                gradientSpan.runToLineMappings = it.rlm!!
                 gradientSpan.progress = gradientProgress
             }
             it.layout.draw(canvas)
@@ -629,6 +649,12 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     fun buildSpForMeasure(lyrics: SemanticLyrics?, width: Int): Pair<Pair<Int, Int>, List<SbItem>> {
         val lines = lyrics?.unsyncedText ?: listOf(context.getString(R.string.no_lyric_found))
         val syncedLines = (lyrics as? SemanticLyrics.SyncedLyrics?)?.text
+        val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
+            || !prefs.getBooleanStrict("pixel_perfect_measurement_legacy", false)) null else
+            createBitmap(1000, 1000) // TODO
+        val pixels = b?.let { IntArray(it.width * it.height) }
+        val c = b?.let { Canvas(it) }
+        val tmpPaint = TextPaint()
         val spLines = lines.mapIndexed { i, it ->
             val sb = SpannableStringBuilder(it)
             val speaker = syncedLines?.get(i)?.lyric?.speaker
@@ -657,36 +683,78 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 }, (width * smallSizeFactor).toInt()
             ).setAlignment(align).build()
             val paragraphRtl = layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT
+            val lineOffsets = syncedLines?.get(i)?.lyric?.words?.map {
+                val ia = mutableListOf<Int>()
+                val firstLine = layout.getLineForOffset(it.charRange.first)
+                val lastLine = layout.getLineForOffset(it.charRange.last + 1)
+                for (line in firstLine..lastLine) {
+                    val firstInLine = max(it.charRange.first, layout.getLineStart(line))
+                    val lastInLineExcl = min(it.charRange.last + 1, layout.getLineEnd(line))
+                    val lastInLineIncl = lastInLineExcl - 1
+                    var horizontalStart = if (paragraphRtl == it.isRtl)
+                        layout.getPrimaryHorizontal(firstInLine)
+                    else layout.getSecondaryHorizontal(firstInLine)
+                    tmpPaint.set(layout.paint)
+                    tmpPaint.color = Color.RED
+                    tmpPaint.bgColor = Color.TRANSPARENT
+                    // Use StaticLayout instead of Paint.measureText() for V+ useBoundsForWidth
+                    // TODO do we have to? or is measureText() actually sufficient?
+                    val l = StaticLayoutBuilderCompat
+                        .obtain(layout.text, tmpPaint, Int.MAX_VALUE)
+                        .setAlignment(if (it.isRtl) Layout.Alignment.ALIGN_OPPOSITE
+                        else Layout.Alignment.ALIGN_NORMAL)
+                        .setIsRtl(it.isRtl)
+                        .setStart(firstInLine)
+                        .setEnd(lastInLineExcl)
+                        .build()
+                    val w = l.getLineRight(0) - l.getLineLeft(0) + if (b != null) {
+                        // this is a very dumb solution and hence disabled by default
+                        b.eraseColor(Color.TRANSPARENT)
+                        // Best effort: assume that overhang is not larger than 50px
+                        // 'cause that would be a lot. We have no way to retrieve this information
+                        c!!.withTranslation(50f, 50f) {
+                            l.draw(this)
+                        }
+                        val stride = b.width
+                        b.getPixels(pixels!!, 0, stride, 0, 0, b.width, b.height)
+                        var minX: Int? = null
+                        out@for (x in 0..<b.width) {
+                            for (y in 0..<b.height) {
+                                if ((pixels[y*stride+x] shr 24) and 0xff != 0) {
+                                    minX = x
+                                    break@out
+                                }
+                            }
+                        }
+                        if (minX != null) minX -= 50 else minX = -1
+                        if (minX < 0) minX * -1 else 0
+                    } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                        // just add a few pixels on top if RTL as approximation of the above :D
+                        if (it.isRtl) 5 else 0
+                    } else 0
+                    val horizontalEnd = horizontalStart + w * if (it.isRtl) -1 else 1
+                    val horizontalLeft = min(horizontalStart, horizontalEnd)
+                    val horizontalRight = max(horizontalStart, horizontalEnd)
+                    ia.add(horizontalLeft.toInt()) // offset from left to start of word
+                    ia.add((horizontalRight - horizontalLeft).roundToInt()) // width of text in this line
+                    ia.add(firstInLine - it.charRange.first) // prefix chars
+                    ia.add(lastInLineIncl - it.charRange.first) // suffix chars
+                    ia.add(it.charRange.first)
+                    ia.add(if (it.isRtl) -1 else 1)
+                }
+                return@map ia
+            }
             SbItem(layout, sb, paddingTop.dpToPx(context), paddingBottom.dpToPx(context),
-                syncedLines?.get(i)?.lyric?.words?.map {
-                    val ia = mutableListOf<Int>()
-                    val firstLine = layout.getLineForOffset(it.charRange.first)
-                    val lastLine = layout.getLineForOffset(it.charRange.last + 1)
-                    for (line in firstLine..lastLine) {
-                        val firstInLine = max(it.charRange.first, layout.getLineStart(line))
-                        val lastInLineExcl = min(it.charRange.last + 1, layout.getLineEnd(line))
-                        val lastInLineIncl = lastInLineExcl - 1
-                        val horizontalStart = if (paragraphRtl == it.isRtl)
-                                layout.getPrimaryHorizontal(firstInLine)
-                            else layout.getSecondaryHorizontal(firstInLine)
-                        // TODO bounding boxes are still not correct in demo lrc for two words
-                        // Use StaticLayout instead of Paint.measureText() for V+ useBoundsForWidth
-                        val w = StaticLayoutBuilderCompat
-                            .obtain(layout.text, layout.paint, Int.MAX_VALUE)
-                            .setStart(firstInLine)
-                            .setEnd(lastInLineExcl)
-                            .build()
-                            .let { it.getLineRight(0) - it.getLineLeft(0) }
-                        val horizontalEnd = horizontalStart + w * if (it.isRtl) -1 else 1
-                        val horizontalLeft = min(horizontalStart, horizontalEnd)
-                        val horizontalRight = max(horizontalStart, horizontalEnd)
-                        ia.add(horizontalLeft.toInt()) // offset from left to start of word
-                        ia.add((horizontalRight - horizontalLeft).toInt()) // width of text in this line
-                        ia.add(firstInLine - it.charRange.first) // prefix chars
-                        ia.add(lastInLineIncl - it.charRange.first) // suffix chars
-                        ia.add(if (it.isRtl) -1 else 1)
-                    }
-                    return@map ia
+                lineOffsets, lineOffsets?.let { _ ->
+                    (0..<layout.lineCount).map { line ->
+                        LrcUtils.findBidirectionalBarriers(layout.text.subSequence(
+                            layout.getLineStart(line), layout.getLineEnd(line))).flatMap {
+                            if (it.second != paragraphRtl)
+                                listOf(line, line)
+                            else
+                                listOf(line)
+                        }
+                    }.flatten()
                 })
         }
         val heights = spLines.map { it.layout.height + it.paddingTop + it.paddingBottom }
@@ -700,7 +768,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 
     data class SbItem(
         val layout: StaticLayout, val text: SpannableStringBuilder,
-        val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?
+        val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?,
+        val rlm: List<Int>?
     )
 
     // == start scroll ==

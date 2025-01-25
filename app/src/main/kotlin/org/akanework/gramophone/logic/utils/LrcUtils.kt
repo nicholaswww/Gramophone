@@ -151,7 +151,7 @@ object LrcUtils {
             Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE
         )
 
-    private fun findBidirectionalBarriers(text: String): List<Pair<Int, Boolean>> {
+    fun findBidirectionalBarriers(text: CharSequence): List<Pair<Int, Boolean>> {
         val barriers = mutableListOf<Pair<Int, Boolean>>()
         if (text.isEmpty()) return barriers
         var previousDirection = text.find {
