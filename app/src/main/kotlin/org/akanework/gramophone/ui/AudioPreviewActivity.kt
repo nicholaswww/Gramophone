@@ -211,6 +211,7 @@ class AudioPreviewActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
+        // TODO stop using MediaStore for duration!
         if (intent.action == Intent.ACTION_VIEW) {
             intent.data?.let { uri ->
                 val projection = arrayOf(MediaStore.Audio.Media.DURATION)
