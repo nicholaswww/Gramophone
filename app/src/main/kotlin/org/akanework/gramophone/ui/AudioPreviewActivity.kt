@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.storage.StorageManager
 import android.provider.MediaStore
 import android.view.View
 import android.widget.ImageView
@@ -15,6 +16,8 @@ import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.content.ContextCompat
+import androidx.core.net.toFile
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -36,6 +39,7 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.components.FullBottomSheet.Companion.SLIDER_UPDATE_INTERVAL
 import org.akanework.gramophone.ui.components.SquigglyProgress
+import uk.akane.libphonograph.getColumnIndexOrNull
 
 @OptIn(UnstableApi::class)
 class AudioPreviewActivity : AppCompatActivity() {
@@ -162,11 +166,11 @@ class AudioPreviewActivity : AppCompatActivity() {
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 if (mediaItem == null) return
-                updateMediaMetadata(mediaItem.mediaMetadata)
+                updateMediaMetadata(player, mediaItem.mediaMetadata)
             }
 
             override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-                updateMediaMetadata(mediaMetadata)
+                updateMediaMetadata(player, mediaMetadata)
             }
         })
         playPauseButton.setOnClickListener {
@@ -214,27 +218,33 @@ class AudioPreviewActivity : AppCompatActivity() {
         // TODO stop using MediaStore for duration!
         if (intent.action == Intent.ACTION_VIEW) {
             intent.data?.let { uri ->
-                val projection = arrayOf(MediaStore.Audio.Media.DURATION)
+                val queryUri = if (uri.scheme == "file")
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                else uri
+                val projection = arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION)
                 contentResolver.query(
-                    uri, projection, null, null, null
+                    queryUri, projection, if (uri.scheme == "file")
+                        MediaStore.Audio.Media.DATA + " = ?" else null,
+                    if (uri.scheme == "file") arrayOf(uri.toFile().absolutePath) else null, null
                 )?.use { cursor ->
+                    val mediaItem = MediaItem.Builder()
+                        .setUri(uri)
                     if (cursor.moveToFirst()) {
-                        val durationMs = cursor.getLong(
-                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                        val id = cursor.getLong(
+                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                         )
-                        val mediaItem = MediaItem.Builder()
-                            .setMediaId(uri.toString())
-                            .setUri(uri)
-                            .setMediaMetadata(
-                                MediaMetadata.Builder()
-                                    .setDurationMs(durationMs)
-                                    .build()
-                            )
-                            .build()
-                        player.setMediaItem(mediaItem)
-                        player.prepare()
-                        player.play()
+                        val durationMs =
+                            cursor.getColumnIndexOrNull(MediaStore.Audio.Media.DURATION)?.let {
+                                cursor.getLong(it)
+                            }
+                        mediaItem.setMediaId(id.toString())
+                        mediaItem.setMediaMetadata(MediaMetadata.Builder()
+                            .setDurationMs(durationMs)
+                            .build())
                     }
+                    player.setMediaItem(mediaItem.build())
+                    player.prepare()
+                    player.play()
                 }
             }
         }
@@ -289,10 +299,10 @@ class AudioPreviewActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateMediaMetadata(mediaMetadata: MediaMetadata) {
+    private fun updateMediaMetadata(player: Player, mediaMetadata: MediaMetadata) {
         audioTitle.text = mediaMetadata.title ?: getString(R.string.unknown_title)
         artistTextView.text = mediaMetadata.artist ?: getString(R.string.unknown_artist)
-        durationTextView.text = mediaMetadata.durationMs?.let { convertDurationToTimeStamp(it) }
+        durationTextView.text = convertDurationToTimeStamp(mediaMetadata.durationMs ?: player.contentDuration)
         mediaMetadata.artworkData?.let {
             val bitmap = BitmapFactory.decodeByteArray(it, 0, it.size)
             albumArt.setImageBitmap(bitmap)
