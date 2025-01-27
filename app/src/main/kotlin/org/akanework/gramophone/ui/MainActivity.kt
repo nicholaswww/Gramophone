@@ -81,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         private const val PERMISSION_READ_MEDIA_AUDIO = 100
         const val PLAYBACK_AUTO_START_FOR_FGS = "AutoStartFgs"
         const val PLAYBACK_AUTO_PLAY_ID = "AutoStartId"
+        const val PLAYBACK_AUTO_PLAY_POSITION = "AutoStartPos"
     }
 
     // Import our viewModels.
@@ -190,23 +191,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
-        super.onNewIntent(intent, caller)
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
         autoPlay = intent.extras?.getBoolean(PLAYBACK_AUTO_START_FOR_FGS, false) == true
         if (ready) {
-            intent.extras?.getLong(PLAYBACK_AUTO_PLAY_ID, 0L).let { it ->
-                if (it != 0L) {
-                    val id = it.toString()
-                    controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
-                        val songs =
-                            runBlocking { this@MainActivity.gramophoneApplication.reader.songListFlow.first() }
-                        songs.find { it.mediaId == id }?.let { mediaItem ->
-                            controller.setMediaItem(mediaItem)
-                            controller.prepare()
-                            controller.play()
-                        }
-                        dispose()
+            intent.extras?.getString(PLAYBACK_AUTO_PLAY_ID)?.let { id ->
+                val pos = intent.extras?.getLong(PLAYBACK_AUTO_PLAY_POSITION, 0L) ?: 0L
+                controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
+                    val songs =
+                        runBlocking { this@MainActivity.gramophoneApplication.reader.songListFlow.first() }
+                    songs.find { it.mediaId == id }?.let { mediaItem ->
+                        controller.setMediaItem(mediaItem)
+                        controller.prepare()
+                        controller.seekTo(0, pos)
+                        controller.play()
                     }
+                    dispose()
                 }
             }
         }

@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.storage.StorageManager
 import android.provider.MediaStore
 import android.view.View
 import android.widget.ImageView
@@ -16,7 +15,6 @@ import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.content.ContextCompat
 import androidx.core.net.toFile
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -32,6 +30,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getBooleanStrict
+import org.akanework.gramophone.logic.hasScopedStorageV1
 import org.akanework.gramophone.logic.playOrPause
 import org.akanework.gramophone.logic.startAnimation
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
@@ -40,7 +39,6 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.components.FullBottomSheet.Companion.SLIDER_UPDATE_INTERVAL
 import org.akanework.gramophone.ui.components.SquigglyProgress
 import uk.akane.libphonograph.getColumnIndexOrNull
-import uk.akane.libphonograph.items.albumId
 
 @OptIn(UnstableApi::class)
 class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
@@ -226,42 +224,57 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
             intent.data?.let { uri ->
                 val queryUri = if (uri.scheme == "file")
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                else uri
+                else if (uri.scheme == "content" && uri.pathSegments.firstOrNull() == "media")
+                    uri
+                else if (hasScopedStorageV1() && uri.scheme == "content")
+                    MediaStore.getMediaUri(this, uri)
+                else null
                 val projection = arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION)
-                contentResolver.query(
+                val cursor = if (queryUri != null) contentResolver.query(
                     queryUri, projection, if (uri.scheme == "file")
                         MediaStore.Audio.Media.DATA + " = ?" else null,
                     if (uri.scheme == "file") arrayOf(uri.toFile().absolutePath) else null, null
-                )?.use { cursor ->
-                    val mediaItem = MediaItem.Builder()
-                        .setUri(uri)
-                    if (cursor.moveToFirst()) {
-                        val id = cursor.getLong(
-                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                        )
-                        val durationMs =
-                            cursor.getColumnIndexOrNull(MediaStore.Audio.Media.DURATION)?.let {
-                                cursor.getLong(it)
-                            }
-                        mediaItem.setMediaId(id.toString())
-                        mediaItem.setMediaMetadata(MediaMetadata.Builder()
-                            .setDurationMs(durationMs)
-                            .build())
-                    }
-                    player.setMediaItem(mediaItem.build())
-                    player.prepare()
-                    player.play()
+                ) else null
+                val mediaItem = MediaItem.Builder()
+                    .setUri(uri)
+                if (cursor?.moveToFirst() == true) {
+                    val id = cursor.getLong(
+                        cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                    )
+                    val durationMs =
+                        cursor.getColumnIndexOrNull(MediaStore.Audio.Media.DURATION)?.let {
+                            cursor.getLong(it)
+                        }
+                    mediaItem.setMediaId(id.toString())
+                    mediaItem.setMediaMetadata(MediaMetadata.Builder()
+                        .setDurationMs(durationMs)
+                        .build())
+                    openIcon.visibility = View.VISIBLE
+                    openText.visibility = View.VISIBLE
+                } else {
+                    openIcon.visibility = View.GONE
+                    openText.visibility = View.GONE
                 }
+                player.setMediaItem(mediaItem.build())
+                player.prepare()
+                player.play()
+                cursor?.close()
             }
         }
     }
 
     override fun onClick(v: View?) {
-        // TODO seems broken?
-        player.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
+        player.currentMediaItem?.mediaId?.let {
+            if (it != MediaItem.DEFAULT_MEDIA_ID)
+                it else null
+        }?.let { id ->
             startActivity(Intent(this, MainActivity::class.java).also {
                 it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 it.putExtra(MainActivity.PLAYBACK_AUTO_PLAY_ID, id)
+                player.contentPosition.let { pos ->
+                    if (pos != C.TIME_UNSET)
+                        it.putExtra(MainActivity.PLAYBACK_AUTO_PLAY_POSITION, pos)
+                }
             })
         }
     }
