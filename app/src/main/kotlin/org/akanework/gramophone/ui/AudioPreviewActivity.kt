@@ -3,10 +3,12 @@ package org.akanework.gramophone.ui
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.SeekBar
@@ -16,6 +18,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.net.toFile
+import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -38,7 +41,8 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.components.FullBottomSheet.Companion.SLIDER_UPDATE_INTERVAL
 import org.akanework.gramophone.ui.components.SquigglyProgress
-import uk.akane.libphonograph.getColumnIndexOrNull
+
+private const val TAG = "AudioPreviewActivity"
 
 @OptIn(UnstableApi::class)
 class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
@@ -225,24 +229,37 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
     private fun handleIntent(intent: Intent) {
         if (intent.action == Intent.ACTION_VIEW) {
             intent.data?.let { uri ->
-                val queryUri = if (uri.scheme == "file")
+                Log.i(TAG, "Audio preview opening $uri")
+                var fileUri: Uri? = null
+                val queryUri = if (uri.scheme == "file") {
+                    fileUri = uri
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                else if (uri.scheme == "content" && uri.pathSegments.firstOrNull() == "media")
+                } else if (uri.scheme == "content" && uri.pathSegments.firstOrNull() == "media")
                     uri
-                else if (hasScopedStorageV1() && uri.scheme == "content")
+                else if (uri.scheme == "content")
                     try {
-                        MediaStore.getMediaUri(this, uri)
+                        if (hasScopedStorageV1()) MediaStore.getMediaUri(this, uri) else null
                     } catch (e: Exception) {
                         if (e.message != "Provider for this Uri is not supported.")
                             throw e
                         null
+                    } ?: run {
+                        val lp = Uri.decode(uri.lastPathSegment)
+                        if (lp?.toUri()?.scheme == "file") { // Let's try our luck! Material Files supports this
+                            fileUri = lp.toUri()
+                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                        } else null // ¯\_(ツ)_/¯
                     }
                 else null
-                val projection = arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION)
+                val projection =
+                    arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION)
                 val cursor = if (queryUri != null) contentResolver.query(
-                    queryUri, projection, if (uri.scheme == "file")
+                    queryUri,
+                    projection,
+                    if (fileUri?.scheme == "file")
                         MediaStore.Audio.Media.DATA + " = ?" else null,
-                    if (uri.scheme == "file") arrayOf(uri.toFile().absolutePath) else null, null
+                    if (fileUri?.scheme == "file") arrayOf(fileUri!!.toFile().absolutePath) else null,
+                    null
                 ) else null
                 val mediaItem = MediaItem.Builder()
                     .setUri(uri)
@@ -250,14 +267,15 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                     val id = cursor.getLong(
                         cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                     )
-                    val durationMs =
-                        cursor.getColumnIndexOrNull(MediaStore.Audio.Media.DURATION)?.let {
-                            cursor.getLong(it)
-                        }
+                    val durationMs = cursor.getLong(
+                        cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                    )
                     mediaItem.setMediaId(id.toString())
-                    mediaItem.setMediaMetadata(MediaMetadata.Builder()
-                        .setDurationMs(durationMs)
-                        .build())
+                    mediaItem.setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setDurationMs(durationMs)
+                            .build()
+                    )
                     openIcon.visibility = View.VISIBLE
                     openText.visibility = View.VISIBLE
                 } else {
