@@ -18,6 +18,7 @@
 package org.akanework.gramophone.ui
 
 import android.annotation.SuppressLint
+import android.app.ComponentCaller
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -63,6 +64,9 @@ import org.akanework.gramophone.logic.needsMissingOnDestroyCallWorkarounds
 import org.akanework.gramophone.logic.postAtFrontOfQueueAsync
 import org.akanework.gramophone.ui.components.PlayerBottomSheet
 import org.akanework.gramophone.ui.fragments.BaseFragment
+import androidx.core.net.toUri
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /**
  * MainActivity:
@@ -76,6 +80,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PERMISSION_READ_MEDIA_AUDIO = 100
         const val PLAYBACK_AUTO_START_FOR_FGS = "AutoStartFgs"
+        const val PLAYBACK_AUTO_PLAY_ID = "AutoStartId"
     }
 
     // Import our viewModels.
@@ -98,7 +103,7 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.Default).launch {
             this@MainActivity.gramophoneApplication.reader.refresh()
             withContext(Dispatchers.Main) {
-                if (!ready) reportFullyDrawn()
+                onLibraryLoaded()
                 then?.let { it() }
             }
         }
@@ -112,7 +117,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(controllerViewModel)
         enableEdgeToEdgeProperly()
-        autoPlay = intent?.extras?.getBoolean(PLAYBACK_AUTO_START_FOR_FGS, false) == true
         intentSender =
             registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {}
 
@@ -182,7 +186,29 @@ class MainActivity : AppCompatActivity() {
             // If all permissions are granted, we can update library now.
             if (this@MainActivity.gramophoneApplication.reader.songListFlow.replayCache.isEmpty()) {
                 updateLibrary()
-            } else reportFullyDrawn() // <-- when recreating activity due to rotation
+            } else onLibraryLoaded() // <-- when recreating activity due to rotation
+        }
+    }
+
+    override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
+        super.onNewIntent(intent, caller)
+        autoPlay = intent.extras?.getBoolean(PLAYBACK_AUTO_START_FOR_FGS, false) == true
+        if (ready) {
+            intent.extras?.getLong(PLAYBACK_AUTO_PLAY_ID, 0L).let { it ->
+                if (it != 0L) {
+                    val id = it.toString()
+                    controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
+                        val songs =
+                            runBlocking { this@MainActivity.gramophoneApplication.reader.songListFlow.first() }
+                        songs.find { it.mediaId == id }?.let { mediaItem ->
+                            controller.setMediaItem(mediaItem)
+                            controller.prepare()
+                            controller.play()
+                        }
+                        dispose()
+                    }
+                }
+            }
         }
     }
 
@@ -194,6 +220,24 @@ class MainActivity : AppCompatActivity() {
         Choreographer.getInstance().postFrameCallback {
             handler.postAtFrontOfQueueAsync {
                 super.reportFullyDrawn()
+            }
+        }
+    }
+
+    fun onLibraryLoaded() {
+        if (!ready) reportFullyDrawn()
+        intent?.extras?.getLong(PLAYBACK_AUTO_PLAY_ID, 0L).let { it ->
+            if (it != 0L) {
+                val id = it.toString()
+                controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
+                    val songs = runBlocking { this@MainActivity.gramophoneApplication.reader.songListFlow.first() }
+                    songs.find { it.mediaId == id }?.let { mediaItem ->
+                        controller.setMediaItem(mediaItem)
+                        controller.prepare()
+                        controller.play()
+                    }
+                    dispose()
+                }
             }
         }
     }
@@ -218,7 +262,7 @@ class MainActivity : AppCompatActivity() {
                 reportFullyDrawn()
                 Toast.makeText(this, getString(R.string.grant_audio), Toast.LENGTH_LONG).show()
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                intent.setData(Uri.parse("package:$packageName"))
+                intent.setData("package:$packageName".toUri())
                 startActivity(intent)
                 finish()
             }

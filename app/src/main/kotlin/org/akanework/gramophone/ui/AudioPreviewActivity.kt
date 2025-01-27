@@ -40,9 +40,10 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.components.FullBottomSheet.Companion.SLIDER_UPDATE_INTERVAL
 import org.akanework.gramophone.ui.components.SquigglyProgress
 import uk.akane.libphonograph.getColumnIndexOrNull
+import uk.akane.libphonograph.items.albumId
 
 @OptIn(UnstableApi::class)
-class AudioPreviewActivity : AppCompatActivity() {
+class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
 
     private lateinit var d: AlertDialog
     private lateinit var player: ExoPlayer
@@ -55,6 +56,8 @@ class AudioPreviewActivity : AppCompatActivity() {
     private lateinit var timeSeekbar: SeekBar
     private lateinit var playPauseButton: MaterialButton
     private lateinit var progressDrawable: SquigglyProgress
+    private lateinit var openIcon: ImageView
+    private lateinit var openText: TextView
     private lateinit var prefs: SharedPreferences
 
     private val handler = Handler(Looper.getMainLooper())
@@ -62,7 +65,8 @@ class AudioPreviewActivity : AppCompatActivity() {
     private var isUserTracking = false
     private val updateSliderRunnable = object : Runnable {
         override fun run() {
-            val duration = player.currentMediaItem?.mediaMetadata?.durationMs
+            val duration = player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
+                ?: player.mediaMetadata.durationMs
             if (duration != null) {
                 timeSlider.valueTo = duration.toFloat().coerceAtLeast(1f)
                 timeSeekbar.max = duration.toInt()
@@ -84,7 +88,6 @@ class AudioPreviewActivity : AppCompatActivity() {
         }
     }
 
-    // TODO and way to open this song in gramophone IF its part of library
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
@@ -105,6 +108,8 @@ class AudioPreviewActivity : AppCompatActivity() {
         timeSlider = d.findViewById(R.id.time_slider)!!
         timeSeekbar = d.findViewById(R.id.slider_squiggly)!!
         playPauseButton = d.findViewById(R.id.play_pause_replay_button)!!
+        openIcon = d.findViewById(R.id.open_icon)!!
+        openText = d.findViewById(R.id.open_text_view)!!
 
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
         updateSliderVisibility()
@@ -166,11 +171,11 @@ class AudioPreviewActivity : AppCompatActivity() {
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 if (mediaItem == null) return
-                updateMediaMetadata(player, mediaItem.mediaMetadata)
+                updateMediaMetadata(player)
             }
 
             override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-                updateMediaMetadata(player, mediaMetadata)
+                updateMediaMetadata(player)
             }
         })
         playPauseButton.setOnClickListener {
@@ -205,6 +210,8 @@ class AudioPreviewActivity : AppCompatActivity() {
                 progressDrawable.animate = player.isPlaying
             }
         })
+        openIcon.setOnClickListener(this)
+        openText.setOnClickListener(this)
 
         handleIntent(intent)
     }
@@ -215,7 +222,6 @@ class AudioPreviewActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
-        // TODO stop using MediaStore for duration!
         if (intent.action == Intent.ACTION_VIEW) {
             intent.data?.let { uri ->
                 val queryUri = if (uri.scheme == "file")
@@ -247,6 +253,16 @@ class AudioPreviewActivity : AppCompatActivity() {
                     player.play()
                 }
             }
+        }
+    }
+
+    override fun onClick(v: View?) {
+        // TODO seems broken?
+        player.currentMediaItem?.mediaId?.toLongOrNull()?.let { id ->
+            startActivity(Intent(this, MainActivity::class.java).also {
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                it.putExtra(MainActivity.PLAYBACK_AUTO_PLAY_ID, id)
+            })
         }
     }
 
@@ -299,11 +315,13 @@ class AudioPreviewActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateMediaMetadata(player: Player, mediaMetadata: MediaMetadata) {
-        audioTitle.text = mediaMetadata.title ?: getString(R.string.unknown_title)
-        artistTextView.text = mediaMetadata.artist ?: getString(R.string.unknown_artist)
-        durationTextView.text = convertDurationToTimeStamp(mediaMetadata.durationMs ?: player.contentDuration)
-        mediaMetadata.artworkData?.let {
+    private fun updateMediaMetadata(player: Player) {
+        audioTitle.text = player.mediaMetadata.title ?: getString(R.string.unknown_title)
+        artistTextView.text = player.mediaMetadata.artist ?: getString(R.string.unknown_artist)
+        durationTextView.text = convertDurationToTimeStamp(
+            player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
+                ?: player.mediaMetadata.durationMs ?: 0)
+        player.mediaMetadata.artworkData?.let {
             val bitmap = BitmapFactory.decodeByteArray(it, 0, it.size)
             albumArt.setImageBitmap(bitmap)
         } ?: run {
