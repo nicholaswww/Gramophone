@@ -199,9 +199,8 @@ class MainActivity : AppCompatActivity() {
             intent.extras?.getString(PLAYBACK_AUTO_PLAY_ID)?.let { id ->
                 val pos = intent.extras?.getLong(PLAYBACK_AUTO_PLAY_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
                 controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
-                    val songs =
-                        runBlocking { this@MainActivity.gramophoneApplication.reader.songListFlow.first() }
-                    songs.find { it.mediaId == id }?.let { mediaItem ->
+                    val songs = this@MainActivity.gramophoneApplication.reader.songListFlow.replayCache.firstOrNull()
+                    songs?.find { it.mediaId == id }?.let { mediaItem ->
                         controller.setMediaItem(mediaItem)
                         controller.prepare()
                         controller.seekTo(pos)

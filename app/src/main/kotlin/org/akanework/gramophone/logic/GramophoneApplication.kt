@@ -57,11 +57,6 @@ import org.akanework.gramophone.logic.ui.BugHandlerActivity
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import uk.akane.libphonograph.reader.FlowReader
 
-/**
- * GramophoneApplication
- *
- * @author AkaneTan, nift4
- */
 class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     Thread.UncaughtExceptionHandler, SharedPreferences.OnSharedPreferenceChangeListener {
 
