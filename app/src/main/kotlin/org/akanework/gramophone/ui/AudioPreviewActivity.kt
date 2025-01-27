@@ -227,7 +227,13 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                 else if (uri.scheme == "content" && uri.pathSegments.firstOrNull() == "media")
                     uri
                 else if (hasScopedStorageV1() && uri.scheme == "content")
-                    MediaStore.getMediaUri(this, uri)
+                    try {
+                        MediaStore.getMediaUri(this, uri)
+                    } catch (e: Exception) {
+                        if (e.message != "Provider for this Uri is not supported.")
+                            throw e
+                        null
+                    }
                 else null
                 val projection = arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION)
                 val cursor = if (queryUri != null) contentResolver.query(
