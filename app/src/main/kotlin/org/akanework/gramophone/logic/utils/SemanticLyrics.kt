@@ -2,6 +2,12 @@ package org.akanework.gramophone.logic.utils
 
 import android.os.Parcel
 import android.os.Parcelable
+import android.util.Log
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.extractor.text.CuesWithTiming
+import androidx.media3.extractor.text.SubtitleParser
+import androidx.media3.extractor.text.subrip.SubripParser
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.map
 import kotlinx.parcelize.Parceler
@@ -11,6 +17,8 @@ import org.akanework.gramophone.logic.utils.SemanticLyrics.LyricLine
 import org.akanework.gramophone.logic.utils.SemanticLyrics.SyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.UnsyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
+
+private const val TAG = "SemanticLyrics"
 
 /*
  * Syntactic-semantic lyric parser.
@@ -379,7 +387,10 @@ sealed class SemanticLyrics : Parcelable {
         val words: MutableList<Word>?,
         var speaker: SpeakerEntity?,
         var isTranslated: Boolean
-    ) : Parcelable
+    ) : Parcelable {
+        val isClickable: Boolean
+            get() = text.isNotBlank()
+    }
 
     @Parcelize
     data class Word(
@@ -427,15 +438,13 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                 else -> throw IllegalStateException("unexpected type ${element.javaClass.name}")
             }
         }
-        var sawNonBlank = false
         val defaultIsWalaokeM = out.find { it.second?.isWalaoke == true } != null &&
                 out.find { it.second?.isWalaoke == false } == null
-        return UnsyncedLyrics(out.flatMap {
-            if (sawNonBlank || it.first.isNotBlank()) {
-                sawNonBlank = true
-                listOf(it)
-            } else listOf()
-        }.map { lyric ->
+        while (out.firstOrNull()?.first?.isBlank() == true)
+            out.removeAt(0)
+        while (out.lastOrNull()?.first?.isBlank() == true)
+            out.removeAt(out.lastIndex)
+        return UnsyncedLyrics(out.map { lyric ->
             if (defaultIsWalaokeM && lyric.second == null)
                 lyric.copy(second = SpeakerEntity.Male)
             else lyric
@@ -600,28 +609,25 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
         }
     }
     out.sortBy { it.start }
-    var sawNonBlank = false
     var previousTimestamp = 0uL
     val defaultIsWalaokeM = out.find { it.speaker?.isWalaoke == true } != null &&
             out.find { it.speaker?.isWalaoke == false } == null
-    val out2 = out.flatMap {
-        if (sawNonBlank || it.text.isNotBlank()) {
-            sawNonBlank = true
-            listOf(it)
-        } else listOf()
-    }
-    out2.forEachIndexed { i, lyric ->
+    while (out.firstOrNull()?.text?.isBlank() == true)
+        out.removeAt(0)
+    while (out.lastOrNull()?.text?.isBlank() == true)
+        out.removeAt(out.lastIndex)
+    out.forEachIndexed { i, lyric ->
         if (defaultIsWalaokeM && lyric.speaker == null)
             lyric.speaker = SpeakerEntity.Male
         lyric.end = lyric.words?.lastOrNull()?.timeRange?.last
-            ?: (if (lyric.start == previousTimestamp) out2.find { it.start == lyric.start }
+            ?: (if (lyric.start == previousTimestamp) out.find { it.start == lyric.start }
                 ?.words?.lastOrNull()?.timeRange?.last else null)
-                    ?: out2.find { it.start > lyric.start }?.start?.minus(1uL)
+                    ?: out.find { it.start > lyric.start }?.start?.minus(1uL)
                     ?: Long.MAX_VALUE.toULong()
         lyric.isTranslated = lyric.start == previousTimestamp
         previousTimestamp = lyric.start
     }
-    return SyncedLyrics(out2)
+    return SyncedLyrics(out)
 }
 
 fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
@@ -629,9 +635,31 @@ fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
     return null
 }
 
+@OptIn(UnstableApi::class)
 fun parseSrt(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
-    // TODO SRT support (and add unit tests for it)
-    return null
+    if (!lyricText.startsWith("1\n") && !lyricText.startsWith("1\r")) return null // invalid SubRip
+    val cues = mutableListOf<CuesWithTiming>()
+    val parser = SubripParser()
+    try {
+        parser.parse(
+            lyricText.toByteArray(),
+            SubtitleParser.OutputOptions.allCues()
+        ) { cues.add(it) }
+    } catch (e: Exception) {
+        Log.w(TAG, "Failed to parse something which looks like SRT: ${Log.getStackTraceString(e)}")
+        return null
+    }
+    var lastTs: ULong? = null
+    return SyncedLyrics(cues.map {
+        val ts = (it.startTimeUs / 1000).toULong()
+        val l = lastTs == ts
+        lastTs = ts
+        LyricLine(it.cues[0].text!!.toString().let {
+            if (trimEnabled)
+                it.trim()
+            else it
+        }, ts, (it.endTimeUs / 1000).toULong(), null, null, l)
+    })
 }
 
 fun SemanticLyrics?.convertForLegacy(): MutableList<MediaStoreUtils.Lyric>? {
@@ -641,5 +669,6 @@ fun SemanticLyrics?.convertForLegacy(): MutableList<MediaStoreUtils.Lyric>? {
             MediaStoreUtils.Lyric(it.start.toLong(), it.text, it.isTranslated)
         }.toMutableList()
     }
-    return mutableListOf(MediaStoreUtils.Lyric(null, this.unsyncedText.map { it.first }.joinToString("\n"), false))
+    return mutableListOf(MediaStoreUtils.Lyric(null,
+        this.unsyncedText.joinToString("\n") { it.first }, false))
 }

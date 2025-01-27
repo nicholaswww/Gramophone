@@ -82,7 +82,7 @@ import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.jetbrains.annotations.Contract
 
 fun Player.playOrPause() {
-    if (isPlaying) {
+    if (playWhenReady) {
         pause()
     } else {
         play()

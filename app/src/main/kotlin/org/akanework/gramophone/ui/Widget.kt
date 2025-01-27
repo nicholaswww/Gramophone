@@ -22,6 +22,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService
+import androidx.core.net.toUri
 
 private inline val service
     get() = GramophonePlaybackService.instanceForWidgetAndOnlyWidget
@@ -42,13 +43,13 @@ class LyricWidgetProvider : AppWidgetProvider() {
             val views =
                 RemoteViews(context.packageName, R.layout.lyric_widget).apply {
                     setPendingIntentTemplate(R.id.list_view, seekPi)
-                    setRemoteAdapter(
+                    setRemoteAdapter( // TODO deprecated
                         R.id.list_view,
                         Intent(context, LyricWidgetService::class.java).apply<Intent> {
                             this.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                             // Intents are compared using filterEquals() which ignores extras, so encode extras
                             // in data to enforce comparison noticing the difference between different Intents.
-                            this.data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+                            this.data = toUri(Intent.URI_INTENT_SCHEME).toUri()
                         })
                     setEmptyView(R.id.list_view, R.id.empty_view)
                 }
@@ -183,7 +184,7 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
                 sb.setSpan(span, 0, hlChar, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
             }
             setTextViewText(R.id.lyric_widget_item, sb)
-            if (startTs >= 0L)
+            if (startTs >= 0L && item?.isClickable != false)
                 setOnClickFillInIntent(R.id.lyric_widget_item, Intent().apply {
                     putExtras(Bundle().apply {
                         putLong("seekTo", startTs)

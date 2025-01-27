@@ -20,22 +20,33 @@ object LrcUtils {
 
     private const val TAG = "LrcUtils"
 
+    enum class LyricFormat {
+        LRC,
+        TTML,
+        SRT
+    }
     data class LrcParserOptions(val trim: Boolean, val multiLine: Boolean, val errorText: String)
 
     @VisibleForTesting
-    fun parseLyrics(lyrics: String, parserOptions: LrcParserOptions): SemanticLyrics? {
+    fun parseLyrics(lyrics: String, parserOptions: LrcParserOptions, format: LyricFormat?): SemanticLyrics? {
         return (try {
-            parseTtml(lyrics, parserOptions.trim)
+            if (format == null || format == LyricFormat.TTML)
+                parseTtml(lyrics, parserOptions.trim)
+            else null
         } catch (e: Exception) {
             Log.e(TAG, Log.getStackTraceString(e))
             SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
         } ?: try {
-            parseSrt(lyrics, parserOptions.trim)
+            if (format == null || format == LyricFormat.SRT)
+                parseSrt(lyrics, parserOptions.trim)
+            else null
         } catch (e: Exception) {
             Log.e(TAG, Log.getStackTraceString(e))
             SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
         } ?: try {
-            parseLrc(lyrics, parserOptions.trim, parserOptions.multiLine)
+            if (format == null || format == LyricFormat.LRC)
+                parseLrc(lyrics, parserOptions.trim, parserOptions.multiLine)
+            else null
         } catch (e: Exception) {
             Log.e(TAG, Log.getStackTraceString(e))
             SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
@@ -65,20 +76,25 @@ object LrcUtils {
                 else if (meta is TextInformationFrame && (meta.id == "USLT" || meta.id == "SYLT")) // m4a
                     meta.values.joinToString("\n")
                 else null
-            return plainTextData?.let { parseLyrics(it, parserOptions) } ?: continue
+            return plainTextData?.let { parseLyrics(it, parserOptions, null) } ?: continue
         }
         return null
     }
 
     @OptIn(UnstableApi::class)
     fun loadAndParseLyricsFile(musicFile: File?, parserOptions: LrcParserOptions): SemanticLyrics? {
-        val lrcFile = musicFile?.let { File(it.parentFile, it.nameWithoutExtension + ".lrc") }
-        return loadTextFile(lrcFile, parserOptions.errorText)?.let {
-            parseLyrics(
-                it,
-                parserOptions
-            )
-        }
+        return loadTextFile(
+            musicFile?.let { File(it.parentFile, it.nameWithoutExtension + ".ttml") },
+            parserOptions.errorText
+        )?.let { parseLyrics(it, parserOptions, LyricFormat.TTML) }
+            ?: loadTextFile(
+                musicFile?.let { File(it.parentFile, it.nameWithoutExtension + ".srt") },
+                parserOptions.errorText
+            )?.let { parseLyrics(it, parserOptions, LyricFormat.SRT) }
+            ?: loadTextFile(
+                musicFile?.let { File(it.parentFile, it.nameWithoutExtension + ".lrc") },
+                parserOptions.errorText
+            )?.let { parseLyrics(it, parserOptions, LyricFormat.LRC) }
     }
 
     private fun loadTextFile(lrcFile: File?, errorText: String?): String? {

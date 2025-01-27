@@ -609,7 +609,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                         else 1f
                     val myHeight =
                         (it.paddingTop + it.layout.height + it.paddingBottom) / hlScaleFactor
-                    if (y >= heightSoFar && y <= heightSoFar + myHeight)
+                    if (y >= heightSoFar && y <= heightSoFar + myHeight && lines[i].isClickable)
                         foundItem = i
                     heightSoFar += myHeight.toInt()
                 }

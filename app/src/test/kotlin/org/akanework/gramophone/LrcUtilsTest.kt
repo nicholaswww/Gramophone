@@ -33,7 +33,7 @@ class LrcUtilsTest {
 				assertEquals("multiline true and false should result in same list for this string (trim=$trim)", b?.unsyncedText, a?.unsyncedText)
 			return a
 		}
-		val a = LrcUtils.parseLyrics(lrcContent, LrcUtils.LrcParserOptions(trim, multiline, "--no lyric found--"))
+		val a = LrcUtils.parseLyrics(lrcContent, LrcUtils.LrcParserOptions(trim, multiline, "--no lyric found--"), null)
 		if (mustSkip != null) {
 			if (mustSkip) {
 				assertTrue("excepted skip (trim=$trim multiline=$multiline)", a is SemanticLyrics.UnsyncedLyrics)
