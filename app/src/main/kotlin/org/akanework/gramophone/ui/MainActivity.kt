@@ -65,6 +65,7 @@ import org.akanework.gramophone.logic.postAtFrontOfQueueAsync
 import org.akanework.gramophone.ui.components.PlayerBottomSheet
 import org.akanework.gramophone.ui.fragments.BaseFragment
 import androidx.core.net.toUri
+import androidx.media3.common.C
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -196,14 +197,14 @@ class MainActivity : AppCompatActivity() {
         autoPlay = intent.extras?.getBoolean(PLAYBACK_AUTO_START_FOR_FGS, false) == true
         if (ready) {
             intent.extras?.getString(PLAYBACK_AUTO_PLAY_ID)?.let { id ->
-                val pos = intent.extras?.getLong(PLAYBACK_AUTO_PLAY_POSITION, 0L) ?: 0L
+                val pos = intent.extras?.getLong(PLAYBACK_AUTO_PLAY_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
                 controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
                     val songs =
                         runBlocking { this@MainActivity.gramophoneApplication.reader.songListFlow.first() }
                     songs.find { it.mediaId == id }?.let { mediaItem ->
                         controller.setMediaItem(mediaItem)
                         controller.prepare()
-                        controller.seekTo(0, pos)
+                        controller.seekTo(pos)
                         controller.play()
                     }
                     dispose()
