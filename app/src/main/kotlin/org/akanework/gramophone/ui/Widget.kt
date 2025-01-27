@@ -153,12 +153,12 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
             }
         }
         val item = service?.syncedLyrics?.text?.getOrNull(position)
-        val itemUnsynced = service?.lyrics?.unsyncedText?.getOrNull(position)
+        val itemUnsynced = if (item == null) service?.lyrics?.unsyncedText?.getOrNull(position) else null
         val itemLegacy = service?.lyricsLegacy?.getOrNull(position)
         if (item == null && itemUnsynced == null && itemLegacy == null) return null
         val isTranslation = (item?.isTranslated ?: itemLegacy?.isTranslation) == true
-        val isBackground = item?.speaker?.isBackground == true
-        val isVoice2 = item?.speaker?.isVoice2 == true
+        val isBackground = (item?.speaker ?: itemUnsynced?.second)?.isBackground == true
+        val isVoice2 = (item?.speaker ?: itemUnsynced?.second)?.isVoice2 == true
         val startTs = item?.start?.toLong() ?: itemLegacy?.timeStamp ?: -1L
         val endTs = item?.end?.toLong()
             ?: service?.lyricsLegacy?.find { (it.timeStamp ?: -1L) > (itemLegacy!!.timeStamp ?: -1L) }?.timeStamp?.minus(1)
@@ -176,7 +176,7 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
                 else -> R.layout.lyric_widget_text_left
             }
         ).apply {
-            val sb = SpannableString(item?.text ?: itemUnsynced ?: itemLegacy!!.content)
+            val sb = SpannableString(item?.text ?: itemUnsynced?.first ?: itemLegacy!!.content)
             if (isActive) {
                 val hlChar = item?.words?.findLast { it.timeRange.start <= cPos!!.toULong() }
                     ?.charRange?.last?.plus(1) ?: sb.length
@@ -202,10 +202,10 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
     }
     override fun getItemId(position: Int): Long {
         val item = service?.syncedLyrics?.text?.getOrNull(position)
-        val itemUnsynced = service?.lyrics?.unsyncedText?.getOrNull(position)
+        val itemUnsynced = if (item == null) service?.lyrics?.unsyncedText?.getOrNull(position) else null
         val itemLegacy = service?.lyricsLegacy?.getOrNull(position)
         if (item == null && itemUnsynced == null && itemLegacy == null) return 0L
-        return ((item?.text ?: itemUnsynced ?: itemLegacy!!.content).hashCode()).toLong()
+        return ((item?.text ?: itemUnsynced?.first ?: itemLegacy!!.content).hashCode()).toLong()
             .shl(32) or
                 (item?.start?.hashCode() ?: itemLegacy?.timeStamp?.hashCode()
                 ?: -1L).toLong()

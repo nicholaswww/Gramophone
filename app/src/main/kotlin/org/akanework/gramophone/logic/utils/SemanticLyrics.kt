@@ -278,6 +278,8 @@ private sealed class SyntacticLrc {
                     it.flatMap {
                         if (it is InvalidText)
                             listOf(it)
+                        else if (it is SpeakerTag)
+                            listOf(it)
                         else if (it is LyricText)
                             listOf(InvalidText(it.text))
                         else
@@ -358,15 +360,15 @@ private sealed class SyntacticLrc {
  * We completely ignore all ID3 tags from the header as MediaStore is our source of truth.
  */
 sealed class SemanticLyrics : Parcelable {
-    abstract val unsyncedText: List<String>
+    abstract val unsyncedText: List<Pair<String, SpeakerEntity?>>
 
     @Parcelize
-    data class UnsyncedLyrics(override val unsyncedText: List<String>) : SemanticLyrics()
+    data class UnsyncedLyrics(override val unsyncedText: List<Pair<String, SpeakerEntity?>>) : SemanticLyrics()
 
     @Parcelize
     data class SyncedLyrics(val text: List<LyricLine>) : SemanticLyrics() {
-        override val unsyncedText: List<String>
-            get() = text.map { it.text }
+        override val unsyncedText
+            get() = text.map { it.text to it.speaker }
     }
 
     @Parcelize
@@ -375,7 +377,7 @@ sealed class SemanticLyrics : Parcelable {
         val start: ULong,
         var end: ULong,
         val words: MutableList<Word>?,
-        val speaker: SpeakerEntity?,
+        var speaker: SpeakerEntity?,
         var isTranslated: Boolean
     ) : Parcelable
 
@@ -409,8 +411,36 @@ sealed class SemanticLyrics : Parcelable {
 fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean): SemanticLyrics? {
     val lyricSyntax = SyntacticLrc.parseLrc(lyricText, multiLineEnabled)
         ?: return null
-    if (lyricSyntax.find { it !is SyntacticLrc.InvalidText } == null)
-        return UnsyncedLyrics(lyricSyntax.map { (it as SyntacticLrc.InvalidText).text })
+    if (lyricSyntax.find { it is SyntacticLrc.SyncPoint || it is SyntacticLrc.WordSyncPoint } == null) {
+        var lastSpeakerTag: SpeakerEntity? = null
+        val out = mutableListOf<Pair<String, SpeakerEntity?>>()
+        for (element in lyricSyntax) {
+            when (element) {
+                is SyntacticLrc.SpeakerTag -> {
+                    lastSpeakerTag = element.speaker
+                }
+                is SyntacticLrc.InvalidText -> {
+                    out += element.text to lastSpeakerTag
+                    if (lastSpeakerTag?.isWalaoke != true)
+                        lastSpeakerTag = null
+                }
+                else -> throw IllegalStateException("unexpected type ${element.javaClass.name}")
+            }
+        }
+        var sawNonBlank = false
+        val defaultIsWalaokeM = out.find { it.second?.isWalaoke == true } != null &&
+                out.find { it.second?.isWalaoke == false } == null
+        return UnsyncedLyrics(out.flatMap {
+            if (sawNonBlank || it.first.isNotBlank()) {
+                sawNonBlank = true
+                listOf(it)
+            } else listOf()
+        }.map { lyric ->
+            if (defaultIsWalaokeM && lyric.second == null)
+                lyric.copy(second = SpeakerEntity.Male)
+            else lyric
+        })
+    }
     // Synced lyrics processing state machine starts here
     val out = mutableListOf<LyricLine>()
     var offset = 0L
@@ -481,7 +511,6 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                         // works on bi-di transition points. Additionally, excluding whitespace
                         // allows us to scale gradient properly based on asking ourselves if the
                         // next char is even rendered (or whitespace).
-                        // TODO is this working?
                         val textWithoutStartWhitespace = current.second!!.trimStart()
                         val startWhitespaceLength =
                             current.second!!.length - textWithoutStartWhitespace.length
@@ -533,20 +562,17 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                         text = orig.trimStart()
                         val startDiff = orig.length - text.length
                         text = text.trimEnd()
-                        words = words?.flatMap {
+                        val iter = words?.listIterator()
+                        iter?.forEach {
                             if (it.charRange.last.toLong() - startDiff < 0
                                 || it.charRange.first.toLong() - startDiff >= text.length
                             )
-                                listOf()
+                                iter.remove()
                             else
-                                listOf(
-                                    it.copy(
-                                        charRange = (it.charRange.first - startDiff)
-                                            .coerceAtLeast(0)..(it.charRange.last - startDiff)
-                                            .coerceAtMost(text.length - 1)
-                                    )
-                                )
-                        }?.toMutableList()
+                                it.charRange = (it.charRange.first - startDiff)
+                                        .coerceAtLeast(0)..(it.charRange.last - startDiff)
+                                        .coerceAtMost(text.length - 1)
+                        }
                     }
                     val start = if (currentLine.isNotEmpty()) currentLine.first().first
                     else lastWordSyncPoint ?: lastSyncPoint!!
@@ -583,12 +609,10 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
             sawNonBlank = true
             listOf(it)
         } else listOf()
-    }.map {
-        if (defaultIsWalaokeM && it.speaker == null)
-            it.copy(speaker = SpeakerEntity.Male)
-        else it
     }
     out2.forEachIndexed { i, lyric ->
+        if (defaultIsWalaokeM && lyric.speaker == null)
+            lyric.speaker = SpeakerEntity.Male
         lyric.end = lyric.words?.lastOrNull()?.timeRange?.last
             ?: (if (lyric.start == previousTimestamp) out2.find { it.start == lyric.start }
                 ?.words?.lastOrNull()?.timeRange?.last else null)
@@ -617,5 +641,5 @@ fun SemanticLyrics?.convertForLegacy(): MutableList<MediaStoreUtils.Lyric>? {
             MediaStoreUtils.Lyric(it.start.toLong(), it.text, it.isTranslated)
         }.toMutableList()
     }
-    return mutableListOf(MediaStoreUtils.Lyric(null, this.unsyncedText.joinToString("\n"), false))
+    return mutableListOf(MediaStoreUtils.Lyric(null, this.unsyncedText.map { it.first }.joinToString("\n"), false))
 }

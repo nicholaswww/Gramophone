@@ -28,17 +28,17 @@ object LrcUtils {
             parseTtml(lyrics, parserOptions.trim)
         } catch (e: Exception) {
             Log.e(TAG, Log.getStackTraceString(e))
-            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText))
+            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
         } ?: try {
             parseSrt(lyrics, parserOptions.trim)
         } catch (e: Exception) {
             Log.e(TAG, Log.getStackTraceString(e))
-            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText))
+            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
         } ?: try {
             parseLrc(lyrics, parserOptions.trim, parserOptions.multiLine)
         } catch (e: Exception) {
             Log.e(TAG, Log.getStackTraceString(e))
-            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText))
+            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
         })?.also {
             if (it is SemanticLyrics.SyncedLyrics)
                 splitBidirectionalWords(it)

@@ -450,25 +450,25 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                     Float.NEGATIVE_INFINITY) || (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
             var colorSpan = it.text.getSpans<MyForegroundColorSpan>().firstOrNull()
             val cachedEnd = colorSpan?.let { j -> it.text.getSpanEnd(j) } ?: -1
-            val defaultColorForLine = when (lines?.get(i)?.speaker) {
+            val defaultColorForLine = when (it.speaker) {
                 SpeakerEntity.Male -> defaultTextColorM
                 SpeakerEntity.Female -> defaultTextColorF
                 SpeakerEntity.Duet -> defaultTextColorD
                 else -> defaultTextColor
             }
-            val highlightColorForLine = when (lines?.get(i)?.speaker) {
+            val highlightColorForLine = when (it.speaker) {
                 SpeakerEntity.Male -> highlightTextColorM
                 SpeakerEntity.Female -> highlightTextColorF
                 SpeakerEntity.Duet -> highlightTextColorD
                 else -> highlightTextColor
             }
-            val wordActiveSpanForLine = when (lines?.get(i)?.speaker) {
+            val wordActiveSpanForLine = when (it.speaker) {
                 SpeakerEntity.Male -> wordActiveSpanM.value
                 SpeakerEntity.Female -> wordActiveSpanF.value
                 SpeakerEntity.Duet -> wordActiveSpanD.value
                 else -> wordActiveSpan
             }
-            val gradientSpanPoolForLine = when (lines?.get(i)?.speaker) {
+            val gradientSpanPoolForLine = when (it.speaker) {
                 SpeakerEntity.Male -> gradientSpanPoolM.value
                 SpeakerEntity.Female -> gradientSpanPoolF.value
                 SpeakerEntity.Duet -> gradientSpanPoolD.value
@@ -646,7 +646,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     }
 
     fun buildSpForMeasure(lyrics: SemanticLyrics?, width: Int): Pair<Pair<Int, Int>, List<SbItem>> {
-        val lines = lyrics?.unsyncedText ?: listOf(context.getString(R.string.no_lyric_found))
+        val lines = lyrics?.unsyncedText ?: listOf(context.getString(R.string.no_lyric_found) to null)
         val syncedLines = (lyrics as? SemanticLyrics.SyncedLyrics?)?.text
         val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
             || !prefs.getBooleanStrict("pixel_perfect_measurement_legacy", false)) null else
@@ -655,8 +655,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         val c = b?.let { Canvas(it) }
         val tmpPaint = TextPaint()
         val spLines = lines.mapIndexed { i, it ->
-            val sb = SpannableStringBuilder(it)
-            val speaker = syncedLines?.get(i)?.speaker
+            val sb = SpannableStringBuilder(it.first)
+            val speaker = syncedLines?.get(i)?.speaker ?: it.second
             val align = if (prefs.getBooleanStrict("lyric_center", false))
                 Layout.Alignment.ALIGN_CENTER
             else if (syncedLines != null && speaker?.isVoice2 == true)
@@ -752,7 +752,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                                 listOf(line)
                         }
                     }.flatten()
-                })
+                }, speaker)
         }
         val heights = spLines.map { it.layout.height + it.paddingTop + it.paddingBottom }
         return Pair(
@@ -766,7 +766,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     data class SbItem(
         val layout: StaticLayout, val text: SpannableStringBuilder,
         val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?,
-        val rlm: List<Int>?
+        val rlm: List<Int>?, val speaker: SpeakerEntity?
     )
 
     // == start scroll ==
