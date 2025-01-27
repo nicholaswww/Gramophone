@@ -22,9 +22,6 @@
 
 -dontobfuscate
 
-# Enable more agressive optimizations changing access of classes and methods
--allowaccessmodification
-
 # reflection by androidx via theme attr viewInflaterClass
 -keep class org.akanework.gramophone.logic.ui.ViewCompatInflater { *; }
 

@@ -96,8 +96,8 @@ class ViewPager2Adapter(
             Artists(R.id.artists, R.string.category_artists),
             Genres(R.id.genres, R.string.category_genres),
             Dates(R.id.dates, R.string.category_dates),
-            Folders(R.id.folders, R.string.filesystem),
-            FileSystem(R.id.detailed_folders, R.string.folders),
+            Folders(R.id.folders, R.string.folders),
+            FileSystem(R.id.detailed_folders, R.string.filesystem),
             Playlist(R.id.playlists, R.string.category_playlists)
         }
 
