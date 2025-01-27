@@ -68,6 +68,9 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
             if (duration != null) {
                 timeSlider.valueTo = duration.toFloat().coerceAtLeast(1f)
                 timeSeekbar.max = duration.toInt()
+                durationTextView.text = convertDurationToTimeStamp(
+                    player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
+                        ?: player.mediaMetadata.durationMs ?: 0)
             }
             val currentPosition = player.currentPosition.toFloat().coerceAtMost(timeSlider.valueTo)
                 .coerceAtLeast(timeSlider.valueFrom)
@@ -337,9 +340,6 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
     private fun updateMediaMetadata(player: Player) {
         audioTitle.text = player.mediaMetadata.title ?: getString(R.string.unknown_title)
         artistTextView.text = player.mediaMetadata.artist ?: getString(R.string.unknown_artist)
-        durationTextView.text = convertDurationToTimeStamp(
-            player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
-                ?: player.mediaMetadata.durationMs ?: 0)
         player.mediaMetadata.artworkData?.let {
             val bitmap = BitmapFactory.decodeByteArray(it, 0, it.size)
             albumArt.setImageBitmap(bitmap)
