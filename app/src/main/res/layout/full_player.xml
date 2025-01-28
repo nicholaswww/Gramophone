@@ -121,11 +121,14 @@
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintTop_toBottomOf="@id/textLayout">
 
+			<!-- min/maxHeight needed for Android L to center SeekBar thumb -->
 			<SeekBar
 				android:id="@+id/slider_squiggly"
 				style="@style/MediaPlayer.ProgressBar"
 				android:layout_width="match_parent"
 				android:layout_height="48dp"
+				android:minHeight="48dp"
+				android:maxHeight="48dp"
 				android:layout_gravity="center"
 				android:progress="0"
 				android:thumbTint="?attr/colorPrimary"
