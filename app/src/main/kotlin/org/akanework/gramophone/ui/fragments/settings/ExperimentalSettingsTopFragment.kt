@@ -34,7 +34,8 @@ class ExperimentalSettingsTopFragment : BasePreferenceFragment() {
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings_experimental, rootKey)
-        findPreference<Preference>("pixel_perfect_measurement_legacy")!!.isVisible = Build.VERSION.SDK_INT <= Build.VERSION_CODES.VANILLA_ICE_CREAM
+        findPreference<Preference>("pixel_perfect_measurement_legacy")!!.isVisible =
+            Build.VERSION.SDK_INT <= Build.VERSION_CODES.VANILLA_ICE_CREAM && BuildConfig.DEBUG
         findPreference<Preference>("crash")!!.isVisible = BuildConfig.DEBUG
         if (BuildConfig.DEBUG)
             e = RuntimeException("skill issue")
