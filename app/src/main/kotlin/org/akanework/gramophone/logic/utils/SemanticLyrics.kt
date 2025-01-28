@@ -3,11 +3,13 @@ package org.akanework.gramophone.logic.utils
 import android.os.Parcel
 import android.os.Parcelable
 import android.util.Log
+import android.util.Xml
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.text.CuesWithTiming
 import androidx.media3.extractor.text.SubtitleParser
 import androidx.media3.extractor.text.subrip.SubripParser
+import java.io.StringReader
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.map
 import kotlinx.parcelize.Parceler
@@ -17,6 +19,8 @@ import org.akanework.gramophone.logic.utils.SemanticLyrics.LyricLine
 import org.akanework.gramophone.logic.utils.SemanticLyrics.SyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.UnsyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserException
 
 private const val TAG = "SemanticLyrics"
 
@@ -630,8 +634,24 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
     return SyncedLyrics(out)
 }
 
+private val tt = "http://www.w3.org/ns/ttml"
+private val ttm = "http://www.w3.org/ns/ttml#metadata"
+private val itunes = "http://itunes.apple.com/lyric-ttml-extensions"
+private val itunesInternal = "http://music.apple.com/lyric-ttml-internal"
 fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
-    // TODO TTML support (and add unit tests for it)
+    val parser = Xml.newPullParser()
+    parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
+    parser.setInput(StringReader(lyricText))
+    try {
+        parser.next()
+        parser.require(XmlPullParser.START_TAG, tt, "tt")
+    } catch (_: XmlPullParserException) {
+        return null // not ttml
+    }
+    val lang = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "lang")
+    val timing = parser.getAttributeValue(itunesInternal, "timing")
+    while (parser.next() != XmlPullParser.END_TAG) {
+    }
     return null
 }
 
