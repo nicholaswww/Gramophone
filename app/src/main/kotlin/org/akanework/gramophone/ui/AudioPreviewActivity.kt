@@ -234,7 +234,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                 val queryUri = if (uri.scheme == "file") {
                     fileUri = uri
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                } else if (uri.scheme == "content" && uri.pathSegments.firstOrNull() == "media")
+                } else if (uri.scheme == "content" && uri.pathSegments.firstOrNull() == MediaStore.AUTHORITY)
                     uri
                 else if (uri.scheme == "content")
                     try {

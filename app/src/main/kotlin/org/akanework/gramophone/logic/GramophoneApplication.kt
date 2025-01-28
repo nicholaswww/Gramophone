@@ -19,6 +19,7 @@ package org.akanework.gramophone.logic
 
 import android.app.Application
 import android.app.NotificationManager
+import android.content.ContentUris
 import android.content.Intent
 import android.content.SharedPreferences
 import android.media.ThumbnailUtils
@@ -27,6 +28,7 @@ import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
 import android.util.Log
 import android.util.Size
+import android.webkit.MimeTypeMap
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.media3.common.util.UnstableApi
@@ -35,10 +37,14 @@ import androidx.preference.PreferenceManager
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.Uri
 import coil3.asImage
+import coil3.decode.ContentMetadata
 import coil3.decode.DataSource
+import coil3.decode.ImageSource
 import coil3.fetch.Fetcher
 import coil3.fetch.ImageFetchResult
+import coil3.fetch.SourceFetchResult
 import coil3.request.NullRequestDataException
 import coil3.size.pxOrElse
 import coil3.util.Logger
@@ -51,11 +57,16 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import okio.Path.Companion.toOkioPath
+import okio.buffer
+import okio.source
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.BugHandlerActivity
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import uk.akane.libphonograph.reader.FlowReader
+import uk.akane.libphonograph.reader.Reader.baseCoverUri
+import uk.akane.libphonograph.utils.MiscUtils
 
 class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     Thread.UncaughtExceptionHandler, SharedPreferences.OnSharedPreferenceChangeListener {
@@ -102,7 +113,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             if (hasScopedStorageWithMediaTypes()) MutableStateFlow(null) else
                 shouldUseEnhancedCoverReadingFlow!!,
             recentlyAddedFilterSecondFlow,
-            MutableStateFlow(true))
+            MutableStateFlow(true), "gramophoneAlbumCover")
         // This is a separate thread to avoid disk read on main thread and improve startup time
         CoroutineScope(Dispatchers.Default).launch {
             val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
@@ -169,6 +180,33 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                         }
                     })
                 }
+                add(Fetcher.Factory { data, options, _ ->
+                    if (data !is Uri) return@Factory null
+                    if (data.scheme != "gramophoneAlbumCover") return@Factory null
+                    return@Factory Fetcher {
+                        val cover = MiscUtils.findBestCover(File(data.path!!))
+                        if (cover == null) {
+                            val uri = ContentUris.withAppendedId(baseCoverUri, data.authority!!.toLong())
+                            val contentResolver = options.context.contentResolver
+                            val afd = contentResolver.openAssetFileDescriptor(uri, "r")
+                            checkNotNull(afd) { "Unable to open '$uri'." }
+                            return@Fetcher SourceFetchResult(
+                                source = ImageSource(
+                                    source = afd.createInputStream().source().buffer(),
+                                    fileSystem = options.fileSystem,
+                                    metadata = ContentMetadata(data, afd),
+                                ),
+                                mimeType = contentResolver.getType(uri),
+                                dataSource = DataSource.DISK,
+                            )
+                        }
+                        return@Fetcher SourceFetchResult(
+                            ImageSource(cover.toOkioPath(), options.fileSystem, null, null, null),
+                            MimeTypeMap.getSingleton().getMimeTypeFromExtension(cover.extension),
+                            DataSource.DISK
+                        )
+                    }
+                })
             }
             .run {
                 if (!BuildConfig.DEBUG) this else
