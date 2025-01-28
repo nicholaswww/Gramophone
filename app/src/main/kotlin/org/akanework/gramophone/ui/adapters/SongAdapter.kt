@@ -232,7 +232,7 @@ class SongAdapter(
                     if (res.continueDelete != null) {
                         AlertDialog.Builder(context)
                             .setTitle(R.string.delete)
-                            .setMessage(item.mediaMetadata.title)
+                            .setMessage(context.getString(R.string.delete_really, item.mediaMetadata.title))
                             .setPositiveButton(R.string.yes) { _, _ ->
                                 res.continueDelete?.invoke()
                             }

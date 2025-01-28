@@ -13,7 +13,6 @@ import java.io.File
 import java.nio.charset.Charset
 import kotlin.math.min
 import org.akanework.gramophone.logic.forEachSupport
-import org.akanework.gramophone.logic.replaceAllSupport
 import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
 
 object LrcUtils {

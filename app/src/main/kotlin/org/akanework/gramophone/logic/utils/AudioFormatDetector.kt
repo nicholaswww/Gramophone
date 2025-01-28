@@ -226,9 +226,7 @@ object AudioFormatDetector {
         audioManager: AudioManager
     ): AudioFormatInfo? {
         // TODO: use MediaRouter for getting device channel information
-        val activeDevice = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-            .firstOrNull { device -> device.isSink }
-        val deviceChannels = activeDevice?.channelCounts?.maxOrNull() ?: 2
+        val deviceChannels = 2
 
         for (group in tracks.groups) {
             if (group.type == C.TRACK_TYPE_AUDIO) {
