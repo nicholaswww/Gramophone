@@ -305,6 +305,7 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/genre_box"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"

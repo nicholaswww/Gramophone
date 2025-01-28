@@ -20,6 +20,7 @@ import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.logic.toLocaleString
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
+import uk.akane.libphonograph.hasImprovedMediaStore
 
 class DetailDialogFragment : BaseFragment(false) {
 
@@ -51,6 +52,7 @@ class DetailDialogFragment : BaseFragment(false) {
         val discNumberTextView = rootView.findViewById<TextView>(R.id.disc_number)
         val trackNumberTextView = rootView.findViewById<TextView>(R.id.track_num)
         val genreTextView = rootView.findViewById<TextView>(R.id.genre)
+        val genreBox = rootView.findViewById<View>(R.id.genre_box)
         val yearTextView = rootView.findViewById<TextView>(R.id.date)
         val albumTextView = rootView.findViewById<TextView>(R.id.album)
         val durationTextView = rootView.findViewById<TextView>(R.id.duration)
@@ -69,9 +71,11 @@ class DetailDialogFragment : BaseFragment(false) {
         }
         discNumberTextView.text = mediaMetadata.discNumber?.toLocaleString()
         trackNumberTextView.text = mediaMetadata.trackNumber?.toLocaleString()
-        if (mediaMetadata.genre != null) {
-            genreTextView.text = mediaMetadata.genre
-        }
+        if (hasImprovedMediaStore()) {
+            if (mediaMetadata.genre != null) {
+                genreTextView.text = mediaMetadata.genre
+            }
+        } else genreBox.visibility = View.GONE
         if (mediaMetadata.releaseYear != null || mediaMetadata.recordingYear != null) {
             yearTextView.text =
                 (mediaMetadata.releaseYear ?: mediaMetadata.recordingYear)?.toLocaleString()
