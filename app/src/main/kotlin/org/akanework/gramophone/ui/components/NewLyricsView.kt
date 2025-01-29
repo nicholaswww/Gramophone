@@ -12,6 +12,7 @@ import android.text.Spanned
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
@@ -39,9 +40,11 @@ import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.SpeakerEntity
 import org.akanework.gramophone.ui.MainActivity
 
+private const val TAG = "NewLyricsView"
+
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
-    private val useBaseTs = true
+    private val useBaseTs = true // TODO
     private val smallSizeFactor = 0.97f
     private val lyricAnimTime = 650f
     private var currentScrollTarget: Int? = null
@@ -271,7 +274,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         else (instance?.currentPosition?.toULong() ?: 0uL)
         if (useBaseTs && (cPos.toLong() - (instance?.currentPosition ?: 0L)).absoluteValue > 500L)
             timebase = (instance?.currentPosition?.toULong() ?: 0uL) to System.currentTimeMillis()
-        if (cPos != posForRender)
+        if (cPos != posForRender) // if not playing, might stay same
             invalidate()
     }
 
@@ -310,9 +313,12 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         // manually count seconds from last known position and only rely on player pos when it
         // ends up being very different. Shouldn't cause lyric delays because if a file is played at
         // 1x speed then X seconds of playback will have passed if you wait X seconds.
-        posForRender = if (useBaseTs && instance?.isPlaying == true) timebase.first +
+        posForRender = (if (useBaseTs && instance?.isPlaying == true) timebase.first +
                 ((System.currentTimeMillis() - timebase.second).toULong())
-        else (instance?.currentPosition?.toULong() ?: 0uL)
+        else (instance?.currentPosition?.toULong() ?: 0uL)).also {
+            if (posForRender > it && posForRender - it < 1000uL)
+                Log.w(TAG, "regressing position by ${posForRender - it}ms from $posForRender to $it!")
+        }
         if (spForRender == null) {
             requestLayout()
             return
@@ -682,6 +688,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 }, (width * smallSizeFactor).toInt()
             ).setAlignment(align).build()
             val paragraphRtl = layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT
+            val alignmentNormal = if (paragraphRtl) align == Layout.Alignment.ALIGN_OPPOSITE
+            else align == Layout.Alignment.ALIGN_NORMAL
             val lineOffsets = syncedLines?.get(i)?.words?.map {
                 val ia = mutableListOf<Int>()
                 val firstLine = layout.getLineForOffset(it.charRange.first)
@@ -746,7 +754,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                     (0..<layout.lineCount).map { line ->
                         LrcUtils.findBidirectionalBarriers(layout.text.subSequence(
                             layout.getLineStart(line), layout.getLineEnd(line))).flatMap {
-                            if (it.second != paragraphRtl)
+                            if (it.second == alignmentNormal)
                                 listOf(line, line)
                             else
                                 listOf(line)
