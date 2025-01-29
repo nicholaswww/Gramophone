@@ -33,6 +33,7 @@ import com.google.android.material.appbar.AppBarLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.closeKeyboard
@@ -94,18 +95,14 @@ class SearchFragment : BaseFragment(false) {
                     // Clear the list from the last search.
                     filteredList.clear()
                     // Filter the library.
-                    mainActivity.reader.songListFlow.replayCache.lastOrNull()?.filter {
+                    filteredList.addAll(mainActivity.reader.songListFlow.first().filter {
                         val isMatchingTitle = it.mediaMetadata.title?.contains(text, true) == true
                         val isMatchingAlbum =
                             it.mediaMetadata.albumTitle?.contains(text, true) == true
                         val isMatchingArtist =
                             it.mediaMetadata.artist?.contains(text, true) == true
                         isMatchingTitle || isMatchingAlbum || isMatchingArtist
-                    }?.let {
-                        filteredList.addAll(
-                            it
-                        )
-                    }
+                    })
                     songList.value = filteredList.toList()
                 }
             }

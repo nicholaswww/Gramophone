@@ -53,7 +53,7 @@ class PlaylistAdapter(
 
     override fun onClick(item: Playlist) {
         mainActivity.startFragment(GeneralSubFragment()) {
-            putInt("Position", toRawPos(item))
+            putString("Id", item.id?.toString())
             putInt("Item", R.id.playlist)
         }
     }

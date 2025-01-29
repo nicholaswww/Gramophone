@@ -14,13 +14,16 @@ import coil3.request.crossfade
 import coil3.request.error
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.getFile
+import org.akanework.gramophone.logic.hasGenreInMediaStore
 import org.akanework.gramophone.logic.toLocaleString
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
-import uk.akane.libphonograph.hasImprovedMediaStore
 
 class DetailDialogFragment : BaseFragment(false) {
 
@@ -36,14 +39,9 @@ class DetailDialogFragment : BaseFragment(false) {
         rootView.findViewById<MaterialToolbar>(R.id.topAppBar).setNavigationOnClickListener {
             requireActivity().supportFragmentManager.popBackStack()
         }
-        val pos = requireArguments().getInt("Position")
-        val vmv = mainActivity.reader.songListFlow.replayCache.lastOrNull()
-        if (vmv == null || vmv.size <= pos) {
-            Log.e("DetailDialogFragment", "$vmv with size ${vmv?.size} didn't contain $pos")
-            parentFragmentManager.popBackStack()
-            return null
-        }
-        val mediaItem = vmv[pos]
+        val id = requireArguments().getString("Id")
+        val mediaItem = runBlocking { mainActivity.reader.songListFlow.map { it.find { it.mediaId == id } }.first() }
+            ?: return null.also { requireActivity().supportFragmentManager.popBackStack() }
         val mediaMetadata = mediaItem.mediaMetadata
         val albumCoverImageView = rootView.findViewById<ImageView>(R.id.album_cover)
         val titleTextView = rootView.findViewById<TextView>(R.id.title)
@@ -71,7 +69,7 @@ class DetailDialogFragment : BaseFragment(false) {
         }
         discNumberTextView.text = mediaMetadata.discNumber?.toLocaleString()
         trackNumberTextView.text = mediaMetadata.trackNumber?.toLocaleString()
-        if (hasImprovedMediaStore()) {
+        if (hasGenreInMediaStore()) {
             if (mediaMetadata.genre != null) {
                 genreTextView.text = mediaMetadata.genre
             }

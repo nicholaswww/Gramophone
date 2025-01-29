@@ -51,7 +51,7 @@ class DateAdapter(
 
     override fun onClick(item: Date) {
         mainActivity.startFragment(GeneralSubFragment()) {
-            putInt("Position", toRawPos(item))
+            putString("Id", item.id?.toString())
             putInt("Item", R.id.dates)
         }
     }

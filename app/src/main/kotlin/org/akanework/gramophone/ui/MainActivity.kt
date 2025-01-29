@@ -67,7 +67,9 @@ import org.akanework.gramophone.ui.fragments.BaseFragment
 import androidx.core.net.toUri
 import androidx.media3.common.C
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
+import org.akanework.gramophone.logic.hasAudioPermission
 
 /**
  * MainActivity:
@@ -154,22 +156,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Check all permissions.
-        if ((hasScopedStorageWithMediaTypes()
-                    && ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.READ_MEDIA_AUDIO,
-            ) != PackageManager.PERMISSION_GRANTED)
-            || (!hasScopedStorageV2()
-                    && ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            ) != PackageManager.PERMISSION_GRANTED)
-            || (!hasScopedStorageWithMediaTypes()
-                    && ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.READ_EXTERNAL_STORAGE,
-            ) != PackageManager.PERMISSION_GRANTED)
-        ) {
+        if (!hasAudioPermission()) {
             // Ask if was denied.
             ActivityCompat.requestPermissions(
                 this,
@@ -186,7 +173,7 @@ class MainActivity : AppCompatActivity() {
             )
         } else {
             // If all permissions are granted, we can update library now.
-            if (this@MainActivity.gramophoneApplication.reader.songListFlow.replayCache.isEmpty()) {
+            if (!this@MainActivity.reader.hadFirstRefresh) {
                 updateLibrary()
             } else onLibraryLoaded() // <-- when recreating activity due to rotation
         }
@@ -199,8 +186,8 @@ class MainActivity : AppCompatActivity() {
             intent.extras?.getString(PLAYBACK_AUTO_PLAY_ID)?.let { id ->
                 val pos = intent.extras?.getLong(PLAYBACK_AUTO_PLAY_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
                 controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
-                    val songs = this@MainActivity.gramophoneApplication.reader.songListFlow.replayCache.firstOrNull()
-                    songs?.find { it.mediaId == id }?.let { mediaItem ->
+                    runBlocking { reader.songListFlow
+                        .map { it.find { it.mediaId == id } }.first() }?.let { mediaItem ->
                         controller.setMediaItem(mediaItem)
                         controller.prepare()
                         controller.seekTo(pos)

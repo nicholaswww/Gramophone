@@ -33,7 +33,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
@@ -65,7 +67,7 @@ class DetailedFolderAdapter(
     private var recyclerView: MyRecyclerView? = null
 
     init {
-        liveData.replayCache.lastOrNull()?.let { onChanged(it) }
+        runBlocking { onChanged(liveData.first()) }
     }
 
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
@@ -74,9 +76,10 @@ class DetailedFolderAdapter(
         this.scope = CoroutineScope(Dispatchers.Default)
         this.scope!!.launch {
             liveData.collect {
-                withContext(Dispatchers.Main) {
-                    onChanged(it)
-                }
+                if (root !== it)
+                    withContext(Dispatchers.Main) {
+                        onChanged(it)
+                    }
             }
         }
         recyclerView.layoutManager = LinearLayoutManager(recyclerView.context)

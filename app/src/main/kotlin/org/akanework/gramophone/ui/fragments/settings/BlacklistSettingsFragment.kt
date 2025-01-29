@@ -9,6 +9,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.ui.adapters.BlacklistFolderAdapter
@@ -26,7 +28,7 @@ class BlacklistSettingsFragment : BaseFragment() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
 
         rootView.findViewById<AppBarLayout>(R.id.appbarlayout).enableEdgeToEdgePaddingListener()
-        val folderArray = mainActivity.reader.foldersFlow.replayCache.lastOrNull()?.toMutableList() ?: mutableListOf()
+        val folderArray = runBlocking { mainActivity.reader.foldersFlow.first().toMutableList() }
         folderArray.sort()
 
         topAppBar.setNavigationOnClickListener {

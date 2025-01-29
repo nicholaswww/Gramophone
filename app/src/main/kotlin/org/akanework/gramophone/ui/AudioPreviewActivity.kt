@@ -2,21 +2,25 @@ package org.akanework.gramophone.ui
 
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.app.ActivityCompat
 import androidx.core.net.toFile
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
@@ -33,7 +37,10 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getBooleanStrict
+import org.akanework.gramophone.logic.hasAudioPermission
 import org.akanework.gramophone.logic.hasScopedStorageV1
+import org.akanework.gramophone.logic.hasScopedStorageV2
+import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import org.akanework.gramophone.logic.playOrPause
 import org.akanework.gramophone.logic.startAnimation
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
@@ -46,6 +53,10 @@ private const val TAG = "AudioPreviewActivity"
 
 @OptIn(UnstableApi::class)
 class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
+
+    companion object {
+        private const val PERMISSION_READ_MEDIA_AUDIO = 100
+    }
 
     private lateinit var d: AlertDialog
     private lateinit var player: ExoPlayer
@@ -65,6 +76,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
     private val handler = Handler(Looper.getMainLooper())
     private var runnableRunning = false
     private var isUserTracking = false
+    private var askedForPermissionInSettings = false
     private val updateSliderRunnable = object : Runnable {
         override fun run() {
             val duration = player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
@@ -218,12 +230,57 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
         openIcon.setOnClickListener(this)
         openText.setOnClickListener(this)
 
-        handleIntent(intent)
+        if (!hasAudioPermission())
+            ActivityCompat.requestPermissions(
+                this,
+                if (hasScopedStorageWithMediaTypes())
+                    arrayOf(android.Manifest.permission.READ_MEDIA_AUDIO)
+                else if (hasScopedStorageV2())
+                    arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                else
+                    arrayOf(
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    ),
+                PERMISSION_READ_MEDIA_AUDIO,
+            )
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == PERMISSION_READ_MEDIA_AUDIO) {
+            if (grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            ) {
+                handleIntent(intent)
+            } else {
+                askedForPermissionInSettings = true
+                Toast.makeText(this, getString(R.string.grant_audio), Toast.LENGTH_LONG).show()
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                intent.setData("package:$packageName".toUri())
+                startActivity(intent)
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (askedForPermissionInSettings && hasAudioPermission()) {
+            askedForPermissionInSettings = false
+            handleIntent(intent)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleIntent(intent)
+        setIntent(intent)
+        if (hasAudioPermission())
+            handleIntent(intent)
     }
 
     private fun handleIntent(intent: Intent) {
@@ -282,7 +339,15 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                     openIcon.visibility = View.GONE
                     openText.visibility = View.GONE
                 }
-                player.setMediaItem(mediaItem.build())
+                try {
+                    player.setMediaItem(mediaItem.build())
+                } catch (e: IllegalStateException) {
+                    if (e.message?.startsWith("No suitable media source factory found for content type:") != true)
+                        throw e
+                    Toast.makeText(this, R.string.cannot_play_file, Toast.LENGTH_LONG).show()
+                    finish()
+                    return
+                }
                 player.prepare()
                 player.play()
                 cursor?.close()

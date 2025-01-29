@@ -29,7 +29,7 @@ import uk.akane.libphonograph.items.Album
 
 class AlbumAdapter(
     fragment: Fragment,
-    liveData: Flow<List<Album>> = (fragment.requireActivity() as MainActivity).reader.albumListFlow,
+    liveData: Flow<List<Album>?> = (fragment.requireActivity() as MainActivity).reader.albumListFlow,
     ownsView: Boolean = true,
     isSubFragment: Boolean = false,
     fallbackSpans: Int = 1
@@ -66,11 +66,7 @@ class AlbumAdapter(
 
     override fun onClick(item: Album) {
         mainActivity.startFragment(GeneralSubFragment()) {
-            putInt("Position", item.let {
-                if (ownsView) toRawPos(it) else {
-                    mainActivity.reader.albumListFlow.replayCache.last().indexOf(it)
-                }
-            })
+            putString("Id", item.id?.toString())
             putInt("Item", R.id.album)
         }
     }

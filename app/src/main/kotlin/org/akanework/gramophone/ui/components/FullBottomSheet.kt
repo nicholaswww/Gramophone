@@ -104,6 +104,8 @@ import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
+import uk.akane.libphonograph.items.albumId
+import uk.akane.libphonograph.items.artistId
 
 @SuppressLint("NotifyDataSetChanged")
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -333,36 +335,23 @@ class FullBottomSheet
         }
 
         bottomSheetFullCover.setOnClickListener {
-            val position = activity.reader.songListFlow.replayCache.lastOrNull()?.indexOfFirst {
-                it.mediaId == instance?.currentMediaItem?.mediaId
-            }
             activity.startFragment(DetailDialogFragment()) {
-                putInt("Position", position!!)
+                putString("Id", instance?.currentMediaItem?.mediaId)
             }
         }
 
         bottomSheetFullTitle.setOnClickListener {
             minimize?.invoke()
-            val position = instance?.currentMediaItem?.mediaId?.let { currentMediaItemId ->
-                activity.reader.albumListFlow.replayCache.lastOrNull()?.indexOfFirst { album ->
-                    album.songList.any { it.mediaId == currentMediaItemId }
-                }
-            }
             activity.startFragment(GeneralSubFragment()) {
-                putInt("Position", position!!)
+                putString("Id", instance?.currentMediaItem?.mediaMetadata?.albumId?.toString())
                 putInt("Item", R.id.album)
             }
         }
 
         bottomSheetFullSubtitle.setOnClickListener {
             minimize?.invoke()
-            val position = instance?.currentMediaItem?.mediaId?.let { currentMediaItemId ->
-                activity.reader.artistListFlow.replayCache.lastOrNull()?.indexOfFirst { artist ->
-                    artist.songList.any { it.mediaId == currentMediaItemId }
-                }
-            }
             activity.startFragment(ArtistSubFragment()) {
-                putInt("Position", position!!)
+                putString("Id", instance?.currentMediaItem?.mediaMetadata?.artistId?.toString())
                 putInt("Item", R.id.artist)
             }
         }

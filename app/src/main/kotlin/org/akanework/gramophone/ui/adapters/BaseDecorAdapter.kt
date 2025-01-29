@@ -45,8 +45,8 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
     private val dpHeight = context.resources.getDimensionPixelSize(R.dimen.decor_height)
     private var recyclerView: MyRecyclerView? = null
     private var prefs = PreferenceManager.getDefaultSharedPreferences(context)
-    var jumpUpPos: Int? = null
-    var jumpDownPos: Int? = null
+    var jumpUpPos: (() -> Int)? = null
+    var jumpDownPos: (() -> Int)? = null
 
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -188,11 +188,11 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
         }
         holder.jumpUp.visibility = if (jumpUpPos != null) View.VISIBLE else View.GONE
         holder.jumpUp.setOnClickListener {
-            scrollToViewPosition(jumpUpPos!!)
+            scrollToViewPosition(jumpUpPos!!())
         }
         holder.jumpDown.visibility = if (jumpDownPos != null) View.VISIBLE else View.GONE
         holder.jumpDown.setOnClickListener {
-            scrollToViewPosition(jumpDownPos!!)
+            scrollToViewPosition(jumpDownPos!!())
         }
     }
 

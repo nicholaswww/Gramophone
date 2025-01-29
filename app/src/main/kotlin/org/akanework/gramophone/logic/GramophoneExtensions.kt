@@ -44,6 +44,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.Insets
 import androidx.core.net.toFile
 import androidx.core.os.BundleCompat
@@ -488,6 +489,21 @@ inline fun <reified T> SharedPreferences.use(
     return allowDiskAccessInStrictMode(relax) { doIt() }
 }
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun Context.hasAudioPermission() =
+    hasScopedStorageWithMediaTypes() && ContextCompat.checkSelfPermission(
+        this,
+        Manifest.permission.READ_MEDIA_AUDIO
+    ) == PackageManager.PERMISSION_GRANTED ||
+            (!hasScopedStorageV2() && ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED) ||
+            (!hasScopedStorageWithMediaTypes() && ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED)
+
 // use below functions if accessing from UI thread only
 @Suppress("NOTHING_TO_INLINE")
 @Contract(value = "_,!null->!null")
@@ -536,6 +552,10 @@ inline fun hasOsClipboardDialog(): Boolean =
 @Suppress("NOTHING_TO_INLINE")
 inline fun supportsNotificationPermission(): Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun hasGenreInMediaStore(): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun hasScopedStorageV2(): Boolean =

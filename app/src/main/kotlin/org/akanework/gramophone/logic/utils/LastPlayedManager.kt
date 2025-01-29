@@ -363,6 +363,7 @@ private class SafeDelimitedStringDecat(delimiter: String, str: String) {
 
 private object PrefsListUtils {
     fun parse(stringSet: Set<String>, groupStr: String): List<String> {
+        if (groupStr.isEmpty()) return emptyList()
         val groups = groupStr.split(",")
         return groups.map { hc ->
             stringSet.firstOrNull { it.hashCode().toString() == hc } ?:

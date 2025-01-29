@@ -73,7 +73,7 @@ import uk.akane.libphonograph.items.Item
 
 abstract class BaseAdapter<T>(
     protected val fragment: Fragment,
-    liveData: Flow<List<T>>,
+    liveData: Flow<List<T>?>,
     sortHelper: Sorter.Helper<T>,
     naturalOrderHelper: Sorter.NaturalOrderHelper<T>?,
     initialSortType: Sorter.Type,
@@ -168,7 +168,8 @@ abstract class BaseAdapter<T>(
     )
     @OptIn(ExperimentalCoroutinesApi::class)
     private val flow = liveDataAgent.flatMapLatest { it }.combine(sortType) { it, st ->
-        it to ArrayList(it).apply {
+        val l = it ?: emptyList()
+        l to ArrayList(l).apply {
             val cmp = sorter.getComparator(st)
             if (st == Sorter.Type.NativeOrderDescending) {
                 reverse()
@@ -427,10 +428,6 @@ abstract class BaseAdapter<T>(
             oldItemPosition: Int,
             newItemPosition: Int,
         ) = oldList[oldItemPosition] == newList[newItemPosition]
-    }
-
-    protected fun toRawPos(item: T): Int {
-        return list.first.indexOf(item)
     }
 
     final override fun getPopupText(view: View, position: Int): CharSequence {

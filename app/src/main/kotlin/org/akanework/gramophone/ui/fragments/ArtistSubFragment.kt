@@ -68,40 +68,34 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
         savedInstanceState: Bundle?,
     ): View? {
         gridPaddingDecoration = GridPaddingDecoration(requireContext())
-        if (mainActivity.reader.artistListFlow.replayCache.lastOrNull() == null
-            || mainActivity.reader.albumArtistListFlow.replayCache.lastOrNull() == null) {
-            // TODO make it wait for lib load instead of breaking state restore
-            // (still better than crashing, though)
-            requireActivity().supportFragmentManager.popBackStack()
-            return null
-        }
         val rootView = inflater.inflate(R.layout.fragment_general_sub, container, false)
         val topAppBar = rootView.findViewById<MaterialToolbar>(R.id.topAppBar)
         val appBarLayout = rootView.findViewById<AppBarLayout>(R.id.appbarlayout)
         appBarLayout.enableEdgeToEdgePaddingListener()
 
-        val position = requireArguments().getInt("Position") // TODO get rid of Position, this is prone to break
+        val id = requireArguments().getString("Id")?.toLong()
         val itemType = requireArguments().getInt("Item")
         recyclerView = rootView.findViewById(R.id.recyclerview)
 
         val item = mainActivity.reader.let {
             if (itemType == R.id.album_artist)
                 it.albumArtistListFlow else it.artistListFlow
-        }.map { it[position] }
+        }.map { it.find { it.id == id } ?:
+            null.also { requireActivity().supportFragmentManager.popBackStack() } }
         spans = if (requireContext().resources.configuration.orientation
             == Configuration.ORIENTATION_PORTRAIT
         ) 2 else 4
         albumAdapter = AlbumAdapter(
-            this, item.map { it.albumList }, ownsView = false, isSubFragment = true,
+            this, item.map { it?.albumList }, ownsView = false, isSubFragment = true,
             fallbackSpans = spans
         )
-        albumAdapter.decorAdapter.jumpDownPos = albumAdapter.concatAdapter.itemCount
+        albumAdapter.decorAdapter.jumpDownPos = { albumAdapter.concatAdapter.itemCount }
         songAdapter = SongAdapter(
             this,
-            item.map { it.songList }, canSort = true, helper = null, ownsView = false,
+            item.map { it?.songList }, canSort = true, helper = null, ownsView = false,
             isSubFragment = true, fallbackSpans = spans / 2 // one song takes 2 spans
         )
-        songAdapter.decorAdapter.jumpUpPos = 0
+        songAdapter.decorAdapter.jumpUpPos = { 0 }
         recyclerView!!.layoutManager = GridLayoutManager(context, spans).apply {
             spanSizeLookup = object : SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
@@ -125,7 +119,7 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
         topAppBar.setNavigationOnClickListener {
             requireActivity().supportFragmentManager.popBackStack()
         }
-        val title = item.map { it.title ?: requireContext().getString(R.string.unknown_artist) }
+        val title = item.map { it?.title ?: requireContext().getString(R.string.unknown_artist) }
         lifecycleScope.launch {
             title.collect {
                 withContext(Dispatchers.Main) {

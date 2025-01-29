@@ -57,7 +57,7 @@ class ArtistAdapter(
 
     override fun onClick(item: Artist) {
         mainActivity.startFragment(ArtistSubFragment()) {
-            putInt("Position", toRawPos(item))
+            putString("Id", item.id?.toString())
             putInt(
                 "Item",
                 if (isAlbumArtist)

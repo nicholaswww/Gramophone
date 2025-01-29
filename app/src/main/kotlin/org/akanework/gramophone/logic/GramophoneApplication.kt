@@ -64,8 +64,8 @@ import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.BugHandlerActivity
 import org.akanework.gramophone.ui.LyricWidgetProvider
+import uk.akane.libphonograph.Constants
 import uk.akane.libphonograph.reader.FlowReader
-import uk.akane.libphonograph.reader.Reader.baseCoverUri
 import uk.akane.libphonograph.utils.MiscUtils
 
 class GramophoneApplication : Application(), SingletonImageLoader.Factory,
@@ -186,7 +186,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                     return@Factory Fetcher {
                         val cover = MiscUtils.findBestCover(File(data.path!!))
                         if (cover == null) {
-                            val uri = ContentUris.withAppendedId(baseCoverUri, data.authority!!.toLong())
+                            val uri = ContentUris.withAppendedId(Constants.baseAlbumCoverUri, data.authority!!.toLong())
                             val contentResolver = options.context.contentResolver
                             val afd = contentResolver.openAssetFileDescriptor(uri, "r")
                             checkNotNull(afd) { "Unable to open '$uri'." }

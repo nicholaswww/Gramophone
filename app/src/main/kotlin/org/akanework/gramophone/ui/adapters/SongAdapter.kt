@@ -46,6 +46,8 @@ import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.addDate
+import uk.akane.libphonograph.items.albumId
+import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.items.modifiedDate
 import uk.akane.libphonograph.manipulator.ItemManipulator
 
@@ -55,7 +57,7 @@ import uk.akane.libphonograph.manipulator.ItemManipulator
  */
 class SongAdapter(
     fragment: Fragment,
-    songList: Flow<List<MediaItem>> = (fragment.requireActivity() as MainActivity).reader.songListFlow,
+    songList: Flow<List<MediaItem>?> = (fragment.requireActivity() as MainActivity).reader.songListFlow,
     canSort: Boolean,
     helper: Sorter.NaturalOrderHelper<MediaItem>?,
     ownsView: Boolean,
@@ -178,51 +180,24 @@ class SongAdapter(
                 }
 
                 R.id.album -> {
-                    CoroutineScope(Dispatchers.Default).launch {
-                        val positionAlbum =
-                            mainActivity.reader.albumListFlow.replayCache.lastOrNull()?.indexOfFirst {
-                                (it.title == item.mediaMetadata.albumTitle) &&
-                                        (it.songList.contains(item))
-                            }
-                        if (positionAlbum != null) {
-                            withContext(Dispatchers.Main) {
-                                mainActivity.startFragment(GeneralSubFragment()) {
-                                    putInt("Position", positionAlbum)
-                                    putInt("Item", R.id.album)
-                                }
-                            }
-                        }
+                    mainActivity.startFragment(GeneralSubFragment()) {
+                        putString("Id", item.mediaMetadata.albumId?.toString())
+                        putInt("Item", R.id.album)
                     }
                     true
                 }
 
                 R.id.artist -> {
-                    CoroutineScope(Dispatchers.Default).launch {
-                        val positionArtist =
-                            mainActivity.reader.artistListFlow.replayCache.lastOrNull()?.indexOfFirst {
-                                val isMatching =
-                                    (it.title == item.mediaMetadata.artist) &&
-                                            (it.songList.contains(item))
-                                isMatching
-                            }
-                        if (positionArtist != null) {
-                            withContext(Dispatchers.Main) {
-                                mainActivity.startFragment(ArtistSubFragment()) {
-                                    putInt("Position", positionArtist)
-                                    putInt("Item", R.id.artist)
-                                }
-                            }
-                        }
+                    mainActivity.startFragment(ArtistSubFragment()) {
+                        putString("Id", item.mediaMetadata.artistId?.toString())
+                        putInt("Item", R.id.artist)
                     }
                     true
                 }
 
                 R.id.details -> {
-                    val position = mainActivity.reader.songListFlow.replayCache.lastOrNull()?.indexOfFirst {
-                        it.mediaId == item.mediaId
-                    }
                     mainActivity.startFragment(DetailDialogFragment()) {
-                        putInt("Position", position!!)
+                        putString("Id", item.mediaId)
                     }
                     true
                 }
@@ -247,15 +222,11 @@ class SongAdapter(
                 }
 
                 R.id.share -> {
-                    val mediaItem = mainActivity.reader.songListFlow.replayCache.lastOrNull()?.find {
-                        it.mediaId == item.mediaId
-                    } ?: return@setOnMenuItemClickListener true
-
-                    val uri = mediaItem.requestMetadata.mediaUri
-                        ?: mediaItem.localConfiguration?.uri
+                    val uri = item.requestMetadata.mediaUri
+                        ?: item.localConfiguration?.uri
                         ?: return@setOnMenuItemClickListener true
 
-                    val mimeType = mediaItem.localConfiguration?.mimeType ?: "audio/*"
+                    val mimeType = item.localConfiguration?.mimeType ?: "audio/*"
 
                     try {
                         val contentUri = if (uri.scheme == "file") {

@@ -38,6 +38,8 @@ import com.google.android.material.color.MaterialColors
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.clone
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
@@ -121,7 +123,7 @@ class ViewPagerFragment : BaseFragment(true) {
                                 requireView(),
                                 getString(
                                     R.string.refreshed_songs,
-                                    activity.gramophoneApplication.reader.songListFlow.replayCache.last().size,
+                                    runBlocking { activity.reader.songListFlow.first().size },
                                 ),
                                 Snackbar.LENGTH_LONG,
                             )
@@ -175,7 +177,7 @@ class ViewPagerFragment : BaseFragment(true) {
 
                 R.id.shuffle -> {
                     val controller = activity.getPlayer()
-                    activity.reader.songListFlow.replayCache.lastOrNull()?.takeIf { it.isNotEmpty() }?.also {
+                    runBlocking { activity.reader.songListFlow.first() }.takeIf { it.isNotEmpty() }?.also {
                         controller?.shuffleModeEnabled = true
                         controller?.setMediaItems(it)
                         controller?.prepare()
