@@ -16,18 +16,22 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
+import androidx.annotation.OptIn
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.TypefaceCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withTranslation
 import androidx.core.text.getSpans
 import androidx.core.widget.NestedScrollView
+import androidx.media3.common.util.UnstableApi
 import androidx.preference.PreferenceManager
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.toULong
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.spans.MyForegroundColorSpan
@@ -44,7 +48,6 @@ private const val TAG = "NewLyricsView"
 
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
-    private val useBaseTs = true // TODO
     private val smallSizeFactor = 0.97f
     private val lyricAnimTime = 650f
     private var currentScrollTarget: Int? = null
@@ -65,7 +68,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     private var spForMeasure: Pair<Pair<Int, Int>, List<SbItem>>? = null
     private var lyrics: SemanticLyrics? = null
     private var posForRender = 0uL
-    private var timebase = 0uL to 0L
     private val activity
         get() = context as MainActivity
     private val instance
@@ -269,14 +271,15 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     }
 
     fun updateLyricPositionFromPlaybackPos() {
-        val cPos = if (useBaseTs && instance?.isPlaying == true) timebase.first +
-                ((System.currentTimeMillis() - timebase.second).toULong())
-        else (instance?.currentPosition?.toULong() ?: 0uL)
-        if (useBaseTs && (cPos.toLong() - (instance?.currentPosition ?: 0L)).absoluteValue > 500L)
-            timebase = (instance?.currentPosition?.toULong() ?: 0uL) to System.currentTimeMillis()
-        if (cPos != posForRender) // if not playing, might stay same
+        if (getCurrentPosition() != posForRender) // if not playing, might stay same
             invalidate()
     }
+
+    // https://github.com/androidx/media/issues/1578
+    @OptIn(UnstableApi::class)
+    private fun getCurrentPosition() = GramophonePlaybackService.instanceForWidgetAndLyricsOnly
+        ?.endedWorkaroundPlayer?.currentPosition?.toULong()
+        ?: instance?.currentPosition?.toULong() ?: 0uL
 
     fun onPrefsChanged() {
         applyTypefaces()
@@ -309,13 +312,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     }
 
     override fun onDraw(canvas: Canvas) {
-        // Some files cause currentPosition to go backwards. For a smoother lyric viewing UX,
-        // manually count seconds from last known position and only rely on player pos when it
-        // ends up being very different. Shouldn't cause lyric delays because if a file is played at
-        // 1x speed then X seconds of playback will have passed if you wait X seconds.
-        posForRender = (if (useBaseTs && instance?.isPlaying == true) timebase.first +
-                ((System.currentTimeMillis() - timebase.second).toULong())
-        else (instance?.currentPosition?.toULong() ?: 0uL)).also {
+        posForRender = getCurrentPosition().also {
             if (posForRender > it && posForRender - it < 1000uL)
                 Log.w(TAG, "regressing position by ${posForRender - it}ms from $posForRender to $it!")
         }
@@ -647,7 +644,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         )
             spForMeasure = buildSpForMeasure(lyrics, right - left)
         spForRender = spForMeasure!!.second
-        timebase = (instance?.currentPosition?.toULong() ?: 0uL) to System.currentTimeMillis()
         invalidate()
     }
 

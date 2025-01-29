@@ -128,7 +128,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         const val SERVICE_GET_LYRICS_LEGACY = "get_lyrics_legacy"
         const val SERVICE_GET_SESSION = "get_session"
         const val SERVICE_TIMER_CHANGED = "changed_timer"
-        var instanceForWidgetAndOnlyWidget: GramophonePlaybackService? = null
+        var instanceForWidgetAndLyricsOnly: GramophonePlaybackService? = null
     }
 
     private var lastSessionId = 0
@@ -211,7 +211,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onCreate() {
-        instanceForWidgetAndOnlyWidget = this
+        instanceForWidgetAndLyricsOnly = this
         handler = Handler(Looper.getMainLooper())
         super.onCreate()
         nm = NotificationManagerCompat.from(this)
@@ -433,7 +433,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     // When destroying, we should release server side player
     // alongside with the mediaSession.
     override fun onDestroy() {
-        instanceForWidgetAndOnlyWidget = null
+        instanceForWidgetAndLyricsOnly = null
         unregisterReceiver(headSetReceiver)
         unregisterReceiver(seekReceiver)
         // Important: this must happen before sending stop() as that changes state ENDED -> IDLE

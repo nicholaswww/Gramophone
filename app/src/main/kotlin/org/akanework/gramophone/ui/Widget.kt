@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -25,7 +24,7 @@ import org.akanework.gramophone.logic.GramophonePlaybackService
 import androidx.core.net.toUri
 
 private inline val service
-    get() = GramophonePlaybackService.instanceForWidgetAndOnlyWidget
+    get() = GramophonePlaybackService.instanceForWidgetAndLyricsOnly
 
 class LyricWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(
