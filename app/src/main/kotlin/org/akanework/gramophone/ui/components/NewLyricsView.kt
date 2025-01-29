@@ -49,11 +49,12 @@ private const val TAG = "NewLyricsView"
 class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
     private val smallSizeFactor = 0.97f
-    private val lyricAnimTime = 650f
+    private var lyricAnimTime = 0f
     private var currentScrollTarget: Int? = null
 
     // TODO maybe reduce this to avoid really fast word skipping
-    private val scaleInAnimTime = lyricAnimTime / 2f
+    private val scaleInAnimTime
+        get() = lyricAnimTime / 2f
     private val isElegantTextHeight = false
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
@@ -161,6 +162,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 
     init {
         applyTypefaces()
+        loadLyricAnimTime()
     }
 
     fun updateTextColor(
@@ -281,11 +283,20 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         ?.endedWorkaroundPlayer?.currentPosition?.toULong()
         ?: instance?.currentPosition?.toULong() ?: 0uL
 
-    fun onPrefsChanged() {
-        applyTypefaces()
+    fun onPrefsChanged(key: String) {
+        if (key == "lyric_no_animation") {
+            loadLyricAnimTime()
+            return
+        }
+        if (key == "lyric_bold")
+            applyTypefaces()
         spForRender = null
         spForMeasure = null
         requestLayout()
+    }
+
+    private fun loadLyricAnimTime() {
+        lyricAnimTime = if (prefs.getBooleanStrict("lyric_no_animation", false)) 0f else 650f
     }
 
     private fun applyTypefaces() {
@@ -568,7 +579,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         currentScrollTarget = firstHighlight
     }
 
-    @SuppressLint("ClickableViewAccessibility") // TODO https://developer.android.com/guide/topics/ui/accessibility/custom-views :(
+    // I don't think accessibility support for a lyric view makes sense.
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         if (spForRender == null) {
             requestLayout()
@@ -652,7 +664,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         val syncedLines = (lyrics as? SemanticLyrics.SyncedLyrics?)?.text
         val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
             || !prefs.getBooleanStrict("pixel_perfect_measurement_legacy", false)) null else
-            createBitmap(1000, 1000) // TODO
+            createBitmap(1000, 1000) // if I re-enable pixel-perfect, I should use some smarter numbers than just "surely that is big enough"
         val pixels = b?.let { IntArray(it.width * it.height) }
         val c = b?.let { Canvas(it) }
         val tmpPaint = TextPaint()

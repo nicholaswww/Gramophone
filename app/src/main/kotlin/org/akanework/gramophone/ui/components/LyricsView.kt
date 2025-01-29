@@ -75,9 +75,9 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        if (key == "lyric_center" || key == "lyric_bold") {
+        if (key == "lyric_center" || key == "lyric_bold" || key == "lyric_no_animation") {
             adapter?.onPrefsChanged()
-            newView?.onPrefsChanged()
+            newView?.onPrefsChanged(key)
         } else if (key == "lyric_ui") {
             createView()
         }

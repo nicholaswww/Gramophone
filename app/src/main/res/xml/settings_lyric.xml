@@ -36,4 +36,13 @@
         android:widgetLayout="@layout/preference_switch_widget"
         app:iconSpaceReserved="false" />
 
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="lyric_no_animation"
+        android:layout="@layout/preference_switch"
+        android:summary="@string/settings_lyrics_no_animation_summary"
+        android:title="@string/settings_lyrics_no_animation"
+        android:widgetLayout="@layout/preference_switch_widget"
+        app:iconSpaceReserved="false" />
+
 </PreferenceScreen>
