@@ -7,6 +7,8 @@ import android.graphics.Shader
 import android.text.TextPaint
 import android.text.style.CharacterStyle
 import android.text.style.UpdateAppearance
+import kotlin.math.abs
+import kotlin.math.min
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerp
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
 
@@ -38,27 +40,20 @@ class MyGradientSpan(grdWidth: Float, color: Int, highlightColor: Int) : Charact
             lerp(0f, totalCharsForProgress.toFloat(), progress)).coerceIn(0f, 1f)
             val ourProgressD = if (isRtl) 1f - ourProgress else ourProgress
             shader.setLocalMatrix(matrix.apply {
-                // step 0: gradient is |>>-------| where > is the gradient and - is clamping color
                 reset()
-                val vPosOfEndIfFullWidth = textLength * ourProgressD + gradientWidth * ourProgressD
-                val overhangToRemove = (vPosOfEndIfFullWidth - textLength).coerceIn(0f, gradientWidth - 1f)
-                val vPosOfStartIfFullWidth = vPosOfEndIfFullWidth - gradientWidth
-                val underhangToRemove = (-vPosOfStartIfFullWidth).coerceIn(0f, gradientWidth - 1f)
-                // We never want to go above textLength x position so calculate out eventual overhead
-                // we have to remove from gradientWidth with scaling.
-                val desiredWidth = (gradientWidth - overhangToRemove - underhangToRemove).coerceIn(1f, gradientWidth)
-                // step 1: if we need to squish the gradient, do it first: |>--------|
-                postScale(desiredWidth / gradientWidth, 1f)
-                // step 2: if we are in RTL mode, rotate from |---->>--| to |--<<----|
-                if (isRtl) postRotate(180f, desiredWidth / 2f, 1f)
-                // step 3: Move the gradient start to end of completed text
-                // Example without squishing (not at end line yet): |---->>--|
-                // Example with squishing: |------->|
-                postTranslate(textLength * ourProgressD, 0f)
-                // step 4: gradually transition
-                postTranslate(desiredWidth * (ourProgressD - 1f), 0f)
-                // step 5: the left offset is always from the left so don't rotate that :D
-                postTranslate(preOffsetFromLeft, 0f)
+                // for RTL words, gradient is basically rotated and the animation runs in reverse
+                // this allows for same code handling both RTL and LTR
+                if (isRtl) postRotate(180f, gradientWidth / 2f, 1f)
+                // Gradient start is at 0. Gradient end is at gradientWidth. Our goal is to skew the
+                // gradient so that we _never_ start before 0 or end after textLength, while showing
+                // least amount of pixels when progress is 0 and most amount of pixels if progress
+                // is 1. If we're somewhere in the middle, we want the gradient to be as wide as
+                // gradientWidth, and the gradient start and end should be offset by half of
+                // gradientWidth so that at 50% the middle of the gradient is in the middle of text.
+                val widthAtPos = ((1f - 2f * abs(ourProgressD - 0.5f)) * gradientWidth)
+                    .coerceAtMost(min(textLength * ourProgressD, textLength * (1f - ourProgressD)))
+                postScale(widthAtPos.coerceAtLeast(1f) / gradientWidth, 1f)
+                postTranslate(preOffsetFromLeft + textLength * ourProgressD - widthAtPos * 0.5f, 0f)
             })
         }
         tp.shader = shader

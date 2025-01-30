@@ -667,7 +667,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             createBitmap(1000, 1000) // if I re-enable pixel-perfect, I should use some smarter numbers than just "surely that is big enough"
         val pixels = b?.let { IntArray(it.width * it.height) }
         val c = b?.let { Canvas(it) }
-        val tmpPaint = TextPaint()
+        val tmpPaint = b?.let { TextPaint() }
         val spLines = lines.mapIndexed { i, it ->
             val sb = SpannableStringBuilder(it.first)
             val speaker = syncedLines?.get(i)?.speaker ?: it.second
@@ -703,32 +703,36 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 val firstLine = layout.getLineForOffset(it.charRange.first)
                 val lastLine = layout.getLineForOffset(it.charRange.last + 1)
                 for (line in firstLine..lastLine) {
-                    val firstInLine = max(it.charRange.first, layout.getLineStart(line))
-                    val lastInLineExcl = min(it.charRange.last + 1, layout.getLineEnd(line))
+                    val lineStart = layout.getLineStart(line)
+                    var lineEnd = layout.getLineEnd(line)
+                    while (layout.text[lineEnd - 1] == '\n' || layout.text[lineEnd - 1] == '\r')
+                        lineEnd--
+                    val firstInLine = max(it.charRange.first, lineStart)
+                    val lastInLineExcl = min(it.charRange.last + 1, lineEnd)
                     var horizontalStart = if (paragraphRtl == it.isRtl)
                         layout.getPrimaryHorizontal(firstInLine)
                     else layout.getSecondaryHorizontal(firstInLine)
-                    tmpPaint.set(layout.paint)
-                    tmpPaint.color = Color.RED
-                    tmpPaint.bgColor = Color.TRANSPARENT
                     // Use StaticLayout instead of Paint.measureText() for V+ useBoundsForWidth
-                    // TODO do we have to? or is measureText() actually sufficient?
+                    // TODO do we have to? or is measureText() actually sufficient? is this even
+                    //  working as intended since moving to getPrimaryHorizontal() again?
                     val l = StaticLayoutBuilderCompat
-                        .obtain(layout.text, tmpPaint, Int.MAX_VALUE)
+                        .obtain(layout.text, layout.paint, Int.MAX_VALUE)
                         .setAlignment(if (it.isRtl) Layout.Alignment.ALIGN_OPPOSITE
                         else Layout.Alignment.ALIGN_NORMAL)
                         .setIsRtl(it.isRtl)
-                        .setStart(firstInLine)
-                        .setEnd(lastInLineExcl)
+                        .setStart(lineStart)
+                        .setEnd(lineEnd)
                         .build()
-                    val w = l.getLineRight(0) - l.getLineLeft(0) + if (b != null) {
+                    val w = (l.getPrimaryHorizontal(if (it.isRtl) firstInLine else lastInLineExcl) - l.getPrimaryHorizontal(if (it.isRtl) lastInLineExcl else firstInLine))
+                    + if (b != null) {
                         // this is a very dumb solution and hence disabled by default
                         b.eraseColor(Color.TRANSPARENT)
                         // Best effort: assume that overhang is not larger than 50px
                         // 'cause that would be a lot. We have no way to retrieve this information
-                        c!!.withTranslation(50f, 50f) {
-                            l.draw(this)
-                        }
+                        tmpPaint!!.set(layout.paint)
+                        tmpPaint.color = Color.RED
+                        tmpPaint.bgColor = Color.TRANSPARENT
+                        c!!.drawText(layout.text, firstInLine, lastInLineExcl, 50f, 50f, tmpPaint)
                         val stride = b.width
                         b.getPixels(pixels!!, 0, stride, 0, 0, b.width, b.height)
                         var minX: Int? = null
