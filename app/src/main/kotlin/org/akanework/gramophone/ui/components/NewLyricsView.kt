@@ -53,6 +53,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     private val scaleInAnimTime
         get() = lyricAnimTime / 2f
     private val isElegantTextHeight = false
+    private var charScaling: Boolean
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
     private lateinit var typeface: Typeface
@@ -147,19 +148,19 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     private var gradientSpanPoolM = lazy { mutableListOf<MyGradientSpan>() }
     private var gradientSpanPoolF = lazy { mutableListOf<MyGradientSpan>() }
     private var gradientSpanPoolD = lazy { mutableListOf<MyGradientSpan>() }
-    private fun makeGradientSpan() = MyGradientSpan(grdWidth, defaultTextColor, highlightTextColor)
+    private fun makeGradientSpan() =
+        MyGradientSpan(grdWidth, defaultTextColor, highlightTextColor, charScaling)
     private fun makeGradientSpanM() =
-        MyGradientSpan(grdWidth, defaultTextColorM, highlightTextColorM)
-
+        MyGradientSpan(grdWidth, defaultTextColorM, highlightTextColorM, charScaling)
     private fun makeGradientSpanF() =
-        MyGradientSpan(grdWidth, defaultTextColorF, highlightTextColorF)
-
+        MyGradientSpan(grdWidth, defaultTextColorF, highlightTextColorF, charScaling)
     private fun makeGradientSpanD() =
-        MyGradientSpan(grdWidth, defaultTextColorD, highlightTextColorD)
+        MyGradientSpan(grdWidth, defaultTextColorD, highlightTextColorD, charScaling)
 
     init {
         applyTypefaces()
         loadLyricAnimTime()
+        charScaling = prefs.getBooleanStrict("lyric_char_scaling", false)
     }
 
     fun updateTextColor(
@@ -281,6 +282,10 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         ?: instance?.currentPosition?.toULong() ?: 0uL
 
     fun onPrefsChanged(key: String) {
+        if (key == "lyric_char_scaling") {
+            loadCharScaling()
+            return
+        }
         if (key == "lyric_no_animation") {
             loadLyricAnimTime()
             return
@@ -294,6 +299,34 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 
     private fun loadLyricAnimTime() {
         lyricAnimTime = if (prefs.getBooleanStrict("lyric_no_animation", false)) 0f else 650f
+    }
+
+    private fun loadCharScaling() {
+        var changed = false
+        charScaling = prefs.getBooleanStrict("lyric_char_scaling", false).also {
+            if (it != charScaling) changed = true
+        }
+        if (changed) {
+            gradientSpanPool.clear()
+            (1..3).forEach { gradientSpanPool.add(makeGradientSpan()) }
+            if (gradientSpanPoolM.isInitialized()) {
+                gradientSpanPoolM.value.clear()
+                (1..3).forEach { gradientSpanPoolM.value.add(makeGradientSpanM()) }
+            }
+            if (gradientSpanPoolF.isInitialized()) {
+                gradientSpanPoolF.value.clear()
+                (1..3).forEach { gradientSpanPoolF.value.add(makeGradientSpanF()) }
+            }
+            if (gradientSpanPoolD.isInitialized()) {
+                gradientSpanPoolD.value.clear()
+                (1..3).forEach { gradientSpanPoolD.value.add(makeGradientSpanD()) }
+            }
+            spForRender?.forEach {
+                it.text.getSpans<MyGradientSpan>()
+                    .forEach { s -> it.text.removeSpan(s) }
+            }
+            invalidate()
+        }
     }
 
     private fun applyTypefaces() {
@@ -767,7 +800,10 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                                 listOf(line)
                         }
                     }.flatten()
-                }, speaker, syncedLine)
+                }, speaker, syncedLine, lineOffsets?.mapIndexed { i, it ->
+                    (0..<it.size/5).sumOf { j -> it[j * 5 + 1] } /
+                            syncedLine.words[i].timeRange.let { it.last - it.first }.toLong()
+                })
         }
         val heights = spLines.map { it.layout.height + it.paddingTop + it.paddingBottom }
         return Pair(
@@ -781,7 +817,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     data class SbItem(
         val layout: StaticLayout, val text: SpannableStringBuilder,
         val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?,
-        val rlm: List<Int>?, val speaker: SpeakerEntity?, val line: SemanticLyrics.LyricLine?
+        val rlm: List<Int>?, val speaker: SpeakerEntity?, val line: SemanticLyrics.LyricLine?,
+        val velocities: List<Long>?
     )
 
     // == start scroll ==

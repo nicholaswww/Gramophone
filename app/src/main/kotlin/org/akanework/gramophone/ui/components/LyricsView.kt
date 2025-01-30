@@ -75,12 +75,13 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        if (key == "lyric_center" || key == "lyric_bold" || key == "lyric_no_animation") {
+        if ((key == "lyric_center" || key == "lyric_bold") && adapter != null)
             adapter?.onPrefsChanged()
+        else if (key == "lyric_center" || key == "lyric_bold" || key == "lyric_no_animation" ||
+            key == "lyric_char_scaling")
             newView?.onPrefsChanged(key)
-        } else if (key == "lyric_ui") {
+        else if (key == "lyric_ui")
             createView()
-        }
     }
 
     fun updateLyricPositionFromPlaybackPos() {

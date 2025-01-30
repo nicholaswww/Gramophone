@@ -7,14 +7,16 @@ import android.graphics.Shader
 import android.text.TextPaint
 import android.text.style.CharacterStyle
 import android.text.style.UpdateAppearance
+import android.view.animation.PathInterpolator
 import kotlin.math.abs
 import kotlin.math.min
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerp
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
 
 // Hacks, hacks, hacks...
-class MyGradientSpan(grdWidth: Float, color: Int, highlightColor: Int) : CharacterStyle(),
-    UpdateAppearance {
+private val gradientPathInterpolator = PathInterpolator(0.38f, 0.39f, 0f, 1f)
+class MyGradientSpan(grdWidth: Float, color: Int, highlightColor: Int,
+    private val charScaling: Boolean) : CharacterStyle(), UpdateAppearance {
     private val matrix = Matrix()
     private val gradientWidth = grdWidth
     private val shader = LinearGradient(
@@ -36,8 +38,15 @@ class MyGradientSpan(grdWidth: Float, color: Int, highlightColor: Int) : Charact
             val preOffsetFromLeft = lineOffsets[o].toFloat()
             val textLength = lineOffsets[o + 1]
             val isRtl = lineOffsets[o + 4] == -1
-            val ourProgress = lerpInv(lineOffsets[o + 2].toFloat(), lineOffsets[o + 3].toFloat(),
-            lerp(0f, totalCharsForProgress.toFloat(), progress)).coerceIn(0f, 1f)
+            val ourProgress = if (charScaling) {
+                lerpInv(lineOffsets[o + 2].toFloat(), lineOffsets[o + 3].toFloat(),
+                    lerp(0f, totalCharsForProgress.toFloat(), progress)).coerceIn(0f, 1f)
+            } else {
+                val pre = (0..<o/5).sumOf { lineOffsets[it * 5 + 1] }.toFloat()
+                val post = (o/5+1..<lineOffsets.size/5).sumOf { lineOffsets[it * 5 + 1] }.toFloat()
+                lerpInv(pre, pre + textLength, lerp(0f, pre + textLength + post, progress))
+                    .coerceIn(0f, 1f)
+            }
             val ourProgressD = if (isRtl) 1f - ourProgress else ourProgress
             shader.setLocalMatrix(matrix.apply {
                 reset()
@@ -50,7 +59,8 @@ class MyGradientSpan(grdWidth: Float, color: Int, highlightColor: Int) : Charact
                 // is 1. If we're somewhere in the middle, we want the gradient to be as wide as
                 // gradientWidth, and the gradient start and end should be offset by half of
                 // gradientWidth so that at 50% the middle of the gradient is in the middle of text.
-                val widthAtPos = ((1f - 2f * abs(ourProgressD - 0.5f)) * gradientWidth)
+                val widthAtPos = (gradientPathInterpolator.getInterpolation(
+                    1f - 2f * abs(ourProgressD - 0.5f)) * gradientWidth)
                     .coerceAtMost(min(textLength * ourProgressD, textLength * (1f - ourProgressD)))
                 postScale(widthAtPos.coerceAtLeast(1f) / gradientWidth, 1f)
                 postTranslate(preOffsetFromLeft + textLength * ourProgressD - widthAtPos * 0.5f, 0f)

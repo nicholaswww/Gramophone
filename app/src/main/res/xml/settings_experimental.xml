@@ -76,6 +76,15 @@
             android:widgetLayout="@layout/preference_switch_widget"
             app:iconSpaceReserved="false" />
 
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="lyric_char_scaling"
+            android:layout="@layout/preference_switch"
+            android:summary="@string/settings_lyrics_char_scaling_summary"
+            android:title="@string/settings_lyrics_char_scaling"
+            android:widgetLayout="@layout/preference_switch_widget"
+            app:iconSpaceReserved="false" />
+
 
     </PreferenceCategory>
 
