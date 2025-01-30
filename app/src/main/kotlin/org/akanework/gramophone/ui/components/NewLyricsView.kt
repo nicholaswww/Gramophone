@@ -20,16 +20,13 @@ import androidx.annotation.OptIn
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.TypefaceCompat
 import androidx.core.graphics.createBitmap
-import androidx.core.graphics.withTranslation
 import androidx.core.text.getSpans
 import androidx.core.widget.NestedScrollView
 import androidx.media3.common.util.UnstableApi
 import androidx.preference.PreferenceManager
-import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.toULong
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.dpToPx
@@ -705,7 +702,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 for (line in firstLine..lastLine) {
                     val lineStart = layout.getLineStart(line)
                     var lineEnd = layout.getLineEnd(line)
-                    while (layout.text[lineEnd - 1] == '\n' || layout.text[lineEnd - 1] == '\r')
+                    while (lineStart + 1 < lineEnd && (layout.text[lineEnd - 1] == '\n' || layout.text[lineEnd - 1] == '\r'))
                         lineEnd--
                     val firstInLine = max(it.charRange.first, lineStart)
                     val lastInLineExcl = min(it.charRange.last + 1, lineEnd)
