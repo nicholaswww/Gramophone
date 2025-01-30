@@ -4,8 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Path
-import android.graphics.PathMeasure
 import android.graphics.Typeface
 import android.os.Build
 import android.text.Layout
@@ -36,7 +34,6 @@ import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.spans.MyForegroundColorSpan
 import org.akanework.gramophone.logic.ui.spans.MyGradientSpan
 import org.akanework.gramophone.logic.ui.spans.StaticLayoutBuilderCompat
-import org.akanework.gramophone.logic.utils.BezierSpline
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerp
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
 import org.akanework.gramophone.logic.utils.LrcUtils
@@ -441,7 +438,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                     if (wordIdx != null) {
                         val word = it.line.words[wordIdx]
                         spanEnd = word.charRange.last + 1 // get exclusive end
-                        /*val gradientEndTime = min(
+                        val gradientEndTime = min(
                             lastTs.toFloat() - timeOffsetForUse,
                             word.timeRange.last.toFloat()
                         )
@@ -454,20 +451,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                         gradientProgress = lerpInv(
                             gradientStartTime, gradientEndTime,
                             posForRender.toFloat()
-                        )*/
-                        val renderPosLerp = lerpInv(it.line.start.toFloat(),
-                            it.line.end.toFloat(), posForRender.toFloat())
-                        gradientProgress = if (renderPosLerp >= 0f && renderPosLerp <= 1f) {
-                            val x = lerp(0f, it.curve!!.length, renderPosLerp)
-                            val point = FloatArray(2) // TODO
-                            it.curve.getPosTan(x, point, null)
-                            lerpInv(
-                                it.widths!!.subList(0, wordIdx).sum(),
-                                it.widths.subList(0, wordIdx + 1).sum(),
-                                point[1]
-                            )
-                        } else -1f
-                        // TODO
+                        )
                         if (gradientProgress >= 0f && gradientProgress <= 1f) {
                             spanStartGradient = word.charRange.first
                             // be greedy and eat as much as the line as can be eaten (text that is
@@ -805,9 +789,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 }
                 return@map ia
             }
-            val widths = lineOffsets?.map { lo ->
-                (0..<lo.size/5).sumOf { lo[it * 5 + 1] }.toFloat()
-            }
             SbItem(layout, sb, paddingTop.dpToPx(context), paddingBottom.dpToPx(context),
                 lineOffsets, lineOffsets?.let { _ ->
                     (0..<layout.lineCount).map { line ->
@@ -819,22 +800,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                                 listOf(line)
                         }
                     }.flatten()
-                }, speaker, syncedLine, widths, syncedLine?.words?.let { _ ->
-                    PathMeasure(Path().apply {
-                        val curve = BezierSpline(1 + 2 * syncedLine.words.size)
-                        var knot = 0
-                        curve.set(knot++, 0f, 0f)
-                        syncedLine.words.forEachIndexed { i, it ->
-                            curve.set(knot++, lerpInv(syncedLine.start.toFloat(),
-                                syncedLine.end.toFloat(), it.timeRange.first.toFloat()),
-                                widths!!.subList(0, i).sum())
-                            curve.set(knot++, lerpInv(syncedLine.end.toFloat(),
-                                syncedLine.end.toFloat(), it.timeRange.first.toFloat()),
-                                widths.subList(0, i + 1).sum())
-                        }
-                        curve.applyToPath(this)
-                    }, false)
-                })
+                }, speaker, syncedLine)
         }
         val heights = spLines.map { it.layout.height + it.paddingTop + it.paddingBottom }
         return Pair(
@@ -848,8 +814,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     data class SbItem(
         val layout: StaticLayout, val text: SpannableStringBuilder,
         val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?,
-        val rlm: List<Int>?, val speaker: SpeakerEntity?, val line: SemanticLyrics.LyricLine?,
-        val widths: List<Float>?, val curve: PathMeasure?
+        val rlm: List<Int>?, val speaker: SpeakerEntity?, val line: SemanticLyrics.LyricLine?
     )
 
     // == start scroll ==
