@@ -332,17 +332,15 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         var heightSoFar = 0
         var firstHighlight: Int? = null
         canvas.save()
-        val lines = if (lyrics is SemanticLyrics.SyncedLyrics)
-            (lyrics as SemanticLyrics.SyncedLyrics).text else null
-        spForRender!!.forEachIndexed { i, it ->
+        spForRender!!.forEach {
             var spanEnd = -1
             var spanStartGradient = -1
             var realGradientStart = -1
             var realGradientEnd = -1
             var wordIdx: Int? = null
             var gradientProgress = Float.NEGATIVE_INFINITY
-            val firstTs = lines?.get(i)?.start ?: ULong.MIN_VALUE
-            val lastTs = lines?.get(i)?.end ?: ULong.MAX_VALUE
+            val firstTs = it.line?.start ?: ULong.MIN_VALUE
+            val lastTs = it.line?.end ?: ULong.MAX_VALUE
             val timeOffsetForUse = min(
                 scaleInAnimTime, min(
                     lerp(
@@ -353,19 +351,19 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             )
             val highlight = posForRender >= firstTs - timeOffsetForUse.toULong() &&
                     posForRender <= lastTs + timeOffsetForUse.toULong()
-            val scaleInProgress = if (lines == null) 1f else lerpInv(
+            val scaleInProgress = if (it.line == null) 1f else lerpInv(
                 firstTs.toFloat() -
                         timeOffsetForUse,
                 firstTs.toFloat() + timeOffsetForUse,
                 posForRender.toFloat()
             )
-            val scaleOutProgress = if (lines == null) 1f else lerpInv(
+            val scaleOutProgress = if (it.line == null) 1f else lerpInv(
                 lastTs.toFloat() -
                         timeOffsetForUse,
                 lastTs.toFloat() + timeOffsetForUse,
                 posForRender.toFloat()
             )
-            val hlScaleFactor = if (lines == null) smallSizeFactor else {
+            val hlScaleFactor = if (it.line == null) smallSizeFactor else {
                 // lerp() argument order is swapped because we divide by this factor
                 if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
                     lerp(
@@ -401,12 +399,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             if (highlight) {
                 canvas.save()
                 canvas.scale(1f / hlScaleFactor, 1f / hlScaleFactor)
-                if (lines != null && lines[i].words != null) {
-                    wordIdx =
-                        lines[i].words?.indexOfLast { it.timeRange.start <= posForRender }
+                if (it.line?.words != null) {
+                    wordIdx = it.line.words.indexOfLast { it.timeRange.start <= posForRender }
                     if (wordIdx == -1) wordIdx = null
                     if (wordIdx != null) {
-                        val word = lines[i].words!![wordIdx]
+                        val word = it.line.words[wordIdx]
                         spanEnd = word.charRange.last + 1 // get exclusive end
                         val gradientEndTime = min(
                             lastTs.toFloat() - timeOffsetForUse,
@@ -432,11 +429,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                                 it.layout.getLineForOffset(word.charRange.endInclusive)
                             val firstCharOnStartLine = it.layout.getLineStart(wordStartLine)
                             val lastCharOnEndLineExcl = it.layout.getLineEnd(wordEndLine)
-                            realGradientStart = lines[i].words?.lastOrNull {
+                            realGradientStart = it.line.words.lastOrNull {
                                 it.charRange.first >= firstCharOnStartLine && it.charRange.last <
                                         word.charRange.first && it.isRtl != word.isRtl
                             }?.charRange?.last?.plus(1) ?: firstCharOnStartLine
-                            realGradientEnd = lines[i].words?.firstOrNull {
+                            realGradientEnd = it.line.words.firstOrNull {
                                 it.charRange.first > word.charRange.last && it.charRange.last <
                                         lastCharOnEndLineExcl && it.isRtl != word.isRtl
                             }?.charRange?.first ?: lastCharOnEndLineExcl
@@ -510,7 +507,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 }
                 if (spanEndWithoutGradient != -1) {
                     if (inColorAnim && colorSpan == null)
-                        colorSpan = colorSpanPool.getOrElse(0) { MyForegroundColorSpan(col) }
+                        colorSpan = colorSpanPool.removeFirstOrNull()
+                            ?: @SuppressLint("DrawAllocation") MyForegroundColorSpan(col)
                     else if (!inColorAnim)
                         colorSpan = wordActiveSpanForLine
                     it.text.setSpan(
@@ -538,14 +536,13 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 }
                 if (realGradientStart != -1) {
                     if (gradientSpan == null)
-                        gradientSpan = gradientSpanPoolForLine.getOrElse(0) {
-                            when (lines?.get(i)?.speaker) {
+                        gradientSpan = gradientSpanPoolForLine.removeFirstOrNull() ?:
+                            when (it.speaker) {
                                 SpeakerEntity.Male -> makeGradientSpanM()
                                 SpeakerEntity.Female -> makeGradientSpanF()
                                 SpeakerEntity.Duet -> makeGradientSpanD()
                                 else -> makeGradientSpan()
                             }
-                        }
                     it.text.setSpan(
                         gradientSpan, realGradientStart, realGradientEnd,
                         Spanned.SPAN_INCLUSIVE_INCLUSIVE
@@ -584,26 +581,20 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         } else if (event?.action == MotionEvent.ACTION_UP) {
             val y = event.y
             var heightSoFar = 0
-            var foundItem = -1
-            val lines = (lyrics as? SemanticLyrics.SyncedLyrics)?.text
-            if (lines != null) {
-                spForRender!!.forEachIndexed { i, it ->
-                    val firstTs = lines[i].start
-                    val lastTs = lines[i].words?.lastOrNull()?.timeRange?.last ?: lines
-                        .find { it.start > lines[i].start }?.start?.minus(1uL)
-                    ?: Long.MAX_VALUE.toULong()
-                    val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs.toFloat(),
-                        lastTs.toFloat(), 0.5f) - firstTs.toFloat(), firstTs.toFloat()))
-                    val highlight = posForRender >= firstTs - timeOffsetForUse.toULong() &&
-                            posForRender <= lastTs + timeOffsetForUse.toULong()
+            var foundItem: SemanticLyrics.LyricLine? = null
+            if (lyrics is SemanticLyrics.SyncedLyrics) {
+                spForRender!!.forEach {
+                    val firstTs = it.line!!.start.toFloat()
+                    val lastTs = it.line.end.toFloat()
+                    val pos = posForRender.toFloat()
+                    val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs,
+                        lastTs, 0.5f) - firstTs, firstTs))
+                    val highlight = pos >= firstTs - timeOffsetForUse &&
+                            pos <= lastTs + timeOffsetForUse
                     val scaleInProgress = lerpInv(
-                        firstTs.toFloat() - timeOffsetForUse,
-                        firstTs.toFloat() + timeOffsetForUse, posForRender.toFloat()
-                    )
+                        firstTs - timeOffsetForUse, firstTs + timeOffsetForUse, pos)
                     val scaleOutProgress = lerpInv(
-                        lastTs.toFloat() - timeOffsetForUse,
-                        lastTs.toFloat() + timeOffsetForUse, posForRender.toFloat()
-                    )
+                        lastTs - timeOffsetForUse, lastTs + timeOffsetForUse, pos)
                     val hlScaleFactor =
                         // lerp() argument order is swapped because we divide by this factor
                         if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
@@ -621,13 +612,13 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                         else 1f
                     val myHeight =
                         (it.paddingTop + it.layout.height + it.paddingBottom) / hlScaleFactor
-                    if (y >= heightSoFar && y <= heightSoFar + myHeight && lines[i].isClickable)
-                        foundItem = i
+                    if (y >= heightSoFar && y <= heightSoFar + myHeight && it.line.isClickable)
+                        foundItem = it.line
                     heightSoFar += myHeight.toInt()
                 }
             }
-            if (foundItem != -1) {
-                instance?.seekTo(lines!![foundItem].start.toLong())
+            if (foundItem != null) {
+                instance?.seekTo(foundItem.start.toLong())
                 performClick()
             }
             return true
@@ -649,8 +640,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         if (spForMeasure == null || spForMeasure!!.first.first != right - left
-            || spForMeasure!!.first.second != bottom - top
-        )
+            || spForMeasure!!.first.second != bottom - top)
             spForMeasure = buildSpForMeasure(lyrics, right - left)
         spForRender = spForMeasure!!.second
         invalidate()
@@ -661,21 +651,22 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         val syncedLines = (lyrics as? SemanticLyrics.SyncedLyrics?)?.text
         val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
             || !prefs.getBooleanStrict("pixel_perfect_measurement_legacy", false)) null else
-            createBitmap(1000, 1000) // if I re-enable pixel-perfect, I should use some smarter numbers than just "surely that is big enough"
+            createBitmap(1000, 1000) // should use smarter numbers than just "surely this is enough"
         val pixels = b?.let { IntArray(it.width * it.height) }
         val c = b?.let { Canvas(it) }
         val tmpPaint = b?.let { TextPaint() }
         val spLines = lines.mapIndexed { i, it ->
+            val syncedLine = syncedLines?.get(i)
             val sb = SpannableStringBuilder(it.first)
-            val speaker = syncedLines?.get(i)?.speaker ?: it.second
+            val speaker = syncedLine?.speaker ?: it.second
             val align = if (prefs.getBooleanStrict("lyric_center", false))
                 Layout.Alignment.ALIGN_CENTER
-            else if (syncedLines != null && speaker?.isVoice2 == true)
+            else if (speaker?.isVoice2 == true)
                 Layout.Alignment.ALIGN_OPPOSITE
             else Layout.Alignment.ALIGN_NORMAL
-            val tl = syncedLines != null && syncedLines[i].isTranslated
+            val tl = syncedLine?.isTranslated == true
             val bg = speaker?.isBackground == true
-            val paddingTop = if (syncedLines?.get(i)?.isTranslated == true) 2 else 18
+            val paddingTop = if (tl) 2 else 18
             val paddingBottom = if (i + 1 < (syncedLines?.size ?: -1) &&
                 syncedLines?.get(i + 1)?.isTranslated == true
             ) 2 else 18
@@ -695,7 +686,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             val paragraphRtl = layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT
             val alignmentNormal = if (paragraphRtl) align == Layout.Alignment.ALIGN_OPPOSITE
             else align == Layout.Alignment.ALIGN_NORMAL
-            val lineOffsets = syncedLines?.get(i)?.words?.map {
+            val lineOffsets = syncedLine?.words?.map {
                 val ia = mutableListOf<Int>()
                 val firstLine = layout.getLineForOffset(it.charRange.first)
                 val lastLine = layout.getLineForOffset(it.charRange.last + 1)
@@ -720,7 +711,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                         .setStart(lineStart)
                         .setEnd(lineEnd)
                         .build()
-                    val w = (l.getPrimaryHorizontal(if (it.isRtl) firstInLine else lastInLineExcl) - l.getPrimaryHorizontal(if (it.isRtl) lastInLineExcl else firstInLine))
+                    val w = (l.getPrimaryHorizontal(if (it.isRtl) firstInLine else lastInLineExcl)
+                            - l.getPrimaryHorizontal(if (it.isRtl) lastInLineExcl else firstInLine))
                     + if (b != null) {
                         // this is a very dumb solution and hence disabled by default
                         b.eraseColor(Color.TRANSPARENT)
@@ -769,7 +761,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                                 listOf(line)
                         }
                     }.flatten()
-                }, speaker)
+                }, speaker, syncedLine)
         }
         val heights = spLines.map { it.layout.height + it.paddingTop + it.paddingBottom }
         return Pair(
@@ -783,7 +775,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     data class SbItem(
         val layout: StaticLayout, val text: SpannableStringBuilder,
         val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?,
-        val rlm: List<Int>?, val speaker: SpeakerEntity?
+        val rlm: List<Int>?, val speaker: SpeakerEntity?, val line: SemanticLyrics.LyricLine?
     )
 
     // == start scroll ==
