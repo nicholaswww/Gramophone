@@ -686,6 +686,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             val paragraphRtl = layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT
             val alignmentNormal = if (paragraphRtl) align == Layout.Alignment.ALIGN_OPPOSITE
             else align == Layout.Alignment.ALIGN_NORMAL
+            var l: StaticLayout? = null
             val lineOffsets = syncedLine?.words?.map {
                 val ia = mutableListOf<Int>()
                 val firstLine = layout.getLineForOffset(it.charRange.first)
@@ -700,17 +701,22 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                     var horizontalStart = if (paragraphRtl == it.isRtl)
                         layout.getPrimaryHorizontal(firstInLine)
                     else layout.getSecondaryHorizontal(firstInLine)
-                    // Use StaticLayout instead of Paint.measureText() for V+ useBoundsForWidth
-                    // TODO do we have to? or is measureText() actually sufficient? is this even
-                    //  working as intended since moving to getPrimaryHorizontal() again?
-                    val l = StaticLayoutBuilderCompat
-                        .obtain(layout.text, layout.paint, Int.MAX_VALUE)
-                        .setAlignment(if (it.isRtl) Layout.Alignment.ALIGN_OPPOSITE
-                        else Layout.Alignment.ALIGN_NORMAL)
-                        .setIsRtl(it.isRtl)
-                        .setStart(lineStart)
-                        .setEnd(lineEnd)
-                        .build()
+                    // Recycle the layout if we have multiple words in one line.
+                    if (l == null || l.getLineStart(0) != lineStart
+                        || (l.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT) != it.isRtl) {
+                        // Use StaticLayout instead of Paint.measureText() for V+ useBoundsForWidth
+                        // TODO is this working since moving to getPrimaryHorizontal() again?
+                        l = StaticLayoutBuilderCompat
+                            .obtain(layout.text, layout.paint, Int.MAX_VALUE)
+                            .setAlignment(
+                                if (it.isRtl) Layout.Alignment.ALIGN_OPPOSITE
+                                else Layout.Alignment.ALIGN_NORMAL
+                            )
+                            .setIsRtl(it.isRtl)
+                            .setStart(lineStart)
+                            .setEnd(lineEnd)
+                            .build()
+                    }
                     val w = (l.getPrimaryHorizontal(if (it.isRtl) firstInLine else lastInLineExcl)
                             - l.getPrimaryHorizontal(if (it.isRtl) lastInLineExcl else firstInLine))
                     + if (b != null) {
