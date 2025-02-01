@@ -27,6 +27,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.AnimatedVectorDrawable
 import android.graphics.drawable.Drawable
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -34,6 +35,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.os.StrictMode
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup.MarginLayoutParams
 import android.view.ViewPropertyAnimator
@@ -96,6 +98,21 @@ fun MediaItem.getUri(): Uri? {
 
 fun MediaItem.getFile(): File? {
     return getUri()?.toFile()
+}
+
+fun MediaItem.getBitrate(): Long? {
+    val retriever = MediaMetadataRetriever()
+    return try {
+        val filePath = getFile()?.path ?: return null
+        retriever.setDataSource(filePath)
+        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
+            ?.toLongOrNull()
+    } catch (e: Exception) {
+        Log.w("getBitrate", Log.getStackTraceString(e))
+        null
+    } finally {
+        retriever.release()
+    }
 }
 
 fun Activity.closeKeyboard(view: View) {
