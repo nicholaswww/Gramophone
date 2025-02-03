@@ -11,7 +11,7 @@ A sane music player built with media3 and material design library that is follow
      alt="Get it on F-Droid"
      height="80">](https://f-droid.org/packages/org.akanework.gramophone/)
 [<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height="80">](https://apt.izzysoft.de/fdroid/index/apk/org.akanework.gramophone)
-[<img src="https://play.google.com/intl/en_us/badges/images/generic/en-play-badge.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=org.akanework.gramophone)
+[<img src="https://play.google.com/intl/en_us/badges/images/generic/en-play-badge.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=org.akanework.gramophone&utm_source=github.com&utm_campaign=readme)
 
 ## Features
 - Up-to-date material 3 design
