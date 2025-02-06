@@ -157,7 +157,7 @@ class FullBottomSheet
             }
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                val mediaId = instance?.currentMediaItem?.mediaId
+                val mediaId = instance?.currentMediaItem
                 if (mediaId != null) {
                     if (seekBar != null) {
                         instance?.seekTo((seekBar.progress.toLong()))
@@ -174,7 +174,7 @@ class FullBottomSheet
             }
 
             override fun onStopTrackingTouch(slider: Slider) {
-                val mediaId = instance?.currentMediaItem?.mediaId
+                val mediaId = instance?.currentMediaItem
                 if (mediaId != null) {
                     instance?.seekTo((slider.value.toLong()))
                     bottomSheetFullLyricView.updateLyricPositionFromPlaybackPos()

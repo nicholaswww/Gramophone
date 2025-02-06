@@ -13,16 +13,19 @@ import android.view.View.VISIBLE
 import android.view.ViewGroup
 import android.view.animation.PathInterpolator
 import android.widget.TextView
+import androidx.annotation.OptIn
 import androidx.core.animation.doOnEnd
 import androidx.core.graphics.TypefaceCompat
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.doOnLayout
+import androidx.media3.common.util.UnstableApi
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.CustomSmoothScroller
@@ -55,6 +58,7 @@ class LegacyLyricsAdapter(
     private var currentTranslationPos = -1
     private var isBoldEnabled = false
     private var isLyricCentered = false
+    private var forceNoAnimation = false
     private val sizeFactor = 1f
     private val defaultSizeFactor = .97f
 
@@ -198,6 +202,7 @@ class LegacyLyricsAdapter(
     fun updateLyricStatus() {
         isBoldEnabled = prefs.getBooleanStrict("lyric_bold", false)
         isLyricCentered = prefs.getBooleanStrict("lyric_center", false)
+        forceNoAnimation = prefs.getBooleanStrict("lyric_no_animation", false)
     }
 
     override fun getItemCount(): Int = lyricList.size
@@ -310,7 +315,7 @@ class LegacyLyricsAdapter(
     }
 
     fun smoothScrollTo(position: Int, noAnimation: Boolean = false) {
-        val smoothScroller = createSmoothScroller(noAnimation)
+        val smoothScroller = createSmoothScroller(noAnimation || forceNoAnimation)
         smoothScroller.targetPosition = position
         recyclerView!!.layoutManager!!.startSmoothScroll(
             smoothScroller
@@ -339,9 +344,12 @@ class LegacyLyricsAdapter(
         }
     }
 
+    // https://github.com/androidx/media/issues/1578
+    @OptIn(UnstableApi::class)
     private fun updateNewIndex(): Int {
         val filteredList = lyricList.filterIndexed { _, lyric ->
-            (lyric.timeStamp ?: 0) <= (instance?.currentPosition ?: 0)
+            (lyric.timeStamp ?: 0) <= (GramophonePlaybackService.instanceForWidgetAndLyricsOnly
+                ?.endedWorkaroundPlayer?.currentPosition ?: instance?.currentPosition ?: 0)
         }
 
         return if (filteredList.isNotEmpty()) {

@@ -638,19 +638,83 @@ private val tt = "http://www.w3.org/ns/ttml"
 private val ttm = "http://www.w3.org/ns/ttml#metadata"
 private val itunes = "http://itunes.apple.com/lyric-ttml-extensions"
 private val itunesInternal = "http://music.apple.com/lyric-ttml-internal"
+private fun XmlPullParser.skipToEndOfTag() {
+    if (eventType != XmlPullParser.START_TAG)
+        throw XmlPullParserException("expected start tag in skipToEndOfTag()")
+    while (next() != XmlPullParser.END_TAG) {
+        // we have a child tag!
+        if (eventType == XmlPullParser.START_TAG)
+            skipToEndOfTag()
+        else if (eventType != XmlPullParser.TEXT)
+            throw XmlPullParserException("expected start tag or text in skipToEndOfTag()")
+        // else: we have some text, boring
+    }
+}
+private fun XmlPullParser.nextAndThrowIfNotEnd() {
+    if (next() != XmlPullParser.END_TAG)
+        throw XmlPullParserException("expected end tag in nextAndThrowIfNotEnd()")
+}
+private fun XmlPullParser.nextAndThrowIfNotText() {
+    if (next() != XmlPullParser.TEXT)
+        throw XmlPullParserException("expected end tag in nextAndThrowIfNotText()")
+}
 fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
     val parser = Xml.newPullParser()
     parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
     parser.setInput(StringReader(lyricText))
     try {
-        parser.next()
+        parser.nextTag()
         parser.require(XmlPullParser.START_TAG, tt, "tt")
     } catch (_: XmlPullParserException) {
         return null // not ttml
     }
     val lang = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "lang")
     val timing = parser.getAttributeValue(itunesInternal, "timing")
-    while (parser.next() != XmlPullParser.END_TAG) {
+    parser.nextTag()
+    parser.require(XmlPullParser.START_TAG, tt, "head")
+    // TODO parse and reject based on https://www.w3.org/TR/2018/REC-ttml2-20181108/#feature-profile-version-2 to be compliant
+    // TODO https://www.w3.org/TR/2018/REC-ttml2-20181108/#timing-attribute-dur
+    while (parser.nextTag() != XmlPullParser.END_TAG) {
+        if (parser.name == "metadata") {
+            while (parser.nextTag() != XmlPullParser.END_TAG) {
+                if (parser.namespace == ttm && parser.name == "agent") {
+                    val id = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "id")
+                    val type = parser.getAttributeValue(ttm, "lang")
+                    // TODO do something with this information
+                    parser.nextAndThrowIfNotEnd()
+                }
+                if (parser.name == "iTunesMetadata") {
+                    while (parser.nextTag() != XmlPullParser.END_TAG) {
+                        if (parser.name == "songwriters") {
+                            while (parser.nextTag() != XmlPullParser.END_TAG) {
+                                if (parser.name == "songwriter") {
+                                    parser.nextAndThrowIfNotText()
+                                    val songwriter = parser.text
+                                    // TODO do something with this information
+                                    parser.nextAndThrowIfNotEnd()
+                                } else {
+                                    throw XmlPullParserException("expected <songwriter>, got " +
+                                            "<${(parser.prefix?.plus(":") ?: "") + parser.name}> " +
+                                            "in <songwriters> in <iTunesMetadata>")
+                                }
+                            }
+                        } else {
+                            throw XmlPullParserException("unknown element " +
+                                    "<${(parser.prefix?.plus(":") ?: "") + parser.name}> in " +
+                                    "<iTunesMetadata>")
+                        }
+                    }
+                    parser.nextAndThrowIfNotEnd()
+                }
+            }
+        } else // probably <styling> or <layout>
+            parser.skipToEndOfTag()
+    }
+    parser.require(XmlPullParser.END_TAG, tt, "head")
+    parser.next()
+    parser.require(XmlPullParser.START_TAG, tt, "body")
+    while (parser.nextTag() != XmlPullParser.END_TAG) {
+        parser.skipToEndOfTag() // TODO parse <body>
     }
     return null
 }
