@@ -682,8 +682,7 @@ fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
                     val type = parser.getAttributeValue(ttm, "lang")
                     // TODO do something with this information
                     parser.nextAndThrowIfNotEnd()
-                }
-                if (parser.name == "iTunesMetadata") {
+                } else if (parser.name == "iTunesMetadata") {
                     while (parser.nextTag() != XmlPullParser.END_TAG) {
                         if (parser.name == "songwriters") {
                             while (parser.nextTag() != XmlPullParser.END_TAG) {
@@ -705,7 +704,7 @@ fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
                         }
                     }
                     parser.nextAndThrowIfNotEnd()
-                }
+                } else parser.skipToEndOfTag()
             }
         } else // probably <styling> or <layout>
             parser.skipToEndOfTag()
