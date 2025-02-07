@@ -3,6 +3,7 @@ package org.akanework.gramophone.ui
 import android.app.Application
 import android.content.ComponentName
 import android.os.Bundle
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -16,6 +17,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import java.util.concurrent.ExecutionException
 import org.akanework.gramophone.logic.GramophoneApplication
 import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.utils.LifecycleCallbackListImpl
@@ -50,12 +52,27 @@ class MediaControllerViewModel(application: Application) : AndroidViewModel(appl
                     addListener(
                         {
                             if (isCancelled) return@addListener
-                            val instance = get()
-                            if (this != controllerFuture) {
+                            val instance = try {
+                                get()
+                            } catch (e: ExecutionException) {
+                                if (e.cause !is SecurityException)
+                                    throw e
+                                if (e.cause!!.message != "Session rejected the connection request.")
+                                    throw e
+                                Log.w("MediaControllerViewMdel", "Session rejected the connection" +
+                                        " request. Maybe controller.release() was called before" +
+                                        " connecting was done?")
+                                null
+                            }
+                            if (this == controllerFuture && instance == null) {
+                                controllerFuture = null
+                                controllerLifecycle = null
+                            }
+                            if (this != controllerFuture || instance == null) {
                                 // If there is a race condition that would cause this controller
                                 // to leak, which can happen, just make sure we don't leak.
                                 lc.destroy()
-                                instance.release()
+                                instance?.release()
                             } else {
                                 lc.lifecycleRegistry.currentState = Lifecycle.State.CREATED
                                 connectionListenersImpl.dispatch { it(instance, lc.lifecycle) }
