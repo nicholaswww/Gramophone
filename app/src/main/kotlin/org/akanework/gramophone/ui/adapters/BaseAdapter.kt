@@ -204,6 +204,7 @@ abstract class BaseAdapter<T>(
         val nowPlaying: ImageView = view.findViewById(R.id.now_playing)
         val title: TextView = view.findViewById(R.id.title)
         val subTitle: TextView = view.findViewById(R.id.artist)
+        val trackCount: TextView = view.findViewById(R.id.track_count)
         val moreButton: MaterialButton = view.findViewById(R.id.more)
     }
 
@@ -302,6 +303,7 @@ abstract class BaseAdapter<T>(
         holder: ViewHolder,
         position: Int
     ) {
+        val item = list.second[position]
         if (layoutType == LayoutType.GRID) {
             lockedInGridSize = true
             val newHeight = gridHeight!!
@@ -310,8 +312,8 @@ abstract class BaseAdapter<T>(
                     height = newHeight
                 }
             }
+            holder.trackCount.text = trackCountOf(item)
         }
-        val item = list.second[position]
         holder.title.text = titleOf(item) ?: virtualTitleOf(item)
         holder.subTitle.text = subTitleOf(item)
         holder.songCover.load(coverOf(item)) {
@@ -387,6 +389,16 @@ abstract class BaseAdapter<T>(
     private fun titleOf(item: T): String? {
         return if (sorter.sortingHelper.canGetTitle())
             sorter.sortingHelper.getTitle(item) else "null"
+    }
+
+    private fun trackCountOf(item: T): String {
+        if (sorter.sortingHelper.canGetSize()) {
+            val s = sorter.sortingHelper.getSize(item)
+            return context.resources.getQuantityString(
+                R.plurals.songs, s, s
+            )
+        }
+        return "null"
     }
 
     protected abstract fun virtualTitleOf(item: T): String
