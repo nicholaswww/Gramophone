@@ -71,6 +71,18 @@
             android:textSize="15sp"
             tools:text="Example Artist" />
 
+        <TextView
+            android:id="@+id/track_count"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif"
+            android:gravity="start"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            app:textFontWeight="500"
+            android:textSize="15sp"
+            tools:text="Example Track count" />
+
     </LinearLayout>
 
     <ImageView
