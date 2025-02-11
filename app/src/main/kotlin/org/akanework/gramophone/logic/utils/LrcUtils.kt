@@ -28,7 +28,7 @@ object LrcUtils {
 
     @VisibleForTesting
     fun parseLyrics(lyrics: String, parserOptions: LrcParserOptions, format: LyricFormat?): SemanticLyrics? {
-        return (try {
+        return try {
             if (format == null || format == LyricFormat.TTML)
                 parseTtml(lyrics, parserOptions.trim)
             else null
@@ -49,9 +49,6 @@ object LrcUtils {
         } catch (e: Exception) {
             Log.e(TAG, Log.getStackTraceString(e))
             SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
-        })?.also {
-            if (it is SemanticLyrics.SyncedLyrics)
-                splitBidirectionalWords(it)
         }
     }
 
@@ -105,83 +102,6 @@ object LrcUtils {
             Log.e(TAG, Log.getStackTraceString(e))
             return errorText
         }
-    }
-
-    private fun splitBidirectionalWords(syncedLyrics: SemanticLyrics.SyncedLyrics) {
-        syncedLyrics.text.forEach { line ->
-            if (line.words.isNullOrEmpty()) return@forEach
-            val bidirectionalBarriers = findBidirectionalBarriers(line.text)
-            var lastWasRtl = false
-            bidirectionalBarriers.forEach { barrier ->
-                val evilWordIndex =
-                    if (barrier.first == -1) -1 else line.words.indexOfFirst {
-                        it.charRange.contains(barrier.first) && it.charRange.start != barrier.first
-                    }
-                if (evilWordIndex == -1) {
-                    // Propagate the new direction (if there is a barrier after that, direction will
-                    // be corrected after it).
-                    val wordIndex = if (barrier.first == -1) 0 else
-                        line.words.indexOfFirst { it.charRange.start == barrier.first }
-                    line.words.forEachSupport(skipFirst = wordIndex) {
-                        it.isRtl = barrier.second
-                    }
-                    lastWasRtl = barrier.second
-                    return@forEach
-                }
-                val evilWord = line.words[evilWordIndex]
-                // Estimate how long this word will take based on character to time ratio. To avoid
-                // this estimation, add a word sync point to bidirectional barriers :)
-                val barrierTime = min(evilWord.timeRange.first + ((line.words.map {
-                    it.timeRange.count() / it.charRange.count().toFloat()
-                }.average().let { if (it.isNaN()) 100.0 else it } * (barrier.first -
-                        evilWord.charRange.first))).toULong(), evilWord.timeRange.last - 1uL)
-                val firstPart = Word(
-                    charRange = evilWord.charRange.first..<barrier.first,
-                    timeRange = evilWord.timeRange.first..<barrierTime, isRtl = lastWasRtl
-                )
-                val secondPart = Word(
-                    charRange = barrier.first..evilWord.charRange.last,
-                    timeRange = barrierTime..evilWord.timeRange.last, isRtl = barrier.second
-                )
-                line.words[evilWordIndex] = firstPart
-                line.words.add(evilWordIndex + 1, secondPart)
-                lastWasRtl = barrier.second
-            }
-        }
-    }
-
-    private val ltr =
-        arrayOf(
-            Character.DIRECTIONALITY_LEFT_TO_RIGHT,
-            Character.DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING,
-            Character.DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE
-        )
-    private val rtl =
-        arrayOf(
-            Character.DIRECTIONALITY_RIGHT_TO_LEFT,
-            Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC,
-            Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING,
-            Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE
-        )
-
-    fun findBidirectionalBarriers(text: CharSequence): List<Pair<Int, Boolean>> {
-        val barriers = mutableListOf<Pair<Int, Boolean>>()
-        if (text.isEmpty()) return barriers
-        var previousDirection = text.find {
-            val dir = Character.getDirectionality(it)
-            dir in ltr || dir in rtl
-        }?.let { Character.getDirectionality(it) in rtl } == true
-        barriers.add(Pair(-1, previousDirection))
-        for (i in 0 until text.length) {
-            val currentDirection = Character.getDirectionality(text[i])
-            val isRtl = currentDirection in rtl
-            if (currentDirection !in ltr && !isRtl)
-                continue
-            if (previousDirection != isRtl)
-                barriers.add(Pair(i, isRtl))
-            previousDirection = isRtl
-        }
-        return barriers
     }
 
     @OptIn(UnstableApi::class)

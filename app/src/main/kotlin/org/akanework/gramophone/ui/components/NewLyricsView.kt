@@ -36,9 +36,9 @@ import org.akanework.gramophone.logic.ui.spans.MyGradientSpan
 import org.akanework.gramophone.logic.ui.spans.StaticLayoutBuilderCompat
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerp
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
-import org.akanework.gramophone.logic.utils.LrcUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.SpeakerEntity
+import org.akanework.gramophone.logic.utils.findBidirectionalBarriers
 import org.akanework.gramophone.ui.MainActivity
 
 private const val TAG = "NewLyricsView"
@@ -792,7 +792,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             SbItem(layout, sb, paddingTop.dpToPx(context), paddingBottom.dpToPx(context),
                 lineOffsets, lineOffsets?.let { _ ->
                     (0..<layout.lineCount).map { line ->
-                        LrcUtils.findBidirectionalBarriers(layout.text.subSequence(
+                        findBidirectionalBarriers(layout.text.subSequence(
                             layout.getLineStart(line), layout.getLineEnd(line))).flatMap {
                             if (it.second == alignmentNormal)
                                 listOf(line, line)

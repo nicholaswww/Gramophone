@@ -798,6 +798,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val hnw = !LyricWidgetProvider.hasWidget(this)
         if (controller?.isPlaying != true || (!isStatusBarLyricsEnabled && hnw)) return
         val cPos = (controller?.contentPosition ?: 0).toULong()
+        // TODO support lyrics going backwards in time (start of next line is before end of this line)
         val nextUpdate = if (syncedLyrics != null) {
             syncedLyrics?.text?.flatMap {
                 if (hnw && it.start <= cPos) listOf() else if (hnw) listOf(it.start) else
@@ -828,7 +829,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             doUpdateNotification(mediaSession!!)
         }
     }
-
+    // TODO support lyrics going backwards in time (start of next line is before end of this line)
     fun getCurrentLyricIndex(withTranslation: Boolean) =
         if (syncedLyrics != null) {
             syncedLyrics?.text?.indexOfLast {

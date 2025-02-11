@@ -12,9 +12,11 @@ import androidx.media3.extractor.text.subrip.SubripParser
 import java.io.StringReader
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.map
+import kotlin.math.min
 import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.WriteWith
+import org.akanework.gramophone.logic.forEachSupport
 import org.akanework.gramophone.logic.utils.SemanticLyrics.LyricLine
 import org.akanework.gramophone.logic.utils.SemanticLyrics.SyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.UnsyncedLyrics
@@ -354,6 +356,84 @@ private sealed class SyntacticLrc {
     }
 }
 
+private fun splitBidirectionalWords(syncedLyrics: SyncedLyrics) {
+    syncedLyrics.text.forEach { line ->
+        if (line.words.isNullOrEmpty()) return@forEach
+        val bidirectionalBarriers = findBidirectionalBarriers(line.text)
+        var lastWasRtl = false
+        bidirectionalBarriers.forEach { barrier ->
+            val evilWordIndex =
+                if (barrier.first == -1) -1 else line.words.indexOfFirst {
+                    it.charRange.contains(barrier.first) && it.charRange.start != barrier.first
+                }
+            if (evilWordIndex == -1) {
+                // Propagate the new direction (if there is a barrier after that, direction will
+                // be corrected after it).
+                val wordIndex = if (barrier.first == -1) 0 else
+                    line.words.indexOfFirst { it.charRange.start == barrier.first }
+                line.words.forEachSupport(skipFirst = wordIndex) {
+                    it.isRtl = barrier.second
+                }
+                lastWasRtl = barrier.second
+                return@forEach
+            }
+            val evilWord = line.words[evilWordIndex]
+            // Estimate how long this word will take based on character to time ratio. To avoid
+            // this estimation, add a word sync point to bidirectional barriers :)
+            val barrierTime = min(evilWord.timeRange.first + ((line.words.map {
+                it.timeRange.count() / it.charRange.count().toFloat()
+            }.average().let { if (it.isNaN()) 100.0 else it } * (barrier.first -
+                    evilWord.charRange.first))).toULong(), evilWord.timeRange.last - 1uL)
+            val firstPart = Word(
+                charRange = evilWord.charRange.first..<barrier.first,
+                timeRange = evilWord.timeRange.first..<barrierTime, isRtl = lastWasRtl
+            )
+            val secondPart = Word(
+                charRange = barrier.first..evilWord.charRange.last,
+                timeRange = barrierTime..evilWord.timeRange.last, isRtl = barrier.second
+            )
+            line.words[evilWordIndex] = firstPart
+            line.words.add(evilWordIndex + 1, secondPart)
+            lastWasRtl = barrier.second
+        }
+    }
+}
+
+private val ltr =
+    arrayOf(
+        Character.DIRECTIONALITY_LEFT_TO_RIGHT,
+        Character.DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING,
+        Character.DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE
+    )
+private val rtl =
+    arrayOf(
+        Character.DIRECTIONALITY_RIGHT_TO_LEFT,
+        Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC,
+        Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING,
+        Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE
+    )
+
+fun findBidirectionalBarriers(text: CharSequence): List<Pair<Int, Boolean>> {
+    val barriers = mutableListOf<Pair<Int, Boolean>>()
+    if (text.isEmpty()) return barriers
+    var previousDirection = text.find {
+        val dir = Character.getDirectionality(it)
+        dir in ltr || dir in rtl
+    }?.let { Character.getDirectionality(it) in rtl } == true
+    barriers.add(Pair(-1, previousDirection))
+    for (i in 0 until text.length) {
+        val currentDirection = Character.getDirectionality(text[i])
+        val isRtl = currentDirection in rtl
+        if (currentDirection !in ltr && !isRtl)
+            continue
+        if (previousDirection != isRtl)
+            barriers.add(Pair(i, isRtl))
+        previousDirection = isRtl
+    }
+    return barriers
+}
+
+
 /*
  * Syntactic lyric parser. Parse custom objects into usable representation for playback.
  *
@@ -631,11 +711,12 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
         lyric.isTranslated = lyric.start == previousTimestamp
         previousTimestamp = lyric.start
     }
-    return SyncedLyrics(out)
+    return SyncedLyrics(out).also { splitBidirectionalWords(it) }
 }
 
 private val tt = "http://www.w3.org/ns/ttml"
 private val ttm = "http://www.w3.org/ns/ttml#metadata"
+private val ttp = "http://www.w3.org/ns/ttml#parameter"
 private val itunes = "http://itunes.apple.com/lyric-ttml-extensions"
 private val itunesInternal = "http://music.apple.com/lyric-ttml-internal"
 private fun XmlPullParser.skipToEndOfTag() {
@@ -658,6 +739,113 @@ private fun XmlPullParser.nextAndThrowIfNotText() {
     if (next() != XmlPullParser.TEXT)
         throw XmlPullParserException("expected end tag in nextAndThrowIfNotText()")
 }
+private class TtmlTimeTracker(private val parser: XmlPullParser) {
+    private val effectiveFrameRate: Float
+    private val subFrameRate: Int
+    private val tickRate: Int
+    init {
+        val frameRate = parser.getAttributeValue(ttp, "frameRate")?.toInt() ?: 30
+        val frameRateMultiplier = parser.getAttributeValue(ttp, "frameRateMultiplier")
+            ?.split(" ")?.let { parts ->
+                parts[0].toInt() / parts[1].toInt().toFloat()
+            } ?: 1f
+        effectiveFrameRate = frameRate * frameRateMultiplier
+        subFrameRate = parser.getAttributeValue(ttp, "subFrameRate")?.toInt() ?: 1
+        tickRate = parser.getAttributeValue(ttp, "tickRate")?.toInt() ?: 1
+    }
+    // of course someone didn't conform to spec again :D - business as usual
+    private val appleTimeRegex = Regex("^([0-9][0-9]+:)?([0-9][0-9]:)?([0-9][0-9](?:\\.[0-9][0-9]+)?)$")
+    private val clockTimeRegex = Regex("^([0-9][0-9]+):([0-9][0-9]):([0-9][0-9])(?:(\\.[0-9]+)|:([0-9][0-9])(?:\\.([0-9]+))?)?$")
+    private val offsetTimeRegex = Regex("^([0-9]+(?:\\.[0-9]+)?)(h|m|s|ms|f|t)$")
+    private fun parseTimestampMs(input: String, offset: ULong): ULong? {
+        if (input.isEmpty()) return null
+        val appleMatch = appleTimeRegex.matchEntire(input)
+        if (appleMatch != null) {
+            val hours = appleMatch.groupValues[1].toDoubleOrNull() ?: 0.0
+            val minutes = appleMatch.groupValues[2].toDoubleOrNull() ?: 0.0
+            val seconds = appleMatch.groupValues[3].toDouble()
+            // Apple has no idea how a TTML file works. So omit offset just for their broken files
+            return (hours * 3600000 + minutes * 60000 + seconds * 1000).toULong()
+        }
+        val clockMatch = clockTimeRegex.matchEntire(input)
+        if (clockMatch != null) {
+            val hours = clockMatch.groupValues[1].toDouble()
+            val minutes = clockMatch.groupValues[2].toDouble()
+            val seconds = (clockMatch.groupValues[3] + clockMatch.groupValues[4]).toDouble()
+            val frameSecs = clockMatch.groupValues[5].toDoubleOrNull()
+                ?.div(effectiveFrameRate) ?: 0.0
+            val subFrameSecs = clockMatch.groupValues[6].toDoubleOrNull()
+                ?.div(subFrameRate)?.div(effectiveFrameRate) ?: 0.0
+            return (hours * 3600000 + minutes * 60000 + (seconds + frameSecs +
+                    subFrameSecs) * 1000).toULong() + offset
+        }
+        val offsetMatch = offsetTimeRegex.matchEntire(input)
+        if (offsetMatch != null) {
+            var time = offsetMatch.groupValues[1].toDouble()
+            when (offsetMatch.groupValues[2]) {
+                "h" -> time *= 3600000.0
+                "m" -> time *= 60000.0
+                "s" -> time *= 1000.0
+                "ms" -> {}
+                "f" -> time /= effectiveFrameRate / 1000.0
+                "t" -> time /= tickRate / 1000.0
+            }
+            return time.toULong() + offset
+        }
+        throw XmlPullParserException("can't understand this TTML timestamp: $input")
+    }
+    private fun parseRange(offset: ULong): ULongRange {
+        var begin = parseTimestampMs(parser.getAttributeValue(tt, "begin"), offset) ?: offset
+        var dur = parseTimestampMs(parser.getAttributeValue(tt, "dur"), offset) ?: offset
+        var end = parseTimestampMs(parser.getAttributeValue(tt, "end"), offset) ?: offset
+        if (begin == offset)
+            begin = end - dur
+        else if (end == offset)
+            end = begin + dur
+        return begin..end
+    }
+    private class TtmlLevel(val time: ULongRange, var seq: ULong?)
+    private val stack = mutableListOf<TtmlLevel>()
+    fun beginBlock() {
+        val isSeq = parser.getAttributeValue(tt, "timeContainer").let {
+            when (it) {
+                "par" -> false
+                "seq" -> true
+                else -> throw XmlPullParserException("unknown timeContainer value $it")
+            }
+        }
+        val last = stack.lastOrNull()
+        val range = parseRange(last?.seq ?: last?.time?.first ?: 0uL)
+        stack.add(TtmlLevel(range, if (isSeq) range.first else null))
+    }
+    fun getTime(): ULongRange? {
+        return stack.lastOrNull()?.time
+    }
+    fun endBlock() {
+        val removed = stack.removeAt(stack.size - 1)
+        stack.lastOrNull()?.let {
+            it.seq = if (it.seq != null) removed.time.last else null
+        }
+    }
+}
+private class TtmlParserState(val parser: XmlPullParser, val timer: TtmlTimeTracker) {
+    /* all tags, including <body>. if unset, inherit parent */
+    val agent = listOf<String>()
+    /* <div>. if unset, inherit parent */
+    val songPart = listOf<String>()
+    /* <p>. if unset, inherit parent */
+    val key = listOf<String>()
+
+    fun parse() {
+        if (parser.eventType != XmlPullParser.START_TAG)
+            throw IllegalStateException("expected START_TAG, found ${parser.eventType}!")
+        timer.beginBlock()
+        // TODO
+        timer.endBlock()
+        if (parser.eventType != XmlPullParser.END_TAG)
+            throw IllegalStateException("expected END_TAG, found ${parser.eventType}!")
+    }
+}
 fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
     val parser = Xml.newPullParser()
     parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
@@ -670,6 +858,7 @@ fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
     }
     val lang = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "lang")
     val timing = parser.getAttributeValue(itunesInternal, "timing")
+    val timer = TtmlTimeTracker(parser)
     parser.nextTag()
     parser.require(XmlPullParser.START_TAG, tt, "head")
     // TODO parse and reject based on https://www.w3.org/TR/2018/REC-ttml2-20181108/#feature-profile-version-2 to be compliant
@@ -712,10 +901,9 @@ fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
     parser.require(XmlPullParser.END_TAG, tt, "head")
     parser.next()
     parser.require(XmlPullParser.START_TAG, tt, "body")
-    while (parser.nextTag() != XmlPullParser.END_TAG) {
-        parser.skipToEndOfTag() // TODO parse <body>
-    }
-    return null
+    val state = TtmlParserState(parser, timer)
+    state.parse()
+    return null // state.toSyncedLyrics()
 }
 
 @OptIn(UnstableApi::class)
