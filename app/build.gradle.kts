@@ -273,6 +273,7 @@ dependencies {
     // Note: JAudioTagger is not compatible with Android 5, we can't ship it in app
     debugImplementation("net.jthink:jaudiotagger:3.0.1") // <-- for "SD Exploder"
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14")
     "userdebugImplementation"(kotlin("reflect")) // who thought String.invoke() is a good idea?????
     debugImplementation(kotlin("reflect"))
 }

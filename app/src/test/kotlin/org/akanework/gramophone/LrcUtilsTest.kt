@@ -9,7 +9,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class LrcUtilsTest {
 
 	private fun parse(lrcContent: String, trim: Boolean? = null, multiline: Boolean? = null, mustSkip: Boolean? = false): SemanticLyrics? {
@@ -33,7 +36,7 @@ class LrcUtilsTest {
 				assertEquals("multiline true and false should result in same list for this string (trim=$trim)", b?.unsyncedText, a?.unsyncedText)
 			return a
 		}
-		val a = LrcUtils.parseLyrics(lrcContent, LrcUtils.LrcParserOptions(trim, multiline, "--no lyric found--"), null)
+		val a = LrcUtils.parseLyrics(lrcContent, LrcUtils.LrcParserOptions(trim, multiline, null), null)
 		if (mustSkip != null) {
 			if (mustSkip) {
 				assertTrue("excepted skip (trim=$trim multiline=$multiline)", a is SemanticLyrics.UnsyncedLyrics)
@@ -136,7 +139,7 @@ class LrcUtilsTest {
 	fun testTemplateLrcZeroTimestamps() {
 		val lrc = parse(LrcTestData.AS_IT_WAS.replace("\\[(\\d{2}):(\\d{2})([.:]\\d+)?]".toRegex(), "[00:00.00]"), mustSkip = true)
 		assertNotNull(lrc)
-		assertEquals(LrcTestData.AS_IT_WAS_PARSED.map { it.text }, lrc!!.unsyncedText)
+		assertEquals(LrcTestData.AS_IT_WAS_PARSED.map { it.text }, lrc!!.unsyncedText.map { it.first })
 	}
 
 	@Test
@@ -316,5 +319,10 @@ class LrcUtilsTest {
 	@Test
 	fun testParserSkipped2() {
 		parse("2", mustSkip = true)
+	}
+
+	@Test
+	fun testParserTtmlTemplate() {
+		parseSynced(LrcTestData.TTML_DEATH_BED)
 	}
 }

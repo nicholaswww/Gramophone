@@ -24,32 +24,33 @@ object LrcUtils {
         TTML,
         SRT
     }
-    data class LrcParserOptions(val trim: Boolean, val multiLine: Boolean, val errorText: String)
+    data class LrcParserOptions(val trim: Boolean, val multiLine: Boolean, val errorText: String?)
 
     @VisibleForTesting
     fun parseLyrics(lyrics: String, parserOptions: LrcParserOptions, format: LyricFormat?): SemanticLyrics? {
-        return try {
+        for (i in listOf({
             if (format == null || format == LyricFormat.TTML)
                 parseTtml(lyrics, parserOptions.trim)
             else null
-        } catch (e: Exception) {
-            Log.e(TAG, Log.getStackTraceString(e))
-            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
-        } ?: try {
+        }, {
             if (format == null || format == LyricFormat.SRT)
                 parseSrt(lyrics, parserOptions.trim)
             else null
-        } catch (e: Exception) {
-            Log.e(TAG, Log.getStackTraceString(e))
-            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
-        } ?: try {
+        }, {
             if (format == null || format == LyricFormat.LRC)
                 parseLrc(lyrics, parserOptions.trim, parserOptions.multiLine)
             else null
-        } catch (e: Exception) {
-            Log.e(TAG, Log.getStackTraceString(e))
-            SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
+        })) {
+            try {
+                return i() ?: continue
+            } catch (e: Exception) {
+                if (parserOptions.errorText == null)
+                    throw e
+                Log.e(TAG, Log.getStackTraceString(e))
+                SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
+            }
         }
+        return null
     }
 
     @OptIn(UnstableApi::class)
@@ -124,7 +125,7 @@ object LrcUtils {
                     parseLrcStringLegacy(it, parserOptions)
                 } catch (e: Exception) {
                     Log.e(TAG, Log.getStackTraceString(e))
-                    mutableListOf(MediaStoreUtils.Lyric(content = parserOptions.errorText))
+                    mutableListOf(MediaStoreUtils.Lyric(content = parserOptions.errorText ?: "null"))
                 }
             }
             return lyrics ?: continue
