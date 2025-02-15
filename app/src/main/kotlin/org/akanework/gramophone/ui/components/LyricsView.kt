@@ -4,13 +4,17 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.AttributeSet
 import android.widget.FrameLayout
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import androidx.preference.PreferenceManager
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.convertForLegacy
+import org.akanework.gramophone.ui.MainActivity
 
 class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, attrs),
     SharedPreferences.OnSharedPreferenceChangeListener {
@@ -43,6 +47,17 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
         if (prefs.getBooleanStrict("lyric_ui", false)) {
             inflate(context, R.layout.lyric_view_v2, this)
             newView = findViewById(R.id.lyric_view)
+            newView?.instance = object : NewLyricsView.Callbacks {
+                @OptIn(UnstableApi::class)
+                override fun getCurrentPosition(): ULong =
+                    GramophonePlaybackService.instanceForWidgetAndLyricsOnly
+                        ?.endedWorkaroundPlayer?.currentPosition?.toULong()
+                        ?: (context as MainActivity).getPlayer()?.currentPosition?.toULong() ?: 0uL
+
+                override fun seekTo(position: ULong) {
+                    (context as MainActivity).getPlayer()?.seekTo(position.toLong())
+                }
+            }
             newView?.updateTextColor(
                 defaultTextColor, highlightTextColor, defaultTextColorM,
                 highlightTextColorM, defaultTextColorF, highlightTextColorF, defaultTextColorD,

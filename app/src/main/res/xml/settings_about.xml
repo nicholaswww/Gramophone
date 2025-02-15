@@ -46,8 +46,13 @@
         <Preference
             android:key="contributors"
             android:layout="@layout/preference_basic"
-            android:summary="@string/settings_contributors_detail"
             android:title="@string/settings_contributors"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="open_source_licenses"
+            android:layout="@layout/preference_basic"
+            android:title="@string/settings_open_source_licenses"
             app:iconSpaceReserved="false" />
 
     </PreferenceCategory>

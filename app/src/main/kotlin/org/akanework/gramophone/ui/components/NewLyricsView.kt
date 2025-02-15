@@ -43,7 +43,7 @@ import org.akanework.gramophone.ui.MainActivity
 
 private const val TAG = "NewLyricsView"
 
-class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs) {
+class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     private val smallSizeFactor = 0.97f
     private var lyricAnimTime = 0f
@@ -67,12 +67,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     private var spForMeasure: Pair<Pair<Int, Int>, List<SbItem>>? = null
     private var lyrics: SemanticLyrics? = null
     private var posForRender = 0uL
-    private val activity
-        get() = context as MainActivity
-    private val instance
-        get() = activity.getPlayer()
+    lateinit var instance: Callbacks
     private val scrollView // TODO autoscroll
-        get() = parent as NestedScrollView
+        get() = parent as? NestedScrollView
 
     // -/M/F/D insanity starts here
     private var defaultTextColor = 0
@@ -161,6 +158,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         applyTypefaces()
         loadLyricAnimTime()
         charScaling = prefs.getBooleanStrict("lyric_char_scaling", false)
+    }
+
+    interface Callbacks {
+        fun getCurrentPosition(): ULong
+        fun seekTo(position: ULong)
     }
 
     fun updateTextColor(
@@ -271,15 +273,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     }
 
     fun updateLyricPositionFromPlaybackPos() {
-        if (getCurrentPosition() != posForRender) // if not playing, might stay same
+        if (instance.getCurrentPosition() != posForRender) // if not playing, might stay same
             invalidate()
     }
-
-    // https://github.com/androidx/media/issues/1578
-    @OptIn(UnstableApi::class)
-    private fun getCurrentPosition() = GramophonePlaybackService.instanceForWidgetAndLyricsOnly
-        ?.endedWorkaroundPlayer?.currentPosition?.toULong()
-        ?: instance?.currentPosition?.toULong() ?: 0uL
 
     fun onPrefsChanged(key: String) {
         if (key == "lyric_char_scaling") {
@@ -353,7 +349,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
     }
 
     override fun onDraw(canvas: Canvas) {
-        posForRender = getCurrentPosition().also {
+        posForRender = instance.getCurrentPosition().also {
             if (posForRender > it && posForRender - it < 1000uL)
                 Log.w(TAG, "regressing position by ${posForRender - it}ms from $posForRender to $it!")
         }
@@ -602,7 +598,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
         if (animating)
             invalidate()
         if (firstHighlight != null && firstHighlight != currentScrollTarget)
-            scrollView.smoothScrollTo(0, firstHighlight, lyricAnimTime.toInt())
+            scrollView?.smoothScrollTo(0, firstHighlight, lyricAnimTime.toInt())
         currentScrollTarget = firstHighlight
     }
 
@@ -651,7 +647,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
                 }
             }
             if (foundItem != null) {
-                instance?.seekTo(foundItem.start.toLong())
+                instance.seekTo(foundItem.start)
                 performClick()
             }
             return true
