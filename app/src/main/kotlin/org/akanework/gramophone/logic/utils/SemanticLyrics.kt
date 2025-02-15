@@ -800,15 +800,18 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
         }
         throw XmlPullParserException("can't understand this TTML timestamp: $input")
     }
-    private fun parseRange(offset: ULong): ULongRange {
-        var begin = parseTimestampMs(parser.getAttributeValue("", "begin"), offset) ?: 0uL
-        var dur = parseTimestampMs(parser.getAttributeValue("", "dur"), 0uL) ?: 0uL
-        var end = parseTimestampMs(parser.getAttributeValue("", "end"), offset) ?: 0uL
-        if (begin == 0uL && dur != 0uL)
-            begin = end - dur
-        else if (end == 0uL)
-            end = begin + dur
-        return begin..end
+    private fun parseRange(offset: ULong): ULongRange? {
+        var begin = parseTimestampMs(parser.getAttributeValue("", "begin"), offset)
+        var dur = parseTimestampMs(parser.getAttributeValue("", "dur"), 0uL)
+        var end = parseTimestampMs(parser.getAttributeValue("", "end"), offset)
+        if (begin == null && end == null || end == null && dur == null
+            || begin == null && dur == null)
+            return null
+        if (begin == null && dur != null)
+            begin = (end ?: 0uL) - dur
+        else if (end == null && dur != null)
+            end = begin!! + dur
+        return begin!!..end!!
     }
     private class TtmlLevel(val time: ULongRange, var seq: ULong?)
     private val stack = mutableListOf<TtmlLevel>()
@@ -822,7 +825,8 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
         }
         val last = stack.lastOrNull()
         val range = parseRange(last?.seq ?: last?.time?.first ?: 0uL)
-        stack.add(TtmlLevel(range, if (isSeq) range.first else null))
+        if (range != null)
+            stack.add(TtmlLevel(range, if (isSeq) range.first else null))
     }
     fun getTime(): ULongRange? {
         return stack.lastOrNull()?.time

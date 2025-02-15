@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.Fragment
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
@@ -12,7 +13,7 @@ import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 
 abstract class BaseSettingFragment(
     private val str: Int,
-    private val fragmentCreator: () -> BasePreferenceFragment
+    private val fragmentCreator: () -> Fragment
 ) : BaseFragment(false) {
     override fun onCreateView(
         inflater: LayoutInflater,

@@ -34,7 +34,7 @@ import com.mikepenz.aboutlibraries.util.withJson
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.utils.ColorUtils
-import org.akanework.gramophone.ui.ContributorsActivity
+import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
 import org.akanework.gramophone.ui.fragments.BaseSettingFragment
 
@@ -82,7 +82,7 @@ class AboutSettingsTopFragment : BasePreferenceFragment() {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
                 rootView.findViewById<View>(R.id.iconCard)!!.visibility = View.GONE
         } else if (preference.key == "contributors") {
-            startActivity(Intent(requireActivity(), ContributorsActivity::class.java))
+            (requireActivity() as MainActivity).startFragment(ContributorsSettingsFragment())
         } else if (preference.key == "package_type") {
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.settings_package_type)
