@@ -970,7 +970,8 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
         var idx = it.texts.indexOfFirst { i -> i.role != it.texts[0].role }
         var cur = 0
         do {
-            if (cur == 0 && idx == -1)
+            if (cur == 0 && idx == -1 && !(it.texts.firstOrNull()?.text?.startsWith('(') == true
+                && it.texts.lastOrNull()?.text?.endsWith(')') == true))
                 out.add(it)
             else {
                 val t = it.texts.subList(cur, idx.let { i -> if (i == -1) it.texts.size else i })
