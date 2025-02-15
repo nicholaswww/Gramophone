@@ -159,6 +159,7 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
         val isTranslation = (item?.isTranslated ?: itemLegacy?.isTranslation) == true
         val isBackground = (item?.speaker ?: itemUnsynced?.second)?.isBackground == true
         val isVoice2 = (item?.speaker ?: itemUnsynced?.second)?.isVoice2 == true
+        val isGroup = (item?.speaker ?: itemUnsynced?.second)?.isGroup == true
         val startTs = item?.start?.toLong() ?: itemLegacy?.timeStamp ?: -1L
         val endTs = item?.end?.toLong()
             ?: service?.lyricsLegacy?.find { (it.timeStamp ?: -1L) > (itemLegacy!!.timeStamp ?: -1L) }?.timeStamp?.minus(1)
@@ -166,6 +167,10 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
         val isActive = startTs == -1L || cPos != null && cPos >= startTs && cPos <= endTs
         return RemoteViews(
             context.packageName, when {
+                isGroup && isTranslation && isBackground -> R.layout.lyric_widget_text_center_tlbg
+                isGroup && isTranslation -> R.layout.lyric_widget_text_center_tlbg
+                isGroup && isBackground -> R.layout.lyric_widget_text_center_bg
+                isGroup -> R.layout.lyric_widget_text_center
                 isVoice2 && isTranslation && isBackground -> R.layout.lyric_widget_text_right_tlbg
                 isVoice2 && isTranslation -> R.layout.lyric_widget_text_right_tlbg
                 isVoice2 && isBackground -> R.layout.lyric_widget_text_right_bg

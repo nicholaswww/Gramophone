@@ -692,7 +692,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet) : View(context, attrs
             val syncedLine = syncedLines?.get(i)
             val sb = SpannableStringBuilder(it.first)
             val speaker = syncedLine?.speaker ?: it.second
-            val align = if (prefs.getBooleanStrict("lyric_center", false))
+            val align = if (prefs.getBooleanStrict("lyric_center", false) || speaker?.isGroup == true)
                 Layout.Alignment.ALIGN_CENTER
             else if (speaker?.isVoice2 == true)
                 Layout.Alignment.ALIGN_OPPOSITE

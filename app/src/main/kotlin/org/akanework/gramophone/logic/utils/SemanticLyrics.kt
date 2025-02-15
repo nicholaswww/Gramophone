@@ -52,14 +52,16 @@ private const val TAG = "SemanticLyrics"
  */
 
 @Parcelize
-enum class SpeakerEntity(val isWalaoke: Boolean, val isVoice2: Boolean = false, val isBackground: Boolean = false) : Parcelable {
+enum class SpeakerEntity(val isWalaoke: Boolean, val isVoice2: Boolean = false, val isGroup: Boolean = false, val isBackground: Boolean = false) : Parcelable {
     Male(true), // Walaoke
     Female(true), // Walaoke
     Duet(true), // Walaoke
-    Background(false, isBackground = true), // iTunes
     Voice1(false), // iTunes
+    Background(false, isBackground = true), // iTunes
     Voice2(false, isVoice2 = true), // iTunes
-    Voice2Background(false, isVoice2 = true, isBackground = true) // iTunes
+    Voice2Background(false, isVoice2 = true, isBackground = true), // iTunes
+    Group(false, isGroup = true),
+    GroupBackground(false, isGroup = true, isBackground = true)
 }
 
 /*
@@ -835,7 +837,7 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
 private class TtmlParserState(private val parser: XmlPullParser, private val timer: TtmlTimeTracker) {
     data class Text(val text: String, val time: ULongRange?, val role: String?)
     data class P(val texts: List<Text>, val time: ULongRange, val agent: String?,
-        val songPart: String?, val key: String?)
+        val songPart: String?, val key: String?, val role: String?)
     private var texts: MutableList<Text>? = null
     val paragraphs = mutableListOf<P>()
 
@@ -891,7 +893,7 @@ private class TtmlParserState(private val parser: XmlPullParser, private val tim
                 texts!!.removeAt(texts!!.size - 1)
             if (time == null)
                 throw IllegalStateException("found a paragraph, why is time still null?")
-            paragraphs.add(P(texts!!, time, agent, songPart, key))
+            paragraphs.add(P(texts!!, time, agent, songPart, key, role))
             texts = null
         }
         if (parser.eventType != XmlPullParser.END_TAG)
@@ -912,6 +914,8 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
     }
     // val lang = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "lang")
     // val timing = parser.getAttributeValue(itunesInternal, "timing")
+    val peopleToType = hashMapOf<String, String>()
+    val people = hashMapOf<String, MutableList<String>>()
     val timer = TtmlTimeTracker(parser)
     parser.nextTag()
     parser.require(XmlPullParser.START_TAG, tt, "head")
@@ -921,8 +925,9 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
             while (parser.nextTag() != XmlPullParser.END_TAG) {
                 if (parser.namespace == ttm && parser.name == "agent") {
                     val id = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "id")
-                    val type = parser.getAttributeValue(ttm, "lang")
-                    // TODO do something with this information
+                    val type = parser.getAttributeValue("", "type")
+                    people.getOrPut(type) { mutableListOf() }.add(id)
+                    peopleToType[id] = type
                     parser.nextAndThrowIfNotEnd()
                 } else if (parser.name == "iTunesMetadata") {
                     while (parser.nextTag() != XmlPullParser.END_TAG) {
@@ -930,8 +935,7 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
                             while (parser.nextTag() != XmlPullParser.END_TAG) {
                                 if (parser.name == "songwriter") {
                                     parser.nextAndThrowIfNotText()
-                                    val songwriter = parser.text
-                                    // TODO do something with this information
+                                    // val songwriter = parser.text
                                     parser.nextAndThrowIfNotEnd()
                                 } else {
                                     throw XmlPullParserException("expected <songwriter>, got " +
@@ -972,7 +976,7 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
                         t,
                         time = t.lastOrNull()?.time?.last?.let { other ->
                             t.firstOrNull()?.time?.first?.rangeTo(other)
-                        } ?: it.time))
+                        } ?: it.time, role = t.firstOrNull()?.role ?: it.role))
             }
             cur = idx
             if (cur != -1)
@@ -992,7 +996,19 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
             .filter { it.first.time != null }
             .map { Word(it.first.time!!, it.second, false) }
             .toMutableList()
-        LyricLine(text.toString(), it.time.first, it.time.last, theWords, null, false)
+        val isBg = it.role == "x-bg"
+        val isGroup = peopleToType[it.agent] == "group"
+        val isEven = people[peopleToType[it.agent]]!!.indexOf(it.agent) % 2 == 0
+        val speaker = when {
+            isGroup && isBg -> SpeakerEntity.GroupBackground
+            isGroup -> SpeakerEntity.Group
+            isEven && isBg -> SpeakerEntity.Voice2Background
+            isEven -> SpeakerEntity.Voice2
+            isBg -> SpeakerEntity.Background
+            else -> SpeakerEntity.Voice1
+        }
+        // TOOD translations for ttml? does anyone actually do that? how could that work?
+        LyricLine(text.toString(), it.time.first, it.time.last, theWords, speaker, false)
     }).also { splitBidirectionalWords(it) }
 }
 
