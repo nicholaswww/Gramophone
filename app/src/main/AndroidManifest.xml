@@ -100,10 +100,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".ui.ContributorsActivity"
-            android:exported="false" />
-
         <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"
             android:exported="true">
