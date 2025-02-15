@@ -852,6 +852,8 @@ private class TtmlParserState(private val parser: XmlPullParser, private val tim
         var key = key
         var role = role
         if (parser.eventType == XmlPullParser.TEXT) {
+            if (parser.text.contains("\n"))
+                return
             if (texts == null) {
                 if (parser.text.isNotBlank())
                     throw IllegalStateException("found TEXT \"${parser.text}\" but text isn't allowed here (forgot <p>?)")
@@ -971,8 +973,9 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
         var cur = 0
         do {
             if (cur == 0 && idx == -1 && !(it.texts.firstOrNull()?.text?.startsWith('(') == true
-                && it.texts.lastOrNull()?.text?.endsWith(')') == true))
-                out.add(it)
+                && it.texts.lastOrNull()?.text?.endsWith(')') == true &&
+                        (it.texts.firstOrNull()?.role ?: it.role) == "x-bg"))
+                out.add(it.copy(role = it.texts.firstOrNull()?.role ?: it.role))
             else {
                 val t = it.texts.subList(cur, idx.let { i -> if (i == -1) it.texts.size else i })
                     .toMutableList()
