@@ -1001,12 +1001,12 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
             .toMutableList()
         val isBg = it.role == "x-bg"
         val isGroup = peopleToType[it.agent] == "group"
-        val isEven = people[peopleToType[it.agent]]!!.indexOf(it.agent) % 2 == 0
+        val isVoice2 = people[peopleToType[it.agent]]!!.indexOf(it.agent) % 2 == 1
         val speaker = when {
             isGroup && isBg -> SpeakerEntity.GroupBackground
             isGroup -> SpeakerEntity.Group
-            isEven && isBg -> SpeakerEntity.Voice2Background
-            isEven -> SpeakerEntity.Voice2
+            isVoice2 && isBg -> SpeakerEntity.Voice2Background
+            isVoice2 -> SpeakerEntity.Voice2
             isBg -> SpeakerEntity.Background
             else -> SpeakerEntity.Voice1
         }
