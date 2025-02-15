@@ -974,6 +974,12 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
                 out.add(it)
             else {
                 val t = it.texts.subList(cur, idx.let { i -> if (i == -1) it.texts.size else i })
+                    .toMutableList()
+                if (t.firstOrNull()?.text?.startsWith('(') == true
+                    && t.lastOrNull()?.text?.endsWith(')') == true) {
+                    t[0] = t.first().copy(text = t.first().text.substring(1))
+                    t[t.size - 1] = t.last().copy(text = t.last().text.substring(0, t.last().text.length - 1))
+                }
                 out.add(
                     it.copy(
                         t,
