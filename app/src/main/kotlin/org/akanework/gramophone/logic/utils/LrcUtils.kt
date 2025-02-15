@@ -30,7 +30,7 @@ object LrcUtils {
     fun parseLyrics(lyrics: String, parserOptions: LrcParserOptions, format: LyricFormat?): SemanticLyrics? {
         for (i in listOf({
             if (format == null || format == LyricFormat.TTML)
-                parseTtml(lyrics, parserOptions.trim)
+                parseTtml(lyrics)
             else null
         }, {
             if (format == null || format == LyricFormat.SRT)

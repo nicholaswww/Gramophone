@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.text.CuesWithTiming
 import androidx.media3.extractor.text.SubtitleParser
 import androidx.media3.extractor.text.subrip.SubripParser
+import androidx.media3.extractor.text.ttml.TtmlParser
 import java.io.StringReader
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.map
@@ -754,15 +755,18 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
         tickRate = parser.getAttributeValue(ttp, "tickRate")?.toInt() ?: 1
     }
     // of course someone didn't conform to spec again :D - business as usual
-    private val appleTimeRegex = Regex("^([0-9][0-9]+:)?([0-9][0-9]:)?([0-9][0-9](?:\\.[0-9][0-9]+)?)$")
+    private val appleTimeRegex = Regex("^(?:([0-9]+):)?(?:([0-9]+):)?([0-9]+\\.[0-9]+)?$")
     private val clockTimeRegex = Regex("^([0-9][0-9]+):([0-9][0-9]):([0-9][0-9])(?:(\\.[0-9]+)|:([0-9][0-9])(?:\\.([0-9]+))?)?$")
     private val offsetTimeRegex = Regex("^([0-9]+(?:\\.[0-9]+)?)(h|m|s|ms|f|t)$")
     private fun parseTimestampMs(input: String?, offset: ULong): ULong? {
         if (input?.isEmpty() != false) return null
         val appleMatch = appleTimeRegex.matchEntire(input)
         if (appleMatch != null) {
-            val hours = appleMatch.groupValues[1].toDoubleOrNull() ?: 0.0
-            val minutes = appleMatch.groupValues[2].toDoubleOrNull() ?: 0.0
+            val hours = if (appleMatch.groupValues[2].isNotEmpty())
+                appleMatch.groupValues[1].toDoubleOrNull() ?: 0.0 else 0.0
+            val minutes = if (appleMatch.groupValues[2].isNotEmpty())
+                appleMatch.groupValues[2].toDoubleOrNull() ?: 0.0 else
+                appleMatch.groupValues[1].toDoubleOrNull() ?: 0.0
             val seconds = appleMatch.groupValues[3].toDouble()
             // Apple has no idea how a TTML file works. So omit offset just for their broken files
             return (hours * 3600000 + minutes * 60000 + seconds * 1000).toULong()
@@ -795,19 +799,19 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
         throw XmlPullParserException("can't understand this TTML timestamp: $input")
     }
     private fun parseRange(offset: ULong): ULongRange {
-        var begin = parseTimestampMs(parser.getAttributeValue(tt, "begin"), offset) ?: offset
-        var dur = parseTimestampMs(parser.getAttributeValue(tt, "dur"), offset) ?: offset
-        var end = parseTimestampMs(parser.getAttributeValue(tt, "end"), offset) ?: offset
-        if (begin == offset)
+        var begin = parseTimestampMs(parser.getAttributeValue("", "begin"), offset) ?: 0uL
+        var dur = parseTimestampMs(parser.getAttributeValue("", "dur"), 0uL) ?: 0uL
+        var end = parseTimestampMs(parser.getAttributeValue("", "end"), offset) ?: 0uL
+        if (begin == 0uL && dur != 0uL)
             begin = end - dur
-        else if (end == offset)
+        else if (end == 0uL)
             end = begin + dur
         return begin..end
     }
     private class TtmlLevel(val time: ULongRange, var seq: ULong?)
     private val stack = mutableListOf<TtmlLevel>()
     fun beginBlock() {
-        val isSeq = parser.getAttributeValue(tt, "timeContainer").let {
+        val isSeq = parser.getAttributeValue("", "timeContainer").let {
             when (it) {
                 "par", null -> false
                 "seq" -> true
@@ -828,23 +832,39 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
         }
     }
 }
-private class TtmlParserState(val parser: XmlPullParser, val timer: TtmlTimeTracker) {
-    data class Text(val text: String, val time: ULongRange?, val agent: String?,
+private class TtmlParserState(private val parser: XmlPullParser, private val timer: TtmlTimeTracker) {
+    data class Text(val text: String, val time: ULongRange?, val role: String?)
+    data class P(val texts: List<Text>, val time: ULongRange, val agent: String?,
         val songPart: String?, val key: String?)
-    var texts = mutableListOf<Text>()
+    private var texts: MutableList<Text>? = null
+    val paragraphs = mutableListOf<P>()
 
-    fun parse(time: ULongRange?, agent: String?, songPart: String?, key: String?) {
-        if (parser.eventType == XmlPullParser.TEXT) {
-            texts.add(Text(parser.text, time, agent, songPart, key))
-            parser.next()
-            return
-        }
+    fun parse(time: ULongRange? = null, ptime: ULongRange? = null, agent: String? = null, songPart: String? = null, key: String? = null, role: String? = null) {
         var time = time
+        var ptime = ptime
         var agent = agent
         var songPart = songPart
         var key = key
+        var role = role
+        if (parser.eventType == XmlPullParser.TEXT) {
+            if (texts == null) {
+                if (parser.text.isNotBlank())
+                    throw IllegalStateException("found TEXT \"${parser.text}\" but text isn't allowed here (forgot <p>?)")
+                return
+            }
+            if (time == ptime)
+                time = null
+            texts!!.add(Text(parser.text, time, role))
+            return
+        }
         if (parser.eventType != XmlPullParser.START_TAG)
             throw IllegalStateException("expected START_TAG or TEXT, found ${parser.eventType}!")
+        if (parser.name != "span")
+            parser.getAttributeValue(ttm, "agent")?.let { agent = it }
+        parser.getAttributeValue(ttm, "role")?.let { role = it }
+        timer.beginBlock()
+        time = timer.getTime()
+        var isP = false
         when (parser.name) {
             "div" -> {
                 // not even having consistent attribute naming is truly beautiful
@@ -853,22 +873,34 @@ private class TtmlParserState(val parser: XmlPullParser, val timer: TtmlTimeTrac
             }
             "p" -> {
                 parser.getAttributeValue(itunesInternal, "key")?.let { key = it }
+                texts = mutableListOf()
+                isP = true
+                ptime = time
             }
             "body", "span" -> {}
             else -> throw IllegalStateException("unknown tag ${parser.name}, wanted body/span/div/p")
         }
-        parser.getAttributeValue(ttm, "agent")?.let { agent = it }
-        timer.beginBlock()
-        time = timer.getTime()
         while (parser.next() != XmlPullParser.END_TAG) {
-            parse(time, agent, songPart, key)
+            parse(time, ptime, agent, songPart, key, role)
         }
         timer.endBlock()
+        if (isP) {
+            while (texts!!.isNotEmpty() && texts!![0].text.isBlank())
+                texts!!.removeAt(0)
+            while (texts!!.isNotEmpty() && texts!![texts!!.size - 1].text.isBlank())
+                texts!!.removeAt(texts!!.size - 1)
+            if (time == null)
+                throw IllegalStateException("found a paragraph, why is time still null?")
+            paragraphs.add(P(texts!!, time, agent, songPart, key))
+            texts = null
+        }
         if (parser.eventType != XmlPullParser.END_TAG)
             throw IllegalStateException("expected END_TAG, found ${parser.eventType}!")
     }
 }
-fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
+
+@OptIn(UnstableApi::class)
+fun parseTtml(lyricText: String): SemanticLyrics? {
     val parser = Xml.newPullParser()
     parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
     parser.setInput(StringReader(lyricText))
@@ -878,13 +910,12 @@ fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
     } catch (_: XmlPullParserException) {
         return null // not ttml
     }
-    val lang = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "lang")
-    val timing = parser.getAttributeValue(itunesInternal, "timing")
+    // val lang = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "lang")
+    // val timing = parser.getAttributeValue(itunesInternal, "timing")
     val timer = TtmlTimeTracker(parser)
     parser.nextTag()
     parser.require(XmlPullParser.START_TAG, tt, "head")
     // TODO parse and reject based on https://www.w3.org/TR/2018/REC-ttml2-20181108/#feature-profile-version-2 to be compliant
-    // TODO https://www.w3.org/TR/2018/REC-ttml2-20181108/#timing-attribute-dur
     while (parser.nextTag() != XmlPullParser.END_TAG) {
         if (parser.name == "metadata") {
             while (parser.nextTag() != XmlPullParser.END_TAG) {
@@ -923,8 +954,46 @@ fun parseTtml(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
     parser.nextTag()
     parser.require(XmlPullParser.START_TAG, tt, "body")
     val state = TtmlParserState(parser, timer)
-    state.parse(null, null, null, null)
-    return null // state.toSyncedLyrics()
+    state.parse()
+    return SyncedLyrics(state.paragraphs.flatMap {
+        /* x-bg can be anywhere in a line, let's split it out into
+         * separate lines for now, that looks better */
+        if (it.texts.isEmpty()) return@flatMap listOf(it)
+        val out = mutableListOf<TtmlParserState.P>()
+        var idx = it.texts.indexOfFirst { i -> i.role != it.texts[0].role }
+        var cur = 0
+        do {
+            if (cur == 0 && idx == -1)
+                out.add(it)
+            else {
+                val t = it.texts.subList(cur, idx.let { i -> if (i == -1) it.texts.size else i })
+                out.add(
+                    it.copy(
+                        t,
+                        time = t.lastOrNull()?.time?.last?.let { other ->
+                            t.firstOrNull()?.time?.first?.rangeTo(other)
+                        } ?: it.time))
+            }
+            cur = idx
+            if (cur != -1)
+                idx = it.texts.subList(cur, it.texts.size)
+                    .indexOfFirst { i -> i.role != it.texts[cur].role }
+        } while (cur != -1)
+        out
+    }.map {
+        val text = StringBuilder()
+        val words = mutableListOf<IntRange>()
+        for (i in it.texts) {
+            val start = text.length
+            text.append(i.text)
+            words += start..<text.length
+        }
+        val theWords = it.texts.mapIndexed { i, it -> it to words[i] }
+            .filter { it.first.time != null }
+            .map { Word(it.first.time!!, it.second, false) }
+            .toMutableList()
+        LyricLine(text.toString(), it.time.first, it.time.last, theWords, null, false)
+    }).also { splitBidirectionalWords(it) }
 }
 
 @OptIn(UnstableApi::class)

@@ -247,7 +247,6 @@ class LrcUtilsTest {
 	fun testTemplateLrcTranslationType1() {
 		val lrc = parseSynced(LrcTestData.ALL_STAR)
 		assertNotNull(lrc)
-		println(lyricArrayToString(lrc))
 		assertEquals(LrcTestData.ALL_STAR_PARSED, lrc)
 	}
 
@@ -323,6 +322,7 @@ class LrcUtilsTest {
 
 	@Test
 	fun testParserTtmlTemplate() {
-		parseSynced(LrcTestData.TTML_DEATH_BED)
+		val ttml = parseSynced(LrcTestData.TTML_DEATH_BED)
+		assertEquals(ttml, LrcTestData.TTML_DEATH_BED_PARSED)
 	}
 }
