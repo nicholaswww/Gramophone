@@ -824,9 +824,8 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
             }
         }
         val last = stack.lastOrNull()
-        val range = parseRange(last?.seq ?: last?.time?.first ?: 0uL)
-        if (range != null)
-            stack.add(TtmlLevel(range, if (isSeq) range.first else null))
+        val range = parseRange(last?.seq ?: last?.time?.first ?: 0uL) ?: getTime() ?: 0uL..0uL
+        stack.add(TtmlLevel(range, if (isSeq) range.first else null))
     }
     fun getTime(): ULongRange? {
         return stack.lastOrNull()?.time
