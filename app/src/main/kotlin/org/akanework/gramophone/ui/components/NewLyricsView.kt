@@ -360,6 +360,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         var animating = false
         var heightSoFar = globalPaddingTop
         var firstHighlight: Int? = null
+        var lastHighlight: Int? = null
         canvas.save()
         canvas.translate(globalPaddingHorizontal, heightSoFar.toFloat())
         val width = width - globalPaddingHorizontal * 2
@@ -421,6 +422,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                 animating = true
             if (highlight && firstHighlight == null)
                 firstHighlight = heightSoFar
+            if (posForRender >= firstTs - timeOffsetForUse.toULong())
+                lastHighlight = heightSoFar
             heightSoFar += (it.paddingTop.toFloat() / hlScaleFactor).also {
                 canvas.translate(
                     0f,
@@ -600,9 +603,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         canvas.restore()
         if (animating)
             invalidate()
-        if (firstHighlight != currentScrollTarget)
-            scrollView?.smoothScrollTo(0, firstHighlight ?: 0, lyricAnimTime.toInt())
-        currentScrollTarget = firstHighlight
+        val scrollTarget = firstHighlight ?: lastHighlight ?: 0
+        if (scrollTarget != currentScrollTarget) {
+            scrollView?.smoothScrollTo(0, scrollTarget, lyricAnimTime.toInt())
+            currentScrollTarget = scrollTarget
+        }
     }
 
     // I don't think accessibility support for a lyric view makes sense.
