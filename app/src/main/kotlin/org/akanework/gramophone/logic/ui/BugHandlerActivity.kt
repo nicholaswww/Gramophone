@@ -58,6 +58,7 @@ class BugHandlerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_bug_handler)
+        findViewById<View>(R.id.emailCard).visibility = if (BuildConfig.DEBUG) View.GONE else View.VISIBLE
         findViewById<View>(R.id.appbarlayout).enableEdgeToEdgePaddingListener()
         findViewById<MaterialToolbar>(R.id.topAppBar).setNavigationOnClickListener { finish() }
         onBackPressedDispatcher.addCallback { finish() }

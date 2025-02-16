@@ -371,7 +371,7 @@ fun View.enableEdgeToEdgePaddingListener(
                     if (ime) WindowInsetsCompat.Type.ime() else 0
             val i = insets.getInsets(mask)
             // TODO is this really the best way lol?
-            val pbsp = (context as MainActivity).playerBottomSheet.getBottomPadding()
+            val pbsp = (context as? MainActivity)?.playerBottomSheet?.getBottomPadding() ?: 0
             v.setPadding(
                 pl + i.left, pt + (if (top) i.top else 0), pr + i.right,
                 pb + max(i.bottom, pbsp)

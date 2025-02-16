@@ -16,19 +16,16 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
-import androidx.annotation.OptIn
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.TypefaceCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.text.getSpans
 import androidx.core.widget.NestedScrollView
-import androidx.media3.common.util.UnstableApi
 import androidx.preference.PreferenceManager
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import org.akanework.gramophone.R
-import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.spans.MyForegroundColorSpan
@@ -39,7 +36,6 @@ import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.SpeakerEntity
 import org.akanework.gramophone.logic.utils.findBidirectionalBarriers
-import org.akanework.gramophone.ui.MainActivity
 
 private const val TAG = "NewLyricsView"
 
@@ -65,6 +61,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
     private val globalPaddingTop = context.resources.getDimensionPixelSize(R.dimen.lyric_top_padding)
     private val globalPaddingBottom =
         context.resources.getDimensionPixelSize(R.dimen.lyric_bottom_padding)
+    private val globalPaddingHorizontal = 28.5f.dpToPx(context)
     private var colorSpanPool = mutableListOf<MyForegroundColorSpan>()
     private var spForRender: List<SbItem>? = null
     private var spForMeasure: Pair<Pair<Int, Int>, List<SbItem>>? = null
@@ -364,7 +361,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         var heightSoFar = globalPaddingTop
         var firstHighlight: Int? = null
         canvas.save()
-        canvas.translate(0f, heightSoFar.toFloat())
+        canvas.translate(globalPaddingHorizontal, heightSoFar.toFloat())
+        val width = width - globalPaddingHorizontal * 2
         spForRender!!.forEach {
             var spanEnd = -1
             var spanStartGradient = -1
@@ -715,7 +713,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                     tl && bg -> translationBackgroundTextPaint
                     tl || bg -> translationTextPaint
                     else -> defaultTextPaint
-                }, (width * smallSizeFactor).toInt()
+                }, (width * smallSizeFactor).toInt() - globalPaddingHorizontal.toInt() * 2
             ).setAlignment(align).build()
             val paragraphRtl = layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT
             val alignmentNormal = if (paragraphRtl) align == Layout.Alignment.ALIGN_OPPOSITE
