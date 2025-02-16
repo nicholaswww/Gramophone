@@ -174,6 +174,11 @@ private sealed class SyntacticLrc {
                         pos += 3
                         continue
                     }
+                    if (pos + 2 < text.length && text.regionMatches(pos, "v3:", 0, 3)) {
+                        out.add(SpeakerTag(SpeakerEntity.Group))
+                        pos += 3
+                        continue
+                    }
                     if (pos + 1 < text.length && text.regionMatches(pos, "F:", 0, 2)) {
                         out.add(SpeakerTag(SpeakerEntity.Female))
                         pos += 2
@@ -196,6 +201,11 @@ private sealed class SyntacticLrc {
                     }
                     if (pos + 3 < text.length && text.regionMatches(pos, " v2:", 0, 4)) {
                         out.add(SpeakerTag(SpeakerEntity.Voice2))
+                        pos += 4
+                        continue
+                    }
+                    if (pos + 3 < text.length && text.regionMatches(pos, " v3:", 0, 4)) {
+                        out.add(SpeakerTag(SpeakerEntity.Group))
                         pos += 4
                         continue
                     }
@@ -224,16 +234,19 @@ private sealed class SyntacticLrc {
                     // if (out.isEmpty() || out.last() is NewLine) below.
                     if (out.isNotEmpty() && out.last() !is NewLine)
                         out.add(NewLine.SyntheticNewLine())
-                    val lastWasV2 = out.isNotEmpty() && out.subList(0, out.size - 1)
+                    val lastSpeaker = if (out.isNotEmpty()) out.subList(0, out.size - 1)
                         .indexOfLast { it is NewLine }.let { if (it < 0) null else it }?.let {
                             (out.subList(it, out.size - 1).findLast { it is SpeakerTag }
-                                    as SpeakerTag?)?.speaker?.isVoice2
-                    } == true
+                                    as SpeakerTag?)?.speaker
+                    } else null
                     // TODO revisit this heuristic. iTunes bg lines are a child of the last main
                     //  line and there is no "opposite" flag for background lines, but reality does
                     //  not work that way. can main lines be empty in iTunes' lyrics?
-                    out.add(SpeakerTag(if (lastWasV2) SpeakerEntity.Voice2Background else
-                        SpeakerEntity.Background))
+                    out.add(SpeakerTag(when {
+                        lastSpeaker?.isGroup == true -> SpeakerEntity.GroupBackground
+                        lastSpeaker?.isVoice2 == true -> SpeakerEntity.Voice2Background
+                        else -> SpeakerEntity.Background
+                    }))
                     pos += 4
                     isBgSpeaker = true
                     continue
