@@ -309,7 +309,6 @@ fun View.enableEdgeToEdgePaddingListener(
     ime: Boolean = false, top: Boolean = false,
     extra: ((Insets) -> Unit)? = null
 ) {
-    val t = RuntimeException()
     if (fitsSystemWindows) throw IllegalArgumentException("must have fitsSystemWindows disabled")
     if (this is AppBarLayout) {
         if (ime) throw IllegalArgumentException("AppBarLayout must have ime flag disabled")
