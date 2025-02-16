@@ -597,8 +597,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         canvas.restore()
         if (animating)
             invalidate()
-        if (firstHighlight != null && firstHighlight != currentScrollTarget)
-            scrollView?.smoothScrollTo(0, firstHighlight, lyricAnimTime.toInt())
+        if (firstHighlight != currentScrollTarget)
+            scrollView?.smoothScrollTo(0, firstHighlight ?: 0, lyricAnimTime.toInt())
         currentScrollTarget = firstHighlight
     }
 
