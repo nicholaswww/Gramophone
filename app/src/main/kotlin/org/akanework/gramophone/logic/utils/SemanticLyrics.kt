@@ -826,7 +826,7 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
             end = begin!! + dur
         return begin!!..end!!
     }
-    private class TtmlLevel(val time: ULongRange, var seq: ULong?)
+    private class TtmlLevel(val time: ULongRange, val level: Int, var seq: ULong?)
     private val stack = mutableListOf<TtmlLevel>()
     fun beginBlock() {
         val isSeq = parser.getAttributeValue("", "timeContainer").let {
@@ -837,11 +837,15 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
             }
         }
         val last = stack.lastOrNull()
-        val range = parseRange(last?.seq ?: last?.time?.first ?: 0uL) ?: getTime() ?: 0uL..0uL
-        stack.add(TtmlLevel(range, if (isSeq) range.first else null))
+        val range = parseRange(last?.seq ?: last?.time?.first ?: 0uL)
+        val frange = range ?: getTime() ?: 0uL..0uL
+        stack.add(TtmlLevel(frange, (last?.level ?: 0) + if (range != null) 1 else 0, if (isSeq) frange.first else null))
     }
     fun getTime(): ULongRange? {
         return stack.lastOrNull()?.time
+    }
+    fun getLevel(): Int {
+        return stack.lastOrNull()?.level ?: 0
     }
     fun endBlock() {
         val removed = stack.removeAt(stack.size - 1)
@@ -857,22 +861,23 @@ private class TtmlParserState(private val parser: XmlPullParser, private val tim
     private var texts: MutableList<Text>? = null
     val paragraphs = mutableListOf<P>()
 
-    fun parse(time: ULongRange? = null, ptime: ULongRange? = null, agent: String? = null, songPart: String? = null, key: String? = null, role: String? = null) {
+    fun parse(time: ULongRange? = null, level: Int = 0, plevel: Int = 0, agent: String? = null, songPart: String? = null, key: String? = null, role: String? = null) {
         var time = time
-        var ptime = ptime
         var agent = agent
         var songPart = songPart
         var key = key
         var role = role
+        var level = level
+        var plevel = plevel
         if (parser.eventType == XmlPullParser.TEXT) {
-            if (parser.text.contains("\n"))
-                return
+            if (parser.text.isBlank() && parser.text.contains("\n"))
+                return // shrug
             if (texts == null) {
                 if (parser.text.isNotBlank())
                     throw IllegalStateException("found TEXT \"${parser.text}\" but text isn't allowed here (forgot <p>?)")
                 return
             }
-            if (time == ptime)
+            if (level == plevel)
                 time = null
             texts!!.add(Text(parser.text, time, role))
             return
@@ -884,6 +889,7 @@ private class TtmlParserState(private val parser: XmlPullParser, private val tim
         parser.getAttributeValue(ttm, "role")?.let { role = it }
         timer.beginBlock()
         time = timer.getTime()
+        level = timer.getLevel()
         var isP = false
         when (parser.name) {
             "div" -> {
@@ -895,13 +901,13 @@ private class TtmlParserState(private val parser: XmlPullParser, private val tim
                 parser.getAttributeValue(itunesInternal, "key")?.let { key = it }
                 texts = mutableListOf()
                 isP = true
-                ptime = time
+                plevel = timer.getLevel()
             }
             "body", "span" -> {}
             else -> throw IllegalStateException("unknown tag ${parser.name}, wanted body/span/div/p")
         }
         while (parser.next() != XmlPullParser.END_TAG) {
-            parse(time, ptime, agent, songPart, key, role)
+            parse(time, level, plevel, agent, songPart, key, role)
         }
         timer.endBlock()
         if (isP) {
