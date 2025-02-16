@@ -67,6 +67,7 @@ import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import java.io.File
 import java.util.Locale
+import kotlin.math.max
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -82,6 +83,7 @@ import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVIC
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
+import org.akanework.gramophone.ui.MainActivity
 import org.jetbrains.annotations.Contract
 
 fun Player.playOrPause() {
@@ -307,6 +309,7 @@ fun View.enableEdgeToEdgePaddingListener(
     ime: Boolean = false, top: Boolean = false,
     extra: ((Insets) -> Unit)? = null
 ) {
+    val t = RuntimeException()
     if (fitsSystemWindows) throw IllegalArgumentException("must have fitsSystemWindows disabled")
     if (this is AppBarLayout) {
         if (ime) throw IllegalArgumentException("AppBarLayout must have ime flag disabled")
@@ -368,15 +371,14 @@ fun View.enableEdgeToEdgePaddingListener(
                     WindowInsetsCompat.Type.displayCutout() or
                     if (ime) WindowInsetsCompat.Type.ime() else 0
             val i = insets.getInsets(mask)
+            // TODO is this really the best way lol?
+            val pbsp = (context as MainActivity).playerBottomSheet.getBottomPadding()
             v.setPadding(
                 pl + i.left, pt + (if (top) i.top else 0), pr + i.right,
-                pb + i.bottom
+                pb + max(i.bottom, pbsp)
             )
             extra?.invoke(i)
-            return@setOnApplyWindowInsetsListener WindowInsetsCompat.Builder(insets)
-                .setInsets(mask, Insets.NONE)
-                .setInsetsIgnoringVisibility(mask, Insets.NONE)
-                .build()
+            return@setOnApplyWindowInsetsListener insets
         }
     }
 }

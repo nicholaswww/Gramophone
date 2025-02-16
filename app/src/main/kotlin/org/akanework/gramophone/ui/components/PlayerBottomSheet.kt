@@ -304,18 +304,7 @@ class PlayerBottomSheet private constructor(
         standardBottomSheetBehavior?.setPeekHeight(previewPlayer.measuredHeight, false)
     }
 
-    fun generateBottomSheetInsets(insets: WindowInsetsCompat): WindowInsetsCompat {
-        val resolvedMeasuredHeight = if (lastActuallyVisible == true) lastMeasuredHeight ?: 0 else 0
-        var navBar1 = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
-        var navBar2 = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars())
-        val bottomSheetInsets = Insets.of(0, 0, 0, resolvedMeasuredHeight)
-        navBar1 = Insets.max(navBar1, bottomSheetInsets)
-        navBar2 = Insets.max(navBar2, bottomSheetInsets)
-        return WindowInsetsCompat.Builder(insets)
-            .setInsets(WindowInsetsCompat.Type.navigationBars(), navBar1)
-            .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars(), navBar2)
-            .build()
-    }
+    fun getBottomPadding() = if (lastActuallyVisible == true) lastMeasuredHeight ?: 0 else 0
 
     private fun dispatchBottomSheetInsets() {
         if (lastMeasuredHeight == previewPlayer.measuredHeight &&

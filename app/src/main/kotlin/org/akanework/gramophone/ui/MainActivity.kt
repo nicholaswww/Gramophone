@@ -149,11 +149,6 @@ class MainActivity : AppCompatActivity() {
             })
         }
         playerBottomSheet = findViewById(R.id.player_layout)
-        val container = findViewById<FragmentContainerView>(R.id.container)
-        // Modifies FragmentContainerView's insets to account for bottom sheet size.
-        ViewCompat.setOnApplyWindowInsetsListener(container) { _, insets ->
-            playerBottomSheet.generateBottomSheetInsets(insets)
-        }
 
         // Check all permissions.
         if (!hasAudioPermission()) {
