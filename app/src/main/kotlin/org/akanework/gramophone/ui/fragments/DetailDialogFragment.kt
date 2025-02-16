@@ -14,9 +14,13 @@ import coil3.request.crossfade
 import coil3.request.error
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.getBitrate
@@ -84,11 +88,15 @@ class DetailDialogFragment : BaseFragment(false) {
         mimeTypeTextView.text = mediaItem.localConfiguration?.mimeType ?: "(null)"
         pathTextView.text = mediaItem.getFile()?.path
             ?: mediaItem.requestMetadata.mediaUri?.toString() ?: "(null)"
-        val bitrate = mediaItem.getBitrate()
-        bitRateTextView.text = if (bitrate != null) {
-            getString(R.string.bitrate_format, bitrate / 1000)
-        } else {
-            getString(R.string.bitrate_unknown)
+        CoroutineScope(Dispatchers.IO).launch {
+            val bitrate = mediaItem.getBitrate() // disk access
+            withContext(Dispatchers.Main) {
+                bitRateTextView.text = if (bitrate != null) {
+                    getString(R.string.bitrate_format, bitrate / 1000)
+                } else {
+                    getString(R.string.bitrate_unknown)
+                }
+            }
         }
         return rootView
     }

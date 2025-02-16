@@ -62,6 +62,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
     private val translationTextSize = context.resources.getDimension(R.dimen.lyric_tl_text_size)
     private val translationBackgroundTextSize =
         context.resources.getDimension(R.dimen.lyric_tl_bg_text_size)
+    private val globalPaddingTop = context.resources.getDimensionPixelSize(R.dimen.lyric_top_padding)
+    private val globalPaddingBottom =
+        context.resources.getDimensionPixelSize(R.dimen.lyric_bottom_padding)
     private var colorSpanPool = mutableListOf<MyForegroundColorSpan>()
     private var spForRender: List<SbItem>? = null
     private var spForMeasure: Pair<Pair<Int, Int>, List<SbItem>>? = null
@@ -358,9 +361,10 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             return
         }
         var animating = false
-        var heightSoFar = 0
+        var heightSoFar = globalPaddingTop
         var firstHighlight: Int? = null
         canvas.save()
+        canvas.translate(0f, heightSoFar.toFloat())
         spForRender!!.forEach {
             var spanEnd = -1
             var spanStartGradient = -1
@@ -594,6 +598,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             heightSoFar += ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor)
                 .also { canvas.translate(0f, it) }.toInt()
         }
+        heightSoFar += globalPaddingBottom
         canvas.restore()
         if (animating)
             invalidate()
@@ -609,7 +614,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             requestLayout()
         } else if (event?.action == MotionEvent.ACTION_UP) {
             val y = event.y
-            var heightSoFar = 0
+            var heightSoFar = globalPaddingTop
             var foundItem: SemanticLyrics.LyricLine? = null
             if (lyrics is SemanticLyrics.SyncedLyrics) {
                 spForRender!!.forEach {
@@ -803,6 +808,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             Pair(
                 width,
                 (heights.max() * (1 - (1 / smallSizeFactor)) + heights.sum()).toInt()
+                    + globalPaddingTop + globalPaddingBottom
             ), spLines
         )
     }
