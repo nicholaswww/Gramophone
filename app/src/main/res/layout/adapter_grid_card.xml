@@ -80,7 +80,7 @@
             android:singleLine="true"
             android:textColor="?attr/colorOnSurfaceVariant"
             app:textFontWeight="500"
-            android:textSize="15sp"
+            android:textSize="12sp"
             tools:text="Example Track count" />
 
     </LinearLayout>
