@@ -721,7 +721,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        audioTrackConfigs.remove(audioTrackConfig)
+        if (!audioTrackConfigs.removeAll { it.myEquals(audioTrackConfig) })
+            Log.w(TAG, "Audio track ${audioTrackConfig.myToString()} released that was never initialized?")
         if (audioTrackConfigs.size == 1) {
             Log.i(TAG, "Btw: audio track is ${audioTrackConfigs[0].myToString()}")
             MediaRoutes.printRoutes(this)
@@ -731,6 +732,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private fun AudioSink.AudioTrackConfig.myToString(): String {
         return "AudioTrackConfig{encoding=${AudioFormatDetector.Encoding.get(encoding).getString(this@GramophonePlaybackService)}, " +
                 "sampleRate=$sampleRate, channelConfig=${AudioFormatDetector.channelConfigToString(this@GramophonePlaybackService, channelConfig)}, tunneling=$tunneling, offload=$offload, bufferSize=$bufferSize}"
+    }
+
+    private fun AudioSink.AudioTrackConfig.myEquals(other: AudioSink.AudioTrackConfig): Boolean {
+        return this.channelConfig == other.channelConfig && this.bufferSize == other.bufferSize &&
+                this.encoding == other.encoding && this.offload == other.offload &&
+                this.tunneling == other.tunneling && this.sampleRate == other.sampleRate
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -744,6 +751,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         scheduleSendingLyrics(false)
         lastPlayedManager.save()
+        // TODO
+        audioTrackConfigs.forEachIndexed { i, it ->
+            Log.i(TAG, "Btw: audio track $i is ${it.myToString()}")
+        }
     }
 
     override fun onEvents(player: Player, events: Player.Events) {

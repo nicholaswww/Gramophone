@@ -23,6 +23,8 @@ object MediaRoutes {
         val device = getSelectedAudioDevice(context)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Log.i("hi", "found route \"${device?.cleanUpProductName()}\" of type ${device.deviceTypeToString(context)}")
+            // TODO could find out output sample rate / bit depth with raw binder transactions
+            //  accessing IAudioPolicyService getOutput() and then IAudioFlingerService sampleRate()
         }
     }
 
@@ -52,7 +54,10 @@ object MediaRoutes {
         if (address != null) {
             if (address != "null")
                 audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-                    .find { it.address == address &&
+                    .find { (it.address == address
+                            // BT MAC addresses are censored by AudioManager but not MediaRouter2
+                            || (it.address.startsWith("XX:XX:XX:XX:")
+                            && it.address.substring(12) == address.substring(12))) &&
                             // if the internal speaker device has an address set, it will show up
                             // as TYPE_BUILTIN_EARPIECE, TYPE_BUILTIN_SPEAKER_SAFE and
                             // TYPE_TELEPHONY with the same address. just blacklist non-media types
@@ -63,7 +68,11 @@ object MediaRoutes {
                             it.type != AudioDeviceInfo.TYPE_BUS &&
                             it.type != AudioDeviceInfo.TYPE_IP
                     }?.let { return it }
-            Log.w(TAG, "Falling back to alternative code path because: didn't find audio device with address $address")
+            Log.w(TAG, "Falling back to alternative code path because: didn't find audio device with address $address (there is: ${
+                audioManager.getDevices(
+                    AudioManager.GET_DEVICES_OUTPUTS
+                ).joinToString { it.address }
+            })")
         } else
             Log.e(TAG, "Falling back to alternative code path because: failed to parse address in $this")
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
