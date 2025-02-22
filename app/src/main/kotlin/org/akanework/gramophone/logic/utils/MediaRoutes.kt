@@ -33,8 +33,6 @@ object MediaRoutes {
             - audio track -> converts from audio track format to audio hal format
             - audio hal -> if you're lucky it gives data to speaker
              */
-            // TODO find AudioSink input format by making a custom ForwardingAudioSink that
-            //  basically catches configure() calls and gives them to us
             // TODO could find out audio hal sample rate / bit depth with raw binder transactions
             //  accessing IAudioPolicyService getOutput() and then IAudioFlingerService sampleRate()
         }

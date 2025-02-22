@@ -39,6 +39,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.IllegalSeekPositionException
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -283,7 +284,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val player = EndedWorkaroundPlayer(
             ExoPlayer.Builder(
                 this,
-                GramophoneRenderFactory(this)
+                GramophoneRenderFactory(this, this::onAudioSinkInputFormatChanged)
                     .setEnableAudioFloatOutput(
                         prefs.getBooleanStrict("floatoutput", false)
                     )
@@ -747,6 +748,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaLoadData: MediaLoadData
     ) {
         Log.i(TAG, "downstream format changed to ${mediaLoadData.trackFormat} (pcm ${mediaLoadData.trackFormat!!.pcmEncoding})")
+    }
+
+    fun onAudioSinkInputFormatChanged(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) {
+        // TODO https://github.com/androidx/media/pull/2180
+        Log.i(TAG, "audio sink input format changed to $inputFormat (pcm ${inputFormat.pcmEncoding})")
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {

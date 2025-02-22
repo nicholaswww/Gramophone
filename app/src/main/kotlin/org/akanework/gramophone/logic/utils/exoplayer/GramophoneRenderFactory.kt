@@ -4,15 +4,20 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.OptIn
+import androidx.media3.common.Format
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.ForwardingAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 
 @OptIn(UnstableApi::class)
-class GramophoneRenderFactory(context: Context) : DefaultRenderersFactory(context) {
+class GramophoneRenderFactory(context: Context,
+                              private val configurationListener: (Format, Int, IntArray?) -> Unit) :
+    DefaultRenderersFactory(context) {
     override fun buildTextRenderers(
         context: Context,
         output: TextOutput,
@@ -46,5 +51,26 @@ class GramophoneRenderFactory(context: Context) : DefaultRenderersFactory(contex
         out: java.util.ArrayList<Renderer>
     ) {
         // empty
+    }
+
+    override fun buildAudioSink(
+        context: Context,
+        enableFloatOutput: Boolean,
+        enableAudioTrackPlaybackParams: Boolean
+    ): AudioSink? {
+        return MyForwardingAudioSink(
+            super.buildAudioSink(context, enableFloatOutput, enableAudioTrackPlaybackParams)!!)
+    }
+
+    inner class MyForwardingAudioSink(sink: AudioSink) : ForwardingAudioSink(sink) {
+        override fun configure(
+            inputFormat: Format,
+            specifiedBufferSize: Int,
+            outputChannels: IntArray?
+        ) {
+            configurationListener(inputFormat, specifiedBufferSize, outputChannels)
+            super.configure(inputFormat, specifiedBufferSize, outputChannels)
+            configurationListener(inputFormat, specifiedBufferSize, outputChannels)
+        }
     }
 }
