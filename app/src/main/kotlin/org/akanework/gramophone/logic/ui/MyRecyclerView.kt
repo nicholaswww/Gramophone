@@ -50,6 +50,7 @@ class MyRecyclerView(context: Context, attributeSet: AttributeSet?, defStyleAttr
     private var scrollIsNatural = false
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        val width = r - l
         if (lastWidth != width) {
             adapter.dispatchToAdapter { it.onWidthChanged(width) }
             lastWidth = width
@@ -76,9 +77,12 @@ class MyRecyclerView(context: Context, attributeSet: AttributeSet?, defStyleAttr
         }
     }
 
-    fun setAppBar(appBarLayout: AppBarLayout) {
+    fun setAppBar(appBarLayout: AppBarLayout?) {
+        if (isAttachedToWindow)
+            this.appBarLayout?.removeOnOffsetChangedListener(this)
         this.appBarLayout = appBarLayout
-        appBarLayout.addOnOffsetChangedListener(this)
+        if (isAttachedToWindow)
+	        appBarLayout?.addOnOffsetChangedListener(this)
     }
 
     private fun setAppBarExpanded(expanded: Boolean) {
@@ -176,6 +180,7 @@ class MyRecyclerView(context: Context, attributeSet: AttributeSet?, defStyleAttr
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        appBarLayout?.removeOnOffsetChangedListener(this)
         // Let's clean up some resources by pretending the view is gone (a detached view is as good
         // as gone for our purposes anyway)
         adapter?.onDetachedFromRecyclerView(this)
@@ -183,6 +188,7 @@ class MyRecyclerView(context: Context, attributeSet: AttributeSet?, defStyleAttr
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        appBarLayout?.addOnOffsetChangedListener(this)
         // We're so back
         adapter?.onAttachedToRecyclerView(this)
     }

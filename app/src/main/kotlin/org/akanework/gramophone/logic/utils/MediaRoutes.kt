@@ -23,7 +23,19 @@ object MediaRoutes {
         val device = getSelectedAudioDevice(context)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Log.i("hi", "found route \"${device?.cleanUpProductName()}\" of type ${device.deviceTypeToString(context)}")
-            // TODO could find out output sample rate / bit depth with raw binder transactions
+            /*
+            audio chain in exoplayer is something like
+            - file -> contains/outputs in downstream format
+            - renderer (ie flac decoder / midi synth) -> outputs in audiosink input format (TODO)
+            - audio sink
+              - audio processor
+              -> outputs in audio track config
+            - audio track -> converts from audio track format to audio hal format
+            - audio hal -> if you're lucky it gives data to speaker
+             */
+            // TODO find AudioSink input format by making a custom ForwardingAudioSink that
+            //  basically catches configure() calls and gives them to us
+            // TODO could find out audio hal sample rate / bit depth with raw binder transactions
             //  accessing IAudioPolicyService getOutput() and then IAudioFlingerService sampleRate()
         }
     }

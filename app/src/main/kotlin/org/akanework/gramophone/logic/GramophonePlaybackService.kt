@@ -39,7 +39,6 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.Format
 import androidx.media3.common.IllegalSeekPositionException
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -50,11 +49,11 @@ import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.common.util.Util.isBitmapFactorySupportedMimeType
-import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
@@ -76,7 +75,6 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
-import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -101,6 +99,7 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.akanework.gramophone.ui.MainActivity
+import kotlin.random.Random
 
 
 /**
@@ -725,7 +724,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     ) {
         if (!audioTrackConfigs.indexOfFirst { it.myEquals(audioTrackConfig) }
             .let { if (it == -1) false else { audioTrackConfigs.removeAt(it); true } })
-            Log.w(TAG, "Audio track ${audioTrackConfig.myToString()} released that was never initialized?")
+            Log.e(TAG, "Audio track ${audioTrackConfig.myToString()} released that was never initialized?")
         if (audioTrackConfigs.size == 1) {
             Log.i(TAG, "Btw: audio track is ${audioTrackConfigs[0].myToString()}")
             MediaRoutes.printRoutes(this)
@@ -743,12 +742,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 this.tunneling == other.tunneling && this.sampleRate == other.sampleRate
     }
 
-    override fun onAudioInputFormatChanged(
+    override fun onDownstreamFormatChanged(
         eventTime: AnalyticsListener.EventTime,
-        format: Format,
-        decoderReuseEvaluation: DecoderReuseEvaluation?
+        mediaLoadData: MediaLoadData
     ) {
-        Log.i(TAG, "audio input format changed to $format")
+        Log.i(TAG, "downstream format changed to ${mediaLoadData.trackFormat} (pcm ${mediaLoadData.trackFormat!!.pcmEncoding})")
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
