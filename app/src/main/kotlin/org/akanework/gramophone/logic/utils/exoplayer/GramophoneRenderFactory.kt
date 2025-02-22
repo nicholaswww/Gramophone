@@ -70,7 +70,6 @@ class GramophoneRenderFactory(context: Context,
         ) {
             configurationListener(inputFormat, specifiedBufferSize, outputChannels)
             super.configure(inputFormat, specifiedBufferSize, outputChannels)
-            configurationListener(inputFormat, specifiedBufferSize, outputChannels)
         }
     }
 }
