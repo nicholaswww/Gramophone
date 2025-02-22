@@ -39,6 +39,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.IllegalSeekPositionException
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -49,6 +50,7 @@ import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.common.util.Util.isBitmapFactorySupportedMimeType
+import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -721,7 +723,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        if (!audioTrackConfigs.removeAll { it.myEquals(audioTrackConfig) })
+        if (!audioTrackConfigs.indexOfFirst { it.myEquals(audioTrackConfig) }
+            .let { if (it == -1) false else { audioTrackConfigs.removeAt(it); true } })
             Log.w(TAG, "Audio track ${audioTrackConfig.myToString()} released that was never initialized?")
         if (audioTrackConfigs.size == 1) {
             Log.i(TAG, "Btw: audio track is ${audioTrackConfigs[0].myToString()}")
@@ -738,6 +741,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         return this.channelConfig == other.channelConfig && this.bufferSize == other.bufferSize &&
                 this.encoding == other.encoding && this.offload == other.offload &&
                 this.tunneling == other.tunneling && this.sampleRate == other.sampleRate
+    }
+
+    override fun onAudioInputFormatChanged(
+        eventTime: AnalyticsListener.EventTime,
+        format: Format,
+        decoderReuseEvaluation: DecoderReuseEvaluation?
+    ) {
+        Log.i(TAG, "audio input format changed to $format")
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {

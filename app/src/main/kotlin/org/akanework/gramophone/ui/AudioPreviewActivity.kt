@@ -244,6 +244,8 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                     ),
                 PERMISSION_READ_MEDIA_AUDIO,
             )
+        else
+            handleIntent(intent)
     }
 
     override fun onRequestPermissionsResult(
@@ -291,7 +293,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                 val queryUri = if (uri.scheme == "file") {
                     fileUri = uri
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                } else if (uri.scheme == "content" && uri.pathSegments.firstOrNull() == MediaStore.AUTHORITY)
+                } else if (uri.scheme == "content" && uri.authority == MediaStore.AUTHORITY)
                     uri
                 else if (uri.scheme == "content")
                     try {
