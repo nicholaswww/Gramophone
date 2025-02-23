@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.os.Parcelable
+import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
@@ -240,8 +241,7 @@ object AudioFormatDetector {
                         calculateOverallBitrate(player)
                     }
 
-                    val rawSampleRate = format.sampleRate
-                    val sampleRate = normalizeToStandardRate(rawSampleRate)
+                    val sampleRate = normalizeToStandardRate(format.sampleRate)
                     val bitDepth = detectBitDepth(format)
                     val isLossless = isLosslessFormat(format.sampleMimeType)
                     val spatialFormat = detectSpatialFormat(format)
@@ -307,14 +307,18 @@ object AudioFormatDetector {
     private fun detectBitDepth(format: Format): Int? {
         return when (format.pcmEncoding) {
             C.ENCODING_PCM_16BIT -> 16
+            C.ENCODING_PCM_16BIT_BIG_ENDIAN -> 16
             C.ENCODING_PCM_24BIT -> 24
+            C.ENCODING_PCM_24BIT_BIG_ENDIAN -> 16
             C.ENCODING_PCM_32BIT -> 32
+            C.ENCODING_PCM_32BIT_BIG_ENDIAN -> 16
             C.ENCODING_PCM_FLOAT -> 32
             else -> null
         }
     }
 
-    private fun isLosslessFormat(mimeType: String?): Boolean? = when (mimeType) {
+	@OptIn(UnstableApi::class)
+	private fun isLosslessFormat(mimeType: String?): Boolean? = when (mimeType) {
         MimeTypes.AUDIO_FLAC,
         MimeTypes.AUDIO_ALAC,
         MimeTypes.AUDIO_WAV,

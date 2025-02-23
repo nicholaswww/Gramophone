@@ -157,6 +157,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var lastSentHighlightedLyric: String? = null
     private var updatedLyricAtLeastOnce = false
     private val audioTrackConfigs = mutableListOf<AudioSink.AudioTrackConfig>()
+    private var downstreamFormat: Format? = null
+    private var audioSinkInputFormat: Format? = null
+    private var audioHalFormat: Format? = null
 
     private fun getRepeatCommand() =
         when (controller!!.repeatMode) {
@@ -747,11 +750,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         mediaLoadData: MediaLoadData
     ) {
+        downstreamFormat = mediaLoadData.trackFormat
         Log.i(TAG, "downstream format changed to ${mediaLoadData.trackFormat} (pcm ${mediaLoadData.trackFormat!!.pcmEncoding})")
     }
 
     fun onAudioSinkInputFormatChanged(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) {
         // TODO https://github.com/androidx/media/pull/2180
+        audioSinkInputFormat = inputFormat
         Log.i(TAG, "audio sink input format changed to $inputFormat (pcm ${inputFormat.pcmEncoding})")
     }
 

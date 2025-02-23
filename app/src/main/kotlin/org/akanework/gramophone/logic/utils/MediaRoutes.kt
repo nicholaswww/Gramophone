@@ -33,8 +33,10 @@ object MediaRoutes {
             - audio track -> converts from audio track format to audio hal format
             - audio hal -> if you're lucky it gives data to speaker
              */
-            // TODO could find out audio hal sample rate / bit depth with raw binder transactions
-            //  accessing IAudioPolicyService getOutput() and then IAudioFlingerService sampleRate()
+            // TODO could find out audio hal sample rate / bit depth with
+            //  android_media_AudioTrack_getAudioTrack and AudioTrack::getHalSampleRate() etc
+            //  maybe using https://github.com/rk700/dlfunc
+            // TODO find out bluetooth settings
         }
     }
 
