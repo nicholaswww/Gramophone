@@ -114,7 +114,7 @@ Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalChanne
 
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalFormatInternal(
-		JNIEnv* env, jobject, jlong audioTrack) {
+		JNIEnv*, jobject, jlong audioTrack) {
 	if (!initLib())
 		return -1;
 	if (!ZNK7android10AudioTrack12getHalFormatEv) {

@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // Copyright © 2021 Billy Laws
 
-#include <array>
-#include <cstdio>
-#include <cstdlib>
-#include <cerrno>
+
 #include <dlfcn.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <android/dlext.h>
-#include <android/log.h>
-#include <android/api-level.h>
+#include <unistd.h>
 #include <sys/mman.h>
 #include "android_linker_ns.h"
 
@@ -64,7 +58,7 @@ __attribute__((constructor)) static void resolve_linker_symbols() {
 				uint8_t sig : 6;  //!< 6-bit signature
 			};
 
-			bool Verify() {
+			[[nodiscard]] bool Verify() const {
 				return sig == 0x25;
 			}
 		};
@@ -85,10 +79,6 @@ __attribute__((constructor)) static void resolve_linker_symbols() {
 	mprotect(align_ptr(reinterpret_cast<void *>(&loader_dlopen)), getpagesize(), PROT_WRITE | PROT_READ | PROT_EXEC);
 
 	// Passing dlopen as a caller address tricks the linker into using the internal unrestricted namespace letting us access libraries that are normally forbidden in the classloader namespace imposed on apps
-	auto ldHandle{loader_dlopen("ld-android.so", RTLD_LAZY, reinterpret_cast<void *>(&dlopen))};
-	if (!ldHandle)
-		return;
-
 	auto libdlAndroidHandle{loader_dlopen("libdl_android.so", RTLD_LAZY, reinterpret_cast<void *>(&dlopen))};
 	if (!libdlAndroidHandle)
 		return;
