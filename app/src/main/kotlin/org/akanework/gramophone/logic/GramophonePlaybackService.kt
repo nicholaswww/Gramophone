@@ -26,8 +26,10 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.media.AudioManager
+import android.media.AudioTrack
 import android.media.audiofx.AudioEffect
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -54,6 +56,7 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.CacheBitmapLoader
@@ -85,6 +88,7 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.MeiZuLyricsMediaNotificationProvider
 import org.akanework.gramophone.logic.utils.AudioFormatDetector
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
+import org.akanework.gramophone.logic.utils.AudioTrackHalInfoDetector
 import org.akanework.gramophone.logic.utils.CircularShuffleOrder
 import org.akanework.gramophone.logic.utils.LastPlayedManager
 import org.akanework.gramophone.logic.utils.LrcUtils.LrcParserOptions
@@ -93,6 +97,7 @@ import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyricsLegacy
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFile
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFileLegacy
 import org.akanework.gramophone.logic.utils.MediaRoutes
+import org.akanework.gramophone.logic.utils.MediaRoutes.cleanUpProductName
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
@@ -156,7 +161,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private lateinit var prefs: SharedPreferences
     private var lastSentHighlightedLyric: String? = null
     private var updatedLyricAtLeastOnce = false
-    private val audioTrackConfigs = mutableListOf<AudioSink.AudioTrackConfig>()
+    private var audioTrackConfig: AudioSink.AudioTrackConfig? = null
+    private var audioTrack: AudioTrack? = null
+    private var audioSink: DefaultAudioSink? = null
     private var downstreamFormat: Format? = null
     private var audioSinkInputFormat: Format? = null
     private var audioHalFormat: Format? = null
@@ -287,7 +294,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val player = EndedWorkaroundPlayer(
             ExoPlayer.Builder(
                 this,
-                GramophoneRenderFactory(this, this::onAudioSinkInputFormatChanged)
+                GramophoneRenderFactory(this, this::onAudioSinkInputFormatChanged, { audioSink = it })
                     .setEnableAudioFloatOutput(
                         prefs.getBooleanStrict("floatoutput", false)
                     )
@@ -715,35 +722,35 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        audioTrackConfigs.add(audioTrackConfig)
-        if (audioTrackConfigs.size == 1) {
-            Log.i(TAG, "Btw: audio track is ${audioTrackConfigs[0].myToString()}")
-            MediaRoutes.printRoutes(this)
+        // DefaultAudioSink will dispose of any other tracks shortly after creating a new one.
+        // There only ever is one actively used track, and it is the one that was last initialized.
+        this.audioTrackConfig = audioTrackConfig
+        this.audioTrack = audioSink!!.getAudioTrack()
+        Log.i(TAG, "Btw: audio track is ${audioTrackConfig.myToString()}")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Log.i(
+                TAG,
+                "playing on ${audioTrack!!.routedDevice?.cleanUpProductName()} with state ${audioTrack!!.state}"
+            )
+            Log.i(TAG, "af hal sample rate: ${AudioTrackHalInfoDetector.getHalSampleRate(audioTrack!!)}")
+            Log.i(TAG, "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack!!)}")
+            Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack!!)}")
+            Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack!!)}")
         }
+        MediaRoutes.printRoutes(this)
     }
 
-    override fun onAudioTrackReleased(
-        eventTime: AnalyticsListener.EventTime,
-        audioTrackConfig: AudioSink.AudioTrackConfig
-    ) {
-        if (!audioTrackConfigs.indexOfFirst { it.myEquals(audioTrackConfig) }
-            .let { if (it == -1) false else { audioTrackConfigs.removeAt(it); true } })
-            Log.e(TAG, "Audio track ${audioTrackConfig.myToString()} released that was never initialized?")
-        if (audioTrackConfigs.size == 1) {
-            Log.i(TAG, "Btw: audio track is ${audioTrackConfigs[0].myToString()}")
-            MediaRoutes.printRoutes(this)
-        }
+    // TODO why do we have to reflect on app code, there must be a better solution
+    private fun DefaultAudioSink.getAudioTrack(): AudioTrack? {
+        val cls = javaClass
+        val field = cls.getDeclaredField("audioTrack")
+        field.isAccessible = true
+        return field.get(this) as AudioTrack?
     }
 
     private fun AudioSink.AudioTrackConfig.myToString(): String {
         return "AudioTrackConfig{encoding=${AudioFormatDetector.Encoding.get(encoding).getString(this@GramophonePlaybackService)}, " +
                 "sampleRate=$sampleRate, channelConfig=${AudioFormatDetector.channelConfigToString(this@GramophonePlaybackService, channelConfig)}, tunneling=$tunneling, offload=$offload, bufferSize=$bufferSize}"
-    }
-
-    private fun AudioSink.AudioTrackConfig.myEquals(other: AudioSink.AudioTrackConfig): Boolean {
-        return this.channelConfig == other.channelConfig && this.bufferSize == other.bufferSize &&
-                this.encoding == other.encoding && this.offload == other.offload &&
-                this.tunneling == other.tunneling && this.sampleRate == other.sampleRate
     }
 
     override fun onDownstreamFormatChanged(
@@ -772,9 +779,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         scheduleSendingLyrics(false)
         lastPlayedManager.save()
         // TODO
-        audioTrackConfigs.forEachIndexed { i, it ->
-            Log.i(TAG, "Btw: audio track $i is ${it.myToString()}")
-        }
+        Log.i(TAG, "Btw: audio track is ${audioTrackConfig?.myToString()}")
     }
 
     override fun onEvents(player: Player, events: Player.Events) {

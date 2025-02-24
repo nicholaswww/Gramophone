@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.text.TextOutput
@@ -16,7 +17,8 @@ import androidx.media3.exoplayer.video.VideoRendererEventListener
 
 @OptIn(UnstableApi::class)
 class GramophoneRenderFactory(context: Context,
-                              private val configurationListener: (Format, Int, IntArray?) -> Unit) :
+                              private val configurationListener: (Format, Int, IntArray?) -> Unit,
+                              private val audioSinkListener: (DefaultAudioSink) -> Unit) :
     DefaultRenderersFactory(context) {
     override fun buildTextRenderers(
         context: Context,
@@ -63,6 +65,10 @@ class GramophoneRenderFactory(context: Context,
     }
 
     inner class MyForwardingAudioSink(sink: AudioSink) : ForwardingAudioSink(sink) {
+        init {
+            audioSinkListener(sink as DefaultAudioSink)
+        }
+
         override fun configure(
             inputFormat: Format,
             specifiedBufferSize: Int,

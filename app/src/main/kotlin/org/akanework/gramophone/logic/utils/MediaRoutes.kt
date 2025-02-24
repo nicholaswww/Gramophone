@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.res.Resources
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.media.AudioTrack
 import android.media.MediaRoute2Info
 import android.media.MediaRouter2
 import android.os.Build
@@ -26,17 +27,14 @@ object MediaRoutes {
             /*
             audio chain in exoplayer is something like
             - file -> contains/outputs in downstream format
-            - renderer (ie flac decoder / midi synth) -> outputs in audiosink input format (TODO)
+            - renderer (ie flac decoder / midi synth) -> outputs in audiosink input format
             - audio sink
               - audio processor
               -> outputs in audio track config
             - audio track -> converts from audio track format to audio hal format
             - audio hal -> if you're lucky it gives data to speaker
+            TODO piece this together to UI?
              */
-            // TODO could find out audio hal sample rate / bit depth with
-            //  android_media_AudioTrack_getAudioTrack and AudioTrack::getHalSampleRate() etc
-            //  maybe using https://github.com/rk700/dlfunc
-            // TODO find out bluetooth settings
         }
     }
 
@@ -287,4 +285,175 @@ object MediaRoutes {
             it.substring("USB-Audio - ".length)
         else it
     }
+}
+
+object AudioTrackHalInfoDetector {
+    private const val TAG = "AudioTrackHalInfoDetect"
+
+    init {
+        try {
+            System.loadLibrary("gramophone")
+        } catch (e: Throwable) {
+            Log.e(TAG, Log.getStackTraceString(e))
+        }
+    }
+
+    @SuppressLint("DiscouragedPrivateApi")
+    private fun getAudioTrackPtr(audioTrack: AudioTrack): Long {
+        val cls = audioTrack.javaClass
+        val field = cls.getDeclaredField("mNativeTrackInJavaObj")
+        field.isAccessible = true
+        return field.get(audioTrack) as Long
+    }
+
+    fun getHalSampleRate(audioTrack: AudioTrack): Int? =
+        try {
+            getHalSampleRateInternal(getAudioTrackPtr(audioTrack))
+        } catch (e: Throwable) {
+            Log.e(TAG, Log.getStackTraceString(e))
+            null
+        }
+    private external fun getHalSampleRateInternal(audioTrackPtr: Long): Int
+
+    fun getHalChannelCount(audioTrack: AudioTrack): Int? =
+        try {
+            getHalChannelCountInternal(getAudioTrackPtr(audioTrack))
+        } catch (e: Throwable) {
+            Log.e(TAG, Log.getStackTraceString(e))
+            null
+        }
+    private external fun getHalChannelCountInternal(audioTrackPtr: Long): Int
+
+    /**
+     * Return AudioFlinger HAL format as aaudio_format_t.
+     * If the HAL format cannot be represented by aaudio_format_t, returns AAUDIO_FORMAT_INVALID.
+     * The conversion to aaudio_format_t is done using system libraries, so this method has the
+     * advantage of being valid for the indefinite future and not relying on magic numbers.
+     */
+    fun getHalFormat(audioTrack: AudioTrack): AAudioFormat? =
+        try {
+            val fmt = getHalFormatInternal(getAudioTrackPtr(audioTrack))
+            AAudioFormat.entries.find { it.format == fmt }
+                ?: run {
+                    Log.e(TAG, "got aaudio_format_t $fmt which is missing on kotlin side")
+                    AAudioFormat.AAUDIO_FORMAT_INVALID
+                }
+        } catch (e: Throwable) {
+            Log.e(TAG, Log.getStackTraceString(e))
+            null
+        }
+    private external fun getHalFormatInternal(audioTrackPtr: Long): Int
+
+    /* Public NDK API from AAudio.h */
+    enum class AAudioFormat(val format: Int) {
+        AAUDIO_FORMAT_INVALID(-1),
+        AAUDIO_FORMAT_UNSPECIFIED(0),
+
+        /**
+         * This format uses the int16_t data type.
+         * The maximum range of the data is -32768 (0x8000) to 32767 (0x7FFF).
+         */
+        AAUDIO_FORMAT_PCM_I16(1),
+
+        /**
+         * This format uses the float data type.
+         * The nominal range of the data is [-1.0f, 1.0f).
+         * Values outside that range may be clipped.
+         *
+         * See also the float Data in
+         * <a href="/reference/android/media/AudioTrack#write(float[],%20int,%20int,%20int)">
+         *   write(float[], int, int, int)</a>.
+         */
+        AAUDIO_FORMAT_PCM_FLOAT(2),
+
+        /**
+         * This format uses 24-bit samples packed into 3 bytes.
+         * The bytes are in little-endian order, so the least significant byte
+         * comes first in the byte array.
+         *
+         * The maximum range of the data is -8388608 (0x800000)
+         * to 8388607 (0x7FFFFF).
+         *
+         * Note that the lower precision bits may be ignored by the device.
+         *
+         * Available since API level 31.
+         */
+        AAUDIO_FORMAT_PCM_I24_PACKED(3),
+
+        /**
+         * This format uses 32-bit samples stored in an int32_t data type.
+         * The maximum range of the data is -2147483648 (0x80000000)
+         * to 2147483647 (0x7FFFFFFF).
+         *
+         * Note that the lower precision bits may be ignored by the device.
+         *
+         * Available since API level 31.
+         */
+        AAUDIO_FORMAT_PCM_I32(4),
+
+        /**
+         * This format is used for compressed audio wrapped in IEC61937 for HDMI
+         * or S/PDIF passthrough.
+         *
+         * Unlike PCM playback, the Android framework is not able to do format
+         * conversion for IEC61937. In that case, when IEC61937 is requested, sampling
+         * rate and channel count or channel mask must be specified. Otherwise, it may
+         * fail when opening the stream. Apps are able to get the correct configuration
+         * for the playback by calling
+         * <a href="/reference/android/media/AudioManager#getDevices(int)">
+         *   AudioManager#getDevices(int)</a>.
+         *
+         * Available since API level 34.
+         */
+        AAUDIO_FORMAT_IEC61937(5),
+
+        /**
+         * This format is used for audio compressed in MP3 format.
+         */
+        AAUDIO_FORMAT_MP3(6),
+
+        /**
+         * This format is used for audio compressed in AAC LC format.
+         */
+        AAUDIO_FORMAT_AAC_LC(7),
+
+        /**
+         * This format is used for audio compressed in AAC HE V1 format.
+         */
+        AAUDIO_FORMAT_AAC_HE_V1(8),
+
+        /**
+         * This format is used for audio compressed in AAC HE V2 format.
+         */
+        AAUDIO_FORMAT_AAC_HE_V2(9),
+
+        /**
+         * This format is used for audio compressed in AAC ELD format.
+         */
+        AAUDIO_FORMAT_AAC_ELD(10),
+
+        /**
+         * This format is used for audio compressed in AAC XHE format.
+         */
+        AAUDIO_FORMAT_AAC_XHE(11),
+
+        /**
+         * This format is used for audio compressed in OPUS.
+         */
+        AAUDIO_FORMAT_OPUS(12)
+    }
+
+    /**
+     * Return AudioFlinger HAL format as string converted from audio_format_t.
+     * The conversion to string is NOT done using system libraries, so this method has the
+     * disadvantage of being invalid in future AOSP versions because its reliance on magic numbers.
+     */
+    fun getHalFormat2(audioTrack: AudioTrack): String? =
+        try {
+            getHalFormatInternal2(getAudioTrackPtr(audioTrack))
+        } catch (e: Throwable) {
+            Log.e(TAG, Log.getStackTraceString(e))
+            null
+        }
+    private external fun getHalFormatInternal2(audioTrackPtr: Long): String?
 }

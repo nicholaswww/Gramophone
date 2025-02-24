@@ -152,7 +152,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
 
         player = ExoPlayer.Builder(
             this,
-            GramophoneRenderFactory(this, { _, _, _ -> })
+            GramophoneRenderFactory(this, { _, _, _ -> }, {})
                 .setEnableAudioFloatOutput(
                     prefs.getBooleanStrict("floatoutput", false)
                 )

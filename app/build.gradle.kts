@@ -128,6 +128,11 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        externalNativeBuild {
+            cmake {
+                cppFlags += ""
+            }
+        }
     }
 
     buildTypes {
@@ -225,6 +230,12 @@ android {
         includeInApk = false
         includeInBundle = false
     }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 
     // https://stackoverflow.com/a/77745844
     tasks.withType<PackageAndroidArtifact> {
@@ -273,7 +284,7 @@ dependencies {
     // Note: JAudioTagger is not compatible with Android 5, we can't ship it in app
     debugImplementation("net.jthink:jaudiotagger:3.0.1") // <-- for "SD Exploder"
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.14")
+    testImplementation("org.robolectric:robolectric:4.14.1")
     "userdebugImplementation"(kotlin("reflect")) // who thought String.invoke() is a good idea?????
     debugImplementation(kotlin("reflect"))
 }
