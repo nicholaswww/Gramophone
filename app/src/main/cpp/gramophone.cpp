@@ -21,6 +21,25 @@ typedef aaudio_format_t(*AAudioConvert_androidToAAudioDataFormat_t)(audio_format
 static AAudioConvert_androidToAAudioDataFormat_t AAudioConvert_androidToAAudioDataFormat = nullptr;
 
 bool initLib() {
+	if (android_get_device_api_level() < 28) {
+		if (!handle) {
+			handle = dlopen("libaudioclient.so", RTLD_GLOBAL);
+			if (handle == nullptr) {
+				__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)",
+				                    "dlopen returned nullptr for libaudioclient.so: %s", dlerror());
+				return false;
+			}
+		}
+		if (!handle2) {
+			handle2 = dlopen("libaaudio.so", RTLD_GLOBAL);
+			if (handle2 == nullptr) {
+				__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)",
+				                    "dlopen returned nullptr for libaaudio.so: %s", dlerror());
+				return false;
+			}
+		}
+		return true;
+	}
 	if (!linkernsbypass_load_status()) {
 		__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)", "linker namespace bypass init failed");
 		return false;
