@@ -9,6 +9,7 @@ extern "C" {
 }
 #include <aaudio/AAudio.h>
 
+static bool init_done = false;
 static void* handle = nullptr;
 static void* handle2 = nullptr;
 typedef uint32_t(*ZNK7android10AudioTrack16getHalSampleRateEv_t)(void*);
@@ -21,6 +22,8 @@ typedef aaudio_format_t(*AAudioConvert_androidToAAudioDataFormat_t)(audio_format
 static AAudioConvert_androidToAAudioDataFormat_t AAudioConvert_androidToAAudioDataFormat = nullptr;
 
 bool initLib() {
+	if (init_done)
+		return true;
 	if (android_get_device_api_level() < 28) {
 		if (!handle) {
 			handle = dlopen("libaudioclient.so", RTLD_GLOBAL);
@@ -38,15 +41,18 @@ bool initLib() {
 				return false;
 			}
 		}
+		init_done = true;
 		return true;
 	}
 	if (!linkernsbypass_load_status()) {
 		__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)", "linker namespace bypass init failed");
 		return false;
 	}
-	static auto defaultNs{android_create_namespace_escape("default_copy", nullptr, nullptr, ANDROID_NAMESPACE_TYPE_SHARED, nullptr, nullptr)};
+	android_namespace_t* ns = nullptr;
 	if (!handle) {
-		handle = linkernsbypass_namespace_dlopen("libaudioclient.so", RTLD_GLOBAL, defaultNs);
+		ns = android_create_namespace_escape("default_copy", nullptr, nullptr,
+		                                     ANDROID_NAMESPACE_TYPE_SHARED, nullptr, nullptr);
+		handle = linkernsbypass_namespace_dlopen("libaudioclient.so", RTLD_GLOBAL, ns);
 		if (handle == nullptr) {
 			__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)",
 			                    "dlopen returned nullptr for libaudioclient.so: %s", dlerror());
@@ -54,13 +60,17 @@ bool initLib() {
 		}
 	}
 	if (!handle2) {
-		handle2 = linkernsbypass_namespace_dlopen("libaaudio.so", RTLD_GLOBAL, defaultNs);
+		if (!ns)
+			ns = android_create_namespace_escape("default_copy", nullptr,
+												 nullptr, ANDROID_NAMESPACE_TYPE_SHARED, nullptr, nullptr);
+		handle2 = linkernsbypass_namespace_dlopen("libaaudio.so", RTLD_GLOBAL, ns);
 		if (handle2 == nullptr) {
 			__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)",
 			                    "dlopen returned nullptr for libaaudio.so: %s", dlerror());
 			return false;
 		}
 	}
+	init_done = true;
 	return true;
 }
 

@@ -23,18 +23,6 @@ static bool lib_loaded;
 bool linkernsbypass_load_status() {
 	return lib_loaded;
 }
-
-struct android_namespace_t *android_create_namespace(const char *name,
-                                                     const char *ld_library_path,
-                                                     const char *default_library_path,
-                                                     uint64_t type,
-                                                     const char *permitted_when_isolated_path,
-                                                     android_namespace_t *parent_namespace) {
-	auto caller{__builtin_return_address(0)};
-	return loader_android_create_namespace(name, ld_library_path, default_library_path, type,
-	                                       permitted_when_isolated_path, parent_namespace, caller);
-}
-
 struct android_namespace_t *android_create_namespace_escape(const char *name,
                                                             const char *ld_library_path,
                                                             const char *default_library_path,
@@ -44,19 +32,6 @@ struct android_namespace_t *android_create_namespace_escape(const char *name,
 	auto caller{reinterpret_cast<void *>(&dlopen)};
 	return loader_android_create_namespace(name, ld_library_path, default_library_path, type,
 	                                       permitted_when_isolated_path, parent_namespace, caller);
-}
-
-android_get_exported_namespace_t android_get_exported_namespace;
-
-android_link_namespaces_all_libs_t android_link_namespaces_all_libs;
-
-android_link_namespaces_t android_link_namespaces;
-
-bool linkernsbypass_link_namespace_to_default_all_libs(android_namespace_t *to) {
-	// Creating a shared namespace with the default parent will give a copy of the default namespace that we can actually access
-	// This is needed since there is no way to access a direct handle to the default namespace as it's not exported
-	static auto defaultNs{android_create_namespace_escape("default_copy", nullptr, nullptr, ANDROID_NAMESPACE_TYPE_SHARED, nullptr, nullptr)};
-	return android_link_namespaces_all_libs(to, defaultNs);
 }
 
 void *linkernsbypass_namespace_dlopen(const char *filename, int flags, android_namespace_t *ns) {
@@ -95,7 +70,7 @@ __attribute__((constructor)) static void resolve_linker_symbols() {
 		};
 		static_assert(sizeof(BranchLinked) == 4, "BranchLinked is wrong size");
 
-		// Some devices ship with --X mapping for exexecutables so work around that
+		// Some devices ship with --X mapping for executables so work around that
 		mprotect(align_ptr(reinterpret_cast<void *>(&dlopen)), getpagesize(), PROT_WRITE | PROT_READ | PROT_EXEC);
 
 		// dlopen is just a wrapper for __loader_dlopen that passes the return address as the third arg hence we can just walk it to find __loader_dlopen
@@ -114,24 +89,12 @@ __attribute__((constructor)) static void resolve_linker_symbols() {
 	if (!ldHandle)
 		return;
 
-	android_link_namespaces_all_libs = reinterpret_cast<android_link_namespaces_all_libs_t>(dlsym(ldHandle, "__loader_android_link_namespaces_all_libs"));
-	if (!android_link_namespaces_all_libs)
-		return;
-
-	android_link_namespaces = reinterpret_cast<android_link_namespaces_t>(dlsym(ldHandle, "__loader_android_link_namespaces"));
-	if (!android_link_namespaces)
-		return;
-
 	auto libdlAndroidHandle{loader_dlopen("libdl_android.so", RTLD_LAZY, reinterpret_cast<void *>(&dlopen))};
 	if (!libdlAndroidHandle)
 		return;
 
 	loader_android_create_namespace = reinterpret_cast<loader_android_create_namespace_t>(dlsym(libdlAndroidHandle, "__loader_android_create_namespace"));
 	if (!loader_android_create_namespace)
-		return;
-
-	android_get_exported_namespace = reinterpret_cast<android_get_exported_namespace_t>(dlsym(libdlAndroidHandle, "__loader_android_get_exported_namespace"));
-	if (!android_get_exported_namespace)
 		return;
 
 	// Lib is now safe to use
