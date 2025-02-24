@@ -4,7 +4,7 @@
 	"name": "Billy Laws",
 	"organisationUrl": "https://github.com/bylaws"
   }],
-  "artifactVersion": "aa3975893d83ef1bc84c321ec60c65fbf1287887",
+  "artifactVersion": "aa397589",
   "description": "A simple library to expose the linker namespace functionality in Android 9+ together with symbol hooking",
   "name": "liblinkernsbypass",
   "tag": "custom",
