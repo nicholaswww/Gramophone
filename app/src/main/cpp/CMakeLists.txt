@@ -35,6 +35,9 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
 # build script, prebuilt third-party libraries, or Android system libraries.
 target_link_libraries(${CMAKE_PROJECT_NAME}
     # List libraries link to the target library
-    log)
+    log
+	dlfunc::dlfunc)
+
+find_package(dlfunc REQUIRED CONFIG)
 
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -fvisibility=hidden -Os -fno-exceptions -fwrapv -fomit-frame-pointer -fno-unroll-loops -Xclang -fmerge-functions -Oz)

@@ -21,6 +21,8 @@ enum {
  */
 bool linkernsbypass_load_status();
 
+void linkernsbypass_load(JNIEnv* env);
+
 struct android_namespace_t *android_create_namespace_escape(const char *name,
                                                             const char *ld_library_path,
                                                             const char *default_library_path,

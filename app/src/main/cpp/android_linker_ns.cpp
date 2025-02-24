@@ -5,13 +5,18 @@
 #include <dlfcn.h>
 #include <android/dlext.h>
 #include <unistd.h>
-#include <sys/mman.h>
+#include <jni.h>
+extern "C" {
+#include <dlfunc.h>
+}
+#include <android/log.h>
 #include "android_linker_ns.h"
 
 using loader_android_create_namespace_t = android_namespace_t *(*)(const char *, const char *, const char *, uint64_t, const char *, android_namespace_t *, const void *);
 static loader_android_create_namespace_t loader_android_create_namespace;
 
 static bool lib_loaded;
+static bool dlfunc_loaded;
 
 /* Public API */
 bool linkernsbypass_load_status() {
@@ -37,55 +42,33 @@ void *linkernsbypass_namespace_dlopen(const char *filename, int flags, android_n
 	return android_dlopen_ext(filename, flags, &extInfo);
 }
 
-static void *align_ptr(void *ptr) {
-	return reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(ptr) & ~(getpagesize() - 1));
-}
-
 /* Private */
-__attribute__((constructor)) static void resolve_linker_symbols() {
-	using loader_dlopen_t = void *(*)(const char *, int, const void *);
-
-	if (android_get_device_api_level() < 28)
+void linkernsbypass_load(JNIEnv* env) {
+	if (lib_loaded || android_get_device_api_level() < 26)
 		return;
 
-	// ARM64 specific function walking to locate the internal dlopen handler
-	auto loader_dlopen{[]() {
-		union BranchLinked {
-			uint32_t raw;
-
-			struct {
-				int32_t offset : 26; //!< 26-bit branch offset
-				uint8_t sig : 6;  //!< 6-bit signature
-			};
-
-			[[nodiscard]] bool Verify() const {
-				return sig == 0x25;
-			}
-		};
-		static_assert(sizeof(BranchLinked) == 4, "BranchLinked is wrong size");
-
-		// Some devices ship with --X mapping for executables so work around that
-		mprotect(align_ptr(reinterpret_cast<void *>(&dlopen)), getpagesize(), PROT_WRITE | PROT_READ | PROT_EXEC);
-
-		// dlopen is just a wrapper for __loader_dlopen that passes the return address as the third arg hence we can just walk it to find __loader_dlopen
-		auto blInstr{reinterpret_cast<BranchLinked *>(&dlopen)};
-		while (!blInstr->Verify())
-			blInstr++;
-
-		return reinterpret_cast<loader_dlopen_t>(blInstr + blInstr->offset);
-	}()};
-
-	// Protect the loader_dlopen function to remove the BTI attribute (since this is an internal function that isn't intended to be jumped indirectly to)
-	mprotect(align_ptr(reinterpret_cast<void *>(&loader_dlopen)), getpagesize(), PROT_WRITE | PROT_READ | PROT_EXEC);
-
-	// Passing dlopen as a caller address tricks the linker into using the internal unrestricted namespace letting us access libraries that are normally forbidden in the classloader namespace imposed on apps
-	auto libdlAndroidHandle{loader_dlopen("libdl_android.so", RTLD_LAZY, reinterpret_cast<void *>(&dlopen))};
-	if (!libdlAndroidHandle)
+	if (!dlfunc_loaded && dlfunc_init(env) != JNI_OK) {
+		__android_log_print(ANDROID_LOG_ERROR, "linkernsbypass","dlfunc init failed");
 		return;
+	}
+	dlfunc_loaded = true;
+
+	void* libdlAndroidHandle = dlfunc_dlopen(env, "libdl_android.so", RTLD_NOW);
+	if (!libdlAndroidHandle) {
+		libdlAndroidHandle = dlfunc_dlopen(env, "libdl.so", RTLD_NOW);
+		if (!libdlAndroidHandle) {
+			__android_log_print(ANDROID_LOG_ERROR, "linkernsbypass",
+			                    "dlfunc_dlopen of libdl_android.so failed: %s", dlerror());
+			return;
+		}
+	}
 
 	loader_android_create_namespace = reinterpret_cast<loader_android_create_namespace_t>(dlsym(libdlAndroidHandle, "__loader_android_create_namespace"));
-	if (!loader_android_create_namespace)
+	if (!loader_android_create_namespace) {
+		__android_log_print(ANDROID_LOG_ERROR, "linkernsbypass",
+		                    "dlsym of __loader_android_create_namespace in libdl_android.so failed: %s", dlerror());
 		return;
+	}
 
 	// Lib is now safe to use
 	lib_loaded = true;

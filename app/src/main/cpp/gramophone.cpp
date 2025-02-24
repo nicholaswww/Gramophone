@@ -12,6 +12,9 @@ extern "C" {
 static bool init_done = false;
 static void* handle = nullptr;
 static void* handle2 = nullptr;
+typedef int audio_io_handle_t;
+typedef audio_io_handle_t(*ZNK7android10AudioTrack9getOutputEv_t)(void*);
+static ZNK7android10AudioTrack9getOutputEv_t ZNK7android10AudioTrack9getOutputEv = nullptr;
 typedef uint32_t(*ZNK7android10AudioTrack16getHalSampleRateEv_t)(void*);
 static ZNK7android10AudioTrack16getHalSampleRateEv_t ZNK7android10AudioTrack16getHalSampleRateEv = nullptr;
 typedef uint32_t(*ZNK7android10AudioTrack18getHalChannelCountEv_t)(void*);
@@ -21,10 +24,11 @@ static ZNK7android10AudioTrack12getHalFormatEv_t ZNK7android10AudioTrack12getHal
 typedef aaudio_format_t(*AAudioConvert_androidToAAudioDataFormat_t)(audio_format_t);
 static AAudioConvert_androidToAAudioDataFormat_t AAudioConvert_androidToAAudioDataFormat = nullptr;
 
-bool initLib() {
+bool initLib(JNIEnv* env) {
 	if (init_done)
 		return true;
-	if (android_get_device_api_level() < 28) {
+	// TODO support 24/25 namespace bypass?
+	if (android_get_device_api_level() < 26) {
 		if (!handle) {
 			handle = dlopen("libaudioclient.so", RTLD_GLOBAL);
 			if (handle == nullptr) {
@@ -44,6 +48,7 @@ bool initLib() {
 		init_done = true;
 		return true;
 	}
+	linkernsbypass_load(env);
 	if (!linkernsbypass_load_status()) {
 		__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)", "linker namespace bypass init failed");
 		return false;
@@ -76,8 +81,8 @@ bool initLib() {
 
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalSampleRateInternal(
-		JNIEnv*, jobject, jlong audioTrack) {
-	if (!initLib())
+		JNIEnv* env, jobject, jlong audioTrack) {
+	if (!initLib(env))
 		return 0;
 	if (!ZNK7android10AudioTrack16getHalSampleRateEv) {
 		ZNK7android10AudioTrack16getHalSampleRateEv =
@@ -95,8 +100,8 @@ Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalSample
 
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalChannelCountInternal(
-		JNIEnv*, jobject, jlong audioTrack) {
-	if (!initLib())
+		JNIEnv* env, jobject, jlong audioTrack) {
+	if (!initLib(env))
 		return 0;
 	if (!ZNK7android10AudioTrack18getHalChannelCountEv) {
 		ZNK7android10AudioTrack18getHalChannelCountEv =
@@ -114,8 +119,8 @@ Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalChanne
 
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalFormatInternal(
-		JNIEnv*, jobject, jlong audioTrack) {
-	if (!initLib())
+		JNIEnv* env, jobject, jlong audioTrack) {
+	if (!initLib(env))
 		return -1;
 	if (!ZNK7android10AudioTrack12getHalFormatEv) {
 		ZNK7android10AudioTrack12getHalFormatEv =
@@ -153,7 +158,7 @@ Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalFormat
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalFormatInternal2(
 		JNIEnv* env, jobject, jlong audioTrack) {
-	if (!initLib())
+	if (!initLib(env))
 		return nullptr;
 	if (!ZNK7android10AudioTrack12getHalFormatEv) {
 		ZNK7android10AudioTrack12getHalFormatEv =
@@ -169,4 +174,23 @@ Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalFormat
 	const char* ret = audio_format_to_string((audio_format_t)
 			ZNK7android10AudioTrack12getHalFormatEv((void*) audioTrack));
 	return env->NewStringUTF(ret);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getOutputInternal(
+		JNIEnv* env, jobject, jlong audioTrack) {
+	if (!initLib(env))
+		return 0;
+	if (!ZNK7android10AudioTrack9getOutputEv) {
+		ZNK7android10AudioTrack9getOutputEv =
+				(ZNK7android10AudioTrack9getOutputEv_t)
+						dlsym(handle, "_ZNK7android10AudioTrack9getOutputEv");
+		if (ZNK7android10AudioTrack9getOutputEv == nullptr) {
+			__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)",
+			                    "dlsym returned nullptr for _ZNK7android10AudioTrack9getOutputEv: %s",
+			                    dlerror());
+			return 0;
+		}
+	}
+	return ZNK7android10AudioTrack9getOutputEv((void*) audioTrack);
 }

@@ -287,6 +287,7 @@ object MediaRoutes {
     }
 }
 
+// TODO support versions before U
 object AudioTrackHalInfoDetector {
     private const val TAG = "AudioTrackHalInfoDetect"
 
@@ -456,4 +457,13 @@ object AudioTrackHalInfoDetector {
             null
         }
     private external fun getHalFormatInternal2(audioTrackPtr: Long): String?
+
+    fun getOutput(audioTrack: AudioTrack): Int? =
+        try {
+            getOutputInternal(getAudioTrackPtr(audioTrack))
+        } catch (e: Throwable) {
+            Log.e(TAG, Log.getStackTraceString(e))
+            null
+        }
+    private external fun getOutputInternal(audioTrackPtr: Long): Int
 }
