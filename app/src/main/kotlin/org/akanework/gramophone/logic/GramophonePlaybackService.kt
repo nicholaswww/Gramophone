@@ -732,11 +732,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 TAG,
                 "playing on ${audioTrack!!.routedDevice?.cleanUpProductName()} with state ${audioTrack!!.state}"
             )
-            Log.i(TAG, "af hal sample rate: ${AudioTrackHalInfoDetector.getHalSampleRate(audioTrack!!)}")
-            Log.i(TAG, "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack!!)}")
-            Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack!!)}")
-            Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack!!)}")
         }
+        Log.i(TAG, "af hal sample rate: ${AudioTrackHalInfoDetector.getHalSampleRate(audioTrack!!)}")
+        Log.i(TAG, "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack!!)}")
+        Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack!!)}")
+        Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack!!)}")
         MediaRoutes.printRoutes(this)
     }
 

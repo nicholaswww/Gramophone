@@ -50,6 +50,7 @@ bool initLib(JNIEnv* env) {
 				return false;
 			}
 		}
+		init_done = true;
 		return true;
 	}
 	if (!linkernsbypass_load_status()) {
