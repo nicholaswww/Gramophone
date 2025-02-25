@@ -9,6 +9,8 @@ import android.media.AudioTrack
 import android.media.MediaRoute2Info
 import android.media.MediaRouter2
 import android.os.Build
+import android.os.IBinder
+import android.os.Parcel
 import android.text.TextUtils
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -287,7 +289,6 @@ object MediaRoutes {
     }
 }
 
-// TODO support versions before U
 object AudioTrackHalInfoDetector {
     private const val TAG = "AudioTrackHalInfoDetect"
 
@@ -307,16 +308,44 @@ object AudioTrackHalInfoDetector {
         return field.get(audioTrack) as Long
     }
 
-    fun getHalSampleRate(audioTrack: AudioTrack): Int? =
-        try {
-            getHalSampleRateInternal(getAudioTrackPtr(audioTrack))
-        } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
-            null
+    fun getHalSampleRate(audioTrack: AudioTrack): Int? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val ret = try {
+                getHalSampleRateInternal(getAudioTrackPtr(audioTrack))
+            } catch (e: Throwable) {
+                Log.e(TAG, Log.getStackTraceString(e))
+                null
+            }
+            if (ret != null && ret != 0)
+                return ret
         }
+        val output = getOutput(audioTrack)
+        if (output == null)
+            return null
+        val af = getAfService()
+        if (af == null)
+            return null
+        val inParcel = obtainParcel(af)
+        val outParcel = obtainParcel(af)
+        try {
+            inParcel.writeInterfaceToken(af.interfaceDescriptor!!)
+            inParcel.writeInt(output)
+            af.transact(3, inParcel, outParcel, 0)
+            if (!readStatus(outParcel))
+                return null
+            return outParcel.readInt()
+        } finally {
+            inParcel.recycle()
+            outParcel.recycle()
+        }
+    }
     private external fun getHalSampleRateInternal(audioTrackPtr: Long): Int
 
+    fun obtainParcel(binder: IBinder) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+        Parcel.obtain(binder) else Parcel.obtain()
+
     fun getHalChannelCount(audioTrack: AudioTrack): Int? =
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) null else
         try {
             getHalChannelCountInternal(getAudioTrackPtr(audioTrack))
         } catch (e: Throwable) {
@@ -331,19 +360,16 @@ object AudioTrackHalInfoDetector {
      * The conversion to aaudio_format_t is done using system libraries, so this method has the
      * advantage of being valid for the indefinite future and not relying on magic numbers.
      */
-    fun getHalFormat(audioTrack: AudioTrack): AAudioFormat? =
-        try {
-            val fmt = getHalFormatInternal(getAudioTrackPtr(audioTrack))
-            AAudioFormat.entries.find { it.format == fmt }
-                ?: run {
-                    Log.e(TAG, "got aaudio_format_t $fmt which is missing on kotlin side")
-                    AAudioFormat.AAUDIO_FORMAT_INVALID
-                }
-        } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
-            null
-        }
-    private external fun getHalFormatInternal(audioTrackPtr: Long): Int
+    fun getHalFormat(audioTrack: AudioTrack): AAudioFormat? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
+            return AAudioFormat.AAUDIO_FORMAT_INVALID
+        val fmt = getHalFormatInner(audioTrack)?.let { audioFormatToAAudioFormat(it) }
+        return AAudioFormat.entries.find { it.format == fmt }
+            ?: run {
+                Log.e(TAG, "got aaudio_format_t $fmt which is missing on kotlin side")
+                AAudioFormat.AAUDIO_FORMAT_INVALID
+            }
+    }
 
     /* Public NDK API from AAudio.h */
     enum class AAudioFormat(val format: Int) {
@@ -450,15 +476,50 @@ object AudioTrackHalInfoDetector {
      * disadvantage of being invalid in future AOSP versions because its reliance on magic numbers.
      */
     fun getHalFormat2(audioTrack: AudioTrack): String? =
-        try {
-            getHalFormatInternal2(getAudioTrackPtr(audioTrack))
-        } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
-            null
-        }
-    private external fun getHalFormatInternal2(audioTrackPtr: Long): String?
+        getHalFormatInner(audioTrack)?.let { audioFormatToString(it) }
 
-    fun getOutput(audioTrack: AudioTrack): Int? =
+    private fun getHalFormatInner(audioTrack: AudioTrack): Int? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val ret = try {
+                getHalFormatInternal(getAudioTrackPtr(audioTrack))
+            } catch (e: Throwable) {
+                Log.e(TAG, Log.getStackTraceString(e))
+                null
+            }
+            if (ret != null && ret != 0)
+                return ret
+        }
+        val output = getOutput(audioTrack)
+        if (output == null)
+            return null
+        val af = getAfService()
+        if (af == null)
+            return null
+        val inParcel = obtainParcel(af)
+        val outParcel = obtainParcel(af)
+        try {
+            inParcel.writeInterfaceToken(af.interfaceDescriptor!!)
+            inParcel.writeInt(output)
+            af.transact(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 4 else 5,
+                inParcel, outParcel, 0
+            )
+            if (!readStatus(outParcel))
+                return null
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                TODO()
+            } else
+                return outParcel.readInt()
+        } finally {
+            inParcel.recycle()
+            outParcel.recycle()
+        }
+    }
+    private external fun getHalFormatInternal(audioTrackPtr: Long): Int
+    private external fun audioFormatToString(format: Int): String?
+    private external fun audioFormatToAAudioFormat(format: Int): Int
+
+    private fun getOutput(audioTrack: AudioTrack): Int? =
         try {
             getOutputInternal(getAudioTrackPtr(audioTrack))
         } catch (e: Throwable) {
@@ -466,4 +527,24 @@ object AudioTrackHalInfoDetector {
             null
         }
     private external fun getOutputInternal(audioTrackPtr: Long): Int
+
+    @SuppressLint("PrivateApi")
+    private fun getAfService(): IBinder? {
+        return try {
+            Class.forName("android.os.ServiceManager").getMethod(
+                "getService", String::class.java
+            ).invoke(null, "media.audio_flinger") as IBinder?
+        } catch (e: Throwable) {
+            Log.e(TAG, Log.getStackTraceString(e))
+            null
+        }
+    }
+
+    private fun readStatus(parcel: Parcel): Boolean {
+        if (Build.VERSION.SDK_INT < 31) return true
+        val status = parcel.readInt()
+        if (status == 0) return true
+        Log.e(TAG, "binder transaction failed with status $status")
+        return false
+    }
 }

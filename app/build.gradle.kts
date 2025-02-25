@@ -276,7 +276,7 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
     implementation("io.coil-kt.coil3:coil:3.0.4")
-    implementation("io.github.rk700:dlfunc:0.1.1") // TODO 0.1.1 does not seem to work on O/P?
+    implementation("io.github.rk700:dlfunc:0.1.0") // TODO 0.1.1 does not seem to work on O/P? but required for newer versions!
     //noinspection GradleDependency newer versions need java.nio which is api 26+
     //implementation("com.github.albfernandez:juniversalchardet:2.0.3") TODO
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
