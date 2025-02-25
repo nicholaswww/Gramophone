@@ -8,6 +8,8 @@ import android.media.AudioManager
 import android.media.AudioTrack
 import android.media.MediaRoute2Info
 import android.media.MediaRouter2
+import android.media.audio.common.AudioFormatDescription
+import android.media.audio.common.AudioFormatType
 import android.os.Build
 import android.os.IBinder
 import android.os.Parcel
@@ -318,6 +320,7 @@ object AudioTrackHalInfoDetector {
             }
             if (ret != null && ret != 0)
                 return ret
+            return null
         }
         val output = getOutput(audioTrack)
         if (output == null)
@@ -488,6 +491,7 @@ object AudioTrackHalInfoDetector {
             }
             if (ret != null && ret != 0)
                 return ret
+            return null
         }
         val output = getOutput(audioTrack)
         if (output == null)
@@ -507,7 +511,9 @@ object AudioTrackHalInfoDetector {
             if (!readStatus(outParcel))
                 return null
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                TODO()
+                val format = AudioFormatDescription.CREATOR.createFromParcel(outParcel)
+                // TODO...
+                return null
             } else
                 return outParcel.readInt()
         } finally {
