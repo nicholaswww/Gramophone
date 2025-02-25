@@ -344,8 +344,9 @@ object AudioTrackHalInfoDetector {
     }
     private external fun getHalSampleRateInternal(audioTrackPtr: Long): Int
 
-    fun obtainParcel(binder: IBinder) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-        Parcel.obtain(binder) else Parcel.obtain()
+    private fun obtainParcel(binder: IBinder) =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            Parcel.obtain(binder) else Parcel.obtain()
 
     fun getHalChannelCount(audioTrack: AudioTrack): Int? =
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) null else
@@ -525,7 +526,7 @@ object AudioTrackHalInfoDetector {
     private external fun audioFormatToString(format: Int): String?
     private external fun audioFormatToAAudioFormat(format: Int): Int
 
-    private fun getOutput(audioTrack: AudioTrack): Int? =
+    /*private*/ fun getOutput(audioTrack: AudioTrack): Int? =
         try {
             getOutputInternal(getAudioTrackPtr(audioTrack))
         } catch (e: Throwable) {

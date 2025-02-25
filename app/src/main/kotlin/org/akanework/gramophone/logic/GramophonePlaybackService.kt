@@ -26,6 +26,7 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.media.AudioManager
+import android.media.AudioRouting
 import android.media.AudioTrack
 import android.media.audiofx.AudioEffect
 import android.net.Uri
@@ -167,8 +168,22 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var downstreamFormat: Format? = null
     private var audioSinkInputFormat: Format? = null
     private var audioHalFormat: Format? = null
+    private val routingChangedListener: Any? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+	    object : AudioRouting.OnRoutingChangedListener {
+	        override fun onRoutingChanged(router: AudioRouting) {
+                this@GramophonePlaybackService.onRoutingChanged(router as AudioTrack)
+	        }
+	    }
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        @Suppress("deprecation")
+        object : AudioTrack.OnRoutingChangedListener {
+            override fun onRoutingChanged(router: AudioTrack) {
+                this@GramophonePlaybackService.onRoutingChanged(router)
+            }
+        }
+    } else null
 
-    private fun getRepeatCommand() =
+	private fun getRepeatCommand() =
         when (controller!!.repeatMode) {
             Player.REPEAT_MODE_OFF -> customCommands[2]
             Player.REPEAT_MODE_ALL -> customCommands[3]
@@ -294,8 +309,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val player = EndedWorkaroundPlayer(
             ExoPlayer.Builder(
                 this,
-                GramophoneRenderFactory(this, this::onAudioSinkInputFormatChanged, { audioSink = it })
-                    .setEnableAudioFloatOutput(
+                GramophoneRenderFactory(this, { it, _, _ -> onAudioSinkInputFormatChanged(it) }) {
+	                audioSink = it
+                }
+	                .setEnableAudioFloatOutput(
                         prefs.getBooleanStrict("floatoutput", false)
                     )
                     .setEnableDecoderFallback(true)
@@ -724,8 +741,24 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     ) {
         // DefaultAudioSink will dispose of any other tracks shortly after creating a new one.
         // There only ever is one actively used track, and it is the one that was last initialized.
-        this.audioTrackConfig = audioTrackConfig
+	    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+		    audioTrack?.removeOnRoutingChangedListener(
+                routingChangedListener as AudioRouting.OnRoutingChangedListener)
+	    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            @Suppress("deprecation")
+            audioTrack?.removeOnRoutingChangedListener(
+                routingChangedListener as AudioTrack.OnRoutingChangedListener)
+        }
+	    this.audioTrackConfig = audioTrackConfig
         this.audioTrack = audioSink!!.getAudioTrack()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            audioTrack!!.addOnRoutingChangedListener(
+                routingChangedListener as AudioRouting.OnRoutingChangedListener, null)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            @Suppress("deprecation")
+            audioTrack!!.addOnRoutingChangedListener(
+                routingChangedListener as AudioTrack.OnRoutingChangedListener, null)
+        }
         Log.i(TAG, "Btw: audio track is ${audioTrackConfig.myToString()}")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Log.i(
@@ -737,7 +770,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         Log.i(TAG, "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack!!)}")
         Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack!!)}")
         Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack!!)}")
+        Log.i(TAG, "af hal output: ${AudioTrackHalInfoDetector.getOutput(audioTrack!!)}")
         MediaRoutes.printRoutes(this)
+    }
+
+    private fun onRoutingChanged(router: AudioTrack) {
+        if (router != audioTrack) {
+            Log.w(TAG, "leaked onRoutingChanged from wrong AudioTrack? $router vs $audioTrack")
+            return
+        }
+        Log.i(TAG, "NEW! af hal output: ${AudioTrackHalInfoDetector.getOutput(router)}")
     }
 
     // TODO why do we have to reflect on app code, there must be a better solution
@@ -761,7 +803,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         Log.i(TAG, "downstream format changed to ${mediaLoadData.trackFormat} (pcm ${mediaLoadData.trackFormat!!.pcmEncoding})")
     }
 
-    fun onAudioSinkInputFormatChanged(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) {
+    private fun onAudioSinkInputFormatChanged(inputFormat: Format) {
         // TODO https://github.com/androidx/media/pull/2180
         audioSinkInputFormat = inputFormat
         Log.i(TAG, "audio sink input format changed to $inputFormat (pcm ${inputFormat.pcmEncoding})")
@@ -780,6 +822,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lastPlayedManager.save()
         // TODO
         Log.i(TAG, "Btw: audio track is ${audioTrackConfig?.myToString()}")
+        Log.i(TAG, "af hal output: ${audioTrack?.let { AudioTrackHalInfoDetector.getOutput(it) }}")
     }
 
     override fun onEvents(player: Player, events: Player.Events) {
