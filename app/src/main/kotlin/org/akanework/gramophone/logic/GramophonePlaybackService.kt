@@ -202,10 +202,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         timerDuration = null
     }
 
-    private val audioManager by lazy {
-        getSystemService(AUDIO_SERVICE) as AudioManager
-    }
-
     private var timerDuration: Long? = null
         set(value) {
             field = value
@@ -665,7 +661,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onTracksChanged(tracks: Tracks) {
         val mediaItem = controller!!.currentMediaItem
 
-        AudioFormatDetector.detectAudioFormat(tracks, controller, audioManager).let { info ->
+        AudioFormatDetector.detectAudioFormat(tracks, controller).let { info ->
             audioFormat = info
             mediaSession?.broadcastCustomCommand(
                 SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
@@ -679,7 +675,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             val newParser = prefs.getBoolean("lyric_parser", false)
             val options = LrcParserOptions(
                 trim = trim, multiLine = multiLine,
-                errorText = getString(androidx.media3.session.R.string.error_message_io)
+                errorText = getString(R.string.failed_to_parse_lyric)
             )
             if (newParser) {
                 var lrc = loadAndParseLyricsFile(mediaItem?.getFile(), options)
@@ -750,27 +746,30 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 routingChangedListener as AudioTrack.OnRoutingChangedListener)
         }
 	    this.audioTrackConfig = audioTrackConfig
-        this.audioTrack = audioSink!!.getAudioTrack()
+        val audioTrack = (audioSink ?: throw NullPointerException(
+            "audioSink is null in onAudioTrackInitialized")).getAudioTrack()
+            ?: throw NullPointerException("AudioTrack is null in onAudioTrackInitialized")
+        this.audioTrack = audioTrack
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            audioTrack!!.addOnRoutingChangedListener(
+            audioTrack.addOnRoutingChangedListener(
                 routingChangedListener as AudioRouting.OnRoutingChangedListener, null)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             @Suppress("deprecation")
-            audioTrack!!.addOnRoutingChangedListener(
+            audioTrack.addOnRoutingChangedListener(
                 routingChangedListener as AudioTrack.OnRoutingChangedListener, null)
         }
         Log.i(TAG, "Btw: audio track is ${audioTrackConfig.myToString()}")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Log.i(
                 TAG,
-                "playing on ${audioTrack!!.routedDevice?.cleanUpProductName()} with state ${audioTrack!!.state}"
+                "playing on ${audioTrack.routedDevice?.cleanUpProductName()} with state ${audioTrack.state}"
             )
         }
-        Log.i(TAG, "af hal sample rate: ${AudioTrackHalInfoDetector.getHalSampleRate(audioTrack!!)}")
-        Log.i(TAG, "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack!!)}")
-        Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack!!)}")
-        Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack!!)}")
-        Log.i(TAG, "af hal output: ${AudioTrackHalInfoDetector.getOutput(audioTrack!!)}")
+        Log.i(TAG, "af hal sample rate: ${AudioTrackHalInfoDetector.getHalSampleRate(audioTrack)}")
+        Log.i(TAG, "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack)}")
+        Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack)}")
+        Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack)}")
+        Log.i(TAG, "af hal output: ${AudioTrackHalInfoDetector.getOutput(audioTrack)}")
         MediaRoutes.printRoutes(this)
     }
 

@@ -2,7 +2,6 @@ package org.akanework.gramophone.logic.utils
 
 import android.content.Context
 import android.media.AudioFormat
-import android.media.AudioManager
 import android.os.Parcelable
 import androidx.annotation.OptIn
 import androidx.media3.common.C
@@ -11,7 +10,6 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
-import coil3.util.MimeTypeMap
 import kotlinx.parcelize.Parcelize
 import java.io.File
 import org.akanework.gramophone.R
@@ -223,8 +221,7 @@ object AudioFormatDetector {
     @UnstableApi
     fun detectAudioFormat(
         tracks: Tracks,
-        player: Player?,
-        audioManager: AudioManager
+        player: Player?
     ): AudioFormatInfo? {
         // TODO: use MediaRouter for getting device channel information
         val deviceChannels = 2
@@ -299,6 +296,8 @@ object AudioFormatDetector {
             in 95900..96100 -> 96000    // DVD-Audio/Hi-Res
             in 176200..176600 -> 176400 // 4x 44.1
             in 191900..192100 -> 192000 // Hi-Res
+            in 383900..394100 -> 394000 // Why?
+            in 767900..768100 -> 768000 // I bet your 10000$ DAC can't play this.
             else -> rate
         }
     }
