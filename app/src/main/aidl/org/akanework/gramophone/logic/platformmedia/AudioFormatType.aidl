@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package android.media.audio.common;
+package org.akanework.gramophone.logic.platformmedia;
 
 /**
  * The type of the audio format. Only used as part of 'AudioFormatDescription'

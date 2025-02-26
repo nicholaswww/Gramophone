@@ -8,8 +8,6 @@ import android.media.AudioManager
 import android.media.AudioTrack
 import android.media.MediaRoute2Info
 import android.media.MediaRouter2
-import android.media.audio.common.AudioFormatDescription
-import android.media.audio.common.AudioFormatType
 import android.os.Build
 import android.os.IBinder
 import android.os.Parcel
@@ -19,6 +17,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.mediarouter.media.MediaRouter
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.platformmedia.AudioFormatDescription
 
 object MediaRoutes {
     private const val TAG = "MediaRoutes"
@@ -311,6 +310,8 @@ object AudioTrackHalInfoDetector {
     }
 
     fun getHalSampleRate(audioTrack: AudioTrack): Int? {
+        if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
+            throw IllegalArgumentException("cannot get hal sample rate for released AudioTrack")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val ret = try {
                 getHalSampleRateInternal(getAudioTrackPtr(audioTrack))
@@ -348,14 +349,17 @@ object AudioTrackHalInfoDetector {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
             Parcel.obtain(binder) else Parcel.obtain()
 
-    fun getHalChannelCount(audioTrack: AudioTrack): Int? =
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) null else
-        try {
-            getHalChannelCountInternal(getAudioTrackPtr(audioTrack))
-        } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
-            null
-        }
+    fun getHalChannelCount(audioTrack: AudioTrack): Int? {
+        if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
+            throw IllegalArgumentException("cannot get hal channel count for released AudioTrack")
+        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) null else
+            try {
+                getHalChannelCountInternal(getAudioTrackPtr(audioTrack))
+            } catch (e: Throwable) {
+                Log.e(TAG, Log.getStackTraceString(e))
+                null
+            }
+    }
     private external fun getHalChannelCountInternal(audioTrackPtr: Long): Int
 
     /**
@@ -483,6 +487,8 @@ object AudioTrackHalInfoDetector {
         getHalFormatInner(audioTrack)?.let { audioFormatToString(it) }
 
     private fun getHalFormatInner(audioTrack: AudioTrack): Int? {
+        if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
+            throw IllegalArgumentException("cannot get hal format for released AudioTrack")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val ret = try {
                 getHalFormatInternal(getAudioTrackPtr(audioTrack))
@@ -526,13 +532,16 @@ object AudioTrackHalInfoDetector {
     private external fun audioFormatToString(format: Int): String?
     private external fun audioFormatToAAudioFormat(format: Int): Int
 
-    /*private*/ fun getOutput(audioTrack: AudioTrack): Int? =
-        try {
+    /*private*/ fun getOutput(audioTrack: AudioTrack): Int? {
+        if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
+            throw IllegalArgumentException("cannot get hal output for released AudioTrack")
+        return try {
             getOutputInternal(getAudioTrackPtr(audioTrack))
         } catch (e: Throwable) {
             Log.e(TAG, Log.getStackTraceString(e))
             null
         }
+    }
     private external fun getOutputInternal(audioTrackPtr: Long): Int
 
     @SuppressLint("PrivateApi")

@@ -775,6 +775,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private fun onRoutingChanged(router: AudioTrack) {
+        if (audioTrack?.state == AudioTrack.STATE_UNINITIALIZED)
+            return // race: native side post()ed the callback but then track was release()d before
+                   // the Handler calls this method
         if (router != audioTrack) {
             Log.w(TAG, "leaked onRoutingChanged from wrong AudioTrack? $router vs $audioTrack")
             return
@@ -822,7 +825,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lastPlayedManager.save()
         // TODO
         Log.i(TAG, "Btw: audio track is ${audioTrackConfig?.myToString()}")
-        Log.i(TAG, "af hal output: ${audioTrack?.let { AudioTrackHalInfoDetector.getOutput(it) }}")
+        if (audioTrack?.state != AudioTrack.STATE_UNINITIALIZED)
+            Log.i(TAG, "af hal output: ${audioTrack?.let { AudioTrackHalInfoDetector.getOutput(it) }}")
     }
 
     override fun onEvents(player: Player, events: Player.Events) {

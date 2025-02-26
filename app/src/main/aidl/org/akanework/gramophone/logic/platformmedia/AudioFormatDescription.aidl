@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package android.media.audio.common;
+package org.akanework.gramophone.logic.platformmedia;
 
-import android.media.audio.common.AudioFormatType;
-import android.media.audio.common.PcmType;
+import org.akanework.gramophone.logic.platformmedia.AudioFormatType;
+import org.akanework.gramophone.logic.platformmedia.PcmType;
 
 /**
  * An extensible type for specifying audio formats. All formats are largely
