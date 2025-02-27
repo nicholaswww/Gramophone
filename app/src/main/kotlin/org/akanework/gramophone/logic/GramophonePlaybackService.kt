@@ -762,12 +762,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 this.lastAudioTrack = audioTrack
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     audioTrack?.addOnRoutingChangedListener(
-                        routingChangedListener as AudioRouting.OnRoutingChangedListener, null
+                        routingChangedListener as AudioRouting.OnRoutingChangedListener,
+                        playbackHandler
                     )
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     @Suppress("deprecation")
                     audioTrack?.addOnRoutingChangedListener(
-                        routingChangedListener as AudioTrack.OnRoutingChangedListener, null
+                        routingChangedListener as AudioTrack.OnRoutingChangedListener,
+                        playbackHandler
                     )
                 }
             }
@@ -797,14 +799,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private fun onRoutingChanged(router: AudioTrack) {
-        playbackHandler.post {
-            val audioTrack = (audioSink ?: throw NullPointerException(
-                "audioSink is null in onAudioTrackInitialized"
-            )).getAudioTrack()
-            if (router.state == AudioTrack.STATE_UNINITIALIZED) return@post
-            if (router != audioTrack) return@post // stale callback
-            Log.i(TAG, "NEW! af hal output: ${AudioTrackHalInfoDetector.getOutput(router)}")
-        }
+        val audioTrack = (audioSink ?: throw NullPointerException(
+            "audioSink is null in onAudioTrackInitialized"
+        )).getAudioTrack()
+        if (router.state == AudioTrack.STATE_UNINITIALIZED) return
+        if (router != audioTrack) return // stale callback
+        Log.i(TAG, "NEW! af hal output: ${AudioTrackHalInfoDetector.getOutput(router)}")
     }
 
     // TODO why do we have to reflect on app code, there must be a better solution
