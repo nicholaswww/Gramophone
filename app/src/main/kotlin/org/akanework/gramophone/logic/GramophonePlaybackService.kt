@@ -33,7 +33,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
+import android.os.Process
 import android.util.Log
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.core.app.NotificationChannelCompat
@@ -140,6 +142,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private var lastSessionId = 0
+    private val internalPlaybackThread = HandlerThread("ExoPlayer:Playback", Process.THREAD_PRIORITY_AUDIO)
     private var mediaSession: MediaLibrarySession? = null
     val endedWorkaroundPlayer
         get() = mediaSession?.player as EndedWorkaroundPlayer?
@@ -156,6 +159,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         private set
     private lateinit var customCommands: List<CommandButton>
     private lateinit var handler: Handler
+    private lateinit var playbackHandler: Handler
     private lateinit var nm: NotificationManagerCompat
     private lateinit var lastPlayedManager: LastPlayedManager
     private val lyricsLock = Semaphore(1)
@@ -163,7 +167,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var lastSentHighlightedLyric: String? = null
     private var updatedLyricAtLeastOnce = false
     private var audioTrackConfig: AudioSink.AudioTrackConfig? = null
-    private var audioTrack: AudioTrack? = null
+    private var lastAudioTrack: AudioTrack? = null
+    // only access sink or track on PlaybackThread
     private var audioSink: DefaultAudioSink? = null
     private var downstreamFormat: Format? = null
     private var audioSinkInputFormat: Format? = null
@@ -235,6 +240,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     override fun onCreate() {
         instanceForWidgetAndLyricsOnly = this
+        internalPlaybackThread.start()
+        playbackHandler = Handler(internalPlaybackThread.looper)
         handler = Handler(Looper.getMainLooper())
         super.onCreate()
         nm = NotificationManagerCompat.from(this)
@@ -329,6 +336,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                         .build(), true
                 )
+                .setPlaybackLooper(internalPlaybackThread.looper)
                 .build()
         )
         if (BuildConfig.DEBUG) {
@@ -470,6 +478,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaSession!!.release()
         mediaSession!!.player.release()
         mediaSession = null
+        internalPlaybackThread.quitSafely()
         LyricWidgetProvider.update(this)
         super.onDestroy()
     }
@@ -735,53 +744,67 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        // DefaultAudioSink will dispose of any other tracks shortly after creating a new one.
-        // There only ever is one actively used track, and it is the one that was last initialized.
-	    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-		    audioTrack?.removeOnRoutingChangedListener(
-                routingChangedListener as AudioRouting.OnRoutingChangedListener)
-	    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            @Suppress("deprecation")
-            audioTrack?.removeOnRoutingChangedListener(
-                routingChangedListener as AudioTrack.OnRoutingChangedListener)
+        playbackHandler.post {
+            val audioTrack = (audioSink ?: throw NullPointerException(
+                "audioSink is null in onAudioTrackInitialized"
+            )).getAudioTrack()
+            if (audioTrack != lastAudioTrack) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    lastAudioTrack?.removeOnRoutingChangedListener(
+                        routingChangedListener as AudioRouting.OnRoutingChangedListener
+                    )
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    @Suppress("deprecation")
+                    lastAudioTrack?.removeOnRoutingChangedListener(
+                        routingChangedListener as AudioTrack.OnRoutingChangedListener
+                    )
+                }
+                this.lastAudioTrack = audioTrack
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    audioTrack?.addOnRoutingChangedListener(
+                        routingChangedListener as AudioRouting.OnRoutingChangedListener, null
+                    )
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    @Suppress("deprecation")
+                    audioTrack?.addOnRoutingChangedListener(
+                        routingChangedListener as AudioTrack.OnRoutingChangedListener, null
+                    )
+                }
+            }
+            this.audioTrackConfig = audioTrackConfig
+            Log.i(TAG, "Btw: audio track is ${audioTrackConfig.myToString()}")
+            if (audioTrack != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    Log.i(
+                        TAG,
+                        "playing on ${audioTrack.routedDevice?.cleanUpProductName()} with state ${audioTrack.state}"
+                    )
+                }
+                Log.i(
+                    TAG,
+                    "af hal sample rate: ${AudioTrackHalInfoDetector.getHalSampleRate(audioTrack)}"
+                )
+                Log.i(
+                    TAG,
+                    "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack)}"
+                )
+                Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack)}")
+                Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack)}")
+                Log.i(TAG, "af hal output: ${AudioTrackHalInfoDetector.getOutput(audioTrack)}")
+            }
+            MediaRoutes.printRoutes(this)
         }
-	    this.audioTrackConfig = audioTrackConfig
-        val audioTrack = (audioSink ?: throw NullPointerException(
-            "audioSink is null in onAudioTrackInitialized")).getAudioTrack()
-            ?: throw NullPointerException("AudioTrack is null in onAudioTrackInitialized")
-        this.audioTrack = audioTrack
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            audioTrack.addOnRoutingChangedListener(
-                routingChangedListener as AudioRouting.OnRoutingChangedListener, null)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            @Suppress("deprecation")
-            audioTrack.addOnRoutingChangedListener(
-                routingChangedListener as AudioTrack.OnRoutingChangedListener, null)
-        }
-        Log.i(TAG, "Btw: audio track is ${audioTrackConfig.myToString()}")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Log.i(
-                TAG,
-                "playing on ${audioTrack.routedDevice?.cleanUpProductName()} with state ${audioTrack.state}"
-            )
-        }
-        Log.i(TAG, "af hal sample rate: ${AudioTrackHalInfoDetector.getHalSampleRate(audioTrack)}")
-        Log.i(TAG, "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack)}")
-        Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack)}")
-        Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack)}")
-        Log.i(TAG, "af hal output: ${AudioTrackHalInfoDetector.getOutput(audioTrack)}")
-        MediaRoutes.printRoutes(this)
     }
 
     private fun onRoutingChanged(router: AudioTrack) {
-        if (audioTrack?.state == AudioTrack.STATE_UNINITIALIZED)
-            return // race: native side post()ed the callback but then track was release()d before
-                   // the Handler calls this method
-        if (router != audioTrack) {
-            Log.w(TAG, "leaked onRoutingChanged from wrong AudioTrack? $router vs $audioTrack")
-            return
+        playbackHandler.post {
+            val audioTrack = (audioSink ?: throw NullPointerException(
+                "audioSink is null in onAudioTrackInitialized"
+            )).getAudioTrack()
+            if (router.state == AudioTrack.STATE_UNINITIALIZED) return@post
+            if (router != audioTrack) return@post // stale callback
+            Log.i(TAG, "NEW! af hal output: ${AudioTrackHalInfoDetector.getOutput(router)}")
         }
-        Log.i(TAG, "NEW! af hal output: ${AudioTrackHalInfoDetector.getOutput(router)}")
     }
 
     // TODO why do we have to reflect on app code, there must be a better solution
@@ -824,8 +847,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lastPlayedManager.save()
         // TODO
         Log.i(TAG, "Btw: audio track is ${audioTrackConfig?.myToString()}")
-        if (audioTrack?.state != AudioTrack.STATE_UNINITIALIZED)
-            Log.i(TAG, "af hal output: ${audioTrack?.let { AudioTrackHalInfoDetector.getOutput(it) }}")
+        playbackHandler.post {
+            val audioTrack = (audioSink ?: throw NullPointerException(
+                "audioSink is null in onAudioTrackInitialized"
+            )).getAudioTrack()
+            if (audioTrack == null || audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
+                return@post
+            Log.i(TAG, "onIsPlayingChanged af hal output: ${AudioTrackHalInfoDetector.getOutput(audioTrack)}")
+        }
     }
 
     override fun onEvents(player: Player, events: Player.Events) {
