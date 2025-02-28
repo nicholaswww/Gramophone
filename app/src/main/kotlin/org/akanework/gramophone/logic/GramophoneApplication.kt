@@ -48,9 +48,6 @@ import coil3.fetch.SourceFetchResult
 import coil3.request.NullRequestDataException
 import coil3.size.pxOrElse
 import coil3.util.Logger
-import java.io.File
-import java.io.IOException
-import kotlin.system.exitProcess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -67,6 +64,9 @@ import org.akanework.gramophone.ui.LyricWidgetProvider
 import uk.akane.libphonograph.Constants
 import uk.akane.libphonograph.reader.FlowReader
 import uk.akane.libphonograph.utils.MiscUtils
+import java.io.File
+import java.io.IOException
+import kotlin.system.exitProcess
 
 class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     Thread.UncaughtExceptionHandler, SharedPreferences.OnSharedPreferenceChangeListener {
@@ -173,8 +173,9 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                         return@Factory Fetcher {
                             ImageFetchResult(
                                 ThumbnailUtils.createAudioThumbnail(file, options.size.let {
-                                    Size(it.width.pxOrElse { size?.width ?: 10000 },
-                                        it.height.pxOrElse { size?.height ?: 10000 })
+                                    // TODO 10000 is a bad fallback
+                                    Size(it.width.pxOrElse { size?.width.let { if (it == 0) null else it } ?: 10000 },
+                                        it.height.pxOrElse { size?.height.let { if (it == 0) null else it } ?: 10000 })
                                 }, null).asImage(), true, DataSource.DISK
                             )
                         }
