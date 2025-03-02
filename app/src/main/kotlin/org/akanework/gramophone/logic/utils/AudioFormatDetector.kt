@@ -1,17 +1,19 @@
 package org.akanework.gramophone.logic.utils
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
+import android.os.Build
 import android.os.Parcelable
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
-import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import kotlinx.parcelize.Parcelize
-import java.io.File
 import org.akanework.gramophone.R
 
 object AudioFormatDetector {
@@ -148,7 +150,8 @@ object AudioFormatDetector {
         fun getString(context: Context) = context.getString(res)
 
         companion object {
-            fun get(enc: Int) = Encoding.entries.first { it.enc == enc }
+            fun get(enc: Int) = Encoding.entries.find { it.enc == enc }
+            fun getString(context: Context, enc: Int) = get(enc)?.getString(context) ?: "UNKNOWN($enc)"
         }
     }
 
@@ -185,135 +188,136 @@ object AudioFormatDetector {
     @Parcelize
     data class AudioFormatInfo(
         val quality: AudioQuality,
-        val sampleRate: Int,
+        val sampleRate: Int?,
         val bitDepth: Int?,
         val isLossless: Boolean?,
-        val sourceChannels: Int,
-        val deviceChannels: Int,
+        val sourceChannels: Int?,
         val bitrate: Int?,
         val mimeType: String?,
         val spatialFormat: SpatialFormat,
         val encoderPadding: Int?,
         val encoderDelay: Int?
     ) : Parcelable {
-        val isDownMixing: Boolean
-            get() = sourceChannels > deviceChannels
-
         override fun toString(): String {
-            val outputStr = if (isDownMixing) {
-                "(Down mixed to $deviceChannels channels)"
-            } else ""
-
             return """
                     Audio Format Details:
                     Quality Tier: $quality
                     Sample Rate: $sampleRate Hz
                     Bit Depth: $bitDepth bit
-                    Source Channels: $sourceChannels $outputStr
+                    Source Channels: $sourceChannels
                     Lossless: $isLossless
                     Spatial Format: $spatialFormat
                     Codec: $mimeType
                     ${bitrate?.let { "Bitrate: ${it / 1000} kbps" } ?: ""}
+                    Encoder Padding: $encoderPadding frames, $encoderDelay ms
                 """.trimIndent()
         }
     }
+    @OptIn(UnstableApi::class)
+    data class AudioFormats(val downstreamFormat: Format?, val audioSinkInputFormat: Format?,
+                            val audioTrackInfo: AudioTrackInfo?, val halFormat: AfFormatInfo?) {
+	    fun prettyToString(context: Context): String? {
+            if (downstreamFormat == null || audioSinkInputFormat == null || audioTrackInfo == null)
+                return null
+            // TODO localization
+            return StringBuilder().apply {
+                append("== Downstream format ==\n")
+                prettyPrintFormat(context, downstreamFormat)
+                append("\n")
+                append("== Audio sink input format ==\n")
+                prettyPrintFormat(context, audioSinkInputFormat)
+                append("\n")
+                append("== Audio track format ==\n")
+                prettyPrintAudioTrackInfo(context, audioTrackInfo)
+                append("\n")
+                append("== Audio HAL format ==\n")
+                if (halFormat == null)
+                    append("(no data available)")
+                else
+                    prettyPrintAfFormatInfo(context, halFormat)
+            }.toString()
+        }
 
-    @UnstableApi
-    fun detectAudioFormat(
-        tracks: Tracks,
-        player: Player?
-    ): AudioFormatInfo? {
-        // TODO: use MediaRouter for getting device channel information
-        val deviceChannels = 2
+        private fun StringBuilder.prettyPrintFormat(context: Context, format: Format) {
+            append("Sample rate: ")
+            if (format.sampleRate != Format.NO_VALUE) {
+                append(format.sampleRate)
+                append(" Hz\n")
+            } else {
+                append("Not applicable to this format\n")
+            }
 
-        for (group in tracks.groups) {
-            if (group.type == C.TRACK_TYPE_AUDIO) {
-                for (i in 0 until group.length) {
-                    if (!group.isTrackSelected(i)) continue
+            append("Bit depth: ")
+            val bitDepth = try {
+                Util.getByteDepth(format.pcmEncoding) * 8
+            } catch (_: IllegalArgumentException) { null }
+            if (bitDepth != null) {
+                append(bitDepth)
+                append(" bits (")
+                append(Encoding.getString(context, format.pcmEncoding))
+                append(")\n")
+            } else {
+                append("Not applicable to this format\n")
+            }
 
-                    val format = group.getTrackFormat(i)
-                    val bitrate = if (format.bitrate != Format.NO_VALUE) {
-                        format.bitrate
-                    } else {
-                        calculateOverallBitrate(player)
-                    }
-
-                    val sampleRate = normalizeToStandardRate(format.sampleRate)
-                    val bitDepth = detectBitDepth(format)
-                    val isLossless = isLosslessFormat(format.sampleMimeType)
-                    val spatialFormat = detectSpatialFormat(format)
-                    val sourceChannels = format.channelCount
-
-                    val quality = determineQualityTier(
-                        sampleRate = sampleRate,
-                        bitDepth = bitDepth ?: 0,
-                        isLossless = isLossless
-                    )
-
-                    return AudioFormatInfo(
-                        quality = quality,
-                        sampleRate = sampleRate,
-                        bitDepth = bitDepth,
-                        isLossless = isLossless,
-                        sourceChannels = sourceChannels,
-                        deviceChannels = deviceChannels,
-                        bitrate = bitrate,
-                        mimeType = format.sampleMimeType,
-                        spatialFormat = spatialFormat,
-                        encoderPadding = format.encoderPadding.takeIf { it != Format.NO_VALUE },
-                        encoderDelay = format.encoderDelay.takeIf { it != Format.NO_VALUE }
-                    )
-                }
+            append("Channel count: ")
+            if (format.channelCount != Format.NO_VALUE) {
+                append(format.channelCount)
+                append(" channels\n")
+            } else {
+                append("Not applicable to this format\n")
             }
         }
-        return null
-    }
 
-    private fun calculateOverallBitrate(player: Player?): Int? {
-        // TODO do not count cover or container data
-        if (player == null) return null
+        private fun StringBuilder.prettyPrintAudioTrackInfo(context: Context, format: AudioTrackInfo) {
+            append("Channel config: ${channelConfigToString(context, format.channelConfig)}\n")
+            append("Sample rate: ${format.sampleRateHz} Hz\n")
+            append("Audio format: ${Encoding.getString(context, format.encoding)}\n")
+            append("Offload: ${format.offload}\n") // TODO this does not indicate real state
+        }
 
-        val duration = player.duration
-        if (duration <= 0) return null
-
-        val mediaItem = player.currentMediaItem ?: return null
-        val uri = mediaItem.localConfiguration?.uri ?: return null
-
-        try {
-            val file = File(uri.path!!)
-            val sizeInBits = file.length() * 8
-            return (sizeInBits / (duration / 1000.0)).toInt()
-        } catch (e: Exception) {
-            return null
+        private fun StringBuilder.prettyPrintAfFormatInfo(context: Context, format: AfFormatInfo) {
+            append("Device name: ${format.routedDeviceName}\n")
+            append("Device type: ${format.routedDeviceType?.let { audioDeviceTypeToString(context, it) }}\n")
+            append("Sample rate: ${format.sampleRateHz} Hz\n")
+            append("Audio format: ${format.audioFormat}\n")
+            append("Channel count: ${format.channelCount}\n")
         }
     }
 
-    private fun normalizeToStandardRate(rate: Int): Int {
-        return when (rate) {
-            in 44000..44200 -> 44100    // CD standard
-            in 47900..48100 -> 48000    // DVD standard
-            in 87900..88300 -> 88200    // 2x 44.1
-            in 95900..96100 -> 96000    // DVD-Audio/Hi-Res
-            in 176200..176600 -> 176400 // 4x 44.1
-            in 191900..192100 -> 192000 // Hi-Res
-            in 383900..394100 -> 394000 // Why?
-            in 767900..768100 -> 768000 // I bet your 10000$ DAC can't play this.
-            else -> rate
-        }
-    }
+    @OptIn(UnstableApi::class)
+    fun detectAudioFormat(
+        format: Format?,
+        player: Player?
+    ): AudioFormatInfo? {
+        if (format == null) return null
+        val bitrate = format.bitrate.takeIf { it != Format.NO_VALUE }
+        val sampleRate = format.sampleRate.takeIf { it != Format.NO_VALUE }
+        val bitDepth = try {
+            Util.getByteDepth(format.pcmEncoding) * 8
+        } catch (_: IllegalArgumentException) { null }
+        val isLossless = isLosslessFormat(format.sampleMimeType)
+        val spatialFormat = detectSpatialFormat(format)
+        val sourceChannels = format.channelCount.takeIf { it != Format.NO_VALUE }
 
-    @UnstableApi
-    private fun detectBitDepth(format: Format): Int? {
-        return when (format.pcmEncoding) {
-            C.ENCODING_PCM_16BIT -> 16
-            C.ENCODING_PCM_16BIT_BIG_ENDIAN -> 16
-            C.ENCODING_PCM_24BIT -> 24
-            C.ENCODING_PCM_24BIT_BIG_ENDIAN -> 16
-            C.ENCODING_PCM_32BIT -> 32
-            C.ENCODING_PCM_32BIT_BIG_ENDIAN -> 16
-            C.ENCODING_PCM_FLOAT -> 32
-            else -> null
-        }
+        val quality = determineQualityTier(
+            sampleRate = sampleRate,
+            bitDepth = bitDepth,
+            isLossless = isLossless
+        )
+
+        return AudioFormatInfo(
+            quality = quality,
+            sampleRate = sampleRate,
+            bitDepth = bitDepth,
+            isLossless = isLossless,
+            sourceChannels = sourceChannels,
+            bitrate = bitrate,
+            mimeType = format.sampleMimeType,
+            spatialFormat = spatialFormat,
+            encoderPadding = format.encoderPadding.takeIf { it != Format.NO_VALUE },
+            encoderDelay = format.encoderDelay.takeIf { it != Format.NO_VALUE }
+        )
     }
 
 	@OptIn(UnstableApi::class)
@@ -346,7 +350,10 @@ object AudioFormatDetector {
 
         if (mimeFormat != null) return mimeFormat
 
-        // Standard multichannel formats TODO can we just go by channel count? isn't there any way to distinguish QUAD from QUAD_BACK?
+        // Standard multichannel formats
+        // TODO can we just go by channel count? isn't there any way to distinguish QUAD
+        //  from QUAD_BACK?
+        //  answer: until https://github.com/androidx/media/issues/1471 happens we cannot
         return when (format.channelCount) {
             1 -> SpatialFormat.NONE          // Mono
             2 -> SpatialFormat.STEREO        // Standard stereo
@@ -359,19 +366,53 @@ object AudioFormatDetector {
         }
     }
 
+    fun audioDeviceTypeToString(context: Context, type: Int?) =
+        when (type) {
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> context.getString(R.string.device_type_bluetooth_a2dp)
+            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> context.getString(R.string.device_type_builtin_speaker)
+            AudioDeviceInfo.TYPE_WIRED_HEADSET -> context.getString(R.string.device_type_wired_headset)
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> context.getString(R.string.device_type_wired_headphones)
+            AudioDeviceInfo.TYPE_HDMI -> context.getString(R.string.device_type_hdmi)
+            AudioDeviceInfo.TYPE_USB_DEVICE -> context.getString(R.string.device_type_usb_device)
+            AudioDeviceInfo.TYPE_USB_ACCESSORY -> context.getString(R.string.device_type_usb_accessory)
+            AudioDeviceInfo.TYPE_DOCK -> context.getString(
+                if (Build.VERSION.SDK_INT >=
+                    Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                ) R.string.device_type_dock_digital
+                else R.string.device_type_dock
+            )
+            AudioDeviceInfo.TYPE_DOCK_ANALOG -> context.getString(R.string.device_type_dock_analog)
+            AudioDeviceInfo.TYPE_USB_HEADSET -> context.getString(R.string.device_type_usb_headset)
+            AudioDeviceInfo.TYPE_HEARING_AID -> context.getString(R.string.device_type_hearing_aid)
+            AudioDeviceInfo.TYPE_BLE_HEADSET -> context.getString(R.string.device_type_ble_headset)
+            AudioDeviceInfo.TYPE_BLE_BROADCAST -> context.getString(R.string.device_type_ble_broadcast)
+            AudioDeviceInfo.TYPE_BLE_SPEAKER -> context.getString(R.string.device_type_ble_speaker)
+            AudioDeviceInfo.TYPE_LINE_DIGITAL -> context.getString(R.string.device_type_line_digital)
+            AudioDeviceInfo.TYPE_LINE_ANALOG -> context.getString(R.string.device_type_line_analog)
+            AudioDeviceInfo.TYPE_AUX_LINE -> context.getString(R.string.device_type_aux_line)
+            AudioDeviceInfo.TYPE_HDMI_ARC -> context.getString(R.string.device_type_hdmi_arc)
+            AudioDeviceInfo.TYPE_HDMI_EARC -> context.getString(R.string.device_type_hdmi_earc)
+            else -> {
+                Log.w("AudioFormatDetector", "unknown device type $type")
+                context.getString(R.string.device_type_unknown)
+            }
+        }
+
     private fun determineQualityTier(
-        sampleRate: Int,
-        bitDepth: Int,
+        sampleRate: Int?,
+        bitDepth: Int?,
         isLossless: Boolean?
     ): AudioQuality = when {
         isLossless == false -> AudioQuality.LOSSY
 
         // Hi-Res: 24bit+ and 96kHz+
-        bitDepth >= 24 && sampleRate >= 88200 -> AudioQuality.HIRES
+        bitDepth != null && sampleRate != null &&
+                bitDepth >= 24 && sampleRate >= 88200 -> AudioQuality.HIRES
 
         // HD: 24bit at standard rates OR 16bit at high rates
-        (bitDepth >= 24 && sampleRate in setOf(44100, 48000)) ||
-                (bitDepth == 16 && sampleRate >= 88200) -> AudioQuality.HD
+        bitDepth != null && sampleRate != null && (
+                (bitDepth >= 24 && sampleRate in setOf(44100, 48000)) ||
+                (bitDepth == 16 && sampleRate >= 88200)) -> AudioQuality.HD
 
         // CD: 16bit at standard rates
         bitDepth == 16 && sampleRate in setOf(44100, 48000) -> AudioQuality.CD

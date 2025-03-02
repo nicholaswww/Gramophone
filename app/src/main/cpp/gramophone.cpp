@@ -5,14 +5,11 @@
 #include <cstdlib>
 #include <string>
 extern "C" {
-#include "audio-hal-enums.h"
 #include <dlfunc.h>
 }
-#include <aaudio/AAudio.h>
 
 static bool init_done = false;
 static void* handle = nullptr;
-static void* handle2 = nullptr;
 typedef int audio_io_handle_t;
 typedef audio_io_handle_t(*ZNK7android10AudioTrack9getOutputEv_t)(void*);
 static ZNK7android10AudioTrack9getOutputEv_t ZNK7android10AudioTrack9getOutputEv = nullptr;
@@ -22,8 +19,6 @@ typedef uint32_t(*ZNK7android10AudioTrack18getHalChannelCountEv_t)(void*);
 static ZNK7android10AudioTrack18getHalChannelCountEv_t ZNK7android10AudioTrack18getHalChannelCountEv = nullptr;
 typedef uint32_t(*ZNK7android10AudioTrack12getHalFormatEv_t)(void*);
 static ZNK7android10AudioTrack12getHalFormatEv_t ZNK7android10AudioTrack12getHalFormatEv = nullptr;
-typedef aaudio_format_t(*AAudioConvert_androidToAAudioDataFormat_t)(audio_format_t);
-static AAudioConvert_androidToAAudioDataFormat_t AAudioConvert_androidToAAudioDataFormat = nullptr;
 
 bool initLib(JNIEnv* env) {
 	if (init_done)
@@ -67,20 +62,12 @@ bool initLib(JNIEnv* env) {
 			return false;
 		}
 	}
-	if (!handle2) {
-		handle2 = linkernsbypass_namespace_dlopen("libaaudio.so", RTLD_GLOBAL, ns);
-		if (handle2 == nullptr) {
-			__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)",
-			                    "dlopen returned nullptr for libaaudio.so: %s", dlerror());
-			return false;
-		}
-	}
 	init_done = true;
 	return true;
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalSampleRateInternal(
+Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalSampleRateInternal(
 		JNIEnv* env, jobject, jlong audioTrack) {
 	if (!initLib(env))
 		return 0;
@@ -99,7 +86,7 @@ Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalSample
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalChannelCountInternal(
+Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalChannelCountInternal(
 		JNIEnv* env, jobject, jlong audioTrack) {
 	if (!initLib(env))
 		return 0;
@@ -118,35 +105,7 @@ Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalChanne
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_audioFormatToAAudioFormat(
-		JNIEnv* env, jobject, jint audioFormat) {
-	if (!initLib(env))
-		return -1;
-	if (android_get_device_api_level() < 26)
-		return -1;
-	if (!AAudioConvert_androidToAAudioDataFormat) {
-		// _Z46AAudioConvert_androidToNearestAAudioDataFormat14audio_format_t is ABI compatible with
-		// _Z39AAudioConvert_androidToAAudioDataFormat14audio_format_t.
-		AAudioConvert_androidToAAudioDataFormat =
-				(AAudioConvert_androidToAAudioDataFormat_t)
-						dlsym(handle2, "_Z46AAudioConvert_androidToNearestAAudioDataFormat14audio_format_t");
-		if (AAudioConvert_androidToAAudioDataFormat == nullptr) {
-			AAudioConvert_androidToAAudioDataFormat =
-					(AAudioConvert_androidToAAudioDataFormat_t)
-							dlsym(handle2, "_Z39AAudioConvert_androidToAAudioDataFormat14audio_format_t");
-			if (AAudioConvert_androidToAAudioDataFormat == nullptr) {
-				__android_log_print(ANDROID_LOG_ERROR, "AudioTrackHalInfo(JNI)",
-				                    "dlsym returned nullptr for _Z39AAudioConvert_androidToAAudioDataFormat14audio_format_t: %s",
-				                    dlerror());
-				return -1;
-			}
-		}
-	}
-	return AAudioConvert_androidToAAudioDataFormat((audio_format_t)audioFormat);
-}
-
-extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalFormatInternal(
+Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalFormatInternal(
 		JNIEnv* env, jobject, jlong audioTrack) {
 	if (!initLib(env))
 		return 0;
@@ -164,14 +123,8 @@ Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getHalFormat
 	return (int32_t) ZNK7android10AudioTrack12getHalFormatEv((void*) audioTrack);
 }
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_audioFormatToString(
-		JNIEnv* env, jobject, jint format) {
-	return env->NewStringUTF(audio_format_to_string((audio_format_t) format));
-}
-
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AudioTrackHalInfoDetector_getOutputInternal(
+Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getOutputInternal(
 		JNIEnv* env, jobject, jlong audioTrack) {
 	if (!initLib(env))
 		return 0;

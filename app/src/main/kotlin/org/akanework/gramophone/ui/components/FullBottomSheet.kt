@@ -5,12 +5,12 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
-import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.TransitionDrawable
 import android.text.format.DateFormat
 import android.util.AttributeSet
+import android.util.Log
 import android.util.Size
 import android.view.Gravity
 import android.view.KeyEvent
@@ -106,6 +106,10 @@ import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
+import androidx.core.view.isInvisible
+import org.akanework.gramophone.logic.utils.AudioFormatDetector
+import androidx.core.graphics.scale
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 @SuppressLint("NotifyDataSetChanged")
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -131,6 +135,7 @@ class FullBottomSheet
     private var firstTime = false
 
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private var currentFormat: AudioFormatDetector.AudioFormats? = null
 
     companion object {
         const val SLIDER_UPDATE_INTERVAL: Long = 100
@@ -291,7 +296,9 @@ class FullBottomSheet
 
                 GramophonePlaybackService.SERVICE_GET_AUDIO_FORMAT -> {
                     val format = instance?.getAudioFormat()
-                    updateQualityIndicators(format)
+                    this.currentFormat = format
+                    updateQualityIndicators(AudioFormatDetector.detectAudioFormat(
+                        format?.downstreamFormat, instance))
                 }
 
                 else -> {
@@ -346,6 +353,15 @@ class FullBottomSheet
                 putString("Id", instance?.currentMediaItem?.mediaMetadata?.albumId?.toString())
                 putInt("Item", R.id.album)
             }
+        }
+
+        bottomSheetFullQualityDetails.setOnClickListener {
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.audio_signal_chain)
+                .setMessage(currentFormat?.prettyToString(context)
+                    ?: context.getString(R.string.audio_not_initialized))
+                .setPositiveButton(android.R.string.ok) { _, _ -> }
+	            .show()
         }
 
         bottomSheetFullSubtitle.setOnClickListener {
@@ -628,8 +644,7 @@ class FullBottomSheet
             val colorAccuracy = prefs.getBoolean("color_accuracy", false)
             val targetWidth = if (colorAccuracy) (bitmap.width / 4).coerceAtMost(256) else 16
             val targetHeight = if (colorAccuracy) (bitmap.height / 4).coerceAtMost(256) else 16
-            val scaledBitmap =
-                Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, false)
+            val scaledBitmap = bitmap.scale(targetWidth, targetHeight, false)
 
             val options = DynamicColorsOptions.Builder()
                 .setContentBasedSource(scaledBitmap)
@@ -648,16 +663,17 @@ class FullBottomSheet
     }
 
     private fun updateQualityIndicators(info: AudioFormatInfo?) {
+        val oldInfo = (bottomSheetFullQualityDetails.getTag(R.id.quality_details) as AudioFormatInfo?)
+        if (oldInfo == info) return
+        Log.i("hi", "$oldInfo")
+        Log.i("hi", "$info")
         (bottomSheetFullQualityDetails.getTag(R.id.fade_in_animation) as ViewPropertyAnimator?)?.cancel()
         (bottomSheetFullQualityDetails.getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
-        if (info == null && bottomSheetFullQualityDetails.visibility == INVISIBLE) return
-        val oldInfo = (bottomSheetFullQualityDetails.getTag(R.id.quality_details) as AudioFormatInfo?)
+        if (info == null && bottomSheetFullQualityDetails.isInvisible) return
         if (oldInfo != null)
             applyQualityInfo(oldInfo)
-        if (oldInfo != null || info != null)
-            bottomSheetFullQualityDetails.setTag(R.id.quality_details, info)
+        bottomSheetFullQualityDetails.setTag(R.id.quality_details, info)
         bottomSheetFullQualityDetails.fadOutAnimation(300) {
-            bottomSheetFullQualityDetails.setTag(R.id.quality_details, null)
             if (info == null)
                 return@fadOutAnimation
             applyQualityInfo(info)
@@ -695,20 +711,32 @@ class FullBottomSheet
         }
         bottomSheetFullQualityDetails.setCompoundDrawablesRelative(drawable, null, null, null)
 
-        val channelInfo = if (info.isDownMixing) {
-            "${info.sourceChannels}ch ➝ ${info.deviceChannels}ch"
-        } else {
-            "${info.sourceChannels}ch"
-        }
-
         bottomSheetFullQualityDetails.text = buildString {
+            var hadFirst = false
             info.bitDepth?.let {
-                append("${it}bit / ")
+                hadFirst = true
+                append("${it}bit")
             }
-            append("${info.sampleRate / 1000f}kHz")
-            append(" / $channelInfo")
+            if (info.sampleRate != null) {
+                if (hadFirst)
+                    append(" / ")
+                else
+                    hadFirst = true
+                append("${info.sampleRate / 1000f}kHz")
+            }
+            if (info.sourceChannels != null) {
+                if (hadFirst)
+                    append(" / ")
+                else
+                    hadFirst = true
+                append("${info.sourceChannels}ch")
+            }
             info.bitrate?.let {
-                append(" / ${it / 1000}kbps")
+                if (hadFirst)
+                    append(" / ")
+                else
+                    hadFirst = true
+                append("${it / 1000}kbps")
             }
         }
     }

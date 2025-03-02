@@ -57,6 +57,7 @@ import androidx.core.view.children
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updateMargins
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -80,7 +81,10 @@ import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVIC
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_SESSION
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_QUERY_TIMER
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_SET_TIMER
+import org.akanework.gramophone.logic.utils.AfFormatInfo
+import org.akanework.gramophone.logic.utils.AudioFormatDetector
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
+import org.akanework.gramophone.logic.utils.AudioTrackInfo
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.ui.MainActivity
@@ -278,12 +282,18 @@ fun MediaController.getLyrics(): SemanticLyrics? =
         BundleCompat.getParcelable<SemanticLyrics>(it, "lyrics", SemanticLyrics::class.java)
     }
 
-fun MediaController.getAudioFormat(): AudioFormatInfo? =
+@OptIn(UnstableApi::class)
+fun MediaController.getAudioFormat(): AudioFormatDetector.AudioFormats? =
     sendCustomCommand(
         SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
         Bundle.EMPTY
     ).get().extras.let {
-        BundleCompat.getParcelable(it, "audio_format", AudioFormatInfo::class.java)
+        AudioFormatDetector.AudioFormats(
+            it.getBundle("file_format")?.let { bundle -> Format.fromBundle(bundle) },
+            it.getBundle("sink_format")?.let { bundle -> Format.fromBundle(bundle) },
+            BundleCompat.getParcelable(it, "track_format", AudioTrackInfo::class.java),
+            BundleCompat.getParcelable(it, "hal_format", AfFormatInfo::class.java)
+        )
     }
 
 @OptIn(UnstableApi::class)

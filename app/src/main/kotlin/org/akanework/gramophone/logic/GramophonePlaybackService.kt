@@ -26,11 +26,8 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.media.AudioManager
-import android.media.AudioRouting
-import android.media.AudioTrack
 import android.media.audiofx.AudioEffect
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
@@ -59,7 +56,6 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.CacheBitmapLoader
@@ -89,9 +85,8 @@ import kotlinx.coroutines.sync.Semaphore
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.MeiZuLyricsMediaNotificationProvider
-import org.akanework.gramophone.logic.utils.AudioFormatDetector
-import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
-import org.akanework.gramophone.logic.utils.AudioTrackHalInfoDetector
+import org.akanework.gramophone.logic.utils.AfFormatTracker
+import org.akanework.gramophone.logic.utils.AudioTrackInfo
 import org.akanework.gramophone.logic.utils.CircularShuffleOrder
 import org.akanework.gramophone.logic.utils.LastPlayedManager
 import org.akanework.gramophone.logic.utils.LrcUtils.LrcParserOptions
@@ -99,8 +94,6 @@ import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyrics
 import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyricsLegacy
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFile
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFileLegacy
-import org.akanework.gramophone.logic.utils.MediaRoutes
-import org.akanework.gramophone.logic.utils.MediaRoutes.cleanUpProductName
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
@@ -153,8 +146,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         private set
     val syncedLyrics
         get() = lyrics as? SemanticLyrics.SyncedLyrics
-    var audioFormat: AudioFormatInfo? = null
-        private set
     var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
         private set
     private lateinit var customCommands: List<CommandButton>
@@ -165,28 +156,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private val lyricsLock = Semaphore(1)
     private lateinit var prefs: SharedPreferences
     private var lastSentHighlightedLyric: String? = null
+    private lateinit var afFormatTracker: AfFormatTracker
     private var updatedLyricAtLeastOnce = false
-    private var audioTrackConfig: AudioSink.AudioTrackConfig? = null
-    private var lastAudioTrack: AudioTrack? = null
-    // only access sink or track on PlaybackThread
-    private var audioSink: DefaultAudioSink? = null
     private var downstreamFormat: Format? = null
     private var audioSinkInputFormat: Format? = null
-    private var audioHalFormat: Format? = null
-    private val routingChangedListener: Any? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-	    object : AudioRouting.OnRoutingChangedListener {
-	        override fun onRoutingChanged(router: AudioRouting) {
-                this@GramophonePlaybackService.onRoutingChanged(router as AudioTrack)
-	        }
-	    }
-    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        @Suppress("deprecation")
-        object : AudioTrack.OnRoutingChangedListener {
-            override fun onRoutingChanged(router: AudioTrack) {
-                this@GramophonePlaybackService.onRoutingChanged(router)
-            }
-        }
-    } else null
+    private var audioTrackInfo: AudioTrackInfo? = null
+    private var audioTrackInfoCounter = 0
+    private var audioTrackReleaseCounter = 0
 
 	private fun getRepeatCommand() =
         when (controller!!.repeatMode) {
@@ -308,13 +284,18 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     .setIconResId(R.drawable.ic_repeat_one_on)
                     .build(),
             )
-
+        afFormatTracker = AfFormatTracker(this, playbackHandler)
+        afFormatTracker.formatChangedCallback = {
+            mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
+            )
+        }
         val player = EndedWorkaroundPlayer(
             ExoPlayer.Builder(
                 this,
-                GramophoneRenderFactory(this, { it, _, _ -> onAudioSinkInputFormatChanged(it) }) {
-	                audioSink = it
-                }
+                GramophoneRenderFactory(this, this::onAudioSinkInputFormatChanged,
+                    afFormatTracker::setAudioSink)
 	                .setEnableAudioFloatOutput(
                         prefs.getBooleanStrict("floatoutput", false)
                     )
@@ -342,6 +323,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (BuildConfig.DEBUG) {
             player.exoPlayer.addAnalyticsListener(EventLogger())
         }
+        player.exoPlayer.addAnalyticsListener(afFormatTracker)
         player.exoPlayer.addAnalyticsListener(this)
         player.exoPlayer.audioSessionId = Util.generateAudioSessionIdV21(this)
         lastSessionId = player.exoPlayer.audioSessionId
@@ -593,7 +575,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
             SERVICE_GET_AUDIO_FORMAT -> {
                 SessionResult(SessionResult.RESULT_SUCCESS).also {
-                    it.extras.putParcelable("audio_format", audioFormat)
+                    it.extras.putBundle("file_format", downstreamFormat?.toBundle())
+                    it.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
+                    it.extras.putParcelable("track_format", audioTrackInfo)
+                    it.extras.putParcelable("hal_format", afFormatTracker.format)
                 }
             }
 
@@ -670,14 +655,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onTracksChanged(tracks: Tracks) {
         val mediaItem = controller!!.currentMediaItem
 
-        AudioFormatDetector.detectAudioFormat(tracks, controller).let { info ->
-            audioFormat = info
-            mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
-        }
-
         lyricsLock.runInBg {
             val trim = prefs.getBoolean("trim_lyrics", true)
             val multiLine = prefs.getBoolean("lyric_multiline", false)
@@ -744,94 +721,66 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        playbackHandler.post {
-            val audioTrack = (audioSink ?: throw NullPointerException(
-                "audioSink is null in onAudioTrackInitialized"
-            )).getAudioTrack()
-            if (audioTrack != lastAudioTrack) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    lastAudioTrack?.removeOnRoutingChangedListener(
-                        routingChangedListener as AudioRouting.OnRoutingChangedListener
-                    )
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    @Suppress("deprecation")
-                    lastAudioTrack?.removeOnRoutingChangedListener(
-                        routingChangedListener as AudioTrack.OnRoutingChangedListener
-                    )
-                }
-                this.lastAudioTrack = audioTrack
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    audioTrack?.addOnRoutingChangedListener(
-                        routingChangedListener as AudioRouting.OnRoutingChangedListener,
-                        playbackHandler
-                    )
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    @Suppress("deprecation")
-                    audioTrack?.addOnRoutingChangedListener(
-                        routingChangedListener as AudioTrack.OnRoutingChangedListener,
-                        playbackHandler
-                    )
-                }
-            }
-            this.audioTrackConfig = audioTrackConfig
-            Log.i(TAG, "Btw: audio track is ${audioTrackConfig.myToString()}")
-            if (audioTrack != null) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    Log.i(
-                        TAG,
-                        "playing on ${audioTrack.routedDevice?.cleanUpProductName()} with state ${audioTrack.state}"
-                    )
-                }
-                Log.i(
-                    TAG,
-                    "af hal sample rate: ${AudioTrackHalInfoDetector.getHalSampleRate(audioTrack)}"
-                )
-                Log.i(
-                    TAG,
-                    "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack)}"
-                )
-                Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack)}")
-                Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack)}")
-                Log.i(TAG, "af hal output: ${AudioTrackHalInfoDetector.getOutput(audioTrack)}")
-            }
-            MediaRoutes.printRoutes(this)
+        audioTrackInfoCounter++
+        audioTrackInfo = AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
+        mediaSession?.broadcastCustomCommand(
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+            Bundle.EMPTY
+        )
+    }
+
+    override fun onAudioTrackReleased(
+        eventTime: AnalyticsListener.EventTime,
+        audioTrackConfig: AudioSink.AudioTrackConfig
+    ) {
+        // Normally called after the replacement has been initialized, but if old track is released
+        // without replacement, we want to instantly know that instead of keeping stale data.
+        if (++audioTrackReleaseCounter == audioTrackInfoCounter) {
+            audioTrackInfo = null
+            mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
+            )
         }
     }
 
-    private fun onRoutingChanged(router: AudioTrack) {
-        val audioTrack = (audioSink ?: throw NullPointerException(
-            "audioSink is null in onAudioTrackInitialized"
-        )).getAudioTrack()
-        if (router.state == AudioTrack.STATE_UNINITIALIZED) return
-        if (router != audioTrack) return // stale callback
-        Log.i(TAG, "NEW! af hal output: ${AudioTrackHalInfoDetector.getOutput(router)}")
-    }
-
-    // TODO why do we have to reflect on app code, there must be a better solution
-    private fun DefaultAudioSink.getAudioTrack(): AudioTrack? {
-        val cls = javaClass
-        val field = cls.getDeclaredField("audioTrack")
-        field.isAccessible = true
-        return field.get(this) as AudioTrack?
-    }
-
-    private fun AudioSink.AudioTrackConfig.myToString(): String {
-        return "AudioTrackConfig{encoding=${AudioFormatDetector.Encoding.get(encoding).getString(this@GramophonePlaybackService)}, " +
-                "sampleRate=$sampleRate, channelConfig=${AudioFormatDetector.channelConfigToString(this@GramophonePlaybackService, channelConfig)}, tunneling=$tunneling, offload=$offload, bufferSize=$bufferSize}"
-    }
-
+    // TODO make sure this is invalidated if... when should it be invalidated? track change?
     override fun onDownstreamFormatChanged(
         eventTime: AnalyticsListener.EventTime,
         mediaLoadData: MediaLoadData
     ) {
+        /* TODO if downstream format bitrate is not set, calculate overall bitrate
+        if (mediaLoadData.trackFormat?.bitrate == Format.NO_VALUE) {
+            (and try what the details screen does before trying this)
+            private fun calculateOverallBitrate(mediaItem: MediaItem?, duration: Long?): Int? {
+                // TODO this really should avoid counting cover or container data
+                //  or at least do a rough subtraction of cover size
+                if (mediaItem == null || duration == null || duration <= 0) return null
+
+                val uri = mediaItem.localConfiguration?.uri ?: return null
+
+                try {
+                    val file = File(uri.path!!)
+                    val sizeInBits = file.length() * 8
+                    return (sizeInBits / (duration / 1000.0)).toInt()
+                } catch (_: Exception) {
+                    return null
+                }
+            }
+        } */
         downstreamFormat = mediaLoadData.trackFormat
-        Log.i(TAG, "downstream format changed to ${mediaLoadData.trackFormat} (pcm ${mediaLoadData.trackFormat!!.pcmEncoding})")
+        mediaSession?.broadcastCustomCommand(
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+            Bundle.EMPTY
+        )
     }
 
-    private fun onAudioSinkInputFormatChanged(inputFormat: Format) {
-        // TODO https://github.com/androidx/media/pull/2180
+    private fun onAudioSinkInputFormatChanged(inputFormat: Format?) {
         audioSinkInputFormat = inputFormat
-        Log.i(TAG, "audio sink input format changed to $inputFormat (pcm ${inputFormat.pcmEncoding})")
+        mediaSession?.broadcastCustomCommand(
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+            Bundle.EMPTY
+        )
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -839,22 +788,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lyricsLegacy = null
         scheduleSendingLyrics(true)
         lastPlayedManager.save()
-        MediaRoutes.printRoutes(this)
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         scheduleSendingLyrics(false)
         lastPlayedManager.save()
-        // TODO
-        Log.i(TAG, "Btw: audio track is ${audioTrackConfig?.myToString()}")
-        playbackHandler.post {
-            val audioTrack = (audioSink ?: throw NullPointerException(
-                "audioSink is null in onAudioTrackInitialized"
-            )).getAudioTrack()
-            if (audioTrack == null || audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
-                return@post
-            Log.i(TAG, "onIsPlayingChanged af hal output: ${AudioTrackHalInfoDetector.getOutput(audioTrack)}")
-        }
     }
 
     override fun onEvents(player: Player, events: Player.Events) {

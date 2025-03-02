@@ -17,7 +17,7 @@ import androidx.media3.exoplayer.video.VideoRendererEventListener
 
 @OptIn(UnstableApi::class)
 class GramophoneRenderFactory(context: Context,
-                              private val configurationListener: (Format, Int, IntArray?) -> Unit,
+                              private val configurationListener: (Format?) -> Unit,
                               private val audioSinkListener: (DefaultAudioSink) -> Unit) :
     DefaultRenderersFactory(context) {
     override fun buildTextRenderers(
@@ -74,8 +74,13 @@ class GramophoneRenderFactory(context: Context,
             specifiedBufferSize: Int,
             outputChannels: IntArray?
         ) {
-            configurationListener(inputFormat, specifiedBufferSize, outputChannels)
             super.configure(inputFormat, specifiedBufferSize, outputChannels)
+            configurationListener(inputFormat)
+        }
+
+        override fun reset() {
+            super.reset()
+            configurationListener(null)
         }
     }
 }
