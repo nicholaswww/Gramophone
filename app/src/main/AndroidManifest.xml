@@ -29,8 +29,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
         android:minSdkVersion="34" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- preferred mixer attributes -->
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- Remove ExoPlayer permission as we don't network playback -->
     <uses-permission
         android:name="android.permission.ACCESS_NETWORK_STATE"
