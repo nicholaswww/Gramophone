@@ -10,7 +10,6 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.TransitionDrawable
 import android.text.format.DateFormat
 import android.util.AttributeSet
-import android.util.Log
 import android.util.Size
 import android.view.Gravity
 import android.view.KeyEvent
@@ -27,9 +26,11 @@ import androidx.appcompat.widget.TooltipCompat
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.graphics.Insets
 import androidx.core.graphics.TypefaceCompat
+import androidx.core.graphics.scale
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isInvisible
 import androidx.core.widget.TextViewCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -58,12 +59,11 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.DynamicColorsOptions
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
 import com.google.common.util.concurrent.Futures
-import java.util.LinkedList
-import kotlin.math.min
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -94,6 +94,7 @@ import org.akanework.gramophone.logic.startAnimation
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
 import org.akanework.gramophone.logic.updateMargin
+import org.akanework.gramophone.logic.utils.AudioFormatDetector
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioQuality
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.SpatialFormat
@@ -106,10 +107,8 @@ import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
-import androidx.core.view.isInvisible
-import org.akanework.gramophone.logic.utils.AudioFormatDetector
-import androidx.core.graphics.scale
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import java.util.LinkedList
+import kotlin.math.min
 
 @SuppressLint("NotifyDataSetChanged")
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -665,8 +664,6 @@ class FullBottomSheet
     private fun updateQualityIndicators(info: AudioFormatInfo?) {
         val oldInfo = (bottomSheetFullQualityDetails.getTag(R.id.quality_details) as AudioFormatInfo?)
         if (oldInfo == info) return
-        Log.i("hi", "$oldInfo")
-        Log.i("hi", "$info")
         (bottomSheetFullQualityDetails.getTag(R.id.fade_in_animation) as ViewPropertyAnimator?)?.cancel()
         (bottomSheetFullQualityDetails.getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
         if (info == null && bottomSheetFullQualityDetails.isInvisible) return
