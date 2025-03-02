@@ -25,7 +25,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
+import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioMixerAttributes
 import android.media.AudioRouting
 import android.media.AudioTrack
 import android.media.audiofx.AudioEffect
@@ -108,6 +110,7 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.akanework.gramophone.ui.MainActivity
+import kotlin.math.abs
 import kotlin.random.Random
 
 
@@ -142,6 +145,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private var lastSessionId = 0
+    private val audioAttributes = AudioAttributes
+        .Builder()
+        .setUsage(C.USAGE_MEDIA)
+        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+        .build()
     private val internalPlaybackThread = HandlerThread("ExoPlayer:Playback", Process.THREAD_PRIORITY_AUDIO)
     private var mediaSession: MediaLibrarySession? = null
     val endedWorkaroundPlayer
@@ -329,13 +337,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             )
                 .setWakeMode(C.WAKE_MODE_LOCAL)
                 .setSkipSilenceEnabled(prefs.getBooleanStrict("skip_silence", false))
-                .setAudioAttributes(
-                    AudioAttributes
-                        .Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                        .build(), true
-                )
+                .setAudioAttributes(audioAttributes, true)
                 .setPlaybackLooper(internalPlaybackThread.looper)
                 .build()
         )
@@ -781,6 +783,33 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         TAG,
                         "playing on ${audioTrack.routedDevice?.cleanUpProductName()} with state ${audioTrack.state}"
                     )
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        var chosen: AudioMixerAttributes? = null
+                        val desiredSampleRate = audioTrackConfig.sampleRate
+                        for (attr in ContextCompat.getSystemService(this, AudioManager::class.java)
+                            !!.getSupportedMixerAttributes(audioTrack.routedDevice)) {
+                            if (chosen == null ||
+                                abs(chosen.format.sampleRate - desiredSampleRate)
+                                >= abs(attr.format.sampleRate - desiredSampleRate)
+                                || (chosen.format.sampleRate == attr.format.sampleRate && attr.format.encoding == AudioFormat.ENCODING_PCM_FLOAT))
+                                chosen = attr
+                            Log.i(TAG, "supported mixer attribute: $attr")
+                        }
+                        Log.i(TAG, "chosen mixer attribute: $chosen")
+                        if (chosen != null) {
+                            ContextCompat.getSystemService(this, AudioManager::class.java)!!
+                                .clearPreferredMixerAttributes(
+                                    audioAttributes.audioAttributesV21.audioAttributes,
+                                    audioTrack.routedDevice
+                                )
+                            ContextCompat.getSystemService(this, AudioManager::class.java)!!
+                                .setPreferredMixerAttributes(
+                                    audioAttributes.audioAttributesV21.audioAttributes,
+                                    audioTrack.routedDevice,
+                                    chosen
+                                )
+                        }
+                    }
                 }
                 Log.i(
                     TAG,
@@ -805,6 +834,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (router.state == AudioTrack.STATE_UNINITIALIZED) return
         if (router != audioTrack) return // stale callback
         Log.i(TAG, "NEW! af hal output: ${AudioTrackHalInfoDetector.getOutput(router)}")
+        Log.i(
+            TAG,
+            "af hal sample rate: ${AudioTrackHalInfoDetector.getHalSampleRate(audioTrack)}"
+        )
+        Log.i(
+            TAG,
+            "af hal channel count: ${AudioTrackHalInfoDetector.getHalChannelCount(audioTrack)}"
+        )
+        Log.i(TAG, "af hal format: ${AudioTrackHalInfoDetector.getHalFormat(audioTrack)}")
+        Log.i(TAG, "af hal format2: ${AudioTrackHalInfoDetector.getHalFormat2(audioTrack)}")
     }
 
     // TODO why do we have to reflect on app code, there must be a better solution
