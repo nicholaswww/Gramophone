@@ -289,7 +289,7 @@ object AudioFormatDetector {
 	    fun prettyToString(context: Context): String? {
             if (downstreamFormat == null || audioSinkInputFormat == null || audioTrackInfo == null)
                 return null
-            // TODO localization
+            // TODO localization and handle nulls in data nicely
             return StringBuilder().apply {
                 append("== Downstream format ==\n")
                 prettyPrintFormat(context, downstreamFormat)
@@ -361,7 +361,7 @@ object AudioFormatDetector {
             append("Sample rate: ${format.sampleRateHz} Hz\n")
             append("Audio format: ${format.audioFormat?.let { Encoding.getStringFromString(context, it) }
                 ?: context.getString(R.string.spk_encoding_unknown, format.audioFormat)}\n")
-            append("Channel count: ${format.channelCount}\n")
+            append("Channel count: ${format.channelCount}\n") // TODO if this is null, can we infer it from the MixPort instead? at least if there is only one supported configuration?
         }
     }
 
