@@ -36,8 +36,8 @@ data class AudioTrackInfo(val encoding: Int, val sampleRateHz: Int, val channelC
 }
 
 @UnstableApi
-class AfFormatTracker(private val context: Context, private val playbackHandler: Handler)
-	: AnalyticsListener {
+class AfFormatTracker(private val context: Context, private val playbackHandler: Handler,
+	private val handler: Handler) : AnalyticsListener {
 	companion object {
 		private const val TAG = "AfFormatTracker"
 		init {
@@ -481,8 +481,10 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 				rd!!.productName.toString() else null
 			val t = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
 				rd!!.type else null
-			if (rd != MediaRoutes.getSelectedAudioDevice(context))
-				Log.w(TAG, "routedDevice is not the same as MediaRoute selected device")
+			handler.post {
+				if (rd != MediaRoutes.getSelectedAudioDevice(context))
+					Log.w(TAG, "routedDevice is not the same as MediaRoute selected device")
+			}
 			AfFormatInfo(
 				pn, t,
 				getOutput(audioTrack), getHalSampleRate(audioTrack),

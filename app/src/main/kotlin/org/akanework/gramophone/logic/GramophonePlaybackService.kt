@@ -284,7 +284,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     .setIconResId(R.drawable.ic_repeat_one_on)
                     .build(),
             )
-        afFormatTracker = AfFormatTracker(this, playbackHandler)
+        afFormatTracker = AfFormatTracker(this, playbackHandler, handler)
         afFormatTracker.formatChangedCallback = {
             mediaSession?.broadcastCustomCommand(
                 SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),

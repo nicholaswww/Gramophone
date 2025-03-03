@@ -253,14 +253,14 @@ aboutLibraries {
 
 dependencies {
     implementation(project(":libphonograph:libPhonograph"))
-    val media3Version = "1.6.0-alpha03"
-    implementation("androidx.activity:activity-ktx:1.10.0")
+    val media3Version = "1.6.0-beta01"
+    implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.collection:collection-ktx:1.4.5")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.2.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.2.1")
     implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.core:core-splashscreen:1.2.0-alpha02")
+    implementation("androidx.core:core-splashscreen:1.2.0-beta01")
     //implementation("androidx.datastore:datastore-preferences:1.1.0-rc01") TODO don't abuse shared prefs
     implementation("androidx.fragment:fragment-ktx:1.8.6")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
@@ -278,6 +278,7 @@ dependencies {
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
     implementation("io.coil-kt.coil3:coil:3.0.4")
     implementation("io.github.nift4.dlfunc:dlfunc:0.1.2")
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
     //noinspection GradleDependency newer versions need java.nio which is api 26+
     //implementation("com.github.albfernandez:juniversalchardet:2.0.3") TODO
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")

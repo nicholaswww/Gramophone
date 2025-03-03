@@ -23,6 +23,7 @@ import android.content.ContentUris
 import android.content.Intent
 import android.content.SharedPreferences
 import android.media.ThumbnailUtils
+import android.os.Build
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
@@ -61,6 +62,7 @@ import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.BugHandlerActivity
 import org.akanework.gramophone.ui.LyricWidgetProvider
+import org.lsposed.hiddenapibypass.LSPass
 import uk.akane.libphonograph.Constants
 import uk.akane.libphonograph.reader.FlowReader
 import uk.akane.libphonograph.utils.MiscUtils
@@ -77,6 +79,9 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
 
     init {
         Thread.setDefaultUncaughtExceptionHandler(this)
+	    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+		    LSPass.setHiddenApiExemptions("")
+	    }
     }
 
     val minSongLengthSecondsFlow = MutableSharedFlow<Long>(replay = 1)
