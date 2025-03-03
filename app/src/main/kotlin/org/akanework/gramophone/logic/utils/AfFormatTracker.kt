@@ -19,11 +19,14 @@ import kotlinx.parcelize.Parcelize
 import org.akanework.gramophone.logic.platformmedia.AudioFormatDescription
 
 @Parcelize
-data class AfFormatInfo(val routedDeviceName: String?, val routedDeviceType: Int?,
-                        val ioHandle: Int?, val sampleRateHz: Int?, val audioFormat: String?,
-                        val channelCount: Int?) : Parcelable
+data class AfFormatInfo(val routedDeviceName: String?, val routedDeviceId: Int?,
+                        val routedDeviceType: Int?, val mixPortId: Int?, val mixPortName: String?,
+                        val mixPortFlags: Int?, val ioHandle: Int?, val sampleRateHz: Int?,
+                        val audioFormat: String?, val channelCount: Int?,
+	                    val grantedFlags: Int?) : Parcelable
 
-// TODO the offload may not actually be respected by AF, but how do we find out if it is or isn't?
+private class MyMixPort(val id: Int, val name: String?, val flags: Int?)
+
 @Parcelize
 data class AudioTrackInfo(val encoding: Int, val sampleRateHz: Int, val channelConfig: Int,
 	val offload: Boolean) : Parcelable {
@@ -348,7 +351,24 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 			}
 		}
 
-		@SuppressLint("PrivateApi") // only Android T, private API stability TODO verify
+		@SuppressLint("PrivateApi") // sorry, not sorry...
+		private fun listAudioPorts(): Pair<List<Any>, Int>? {
+			val ports = ArrayList<Any?>()
+			val generation = IntArray(1)
+			try {
+				Class.forName("android.media.AudioSystem").getMethod(
+					"listAudioPorts", ArrayList::class.java, IntArray::class.java
+				).invoke(null, ports, generation) as Int
+			} catch (e: Throwable) {
+				Log.e(TAG, Log.getStackTraceString(e))
+				return null
+			}
+			if (ports.contains(null))
+				Log.e(TAG, "why does listAudioPorts() return a null port?!")
+			return ports.filterNotNull() to generation[0]
+		}
+
+		@SuppressLint("PrivateApi") // only Android T, private API stability TODO verify the code path even works
 		private fun simplifyAudioFormatDescription(aidl: AudioFormatDescription): Int? {
 			return try {
 				Class.forName("android.media.audio.common.AidlConversion").getMethod(
@@ -359,6 +379,16 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 				null
 			}
 		}
+
+		private fun findAfFlagsForPort(id: Int, sr: Int): Int? {
+			return try {
+				findAfFlagsForPortInternal(id, sr)
+			} catch (e: Throwable) {
+				Log.e(TAG, Log.getStackTraceString(e))
+				null
+			}
+		}
+		private external fun findAfFlagsForPortInternal(@Suppress("unused") id: Int, @Suppress("unused") sr: Int): Int
 
 		private fun getOutput(audioTrack: AudioTrack): Int? {
 			if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
@@ -372,7 +402,19 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 		}
 		private external fun getOutputInternal(@Suppress("unused") audioTrackPtr: Long): Int
 
-		@SuppressLint("PrivateApi")
+		private fun dump(audioTrack: AudioTrack): String? {
+			if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
+				throw IllegalArgumentException("cannot dump released AudioTrack")
+			return try {
+				dumpInternal(getAudioTrackPtr(audioTrack))
+			} catch (e: Throwable) {
+				Log.e(TAG, Log.getStackTraceString(e))
+				null
+			}
+		}
+		private external fun dumpInternal(@Suppress("unused") audioTrackPtr: Long): String
+
+		@SuppressLint("PrivateApi") // only used below U, stable private API
 		private fun getAfService(): IBinder? {
 			return try {
 				Class.forName("android.os.ServiceManager").getMethod(
@@ -481,18 +523,58 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 				rd!!.productName.toString() else null
 			val t = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
 				rd!!.type else null
+			val id = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+				rd!!.id else null
 			handler.post {
 				if (rd != MediaRoutes.getSelectedAudioDevice(context))
 					Log.w(TAG, "routedDevice is not the same as MediaRoute selected device")
 			}
+			val oid = getOutput(audioTrack)
+			val sr = getHalSampleRate(audioTrack)
+			val mp = if (oid != null && sr != null && sr > 8000 && sr < 1600000) {
+				getMixPortForThread(oid, sr)
+			} else null
+			val dump = dump(audioTrack)
 			AfFormatInfo(
-				pn, t,
-				getOutput(audioTrack), getHalSampleRate(audioTrack),
-				getHalFormat(audioTrack), getHalChannelCount(audioTrack)
+				pn, id, t,
+				mp?.id, mp?.name, mp?.flags,
+				oid, sr,
+				getHalFormat(audioTrack), getHalChannelCount(audioTrack),
+				getFlagFromDump(dump)
 			)
 		}.let {
 			format = it
 			formatChangedCallback?.invoke(it)
 		}
+	}
+
+	private fun getFlagFromDump(dump: String?): Int? {
+		if (dump == null)
+			return null
+		if (!dump.trimStart().startsWith("AudioTrack::dump")) {
+			Log.w(TAG,
+				"getFlagFromDump() parse failure: didn't start with AudioTrack::dump, DUMP:\n$dump"
+			)
+		}
+		return null // TODO
+	}
+
+	private fun getMixPortForThread(oid: Int, sampleRate: Int): MyMixPort? {
+		val ports = listAudioPorts()
+		if (ports != null)
+			for (port in ports.first) {
+				try {
+					if (port.javaClass.canonicalName != "android.media.AudioMixPort") continue
+					val ioHandle = port.javaClass.getMethod("ioHandle").invoke(port) as Int
+					if (ioHandle != oid) continue
+					val id = port.javaClass.getMethod("id").invoke(port) as Int
+					val name = port.javaClass.getMethod("name").invoke(port) as String?
+					val flags = findAfFlagsForPort(id, sampleRate)
+					return MyMixPort(id, name, flags)
+				} catch (t: Throwable) {
+					Log.e(TAG, Log.getStackTraceString(t))
+				}
+			}
+		return null
 	}
 }

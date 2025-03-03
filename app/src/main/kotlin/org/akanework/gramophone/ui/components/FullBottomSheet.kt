@@ -297,7 +297,7 @@ class FullBottomSheet
                     val format = instance?.getAudioFormat()
                     this.currentFormat = format
                     updateQualityIndicators(AudioFormatDetector.detectAudioFormat(
-                        format?.downstreamFormat, instance))
+                        format?.downstreamFormat))
                 }
 
                 else -> {
