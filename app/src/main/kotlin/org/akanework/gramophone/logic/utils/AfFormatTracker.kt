@@ -16,7 +16,6 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import kotlinx.parcelize.Parcelize
-import org.akanework.gramophone.logic.platformmedia.AudioFormatDescription
 
 @Parcelize
 data class AfFormatInfo(val routedDeviceName: String?, val routedDeviceId: Int?,
@@ -154,14 +153,11 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 				// In T, return value changed from legacy audio_format_t to AudioFormatDescription
 				// https://cs.android.com/android/_/android/platform/frameworks/av/+/b60bd1b586b74ddf375257c4d07323e271d84ff3
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-					outParcel.readInt() // TODO why is this read needed LOL
-					val format = try {
-						AudioFormatDescription.CREATOR.createFromParcel(outParcel)
-					} catch (e: Throwable) {
-						Log.e(TAG, Log.getStackTraceString(e))
+					if (outParcel.readInt() != 1 /* kNonNullParcelableFlag */) {
+						Log.e(TAG, "got a null parcelable unexpectedly")
 						return null
 					}
-					return simplifyAudioFormatDescription(format)?.let { audioFormatToString(it.toUInt()) }
+					return simplifyAudioFormatDescription(outParcel)?.let { audioFormatToString(it.toUInt()) }
 				} else
 					return audioFormatToString(outParcel.readInt().toUInt())
 			} finally {
@@ -382,20 +378,13 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 		}
 
 		@SuppressLint("PrivateApi") // only Android T, private API stability
-		private fun simplifyAudioFormatDescription(aidl: AudioFormatDescription): Int? {
+		private fun simplifyAudioFormatDescription(out: Parcel): Int? {
 			return try {
-				val out = Parcel.obtain()
-				aidl.writeToParcel(out, 0)
-				out.setDataPosition(0)
-				try {
-					Class.forName("android.media.audio.common.AidlConversion").getDeclaredMethod(
-						"aidl2legacy_AudioFormatDescription_Parcel_audio_format_t", Parcel::class.java
-					).also {
-						it.isAccessible = true
-					}.invoke(null, out) as Int
-				} finally {
-					out.recycle()
-				}
+				Class.forName("android.media.audio.common.AidlConversion").getDeclaredMethod(
+					"aidl2legacy_AudioFormatDescription_Parcel_audio_format_t", Parcel::class.java
+				).also {
+					it.isAccessible = true
+				}.invoke(null, out) as Int
 			} catch (e: Throwable) {
 				Log.e(TAG, Log.getStackTraceString(e))
 				null
