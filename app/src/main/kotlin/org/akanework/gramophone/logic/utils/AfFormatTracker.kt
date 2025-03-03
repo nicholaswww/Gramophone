@@ -23,7 +23,7 @@ data class AfFormatInfo(val routedDeviceName: String?, val routedDeviceId: Int?,
                         val routedDeviceType: Int?, val mixPortId: Int?, val mixPortName: String?,
                         val mixPortFlags: Int?, val ioHandle: Int?, val sampleRateHz: Int?,
                         val audioFormat: String?, val channelCount: Int?,
-	                    val grantedFlags: Int?) : Parcelable
+	                    val grantedFlags: Int?, val trackId: Int?) : Parcelable
 
 private class MyMixPort(val id: Int, val name: String?, val flags: Int?)
 
@@ -381,6 +381,8 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 		}
 
 		private fun findAfFlagsForPort(id: Int, sr: Int): Int? {
+			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
+				return null
 			return try {
 				findAfFlagsForPortInternal(id, sr)
 			} catch (e: Throwable) {
@@ -526,8 +528,9 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 			val id = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
 				rd!!.id else null
 			handler.post {
-				if (rd != MediaRoutes.getSelectedAudioDevice(context))
-					Log.w(TAG, "routedDevice is not the same as MediaRoute selected device")
+				val sd = MediaRoutes.getSelectedAudioDevice(context)
+				if (rd != sd)
+					Log.w(TAG, "routedDevice $rd is not the same as MediaRoute selected device $sd")
 			}
 			val oid = getOutput(audioTrack)
 			val sr = getHalSampleRate(audioTrack)
@@ -540,7 +543,7 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 				mp?.id, mp?.name, mp?.flags,
 				oid, sr,
 				getHalFormat(audioTrack), getHalChannelCount(audioTrack),
-				getFlagFromDump(dump)
+				getFlagFromDump(dump), getIdFromDump(dump)
 			)
 		}.let {
 			format = it
@@ -548,15 +551,87 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 		}
 	}
 
+	private val flagRegex = Regex(".*, flags\\(0x(.*)\\).*")
+	private val flagRegexOld = Regex(".*, flags\\((.*)\\).*")
 	private fun getFlagFromDump(dump: String?): Int? {
 		if (dump == null)
 			return null
-		if (!dump.trimStart().startsWith("AudioTrack::dump")) {
-			Log.w(TAG,
-				"getFlagFromDump() parse failure: didn't start with AudioTrack::dump, DUMP:\n$dump"
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P)
+			return null
+		var dt = dump.trim().split('\n').map { it.trim() }
+		if (dt.size < 2) {
+			Log.e(TAG,
+				"getFlagFromDump() failure: not enough lines, DUMP:\n$dump"
 			)
+			return null
 		}
-		return null // TODO
+		if (dt[0] != "AudioTrack::dump") {
+			Log.e(TAG,
+				"getFlagFromDump() failure: L0 isn't AudioTrack::dump, DUMP:\n$dump"
+			)
+			return null
+		}
+		if (!dt[1].contains(" flags(")) {
+			Log.e(TAG,
+				"getFlagFromDump() failure: L1 didn't contain flags(, DUMP:\n$dump"
+			)
+			return null
+		}
+		var flagText = flagRegex.matchEntire(dt[1])?.groupValues[1]
+		if (flagText == null) {
+			flagText = flagRegexOld.matchEntire(dt[1])?.groupValues[1]
+			if (flagText == null) {
+				Log.e(
+					TAG,
+					"getFlagFromDump() failure: L1 didn't match regex, DUMP:\n$dump"
+				)
+				return null
+			}
+		}
+		flagText.toIntOrNull(radix = 16)?.let { return it }
+		Log.e(TAG,
+			"getFlagFromDump() failure: $flagText didn't convert to int from base 16, DUMP:\n$dump"
+		)
+		return null
+	}
+
+	private val idRegex = Regex(".*id\\((.*)\\) .*")
+	private fun getIdFromDump(dump: String?): Int? {
+		if (dump == null)
+			return null
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
+			return null
+		var dt = dump.trim().split('\n').map { it.trim() }
+		if (dt.size < 2) {
+			Log.e(TAG,
+				"getIdFromDump() failure: not enough lines, DUMP:\n$dump"
+			)
+			return null
+		}
+		if (dt[0] != "AudioTrack::dump") {
+			Log.e(TAG,
+				"getIdFromDump() failure: L0 isn't AudioTrack::dump, DUMP:\n$dump"
+			)
+			return null
+		}
+		if (!dt[1].contains("id(")) {
+			Log.e(TAG,
+				"getIdFromDump() failure: L1 didn't contain id(, DUMP:\n$dump"
+			)
+			return null
+		}
+		val idText = idRegex.matchEntire(dt[1])?.groupValues[1]
+		if (idText == null) {
+			Log.e(TAG,
+				"getIdFromDump() failure: L1 didn't match regex, DUMP:\n$dump"
+			)
+			return null
+		}
+		idText.toIntOrNull()?.let { return it }
+		Log.e(TAG,
+			"getIdFromDump() failure: $idText didn't convert to int from base 10, DUMP:\n$dump"
+		)
+		return null
 	}
 
 	private fun getMixPortForThread(oid: Int, sampleRate: Int): MyMixPort? {

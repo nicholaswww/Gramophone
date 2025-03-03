@@ -299,6 +299,11 @@ object AudioFormatDetector {
                 append("\n")
                 append("== Audio track format ==\n")
                 prettyPrintAudioTrackInfo(context, audioTrackInfo)
+                if (halFormat != null) {
+                    append("Track ID: ${halFormat.trackId}\n")
+                    append("Granted flags: ${mixPortFlagsToString(context, halFormat.grantedFlags)}\n")
+                } else
+                    append("(some data is not available)\n")
                 append("\n")
                 append("== Audio HAL format ==\n")
                 if (halFormat == null)
@@ -352,7 +357,6 @@ object AudioFormatDetector {
             append("Device type: ${format.routedDeviceType?.let { audioDeviceTypeToString(context, it) }}\n")
             append("Mix port: ${format.mixPortName} (ID: ${format.mixPortId})\n")
             append("Mix port flags: ${mixPortFlagsToString(context, format.mixPortFlags)}\n")
-            append("Granted flags: ${mixPortFlagsToString(context, format.grantedFlags)}\n")
             append("I/O handle: ${format.ioHandle}\n")
             append("Sample rate: ${format.sampleRateHz} Hz\n")
             append("Audio format: ${format.audioFormat?.let { Encoding.getStringFromString(context, it) }
