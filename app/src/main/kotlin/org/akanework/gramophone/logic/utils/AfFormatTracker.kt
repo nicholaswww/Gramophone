@@ -63,6 +63,8 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 			if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
 				throw IllegalArgumentException("cannot get hal sample rate for released AudioTrack")
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+				// getHalSampleRate() exists since below commit which first appeared in Android U
+				// https://cs.android.com/android/_/android/platform/frameworks/av/+/310037a32d56e361d5b5156b74f8846f92bc245e
 				val ret = try {
 					getHalSampleRateInternal(getAudioTrackPtr(audioTrack))
 				} catch (e: Throwable) {
@@ -84,6 +86,7 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 			try {
 				inParcel.writeInterfaceToken(af.interfaceDescriptor!!)
 				inParcel.writeInt(output)
+				// IAudioFlingerService.sampleRate(audio_io_handle_t)
 				af.transact(3, inParcel, outParcel, 0)
 				if (!readStatus(outParcel))
 					return null
@@ -103,6 +106,8 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 			if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
 				throw IllegalArgumentException("cannot get hal channel count for released AudioTrack")
 			return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) null else
+			// getHalChannelCount() exists since below commit which first appeared in Android U
+			// https://cs.android.com/android/_/android/platform/frameworks/av/+/310037a32d56e361d5b5156b74f8846f92bc245e
 				try {
 					getHalChannelCountInternal(getAudioTrackPtr(audioTrack))
 				} catch (e: Throwable) {
@@ -116,6 +121,8 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 			if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
 				throw IllegalArgumentException("cannot get hal format for released AudioTrack")
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+				// getHalFormat() exists since below commit which first appeared in Android U
+				// https://cs.android.com/android/_/android/platform/frameworks/av/+/310037a32d56e361d5b5156b74f8846f92bc245e
 				val ret = try {
 					getHalFormatInternal(getAudioTrackPtr(audioTrack))
 				} catch (e: Throwable) {
@@ -137,13 +144,17 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 			try {
 				inParcel.writeInterfaceToken(af.interfaceDescriptor!!)
 				inParcel.writeInt(output)
+				// IAudioFlingerService.format(audio_io_handle_t)
 				af.transact(
 					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 4 else 5,
 					inParcel, outParcel, 0
 				)
 				if (!readStatus(outParcel))
 					return null
+				// In T, return value changed from legacy audio_format_t to AudioFormatDescription
+				// https://cs.android.com/android/_/android/platform/frameworks/av/+/b60bd1b586b74ddf375257c4d07323e271d84ff3
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+					outParcel.readInt() // TODO why is this read needed LOL
 					val format = try {
 						AudioFormatDescription.CREATOR.createFromParcel(outParcel)
 					} catch (e: Throwable) {
@@ -353,6 +364,8 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 
 		@SuppressLint("PrivateApi") // sorry, not sorry...
 		private fun listAudioPorts(): Pair<List<Any>, Int>? {
+			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
+				return null // while listAudioPorts exists in L, it just returns an error
 			val ports = ArrayList<Any?>()
 			val generation = IntArray(1)
 			try {
@@ -368,12 +381,21 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 			return ports.filterNotNull() to generation[0]
 		}
 
-		@SuppressLint("PrivateApi") // only Android T, private API stability TODO verify the code path even works
+		@SuppressLint("PrivateApi") // only Android T, private API stability
 		private fun simplifyAudioFormatDescription(aidl: AudioFormatDescription): Int? {
 			return try {
-				Class.forName("android.media.audio.common.AidlConversion").getMethod(
-					"aidl2legacy_AudioFormatDescription_audio_format_t", Int::class.java
-				).invoke(null, aidl) as Int
+				val out = Parcel.obtain()
+				aidl.writeToParcel(out, 0)
+				out.setDataPosition(0)
+				try {
+					Class.forName("android.media.audio.common.AidlConversion").getDeclaredMethod(
+						"aidl2legacy_AudioFormatDescription_Parcel_audio_format_t", Parcel::class.java
+					).also {
+						it.isAccessible = true
+					}.invoke(null, out) as Int
+				} finally {
+					out.recycle()
+				}
 			} catch (e: Throwable) {
 				Log.e(TAG, Log.getStackTraceString(e))
 				null
@@ -381,7 +403,9 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 		}
 
 		private fun findAfFlagsForPort(id: Int, sr: Int): Int? {
-			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
+			// Exposed to app process since below commit which first appeared in T release.
+			// https://cs.android.com/android/_/android/platform/frameworks/av/+/99809024b36b243ad162c780c1191bb503a8df47
+			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
 				return null
 			return try {
 				findAfFlagsForPortInternal(id, sr)
@@ -556,6 +580,8 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 	private fun getFlagFromDump(dump: String?): Int? {
 		if (dump == null)
 			return null
+		// Flags are in dump output since below commit which first appeared in Pie.
+		// https://cs.android.com/android/_/android/platform/frameworks/av/+/d114b624ea2ec5c51779b74132a60b4a46f6cdba
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P)
 			return null
 		var dt = dump.trim().split('\n').map { it.trim() }
@@ -599,6 +625,8 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 	private fun getIdFromDump(dump: String?): Int? {
 		if (dump == null)
 			return null
+		// ID is in dump output since below commit which first appeared in Q.
+		// https://cs.android.com/android/_/android/platform/frameworks/av/+/fb8ede2a020e741cb892ee024fcfba7e689183f2
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
 			return null
 		var dt = dump.trim().split('\n').map { it.trim() }
