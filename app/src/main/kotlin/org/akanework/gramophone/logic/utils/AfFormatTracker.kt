@@ -550,7 +550,7 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 					if (rd != sd)
 						Log.w(
 							TAG,
-							"routedDevice $rd is not the same as MediaRoute selected device $sd"
+							"routedDevice ${rd?.productName}(${rd?.id}) is not the same as MediaRoute selected device ${sd?.productName}(${sd?.id})"
 						)
 				}
 			}
