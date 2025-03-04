@@ -13,20 +13,19 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.mediarouter.media.MediaRouter
-import org.akanework.gramophone.R
 
 object MediaRoutes {
     private const val TAG = "MediaRoutes"
     private val addressRegex = Regex(".*, address=(.*), deduplicationIds=.*")
 
     fun getSelectedAudioDevice(context: Context): AudioDeviceInfo? {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val router = MediaRouter2.getInstance(context)
             val route = router.systemController.selectedRoutes.firstOrNull()
-            return route?.getAudioDeviceForRoute(context)
+            route?.getAudioDeviceForRoute(context)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return MediaRouter.getInstance(context).selectedRoute.getAudioDeviceForRoute(context)
-        } else return null
+            MediaRouter.getInstance(context).selectedRoute.getAudioDeviceForRoute(context)
+        } else null
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
@@ -221,7 +220,7 @@ object MediaRoutes {
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
-    fun AudioDeviceInfo.cleanUpProductName(): String = productName.let {
+    private fun AudioDeviceInfo.cleanUpProductName(): String = productName.let {
         if (it.startsWith("USB-Audio - "))
             it.substring("USB-Audio - ".length)
         else it.toString()

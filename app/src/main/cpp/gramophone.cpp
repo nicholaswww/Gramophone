@@ -1,5 +1,6 @@
 #include <jni.h>
 #include "android_linker_ns.h"
+#include "audio-legacy.h"
 #include <dlfcn.h>
 #include <android/log.h>
 #include <cstdlib>
@@ -30,6 +31,8 @@ typedef status_t(*ZN7android11AudioSystem12getAudioPortEP13audio_port_v7_t)(void
 static ZN7android11AudioSystem12getAudioPortEP13audio_port_v7_t ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 = nullptr;
 typedef uint32_t(*ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE_t)(void*, int, void*);
 static ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE_t ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE = nullptr;
+typedef status_t(*ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t)(LEGACY_audio_port_role_t, LEGACY_audio_port_type_t, unsigned int*, void*, unsigned int*);
+static ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ = nullptr;
 
 bool initLib(JNIEnv* env) {
 	if (init_done)
@@ -213,10 +216,17 @@ struct audio_gain_config  {
 extern "C"
 JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfFlagsForPortInternal(
-		JNIEnv* env, jobject, jint id, jint sampleRate) {
+		JNIEnv* env, jobject, jint id, jint sampleRate, jboolean isForChannels) {
 	if (!initLib(env))
 		return INT32_MIN;
-	if (android_get_device_api_level() >= 29) {
+	if (!isForChannels && android_get_device_api_level() < 30) {
+		// R added flags field to struct, but it is only populated since T. But app side may
+		// want to bet on OEM modification that populates it in R/S.
+		__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+		                    "wrong usage of findAfFlagsForPortInternal: on this sdk, finding flags is impossible...");
+		return INT32_MIN;
+	}
+	if (android_get_device_api_level() >= 28) {
 		if (!ZN7android11AudioSystem12getAudioPortEP13audio_port_v7) {
 			ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 =
 					(ZN7android11AudioSystem12getAudioPortEP13audio_port_v7_t)
@@ -259,9 +269,11 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
 		 * union audio_io_flags     flags;          <--- we want to go here
 		 */
 		pos += sizeof(unsigned int) / sizeof(uint8_t); // unsigned int (sample_rate)
-		pos += sizeof(uint32_t) / sizeof(uint8_t); // audio_channel_mask_t (channel_mask)
-		pos += sizeof(uint32_t) / sizeof(uint8_t); // audio_format_t (format)
-		pos += sizeof(struct audio_gain_config) / sizeof(uint8_t); // audio_gain_config (gain)
+		if (!isForChannels) {
+			pos += sizeof(uint32_t) / sizeof(uint8_t); // audio_channel_mask_t (channel_mask)
+			pos += sizeof(uint32_t) / sizeof(uint8_t); // audio_format_t (format)
+			pos += sizeof(struct audio_gain_config) / sizeof(uint8_t); // audio_gain_config (gain)
+		}
 		if (pos >= buffer + BUFFER_SIZE) {
 			__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
 			                    "pos(%p) >= buffer(%p) + BUFFER_SIZE(%d)", pos, buffer,
@@ -269,6 +281,88 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
 			return INT32_MAX;
 		}
 #undef BUFFER_SIZE
-		return (int32_t) (*((uint32_t * /*audio_io_flags*/) pos));
-	} else return INT32_MIN;
+		return (int32_t) (*((uint32_t * /*audio_io_flags / audio_channel_mask_t*/) pos));
+	} else {
+		if (!ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_) {
+			ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ =
+					(ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t)
+							dlsym(handle,
+							      "_ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_");
+			if (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ == nullptr) {
+				ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ =
+						(ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t)
+								dlsym(handle,
+								      "_ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP10audio_portS3_");
+				if (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ == nullptr) {
+					__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+					                    "dlsym returned nullptr for _ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP10audio_portS3_: %s",
+					                    dlerror());
+					return INT32_MIN;
+				}
+			}
+		}
+		const bool oreo = android_get_device_api_level() >= 26;
+		status_t status;
+		unsigned int generation1 = 0;
+		unsigned int generation;
+		unsigned int numPorts;
+		std::vector<audio_port_oreo> nPorts;
+		std::vector<audio_port_legacy> nPortsOld;
+		int attempts = 5;
+
+		// get the port count and all the ports until they both return the same generation
+		do {
+			if (attempts-- < 0) {
+				__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+				                    "AudioSystem::listAudioPorts no attempts left");
+				return INT32_MIN;
+			}
+
+			numPorts = 0;
+			status = ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_(
+					LEGACY_AUDIO_PORT_ROLE_SOURCE, LEGACY_AUDIO_PORT_TYPE_MIX, &numPorts,
+					nullptr, &generation1);
+			if (status != 0) {
+				__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+				                    "AudioSystem::listAudioPorts error %d", status);
+				return INT32_MIN;
+			}
+			if (numPorts == 0) {
+				__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+				                    "AudioSystem::listAudioPorts found no ports");
+				return INT32_MIN;
+			}
+			// Tuck on double the space to prevent heap corruption if OEM made the audio_port bigger
+			if (oreo)
+				nPorts.resize(numPorts * 2);
+			else
+				nPortsOld.resize(numPorts * 2);
+
+			status = ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_(
+					LEGACY_AUDIO_PORT_ROLE_SOURCE, LEGACY_AUDIO_PORT_TYPE_MIX, &numPorts,
+					oreo ? (void*)&nPorts[0] : (void*)&nPortsOld[0], &generation);
+		} while (generation1 != generation && status == 0);
+
+		int i = 0;
+		if (oreo) {
+			for (auto port : nPorts) {
+				if (i++ == numPorts) break; // needed because vector size > numPorts
+				__android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+				                    "found port %d named %s", port.id, port.name);
+				if (port.id == id) {
+					return (int32_t) port.active_config.channel_mask;
+				}
+			}
+		} else {
+			for (auto port : nPortsOld) {
+				if (i++ == numPorts) break; // needed because vector size > numPorts
+				__android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+				                    "found port %d named %s", port.id, port.name);
+				if (port.id == id) {
+					return (int32_t) port.active_config.channel_mask;
+				}
+			}
+		}
+		return INT32_MAX;
+	}
 }

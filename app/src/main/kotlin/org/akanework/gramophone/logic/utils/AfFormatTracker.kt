@@ -21,10 +21,10 @@ import kotlinx.parcelize.Parcelize
 data class AfFormatInfo(val routedDeviceName: String?, val routedDeviceId: Int?,
                         val routedDeviceType: Int?, val mixPortId: Int?, val mixPortName: String?,
                         val mixPortFlags: Int?, val ioHandle: Int?, val sampleRateHz: Int?,
-                        val audioFormat: String?, val channelCount: Int?,
+                        val audioFormat: String?, val channelCount: Int?, val channelMask: Int?,
 	                    val grantedFlags: Int?, val trackId: Int?) : Parcelable
 
-private class MyMixPort(val id: Int, val name: String?, val flags: Int?)
+private class MyMixPort(val id: Int, val name: String?, val flags: Int?, val channelMask: Int?)
 
 @Parcelize
 data class AudioTrackInfo(val encoding: Int, val sampleRateHz: Int, val channelConfig: Int,
@@ -104,6 +104,7 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 		private fun getHalChannelCount(audioTrack: AudioTrack): Int? {
 			if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
 				throw IllegalArgumentException("cannot get hal channel count for released AudioTrack")
+			// before U, caller should query channel mask from audio_port/audio_port_v7
 			return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) null else
 			// getHalChannelCount() exists since below commit which first appeared in Android U
 			// https://cs.android.com/android/_/android/platform/frameworks/av/+/310037a32d56e361d5b5156b74f8846f92bc245e
@@ -391,19 +392,22 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 			}
 		}
 
-		private fun findAfFlagsForPort(id: Int, sr: Int): Int? {
-			// Exposed to app process since below commit which first appeared in T release.
+		private fun findAfFlagsForPort(id: Int, sr: Int, isForChannels: Boolean): Int? {
+			// flags exposed to app process since below commit which first appeared in T release.
 			// https://cs.android.com/android/_/android/platform/frameworks/av/+/99809024b36b243ad162c780c1191bb503a8df47
-			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+			if (!isForChannels && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
 				return null
+			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
+				return null // need listAudioPorts or getAudioPort
 			return try {
-				findAfFlagsForPortInternal(id, sr)
+				findAfFlagsForPortInternal(id, sr, isForChannels)
 			} catch (e: Throwable) {
 				Log.e(TAG, Log.getStackTraceString(e))
 				null
 			}
 		}
-		private external fun findAfFlagsForPortInternal(@Suppress("unused") id: Int, @Suppress("unused") sr: Int): Int
+		@Suppress("unused") // for parameters
+		private external fun findAfFlagsForPortInternal(id: Int, sr: Int, isForChannels: Boolean): Int
 
 		private fun getOutput(audioTrack: AudioTrack): Int? {
 			if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
@@ -540,10 +544,15 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 				rd!!.type else null
 			val id = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
 				rd!!.id else null
-			handler.post {
-				val sd = MediaRoutes.getSelectedAudioDevice(context)
-				if (rd != sd)
-					Log.w(TAG, "routedDevice $rd is not the same as MediaRoute selected device $sd")
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+				handler.post {
+					val sd = MediaRoutes.getSelectedAudioDevice(context)
+					if (rd != sd)
+						Log.w(
+							TAG,
+							"routedDevice $rd is not the same as MediaRoute selected device $sd"
+						)
+				}
 			}
 			val oid = getOutput(audioTrack)
 			val sr = getHalSampleRate(audioTrack)
@@ -555,7 +564,7 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 				pn, id, t,
 				mp?.id, mp?.name, mp?.flags,
 				oid, sr,
-				getHalFormat(audioTrack), getHalChannelCount(audioTrack),
+				getHalFormat(audioTrack), getHalChannelCount(audioTrack), mp?.channelMask,
 				getFlagFromDump(dump), getIdFromDump(dump)
 			)
 		}.let {
@@ -661,8 +670,9 @@ class AfFormatTracker(private val context: Context, private val playbackHandler:
 					if (ioHandle != oid) continue
 					val id = port.javaClass.getMethod("id").invoke(port) as Int
 					val name = port.javaClass.getMethod("name").invoke(port) as String?
-					val flags = findAfFlagsForPort(id, sampleRate)
-					return MyMixPort(id, name, flags)
+					val flags = findAfFlagsForPort(id, sampleRate, false)
+					val channelMask = findAfFlagsForPort(id, sampleRate, true)
+					return MyMixPort(id, name, flags, channelMask)
 				} catch (t: Throwable) {
 					Log.e(TAG, Log.getStackTraceString(t))
 				}

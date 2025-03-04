@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Parcelable
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.annotation.RequiresApi
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
@@ -353,15 +354,18 @@ object AudioFormatDetector {
         }
 
         private fun StringBuilder.prettyPrintAfFormatInfo(context: Context, format: AfFormatInfo) {
-            append("Device name: ${format.routedDeviceName} (ID: ${format.routedDeviceId})\n")
-            append("Device type: ${format.routedDeviceType?.let { audioDeviceTypeToString(context, it) }}\n")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                append("Device name: ${format.routedDeviceName} (ID: ${format.routedDeviceId})\n")
+                append("Device type: ${format.routedDeviceType?.let { Util2.audioDeviceTypeToString(context, it) }}\n")
+            }
             append("Mix port: ${format.mixPortName} (ID: ${format.mixPortId})\n")
             append("Mix port flags: ${mixPortFlagsToString(context, format.mixPortFlags)}\n")
             append("I/O handle: ${format.ioHandle}\n")
             append("Sample rate: ${format.sampleRateHz} Hz\n")
             append("Audio format: ${format.audioFormat?.let { Encoding.getStringFromString(context, it) }
                 ?: context.getString(R.string.spk_encoding_unknown, format.audioFormat)}\n")
-            append("Channel count: ${format.channelCount}\n") // TODO if this is null, can we infer it from the MixPort instead? at least if there is only one supported configuration?
+            append("Channel count: ${format.channelCount}\n")
+            append("Channel mask: ${format.channelMask}\n")
         }
     }
 
@@ -513,37 +517,41 @@ object AudioFormatDetector {
         return str.joinToString(", ")
     }
 
-    fun audioDeviceTypeToString(context: Context, type: Int?) =
-        when (type) {
-            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> context.getString(R.string.device_type_bluetooth_a2dp)
-            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> context.getString(R.string.device_type_builtin_speaker)
-            AudioDeviceInfo.TYPE_WIRED_HEADSET -> context.getString(R.string.device_type_wired_headset)
-            AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> context.getString(R.string.device_type_wired_headphones)
-            AudioDeviceInfo.TYPE_HDMI -> context.getString(R.string.device_type_hdmi)
-            AudioDeviceInfo.TYPE_USB_DEVICE -> context.getString(R.string.device_type_usb_device)
-            AudioDeviceInfo.TYPE_USB_ACCESSORY -> context.getString(R.string.device_type_usb_accessory)
-            AudioDeviceInfo.TYPE_DOCK -> context.getString(
-                if (Build.VERSION.SDK_INT >=
-                    Build.VERSION_CODES.UPSIDE_DOWN_CAKE
-                ) R.string.device_type_dock_digital
-                else R.string.device_type_dock
-            )
-            AudioDeviceInfo.TYPE_DOCK_ANALOG -> context.getString(R.string.device_type_dock_analog)
-            AudioDeviceInfo.TYPE_USB_HEADSET -> context.getString(R.string.device_type_usb_headset)
-            AudioDeviceInfo.TYPE_HEARING_AID -> context.getString(R.string.device_type_hearing_aid)
-            AudioDeviceInfo.TYPE_BLE_HEADSET -> context.getString(R.string.device_type_ble_headset)
-            AudioDeviceInfo.TYPE_BLE_BROADCAST -> context.getString(R.string.device_type_ble_broadcast)
-            AudioDeviceInfo.TYPE_BLE_SPEAKER -> context.getString(R.string.device_type_ble_speaker)
-            AudioDeviceInfo.TYPE_LINE_DIGITAL -> context.getString(R.string.device_type_line_digital)
-            AudioDeviceInfo.TYPE_LINE_ANALOG -> context.getString(R.string.device_type_line_analog)
-            AudioDeviceInfo.TYPE_AUX_LINE -> context.getString(R.string.device_type_aux_line)
-            AudioDeviceInfo.TYPE_HDMI_ARC -> context.getString(R.string.device_type_hdmi_arc)
-            AudioDeviceInfo.TYPE_HDMI_EARC -> context.getString(R.string.device_type_hdmi_earc)
-            else -> {
-                Log.w("AudioFormatDetector", "unknown device type $type")
-                context.getString(R.string.device_type_unknown)
+    private object Util2 {
+        @RequiresApi(Build.VERSION_CODES.M)
+        fun audioDeviceTypeToString(context: Context, type: Int?) =
+            when (type) {
+                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> context.getString(R.string.device_type_bluetooth_a2dp)
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> context.getString(R.string.device_type_builtin_speaker)
+                AudioDeviceInfo.TYPE_WIRED_HEADSET -> context.getString(R.string.device_type_wired_headset)
+                AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> context.getString(R.string.device_type_wired_headphones)
+                AudioDeviceInfo.TYPE_HDMI -> context.getString(R.string.device_type_hdmi)
+                AudioDeviceInfo.TYPE_USB_DEVICE -> context.getString(R.string.device_type_usb_device)
+                AudioDeviceInfo.TYPE_USB_ACCESSORY -> context.getString(R.string.device_type_usb_accessory)
+                AudioDeviceInfo.TYPE_DOCK -> context.getString(
+                    if (Build.VERSION.SDK_INT >=
+                        Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                    ) R.string.device_type_dock_digital
+                    else R.string.device_type_dock
+                )
+
+                AudioDeviceInfo.TYPE_DOCK_ANALOG -> context.getString(R.string.device_type_dock_analog)
+                AudioDeviceInfo.TYPE_USB_HEADSET -> context.getString(R.string.device_type_usb_headset)
+                AudioDeviceInfo.TYPE_HEARING_AID -> context.getString(R.string.device_type_hearing_aid)
+                AudioDeviceInfo.TYPE_BLE_HEADSET -> context.getString(R.string.device_type_ble_headset)
+                AudioDeviceInfo.TYPE_BLE_BROADCAST -> context.getString(R.string.device_type_ble_broadcast)
+                AudioDeviceInfo.TYPE_BLE_SPEAKER -> context.getString(R.string.device_type_ble_speaker)
+                AudioDeviceInfo.TYPE_LINE_DIGITAL -> context.getString(R.string.device_type_line_digital)
+                AudioDeviceInfo.TYPE_LINE_ANALOG -> context.getString(R.string.device_type_line_analog)
+                AudioDeviceInfo.TYPE_AUX_LINE -> context.getString(R.string.device_type_aux_line)
+                AudioDeviceInfo.TYPE_HDMI_ARC -> context.getString(R.string.device_type_hdmi_arc)
+                AudioDeviceInfo.TYPE_HDMI_EARC -> context.getString(R.string.device_type_hdmi_earc)
+                else -> {
+                    Log.w("AudioFormatDetector", "unknown device type $type")
+                    context.getString(R.string.device_type_unknown)
+                }
             }
-        }
+    }
 
     private fun determineQualityTier(
         sampleRate: Int?,
