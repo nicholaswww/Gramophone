@@ -124,12 +124,28 @@ object AudioFormatDetector {
         ENCODING_INVALID(C.ENCODING_INVALID, null, R.string.spk_encoding_invalid),
         ENCODING_PCM_8BIT(C.ENCODING_PCM_8BIT, "AUDIO_FORMAT_PCM_8_BIT", R.string.spk_encoding_pcm_8bit),
         ENCODING_PCM_16BIT(C.ENCODING_PCM_16BIT, "AUDIO_FORMAT_PCM_16_BIT", R.string.spk_encoding_pcm_16bit),
-        ENCODING_PCM_16BIT_BIG_ENDIAN(C.ENCODING_PCM_16BIT_BIG_ENDIAN, null, R.string.spk_encoding_pcm_16bit_big_endian),
-        ENCODING_PCM_24BIT(C.ENCODING_PCM_24BIT, "AUDIO_FORMAT_PCM_24_BIT_PACKED", R.string.spk_encoding_pcm_24bit),
+        ENCODING_PCM_16BIT_BIG_ENDIAN(
+            C.ENCODING_PCM_16BIT_BIG_ENDIAN,
+            null,
+            R.string.spk_encoding_pcm_16bit_big_endian
+        ),
+        ENCODING_PCM_24BIT(
+            C.ENCODING_PCM_24BIT,
+            "AUDIO_FORMAT_PCM_24_BIT_PACKED",
+            R.string.spk_encoding_pcm_24bit
+        ),
         ENCODING_PCM_8_24BIT(null, "AUDIO_FORMAT_PCM_8_24_BIT", R.string.spk_encoding_pcm_8_24bit),
-        ENCODING_PCM_24BIT_BIG_ENDIAN(C.ENCODING_PCM_24BIT_BIG_ENDIAN, null, R.string.spk_encoding_pcm_24bit_big_endian),
+        ENCODING_PCM_24BIT_BIG_ENDIAN(
+            C.ENCODING_PCM_24BIT_BIG_ENDIAN,
+            null,
+            R.string.spk_encoding_pcm_24bit_big_endian
+        ),
         ENCODING_PCM_32BIT(C.ENCODING_PCM_32BIT, "AUDIO_FORMAT_PCM_32_BIT", R.string.spk_encoding_pcm_32bit),
-        ENCODING_PCM_32BIT_BIG_ENDIAN(C.ENCODING_PCM_32BIT_BIG_ENDIAN, null, R.string.spk_encoding_pcm_32bit_big_endian),
+        ENCODING_PCM_32BIT_BIG_ENDIAN(
+            C.ENCODING_PCM_32BIT_BIG_ENDIAN,
+            null,
+            R.string.spk_encoding_pcm_32bit_big_endian
+        ),
         ENCODING_PCM_FLOAT(C.ENCODING_PCM_FLOAT, "AUDIO_FORMAT_PCM_FLOAT", R.string.spk_encoding_pcm_float),
         ENCODING_MP3(C.ENCODING_MP3, "AUDIO_FORMAT_MP3", R.string.spk_encoding_mp3),
         ENCODING_AAC_LC(C.ENCODING_AAC_LC, "AUDIO_FORMAT_AAC_LC", R.string.spk_encoding_aac_lc),
@@ -146,7 +162,11 @@ object AudioFormatDetector {
         ENCODING_AC4(C.ENCODING_AC4, "AUDIO_FORMAT_AC4", R.string.spk_encoding_ac4),
         ENCODING_DTS(C.ENCODING_DTS, "AUDIO_FORMAT_DTS", R.string.spk_encoding_dts),
         ENCODING_DTS_HD(C.ENCODING_DTS_HD, "AUDIO_FORMAT_DTS_HD", R.string.spk_encoding_dts_hd),
-        ENCODING_DOLBY_TRUEHD(C.ENCODING_DOLBY_TRUEHD, "AUDIO_FORMAT_DOLBY_TRUEHD", R.string.spk_encoding_dolby_truehd),
+        ENCODING_DOLBY_TRUEHD(
+            C.ENCODING_DOLBY_TRUEHD,
+            "AUDIO_FORMAT_DOLBY_TRUEHD",
+            R.string.spk_encoding_dolby_truehd
+        ),
         ENCODING_OPUS(C.ENCODING_OPUS, "AUDIO_FORMAT_OPUS", R.string.spk_encoding_opus),
         ENCODING_DTS_UHD_P2(C.ENCODING_DTS_UHD_P2, "AUDIO_FORMAT_DTS_UHD_P2", R.string.spk_encoding_dts_uhd_p2),
         ENCODING_AMR_NB(null, "AUDIO_FORMAT_AMR_NB", R.string.spk_encoding_amr_nb),
@@ -185,7 +205,11 @@ object AudioFormatDetector {
         ENCODING_IEC60958(null, "AUDIO_FORMAT_IEC60958", R.string.spk_encoding_iec60958),
         ENCODING_DTS_UHD(null, "AUDIO_FORMAT_DTS_UHD", R.string.spk_encoding_dts_uhd),
         ENCODING_DRA(null, "AUDIO_FORMAT_DRA", R.string.spk_encoding_dra),
-        ENCODING_APTX_ADAPTIVE_QLEA(null, "AUDIO_FORMAT_APTX_ADAPTIVE_QLEA", R.string.spk_encoding_aptx_adaptive_qlea),
+        ENCODING_APTX_ADAPTIVE_QLEA(
+            null,
+            "AUDIO_FORMAT_APTX_ADAPTIVE_QLEA",
+            R.string.spk_encoding_aptx_adaptive_qlea
+        ),
         ENCODING_APTX_ADAPTIVE_R4(null, "AUDIO_FORMAT_APTX_ADAPTIVE_R4", R.string.spk_encoding_aptx_adaptive_r4),
         ENCODING_DTS_HD_MA(null, "AUDIO_FORMAT_DTS_HD_MA", R.string.spk_encoding_dts_hd_ma),
         ENCODING_AAC_MAIN(null, "AUDIO_FORMAT_AAC_MAIN", R.string.spk_encoding_aac_main),
@@ -199,7 +223,11 @@ object AudioFormatDetector {
         ENCODING_AAC_ADTS_SSR(null, "AUDIO_FORMAT_AAC_ADTS_SSR", R.string.spk_encoding_aac_adts_ssr),
         ENCODING_AAC_ADTS_LTP(null, "AUDIO_FORMAT_AAC_ADTS_LTP", R.string.spk_encoding_aac_adts_ltp),
         ENCODING_AAC_ADTS_HE_V1(null, "AUDIO_FORMAT_AAC_ADTS_HE_V1", R.string.spk_encoding_aac_adts_he_v1),
-        ENCODING_AAC_ADTS_SCALABLE(null, "AUDIO_FORMAT_AAC_ADTS_SCALABLE", R.string.spk_encoding_aac_adts_scalable),
+        ENCODING_AAC_ADTS_SCALABLE(
+            null,
+            "AUDIO_FORMAT_AAC_ADTS_SCALABLE",
+            R.string.spk_encoding_aac_adts_scalable
+        ),
         ENCODING_AAC_ADTS_ERLC(null, "AUDIO_FORMAT_AAC_ADTS_ERLC", R.string.spk_encoding_aac_adts_erlc),
         ENCODING_AAC_ADTS_LD(null, "AUDIO_FORMAT_AAC_ADTS_LD", R.string.spk_encoding_aac_adts_ld),
         ENCODING_AAC_ADTS_HE_V2(null, "AUDIO_FORMAT_AAC_ADTS_HE_V2", R.string.spk_encoding_aac_adts_he_v2),
@@ -284,10 +312,13 @@ object AudioFormatDetector {
                 """.trimIndent()
         }
     }
+
     @OptIn(UnstableApi::class)
-    data class AudioFormats(val downstreamFormat: Format?, val audioSinkInputFormat: Format?,
-                            val audioTrackInfo: AudioTrackInfo?, val halFormat: AfFormatInfo?) {
-	    fun prettyToString(context: Context): String? {
+    data class AudioFormats(
+        val downstreamFormat: Format?, val audioSinkInputFormat: Format?,
+        val audioTrackInfo: AudioTrackInfo?, val halFormat: AfFormatInfo?
+    ) {
+        fun prettyToString(context: Context): String? {
             if (downstreamFormat == null || audioSinkInputFormat == null || audioTrackInfo == null)
                 return null
             // TODO localization and handle nulls in data nicely
@@ -326,7 +357,9 @@ object AudioFormatDetector {
             append("Bit depth: ")
             val bitDepth = try {
                 Util.getByteDepth(format.pcmEncoding) * 8
-            } catch (_: IllegalArgumentException) { null }
+            } catch (_: IllegalArgumentException) {
+                null
+            }
             if (bitDepth != null) {
                 append(bitDepth)
                 append(" bits (")
@@ -348,8 +381,12 @@ object AudioFormatDetector {
         private fun StringBuilder.prettyPrintAudioTrackInfo(context: Context, format: AudioTrackInfo) {
             append("Channel config: ${channelConfigToString(context, format.channelConfig)}\n")
             append("Sample rate: ${format.sampleRateHz} Hz\n")
-            append("Audio format: ${Encoding.getString(context, format.encoding)
-                ?: context.getString(R.string.spk_encoding_unknown_d, format.encoding)}\n")
+            append(
+                "Audio format: ${
+                    Encoding.getString(context, format.encoding)
+                        ?: context.getString(R.string.spk_encoding_unknown_d, format.encoding)
+                }\n"
+            )
             append("Offload: ${format.offload}\n")
         }
 
@@ -362,8 +399,11 @@ object AudioFormatDetector {
             append("Mix port flags: ${mixPortFlagsToString(context, format.mixPortFlags)}\n")
             append("I/O handle: ${format.ioHandle}\n")
             append("Sample rate: ${format.sampleRateHz} Hz\n")
-            append("Audio format: ${format.audioFormat?.let { Encoding.getStringFromString(context, it) }
-                ?: context.getString(R.string.spk_encoding_unknown, format.audioFormat)}\n")
+            append(
+                "Audio format: ${
+                    format.audioFormat?.let { Encoding.getStringFromString(context, it) }
+                        ?: context.getString(R.string.spk_encoding_unknown, format.audioFormat)
+                }\n")
             append("Channel count: ${format.channelCount}\n")
             append("Channel mask: ${format.channelMask}\n")
         }
@@ -378,7 +418,9 @@ object AudioFormatDetector {
         val sampleRate = format.sampleRate.takeIf { it != Format.NO_VALUE }
         val bitDepth = try {
             Util.getByteDepth(format.pcmEncoding) * 8
-        } catch (_: IllegalArgumentException) { null }
+        } catch (_: IllegalArgumentException) {
+            null
+        }
         val isLossless = isLosslessFormat(format.sampleMimeType)
         val spatialFormat = detectSpatialFormat(format)
         val sourceChannels = format.channelCount.takeIf { it != Format.NO_VALUE }
@@ -403,8 +445,8 @@ object AudioFormatDetector {
         )
     }
 
-	@OptIn(UnstableApi::class)
-	private fun isLosslessFormat(mimeType: String?): Boolean? = when (mimeType) {
+    @OptIn(UnstableApi::class)
+    private fun isLosslessFormat(mimeType: String?): Boolean? = when (mimeType) {
         MimeTypes.AUDIO_FLAC,
         MimeTypes.AUDIO_ALAC,
         MimeTypes.AUDIO_WAV,
@@ -565,7 +607,7 @@ object AudioFormatDetector {
         // HD: 24bit at standard rates OR 16bit at high rates
         bitDepth != null && sampleRate != null && (
                 (bitDepth >= 24 && sampleRate in setOf(44100, 48000)) ||
-                (bitDepth == 16 && sampleRate >= 88200)) -> AudioQuality.HD
+                        (bitDepth == 16 && sampleRate >= 88200)) -> AudioQuality.HD
 
         // CD: 16bit at standard rates
         bitDepth == 16 && sampleRate in setOf(44100, 48000) -> AudioQuality.CD
