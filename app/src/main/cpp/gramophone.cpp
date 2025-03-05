@@ -33,6 +33,7 @@ typedef uint32_t(*ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE_t)(
 static ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE_t ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE = nullptr;
 typedef status_t(*ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t)(LEGACY_audio_port_role_t, LEGACY_audio_port_type_t, unsigned int*, void*, unsigned int*);
 static ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ = nullptr;
+static int gSampleRateOffset = 0;
 
 bool initLib(JNIEnv* env) {
 	if (init_done)
@@ -245,20 +246,32 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
 				}
 			}
 		}
+        if (gSampleRateOffset == 0 && sampleRate == 0) {
+            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+                                "wrong usage of findAfFlagsForPortInternal: not calibrated and sampleRate is 0");
+            return INT32_MAX;
+        }
 #define BUFFER_SIZE 114000
 		auto buffer = (uint8_t *) calloc(1, BUFFER_SIZE); // should be plenty
 		*((int * /*audio_port_handle_t*/) buffer) = id;
 		ZN7android11AudioSystem12getAudioPortEP13audio_port_v7(buffer);
 		uint8_t *pos = buffer + BUFFER_SIZE;
-		while (buffer < pos) {
-			pos -= sizeof(unsigned int) / sizeof(uint8_t);
-			if (buffer < pos && *((unsigned int *) pos) == sampleRate)
-				break;
-		}
+        if (gSampleRateOffset == 0) {
+            while (buffer < pos) {
+                pos -= sizeof(unsigned int) / sizeof(uint8_t);
+                if (buffer < pos && *((unsigned int *) pos) == sampleRate)
+                    break;
+            }
+            if (buffer < pos)
+                gSampleRateOffset = pos - buffer;
+        } else {
+            pos += gSampleRateOffset;
+        }
 		if (buffer >= pos) {
 			__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
 			                    "buffer(%p) >= pos(%p) (BUFFER_SIZE(%d))", buffer, pos,
 			                    BUFFER_SIZE);
+            gSampleRateOffset = 0;
 			return INT32_MIN;
 		}
 		/*
@@ -278,7 +291,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
 			__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
 			                    "pos(%p) >= buffer(%p) + BUFFER_SIZE(%d)", pos, buffer,
 			                    BUFFER_SIZE);
-			return INT32_MAX;
+			return INT32_MIN;
 		}
 #undef BUFFER_SIZE
 		return (int32_t) (*((uint32_t * /*audio_io_flags / audio_channel_mask_t*/) pos));

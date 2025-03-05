@@ -467,7 +467,11 @@ class AfFormatTracker(
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
                 return null // need listAudioPorts or getAudioPort
             return try {
-                findAfFlagsForPortInternal(id, sr, isForChannels)
+                findAfFlagsForPortInternal(id, sr, isForChannels).let {
+                    if (it == Int.MAX_VALUE || it == Int.MIN_VALUE)
+                        null // something went wrong, this was logged to logcat
+                    else it
+                }
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
                 null
