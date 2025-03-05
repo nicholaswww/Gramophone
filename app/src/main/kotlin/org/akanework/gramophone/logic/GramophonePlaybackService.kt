@@ -45,6 +45,7 @@ import androidx.media3.common.Format
 import androidx.media3.common.IllegalSeekPositionException
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED
 import androidx.media3.common.Tracks
@@ -781,6 +782,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
             Bundle.EMPTY
         )
+    }
+
+    override fun onPlayerError(eventTime: AnalyticsListener.EventTime, error: PlaybackException) {
+        // TODO
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
