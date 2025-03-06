@@ -13,7 +13,6 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
 import android.util.Log
-import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
@@ -21,8 +20,7 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.TypefaceCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.text.getSpans
-import androidx.core.view.NestedScrollingChild3
-import androidx.core.view.NestedScrollingChildHelper
+import androidx.core.widget.NestedScrollView
 import androidx.preference.PreferenceManager
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.dpToPx
@@ -41,12 +39,10 @@ import kotlin.math.roundToInt
 
 private const val TAG = "NewLyricsView"
 
-class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attrs),
-    GestureDetector.OnGestureListener, NestedScrollingChild3 {
+class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     private val smallSizeFactor = 0.97f
     private var lyricAnimTime = 750f
-    private var currentScrollPosition = 0f
     private var currentScrollTarget: Int? = null
 
     // TODO maybe reduce this to avoid really fast word skipping
@@ -66,14 +62,14 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
     private val globalPaddingBottom =
         context.resources.getDimensionPixelSize(R.dimen.lyric_bottom_padding)
     private val globalPaddingHorizontal = 28.5f.dpToPx(context)
-    private val gestureDetector = GestureDetector(context, this)
-    private val nestedHelper = NestedScrollingChildHelper(this)
     private var colorSpanPool = mutableListOf<MyForegroundColorSpan>()
-    private var spForRender: Pair<Int, List<SbItem>>? = null
+    private var spForRender: List<SbItem>? = null
     private var spForMeasure: Pair<Pair<Int, Int>, List<SbItem>>? = null
     private var lyrics: SemanticLyrics? = null
     private var posForRender = 0uL
     lateinit var instance: Callbacks
+    private val scrollView // TODO autoscroll
+        get() = parent as? NestedScrollView
 
     // -/M/F/D insanity starts here
     private var defaultTextColor = 0
@@ -159,7 +155,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         MyGradientSpan(grdWidth, defaultTextColorD, highlightTextColorD, charScaling)
 
     init {
-        isNestedScrollingEnabled = true
         applyTypefaces()
         loadLyricAnimTime()
         charScaling = prefs.getBooleanStrict("lyric_char_scaling", false)
@@ -262,7 +257,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             (1..3).forEach { gradientSpanPoolD.value.add(makeGradientSpanD()) }
         }
         if (changed || changedM || changedF || changedD) {
-            spForRender?.second?.forEach {
+            spForRender?.forEach {
                 it.text.getSpans<MyGradientSpan>()
                     .forEach { s -> it.text.removeSpan(s) }
             }
@@ -322,7 +317,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                 gradientSpanPoolD.value.clear()
                 (1..3).forEach { gradientSpanPoolD.value.add(makeGradientSpanD()) }
             }
-            spForRender?.second?.forEach {
+            spForRender?.forEach {
                 it.text.getSpans<MyGradientSpan>()
                     .forEach { s -> it.text.removeSpan(s) }
             }
@@ -363,13 +358,13 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             return
         }
         var animating = false
-        var heightSoFar = paddingTop + globalPaddingTop
+        var heightSoFar = globalPaddingTop
         var firstHighlight: Int? = null
         var lastHighlight: Int? = null
         canvas.save()
-        canvas.translate(globalPaddingHorizontal, heightSoFar.toFloat() - currentScrollPosition)
+        canvas.translate(globalPaddingHorizontal, heightSoFar.toFloat())
         val width = width - globalPaddingHorizontal * 2
-        spForRender!!.second.forEach {
+        spForRender!!.forEach {
             var spanEnd = -1
             var spanStartGradient = -1
             var realGradientStart = -1
@@ -604,21 +599,70 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             heightSoFar += ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor)
                 .also { canvas.translate(0f, it) }.toInt()
         }
-        heightSoFar += globalPaddingBottom + paddingBottom
+        heightSoFar += globalPaddingBottom
         canvas.restore()
         if (animating)
             invalidate()
         val scrollTarget = firstHighlight ?: lastHighlight ?: 0
         if (scrollTarget != currentScrollTarget) {
+            scrollView?.smoothScrollTo(0, scrollTarget, lyricAnimTime.toInt())
             currentScrollTarget = scrollTarget
-            //currentScrollPosition = scrollTarget // TODO
         }
     }
 
     // I don't think accessibility support for a lyric view makes sense.
     @SuppressLint("ClickableViewAccessibility")
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        return gestureDetector.onTouchEvent(event) || super.onTouchEvent(event)
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        if (spForRender == null) {
+            requestLayout()
+        } else if (event?.action == MotionEvent.ACTION_UP) {
+            val y = event.y
+            var heightSoFar = globalPaddingTop
+            var foundItem: SemanticLyrics.LyricLine? = null
+            if (lyrics is SemanticLyrics.SyncedLyrics) {
+                spForRender!!.forEach {
+                    val firstTs = it.line!!.start.toFloat()
+                    val lastTs = it.line.end.toFloat()
+                    val pos = posForRender.toFloat()
+                    val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs,
+                        lastTs, 0.5f) - firstTs, firstTs))
+                    val highlight = pos >= firstTs - timeOffsetForUse &&
+                            pos <= lastTs + timeOffsetForUse
+                    val scaleInProgress = lerpInv(
+                        firstTs - timeOffsetForUse, firstTs + timeOffsetForUse, pos)
+                    val scaleOutProgress = lerpInv(
+                        lastTs - timeOffsetForUse, lastTs + timeOffsetForUse, pos)
+                    val hlScaleFactor =
+                        // lerp() argument order is swapped because we divide by this factor
+                        if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
+                            lerp(
+                                smallSizeFactor, 1f,
+                                scaleColorInterpolator.getInterpolation(scaleOutProgress)
+                            )
+                        else if (scaleInProgress >= 0f && scaleInProgress <= 1f)
+                            lerp(
+                                1f, smallSizeFactor,
+                                scaleColorInterpolator.getInterpolation(scaleInProgress)
+                            )
+                        else if (highlight)
+                            smallSizeFactor
+                        else 1f
+                    val myHeight =
+                        (it.paddingTop + it.layout.height + it.paddingBottom) / hlScaleFactor
+                    if (y >= heightSoFar && y <= heightSoFar + myHeight && it.line.isClickable)
+                        foundItem = it.line
+                    heightSoFar += myHeight.toInt()
+                }
+            }
+            if (foundItem != null) {
+                instance.seekTo(foundItem.start)
+                performClick()
+            }
+            return true
+        } else if (event?.action == MotionEvent.ACTION_DOWN) {
+            return true // this is needed so that we get the UP event we care about
+        }
+        return super.onTouchEvent(event)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -627,14 +671,15 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             spForMeasure = buildSpForMeasure(lyrics, myWidth)
         setMeasuredDimension(
             myWidth,
-            getDefaultSize(minimumHeight, heightMeasureSpec)
+            getDefaultSize(spForMeasure!!.first.second, heightMeasureSpec)
         )
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        if (spForMeasure == null || spForMeasure!!.first.first != right - left)
+        if (spForMeasure == null || spForMeasure!!.first.first != right - left
+            || spForMeasure!!.first.second != bottom - top)
             spForMeasure = buildSpForMeasure(lyrics, right - left)
-        spForRender = spForMeasure!!.first.second to spForMeasure!!.second
+        spForRender = spForMeasure!!.second
         invalidate()
     }
 
@@ -771,192 +816,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         )
     }
 
-    override fun onDown(e: MotionEvent): Boolean {
-        startNestedScroll()
-        return true
-    }
-
-    override fun onShowPress(e: MotionEvent) {
-        // TODO highlight?
-    }
-
-    override fun onSingleTapUp(e: MotionEvent): Boolean {
-        if (spForRender == null) {
-            requestLayout()
-            return true
-        }
-        val y = e.y
-        var heightSoFar = paddingTop + globalPaddingTop - currentScrollPosition.toInt()
-        var foundItem: SemanticLyrics.LyricLine? = null
-        if (lyrics is SemanticLyrics.SyncedLyrics) {
-            spForRender!!.second.forEach {
-                val firstTs = it.line!!.start.toFloat()
-                val lastTs = it.line.end.toFloat()
-                val pos = posForRender.toFloat()
-                val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs,
-                    lastTs, 0.5f) - firstTs, firstTs))
-                val highlight = pos >= firstTs - timeOffsetForUse &&
-                        pos <= lastTs + timeOffsetForUse
-                val scaleInProgress = lerpInv(
-                    firstTs - timeOffsetForUse, firstTs + timeOffsetForUse, pos)
-                val scaleOutProgress = lerpInv(
-                    lastTs - timeOffsetForUse, lastTs + timeOffsetForUse, pos)
-                val hlScaleFactor =
-                    // lerp() argument order is swapped because we divide by this factor
-                    if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
-                        lerp(
-                            smallSizeFactor, 1f,
-                            scaleColorInterpolator.getInterpolation(scaleOutProgress)
-                        )
-                    else if (scaleInProgress >= 0f && scaleInProgress <= 1f)
-                        lerp(
-                            1f, smallSizeFactor,
-                            scaleColorInterpolator.getInterpolation(scaleInProgress)
-                        )
-                    else if (highlight)
-                        smallSizeFactor
-                    else 1f
-                val myHeight =
-                    (it.paddingTop + it.layout.height + it.paddingBottom) / hlScaleFactor
-                if (y >= heightSoFar && y <= heightSoFar + myHeight && it.line.isClickable)
-                    foundItem = it.line
-                heightSoFar += myHeight.toInt()
-            }
-        }
-        if (foundItem != null) {
-            instance.seekTo(foundItem.start)
-            performClick()
-        }
-        return true
-    }
-
-    override fun onScroll(
-        e1: MotionEvent?,
-        e2: MotionEvent,
-        distanceX: Float,
-        distanceY: Float
-    ): Boolean {
-        currentScrollPosition += distanceY
-        return true
-    }
-
-    override fun onLongPress(e: MotionEvent) {
-        // TODO do we even want this?
-    }
-
-    override fun onFling(
-        e1: MotionEvent?,
-        e2: MotionEvent,
-        velocityX: Float,
-        velocityY: Float
-    ): Boolean {
-        // TODO
-        return true
-    }
-
     data class SbItem(
         val layout: StaticLayout, val text: SpannableStringBuilder,
         val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?,
         val rlm: List<Int>?, val speaker: SpeakerEntity?, val line: SemanticLyrics.LyricLine?
     )
-
-    override fun setNestedScrollingEnabled(enabled: Boolean) {
-        nestedHelper.isNestedScrollingEnabled = enabled
-    }
-
-    override fun isNestedScrollingEnabled(): Boolean {
-        return nestedHelper.isNestedScrollingEnabled
-    }
-
-    override fun startNestedScroll(axes: Int): Boolean {
-        return nestedHelper.startNestedScroll(axes)
-    }
-
-    override fun stopNestedScroll() {
-        return nestedHelper.stopNestedScroll()
-    }
-
-    override fun hasNestedScrollingParent(): Boolean {
-        return nestedHelper.hasNestedScrollingParent()
-    }
-
-    override fun dispatchNestedScroll(
-        dxConsumed: Int,
-        dyConsumed: Int,
-        dxUnconsumed: Int,
-        dyUnconsumed: Int,
-        offsetInWindow: IntArray?
-    ): Boolean {
-        return nestedHelper.dispatchNestedScroll(dxConsumed, dyConsumed, dxUnconsumed, dyUnconsumed, offsetInWindow)
-    }
-
-    override fun dispatchNestedPreScroll(
-        dx: Int,
-        dy: Int,
-        consumed: IntArray?,
-        offsetInWindow: IntArray?
-    ): Boolean {
-        return nestedHelper.dispatchNestedPreScroll(dx, dy, consumed, offsetInWindow)
-    }
-
-    override fun dispatchNestedFling(
-        velocityX: Float,
-        velocityY: Float,
-        consumed: Boolean
-    ): Boolean {
-        return nestedHelper.dispatchNestedFling(velocityX, velocityY, consumed)
-    }
-
-    override fun dispatchNestedPreFling(velocityX: Float, velocityY: Float): Boolean {
-        return nestedHelper.dispatchNestedPreFling(velocityX, velocityY)
-    }
-
-    override fun startNestedScroll(axes: Int, type: Int): Boolean {
-        return nestedHelper.startNestedScroll(axes, type)
-    }
-
-    override fun stopNestedScroll(type: Int) {
-        nestedHelper.stopNestedScroll(type)
-    }
-
-    override fun hasNestedScrollingParent(type: Int): Boolean {
-        return nestedHelper.hasNestedScrollingParent(type)
-    }
-
-    override fun dispatchNestedScroll(
-        dxConsumed: Int,
-        dyConsumed: Int,
-        dxUnconsumed: Int,
-        dyUnconsumed: Int,
-        offsetInWindow: IntArray?,
-        type: Int
-    ): Boolean {
-        return nestedHelper.dispatchNestedScroll(dxConsumed, dyConsumed, dxUnconsumed, dyUnconsumed, offsetInWindow,
-            type)
-    }
-
-    override fun dispatchNestedPreScroll(
-        dx: Int,
-        dy: Int,
-        consumed: IntArray?,
-        offsetInWindow: IntArray?,
-        type: Int
-    ): Boolean {
-        return nestedHelper.dispatchNestedPreScroll(dx, dy, consumed, offsetInWindow, type)
-    }
-
-    override fun dispatchNestedScroll(
-        dxConsumed: Int,
-        dyConsumed: Int,
-        dxUnconsumed: Int,
-        dyUnconsumed: Int,
-        offsetInWindow: IntArray?,
-        type: Int,
-        consumed: IntArray
-    ) {
-        nestedHelper.dispatchNestedScroll(dxConsumed, dyConsumed, dxUnconsumed, dyUnconsumed, offsetInWindow,
-            type, consumed)
-    }
 
     // == start scroll ==
     /* TODO + maybe center current line
