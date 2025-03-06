@@ -8,10 +8,7 @@
 #include <vector>
 #include <unistd.h>
 #include <thread>
-
-extern "C" {
 #include <dlfunc.h>
-}
 
 #define LOG_TAG "AudioTrackHalInfo(JNI)"
 
