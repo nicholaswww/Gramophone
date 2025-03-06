@@ -42,11 +42,16 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
 
     private fun createView() {
         removeAllViews()
+        val oldPaddingTop = newView?.paddingTop ?: recyclerView?.paddingTop ?: 0
+        val oldPaddingBottom = newView?.paddingBottom ?: recyclerView?.paddingBottom ?: 0
+        val oldPaddingLeft = newView?.paddingLeft ?: recyclerView?.paddingLeft ?: 0
+        val oldPaddingRight = newView?.paddingRight ?: recyclerView?.paddingRight ?: 0
         recyclerView = null
         newView = null
         if (prefs.getBooleanStrict("lyric_ui", false)) {
             inflate(context, R.layout.lyric_view_v2, this)
             newView = findViewById(R.id.lyric_view)
+            newView?.setPadding(oldPaddingLeft, oldPaddingTop, oldPaddingRight, oldPaddingBottom)
             newView?.instance = object : NewLyricsView.Callbacks {
                 @OptIn(UnstableApi::class)
                 override fun getCurrentPosition(): ULong =
@@ -67,6 +72,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
         } else {
             inflate(context, R.layout.lyric_view, this)
             recyclerView = findViewById(R.id.recycler_view)
+            recyclerView?.setPadding(oldPaddingLeft, oldPaddingTop, oldPaddingRight, oldPaddingBottom)
             recyclerView!!.adapter = LegacyLyricsAdapter(context).also {
                 it.updateTextColor(defaultTextColor, highlightTextColor)
             }
