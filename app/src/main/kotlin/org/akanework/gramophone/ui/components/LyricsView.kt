@@ -118,6 +118,11 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
         newView?.updateLyrics(null)
     }
 
+    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+        recyclerView?.setPadding(left, top, right, bottom)
+        newView?.setPadding(left, top, right, bottom)
+    }
+
     fun updateTextColor(
         newColor: Int, newHighlightColor: Int, newColorM: Int,
         newHighlightColorM: Int, newColorF: Int, newHighlightColorF: Int,
