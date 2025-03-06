@@ -20,33 +20,55 @@ package org.akanework.gramophone.logic.ui
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Typeface
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.DialogCompat
+import androidx.core.content.FileProvider
+import androidx.core.net.toUri
+import androidx.core.text.trimmedLength
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.marginBottom
 import androidx.core.view.marginLeft
 import androidx.core.view.marginRight
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.allowDiskAccessInStrictMode
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.hasOsClipboardDialog
 import org.akanework.gramophone.logic.updateMargin
-import androidx.core.net.toUri
+import java.io.File
+import java.nio.charset.Charset
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 /**
  * BugHandlerActivity:
@@ -54,14 +76,17 @@ import androidx.core.net.toUri
  */
 class BugHandlerActivity : AppCompatActivity() {
 
+    private var shouldSendEmail = true
+    private var triedToSendEmail = false
+    private var log = "(null)"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_bug_handler)
-        findViewById<View>(R.id.emailCard).visibility = if (BuildConfig.DEBUG) View.GONE else View.VISIBLE
         findViewById<View>(R.id.appbarlayout).enableEdgeToEdgePaddingListener()
-        findViewById<MaterialToolbar>(R.id.topAppBar).setNavigationOnClickListener { finish() }
-        onBackPressedDispatcher.addCallback { finish() }
+        findViewById<MaterialToolbar>(R.id.topAppBar).setNavigationOnClickListener { goBack() }
+        onBackPressedDispatcher.addCallback { goBack() }
 
         val bugText = findViewById<TextView>(R.id.error)
         val actionShare = findViewById<ExtendedFloatingActionButton>(R.id.actionShare)
@@ -76,8 +101,7 @@ class BugHandlerActivity : AppCompatActivity() {
         val formattedDateTime = formatter.format(currentDateTime)
         val gramophoneVersion = BuildConfig.MY_VERSION_NAME
 
-        val combinedTextBuilder = StringBuilder()
-        combinedTextBuilder
+        log = StringBuilder()
             .append(getString(R.string.crash_gramophone_version))
             .append(':')
             .append(' ')
@@ -119,9 +143,14 @@ class BugHandlerActivity : AppCompatActivity() {
             .append("--------- beginning of crash")
             .append('\n')
             .append(exceptionMessage)
+            .toString()
 
+        if (BuildConfig.DEBUG && !log.contains("I crashed your app")) {
+            shouldSendEmail = false
+            findViewById<View>(R.id.emailCard).visibility = View.GONE
+        }
         bugText.typeface = Typeface.MONOSPACE
-        bugText.text = combinedTextBuilder.toString()
+        bugText.text = log
         val baseLeft = actionShare.marginLeft
         val baseRight = actionShare.marginRight
         val baseBottom = actionShare.marginBottom
@@ -132,27 +161,11 @@ class BugHandlerActivity : AppCompatActivity() {
                 bottom = baseBottom + it.bottom
             }
         }
-        findViewById<Button>(R.id.sendEmail).setOnClickListener {
-            try {
-                startActivity(Intent(Intent.ACTION_SENDTO).apply {
-                    setData("mailto:nift4dev@gmail.com".toUri())
-                    putExtra(
-                        Intent.EXTRA_SUBJECT,
-                        "Gramophone ${BuildConfig.MY_VERSION_NAME} crashed"
-                    )
-                    putExtra(
-                        Intent.EXTRA_TEXT,
-                        "Hi Nick,\n\nGramophone crashed!\nI was doing --INSERT DESCRIPTION HERE-- when it suddenly crashed with this log:\n\n\n$combinedTextBuilder"
-                    )
-                })
-            } catch (_: ActivityNotFoundException) {
-                Toast.makeText(this, R.string.send_email_manually, Toast.LENGTH_LONG).show()
-            }
-        }
+        findViewById<Button>(R.id.sendEmail).setOnClickListener { sendEmail() }
 
         // Make our life easier by copying the log to clipboard
         val clipboard: ClipboardManager = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("error msg", combinedTextBuilder.toString())
+        val clip = ClipData.newPlainText("error msg", log)
         allowDiskAccessInStrictMode {
             clipboard.setPrimaryClip(clip)
         }
@@ -161,7 +174,7 @@ class BugHandlerActivity : AppCompatActivity() {
         }
 
         actionShare.setOnClickListener {
-            val sendIntent: Intent = Intent().apply {
+            val sendIntent = Intent().apply {
                 action = Intent.ACTION_SEND
                 putExtra(Intent.EXTRA_TITLE, "Gramophone Logs")
                 putExtra(Intent.EXTRA_TEXT, bugText.text)
@@ -169,6 +182,111 @@ class BugHandlerActivity : AppCompatActivity() {
             }
             val shareIntent = Intent.createChooser(sendIntent, null)
             startActivity(shareIntent)
+        }
+    }
+
+    private fun goBack() {
+        if (!shouldSendEmail || triedToSendEmail)
+            finish()
+        else
+            sendEmail()
+    }
+
+    private fun sendEmail() {
+        Log.w("Gramophone", "Exporting logs due to crash...")
+        val crashLogDir = File(cacheDir, "CrashLog")
+        val f = File(crashLogDir, "GramophoneLog${System.currentTimeMillis()}.txt")
+        val d = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.crash_report)
+            .setView(R.layout.crash_dialog_content)
+            .setCancelable(false)
+            .setPositiveButton(R.string.send_email) { d, _ ->
+                val et = DialogCompat.requireViewById(d as AlertDialog, R.id.editText) as EditText
+                val desc = et.editableText.toString().takeIf { it.isNotBlank() }
+                val mailText = "Hi Nick,\n\nGramophone crashed!\nI was doing:\n\n" +
+                        "${desc ?: "--INSERT DESCRIPTION HERE--"}\n\nIt crashed with this" +
+                        " log:\n\n\n$log"
+                triedToSendEmail = true
+                CoroutineScope(Dispatchers.IO).launch {
+                    crashLogDir.mkdirs()
+                    f.writeText(mailText)
+                    val p = ProcessBuilder()
+                        .command("logcat", "-dball")
+                        .start()
+                    try {
+                        withTimeout(1500) {
+                            val stdout = p.inputStream.readBytes().toString(Charset.defaultCharset())
+                            runInterruptible {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    p.waitFor(1, TimeUnit.SECONDS)
+                                } else {
+                                    p.waitFor()
+                                }
+                            }
+                            f.writeText("$stdout\n\n\n==MAIL TEXT==\n\n\n$mailText")
+                        }
+                    } catch (_: TimeoutCancellationException) {}
+                    withContext(Dispatchers.Main) {
+                        try {
+                            startActivity(Intent(Intent.ACTION_SEND).apply {
+                                selector = Intent(Intent.ACTION_SENDTO).apply { setData("mailto:nift4dev@gmail.com".toUri()) }
+                                putExtra(Intent.EXTRA_EMAIL, arrayOf("nift4dev@gmail.com"))
+                                putExtra(
+                                    Intent.EXTRA_SUBJECT,
+                                    "Gramophone ${BuildConfig.MY_VERSION_NAME} crashed"
+                                )
+                                putExtra(Intent.EXTRA_TEXT, mailText)
+                                putExtra(Intent.EXTRA_STREAM,
+                                    FileProvider.getUriForFile(this@BugHandlerActivity, "${this@BugHandlerActivity.packageName}.fileProvider", f))
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            })
+                        } catch (_: ActivityNotFoundException) {
+                            Toast.makeText(this@BugHandlerActivity, R.string.send_email_manually, Toast.LENGTH_LONG).show()
+                            val clipboard: ClipboardManager = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("email text",
+                                "Send below text to nift4dev@gmail.com:\n\n\n$mailText"
+                            )
+                            allowDiskAccessInStrictMode {
+                                clipboard.setPrimaryClip(clip)
+                            }
+                            Toast.makeText(this@BugHandlerActivity, R.string.email_clipboard, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }.show()
+        val et = DialogCompat.requireViewById(d, R.id.editText) as EditText
+        val b = d.getButton(DialogInterface.BUTTON_POSITIVE)
+        b.isEnabled = false
+        et.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(
+                s: CharSequence?,
+                start: Int,
+                count: Int,
+                after: Int
+            ) {
+                // do nothing
+            }
+
+            override fun onTextChanged(
+                s: CharSequence?,
+                start: Int,
+                before: Int,
+                count: Int
+            ) {
+                // do nothing
+            }
+
+            override fun afterTextChanged(s: Editable?) {
+                b.isEnabled = (s?.trimmedLength() ?: 0) > 3
+            }
+        })
+        et.requestFocus()
+        et.post {
+            if (ViewCompat.getRootWindowInsets(d.window!!.decorView)
+                    ?.isVisible(WindowInsetsCompat.Type.ime()) == false
+            ) {
+                WindowInsetsControllerCompat(d.window!!, et).show(WindowInsetsCompat.Type.ime())
+            }
         }
     }
 }

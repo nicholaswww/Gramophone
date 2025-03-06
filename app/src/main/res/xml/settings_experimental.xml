@@ -39,6 +39,12 @@
             app:isPreferenceVisible="false"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="self_log"
+            android:layout="@layout/preference_basic"
+            android:title="@string/settings_export_logs"
+            app:iconSpaceReserved="false" />
+
         <SwitchPreferenceCompat
             android:defaultValue="false"
             android:key="lyric_parser"

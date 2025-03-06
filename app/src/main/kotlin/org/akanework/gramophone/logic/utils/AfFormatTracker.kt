@@ -50,10 +50,14 @@ class AfFormatTracker(
 ) : AnalyticsListener {
     companion object {
         private const val TAG = "AfFormatTracker"
+        private const val TRACE_TAG = "GpNativeTrace"
+        private const val LOG_EVENTS = true
 
         init {
             try {
+                Log.d(TRACE_TAG, "Loading libgramophone.so")
                 System.loadLibrary("gramophone")
+                Log.d(TRACE_TAG, "Done loading libgramophone.so")
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
             }
@@ -95,7 +99,14 @@ class AfFormatTracker(
                 inParcel.writeInterfaceToken(af.interfaceDescriptor!!)
                 inParcel.writeInt(output)
                 // IAudioFlingerService.sampleRate(audio_io_handle_t)
-                af.transact(3, inParcel, outParcel, 0)
+                Log.d(TRACE_TAG, "trying to call sampleRate() via binder")
+                try {
+                    af.transact(3, inParcel, outParcel, 0)
+                } catch (e: Throwable) {
+                    Log.e(TAG, Log.getStackTraceString(e))
+                    return null
+                }
+                Log.d(TRACE_TAG, "done calling format() via binder")
                 if (!readStatus(outParcel))
                     return null
                 return outParcel.readInt()
@@ -119,11 +130,12 @@ class AfFormatTracker(
             // getHalChannelCount() exists since below commit which first appeared in Android U
             // https://cs.android.com/android/_/android/platform/frameworks/av/+/310037a32d56e361d5b5156b74f8846f92bc245e
                 try {
+                    Log.d(TRACE_TAG, "calling native getHalChannelCountInternal/getAudioTrackPtr")
                     getHalChannelCountInternal(getAudioTrackPtr(audioTrack))
                 } catch (e: Throwable) {
                     Log.e(TAG, Log.getStackTraceString(e))
                     null
-                }
+                }.also { Log.d(TRACE_TAG, "native getHalChannelCountInternal/getAudioTrackPtr is done") }
         }
 
         private external fun getHalChannelCountInternal(@Suppress("unused") audioTrackPtr: Long): Int
@@ -135,11 +147,12 @@ class AfFormatTracker(
                 // getHalFormat() exists since below commit which first appeared in Android U
                 // https://cs.android.com/android/_/android/platform/frameworks/av/+/310037a32d56e361d5b5156b74f8846f92bc245e
                 val ret = try {
+                    Log.d(TRACE_TAG, "calling native getHalFormatInternal/getAudioTrackPtr")
                     getHalFormatInternal(getAudioTrackPtr(audioTrack))
                 } catch (e: Throwable) {
                     Log.e(TAG, Log.getStackTraceString(e))
                     null
-                }
+                }.also { Log.d(TRACE_TAG, "native getHalChannelCountInternal/getAudioTrackPtr is done") }
                 if (ret != null && ret != 0)
                     return audioFormatToString(ret.toUInt())
                 return null
@@ -156,10 +169,17 @@ class AfFormatTracker(
                 inParcel.writeInterfaceToken(af.interfaceDescriptor!!)
                 inParcel.writeInt(output)
                 // IAudioFlingerService.format(audio_io_handle_t)
-                af.transact(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 4 else 5,
-                    inParcel, outParcel, 0
-                )
+                Log.d(TRACE_TAG, "trying to call format() via binder")
+                try {
+                    af.transact(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 4 else 5,
+                        inParcel, outParcel, 0
+                    )
+                } catch (e: Throwable) {
+                    Log.e(TAG, Log.getStackTraceString(e))
+                    return null
+                }
+                Log.d(TRACE_TAG, "done calling format() via binder")
                 if (!readStatus(outParcel))
                     return null
                 // In T, return value changed from legacy audio_format_t to AudioFormatDescription
@@ -467,11 +487,12 @@ class AfFormatTracker(
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
                 return null // need listAudioPorts or getAudioPort
             return try {
+                Log.d(TRACE_TAG, "calling native findAfFlagsForPortInternal")
                 findAfFlagsForPortInternal(id, sr, isForChannels).let {
                     if (it == Int.MAX_VALUE || it == Int.MIN_VALUE)
                         null // something went wrong, this was logged to logcat
                     else it
-                }
+                }.also { Log.d(TRACE_TAG, "native findAfFlagsForPortInternal is done") }
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
                 null
@@ -484,12 +505,13 @@ class AfFormatTracker(
         private fun getOutput(audioTrack: AudioTrack): Int? {
             if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
                 throw IllegalArgumentException("cannot get hal output for released AudioTrack")
+            Log.d(TRACE_TAG, "calling native getOutputInternal/getAudioTrackPtr")
             return try {
                 getOutputInternal(getAudioTrackPtr(audioTrack))
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
                 null
-            }
+            }.also { Log.d(TRACE_TAG, "native getOutputInternal/getAudioTrackPtr is done") }
         }
 
         private external fun getOutputInternal(@Suppress("unused") audioTrackPtr: Long): Int
@@ -497,12 +519,13 @@ class AfFormatTracker(
         private fun dump(audioTrack: AudioTrack): String? {
             if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
                 throw IllegalArgumentException("cannot dump released AudioTrack")
+            Log.d(TRACE_TAG, "calling native dump/getAudioTrackPtr")
             return try {
                 dumpInternal(getAudioTrackPtr(audioTrack))
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
                 null
-            }
+            }.also { Log.d(TRACE_TAG, "native dump/getAudioTrackPtr is done") }
         }
 
         private external fun dumpInternal(@Suppress("unused") audioTrackPtr: Long): String
@@ -636,6 +659,8 @@ class AfFormatTracker(
                 getMixPortForThread(oid, sr)
             } else null
             val dump = dump(audioTrack)
+            if (LOG_EVENTS)
+                Log.d(TAG, "got dump: $dump")
             AfFormatInfo(
                 pn, id, t,
                 mp?.id, mp?.name, mp?.flags,
@@ -644,6 +669,8 @@ class AfFormatTracker(
                 getFlagFromDump(dump), getIdFromDump(dump)
             )
         }.let {
+            if (LOG_EVENTS)
+                Log.d(TAG, "audio hal format changed to: $it")
             format = it
             formatChangedCallback?.invoke(it)
         }

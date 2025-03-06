@@ -3,4 +3,10 @@
     <external-path
         name="external_files"
         path="." />
+    <cache-path
+        name="logs"
+        path="SelfLog" />
+    <cache-path
+        name="crashes"
+        path="CrashLog" />
 </paths>

@@ -255,22 +255,22 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
 		auto buffer = (uint8_t *) calloc(1, BUFFER_SIZE); // should be plenty
 		*((int * /*audio_port_handle_t*/) buffer) = id;
 		ZN7android11AudioSystem12getAudioPortEP13audio_port_v7(buffer);
-		uint8_t *pos = buffer + BUFFER_SIZE;
+		uint8_t *pos = buffer;
         if (gSampleRateOffset == 0) {
+            pos += BUFFER_SIZE;
             while (buffer < pos) {
                 pos -= sizeof(unsigned int) / sizeof(uint8_t);
                 if (buffer < pos && *((unsigned int *) pos) == sampleRate)
                     break;
             }
-            if (buffer < pos)
-                gSampleRateOffset = pos - buffer;
+            gSampleRateOffset = buffer < pos ? pos - buffer : 0;
         } else {
             pos += gSampleRateOffset;
         }
 		if (buffer >= pos) {
 			__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-			                    "buffer(%p) >= pos(%p) (BUFFER_SIZE(%d))", buffer, pos,
-			                    BUFFER_SIZE);
+			                    "buffer(%p) >= pos(%p) (BUFFER_SIZE(%d) id(%d) sampleRate(%d))",
+                                buffer, pos,BUFFER_SIZE, id, sampleRate);
             gSampleRateOffset = 0;
 			free(buffer);
 			return INT32_MIN;
@@ -290,8 +290,9 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
 		}
 		if (pos >= buffer + BUFFER_SIZE) {
 			__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-			                    "pos(%p) >= buffer(%p) + BUFFER_SIZE(%d)", pos, buffer,
-			                    BUFFER_SIZE);
+			                    "pos(%p) >= buffer(%p) + BUFFER_SIZE(%d) (id(%d) sampleRate(%d))",
+                                pos, buffer, BUFFER_SIZE, id, sampleRate);
+            gSampleRateOffset = 0;
 			free(buffer);
 			return INT32_MIN;
 		}

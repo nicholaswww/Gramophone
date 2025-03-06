@@ -83,7 +83,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
-import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.MeiZuLyricsMediaNotificationProvider
 import org.akanework.gramophone.logic.utils.AfFormatTracker
@@ -321,9 +320,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 .setPlaybackLooper(internalPlaybackThread.looper)
                 .build()
         )
-        if (BuildConfig.DEBUG) {
-            player.exoPlayer.addAnalyticsListener(EventLogger())
-        }
+        player.exoPlayer.addAnalyticsListener(EventLogger())
         player.exoPlayer.addAnalyticsListener(afFormatTracker)
         player.exoPlayer.addAnalyticsListener(this)
         player.exoPlayer.audioSessionId = Util.generateAudioSessionIdV21(this)

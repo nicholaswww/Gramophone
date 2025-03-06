@@ -17,19 +17,30 @@
 
 package org.akanework.gramophone.ui.fragments.settings
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
+import androidx.core.content.FileProvider
 import androidx.preference.Preference
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
 import org.akanework.gramophone.ui.fragments.BaseSettingFragment
+import java.io.File
+import java.nio.charset.Charset
 
 class ExperimentalSettingsFragment : BaseSettingFragment(R.string.settings_experimental_settings,
     { ExperimentalSettingsTopFragment() })
 
 class ExperimentalSettingsTopFragment : BasePreferenceFragment() {
 
+    private lateinit var selfLogDir: File
     private lateinit var e: Exception
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -41,9 +52,46 @@ class ExperimentalSettingsTopFragment : BasePreferenceFragment() {
             e = RuntimeException("skill issue")
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        selfLogDir = File(requireContext().cacheDir, "SelfLog")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        CoroutineScope(Dispatchers.IO).launch {
+            selfLogDir.listFiles()?.forEach(File::delete)
+        }
+    }
+
     override fun onPreferenceTreeClick(preference: Preference): Boolean {
         if (preference.key == "crash" && BuildConfig.DEBUG) {
             throw IllegalArgumentException("I crashed your app >:)", e)
+        } else if (preference.key == "self_log") {
+            Log.w("Gramophone", "Exporting logs...")
+            CoroutineScope(Dispatchers.IO).launch {
+                val p = ProcessBuilder()
+                    .command("logcat", "-dball")
+                    .start()
+                val stdout = p.inputStream.readBytes().toString(Charset.defaultCharset())
+                runInterruptible {
+                    p.waitFor()
+                }
+                val f = File(selfLogDir.also { it.mkdirs() },
+                    "GramophoneLog${System.currentTimeMillis()}.txt")
+                f.writeText(stdout)
+                withContext(Dispatchers.Main) {
+                    val sendIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TITLE, "Gramophone Logs")
+                        putExtra(Intent.EXTRA_STREAM,
+                            FileProvider.getUriForFile(requireContext(), "${requireContext().packageName}.fileProvider", f))
+                        type = "text/plain"
+                    }
+                    val shareIntent = Intent.createChooser(sendIntent, null)
+                    startActivity(shareIntent)
+                }
+            }
         }
         return super.onPreferenceTreeClick(preference)
     }
