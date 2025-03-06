@@ -50,8 +50,6 @@ import androidx.core.view.DifferentialMotionFlingTarget
 import androidx.core.view.MotionEventCompat
 import androidx.core.view.NestedScrollingChild3
 import androidx.core.view.NestedScrollingChildHelper
-import androidx.core.view.NestedScrollingParent3
-import androidx.core.view.NestedScrollingParentHelper
 import androidx.core.view.ScrollFeedbackProviderCompat
 import androidx.core.view.ScrollingView
 import androidx.core.view.ViewCompat
@@ -68,13 +66,13 @@ import kotlin.math.roundToInt
 
 /**
  * NestedScrollView is just like ScrollView, but it supports acting
- * as both a nested scrolling parent and child on both new and old versions of Android.
+ * as child on both new and old versions of Android.
  * Nested scrolling is enabled by default.
  */
 class NestedScrollView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null,
     defStyleAttr: Int = R.attr.nestedScrollViewStyle
-) : FrameLayout(context, attrs, defStyleAttr), NestedScrollingParent3, NestedScrollingChild3, ScrollingView {
+) : FrameLayout(context, attrs, defStyleAttr), NestedScrollingChild3, ScrollingView {
     private val mPhysicalCoeff: Float
 
     /**
@@ -184,7 +182,6 @@ class NestedScrollView @JvmOverloads constructor(
 
     private var mSavedState: SavedState? = null
 
-    private val mParentHelper: NestedScrollingParentHelper
     private val mChildHelper: NestedScrollingChildHelper
 
     private var mVerticalScrollFactor = 0f
@@ -235,7 +232,6 @@ class NestedScrollView @JvmOverloads constructor(
             this@NestedScrollView.isFillViewport = getBoolean(0, false)
         }
 
-        mParentHelper = NestedScrollingParentHelper(this)
         mChildHelper = NestedScrollingChildHelper(this)
 
         // ...because why else would you be using this widget?
@@ -332,119 +328,8 @@ class NestedScrollView @JvmOverloads constructor(
         return mChildHelper.dispatchNestedPreFling(velocityX, velocityY)
     }
 
-    // NestedScrollingParent3
-    override fun onNestedScroll(
-        target: View, dxConsumed: Int, dyConsumed: Int,
-        dxUnconsumed: Int, dyUnconsumed: Int, type: Int, consumed: IntArray
-    ) {
-        onNestedScrollInternal(dyUnconsumed, type, consumed)
-    }
-
-    private fun onNestedScrollInternal(dyUnconsumed: Int, type: Int, consumed: IntArray?) {
-        val oldScrollY = scrollY
-        scrollBy(0, dyUnconsumed)
-        val myConsumed = scrollY - oldScrollY
-
-        if (consumed != null) {
-            consumed[1] += myConsumed
-        }
-        val myUnconsumed = dyUnconsumed - myConsumed
-
-        mChildHelper.dispatchNestedScroll(0, myConsumed, 0, myUnconsumed, null, type, consumed)
-    }
-
-    // NestedScrollingParent2
-    override fun onStartNestedScroll(
-        child: View, target: View, axes: Int,
-        type: Int
-    ): Boolean {
-        return (axes and ViewCompat.SCROLL_AXIS_VERTICAL) != 0
-    }
-
-    override fun onNestedScrollAccepted(
-        child: View, target: View, axes: Int,
-        type: Int
-    ) {
-        mParentHelper.onNestedScrollAccepted(child, target, axes, type)
-        startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, type)
-    }
-
-    override fun onStopNestedScroll(target: View, type: Int) {
-        mParentHelper.onStopNestedScroll(target, type)
-        stopNestedScroll(type)
-    }
-
-    override fun onNestedScroll(
-        target: View, dxConsumed: Int, dyConsumed: Int,
-        dxUnconsumed: Int, dyUnconsumed: Int, type: Int
-    ) {
-        onNestedScrollInternal(dyUnconsumed, type, null)
-    }
-
-    override fun onNestedPreScroll(
-        target: View, dx: Int, dy: Int, consumed: IntArray,
-        type: Int
-    ) {
-        dispatchNestedPreScroll(dx, dy, consumed, null, type)
-    }
-
-    // NestedScrollingParent
-    override fun onStartNestedScroll(
-        child: View, target: View, axes: Int
-    ): Boolean {
-        return onStartNestedScroll(child, target, axes, ViewCompat.TYPE_TOUCH)
-    }
-
-    override fun onNestedScrollAccepted(
-        child: View, target: View, axes: Int
-    ) {
-        onNestedScrollAccepted(child, target, axes, ViewCompat.TYPE_TOUCH)
-    }
-
-    override fun onStopNestedScroll(target: View) {
-        onStopNestedScroll(target, ViewCompat.TYPE_TOUCH)
-    }
-
-    override fun onNestedScroll(
-        target: View, dxConsumed: Int, dyConsumed: Int,
-        dxUnconsumed: Int, dyUnconsumed: Int
-    ) {
-        onNestedScrollInternal(dyUnconsumed, ViewCompat.TYPE_TOUCH, null)
-    }
-
-    override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray) {
-        onNestedPreScroll(target, dx, dy, consumed, ViewCompat.TYPE_TOUCH)
-    }
-
-    override fun onNestedFling(
-        target: View, velocityX: Float, velocityY: Float, consumed: Boolean
-    ): Boolean {
-        if (!consumed) {
-            dispatchNestedFling(0f, velocityY, true)
-            fling(velocityY.toInt())
-            return true
-        }
-        return false
-    }
-
-    override fun onNestedPreFling(target: View, velocityX: Float, velocityY: Float): Boolean {
-        return dispatchNestedPreFling(velocityX, velocityY)
-    }
-
-    override fun getNestedScrollAxes(): Int {
-        return mParentHelper.nestedScrollAxes
-    }
-
     // ScrollView import
-    override fun shouldDelayChildPressedState(): Boolean {
-        return true
-    }
-
     override fun getTopFadingEdgeStrength(): Float {
-        if (isEmpty()) {
-            return 0.0f
-        }
-
         val length = getVerticalFadingEdgeLength()
         val scrollY = getScrollY()
         if (scrollY < length) {
