@@ -272,6 +272,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
 			                    "buffer(%p) >= pos(%p) (BUFFER_SIZE(%d))", buffer, pos,
 			                    BUFFER_SIZE);
             gSampleRateOffset = 0;
+			free(buffer);
 			return INT32_MIN;
 		}
 		/*
@@ -291,10 +292,13 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
 			__android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
 			                    "pos(%p) >= buffer(%p) + BUFFER_SIZE(%d)", pos, buffer,
 			                    BUFFER_SIZE);
+			free(buffer);
 			return INT32_MIN;
 		}
 #undef BUFFER_SIZE
-		return (int32_t) (*((uint32_t * /*audio_io_flags / audio_channel_mask_t*/) pos));
+		jint ret = (int32_t) (*((uint32_t * /*audio_io_flags / audio_channel_mask_t*/) pos));
+		free(buffer);
+		return ret;
 	} else {
 		if (!ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_) {
 			ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ =
