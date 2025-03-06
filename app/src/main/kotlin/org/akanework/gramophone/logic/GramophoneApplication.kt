@@ -79,9 +79,9 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
 
     init {
         Thread.setDefaultUncaughtExceptionHandler(this)
-	    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-		    LSPass.setHiddenApiExemptions("")
-	    }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            LSPass.setHiddenApiExemptions("")
+        }
     }
 
     val minSongLengthSecondsFlow = MutableSharedFlow<Long>(replay = 1)
@@ -111,14 +111,16 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                     .penaltyLog().penaltyDeath().build()
             )
         }
-        reader = FlowReader(this,
+        reader = FlowReader(
+            this,
             if (BuildConfig.DISABLE_MEDIA_STORE_FILTER) MutableStateFlow(0) else
                 minSongLengthSecondsFlow,
             blackListSetFlow,
             if (hasScopedStorageWithMediaTypes()) MutableStateFlow(null) else
                 shouldUseEnhancedCoverReadingFlow!!,
             recentlyAddedFilterSecondFlow,
-            MutableStateFlow(true), "gramophoneAlbumCover")
+            MutableStateFlow(true), "gramophoneAlbumCover"
+        )
         // This is a separate thread to avoid disk read on main thread and improve startup time
         CoroutineScope(Dispatchers.Default).launch {
             val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
@@ -153,8 +155,12 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     override fun onSharedPreferenceChanged(prefs: SharedPreferences, key: String?) {
         runBlocking {
             if (key == null || key == "mediastore_filter") {
-                minSongLengthSecondsFlow.emit(prefs.getInt("mediastore_filter",
-                        resources.getInteger(R.integer.filter_default_sec)).toLong())
+                minSongLengthSecondsFlow.emit(
+                    prefs.getInt(
+                        "mediastore_filter",
+                        resources.getInteger(R.integer.filter_default_sec)
+                    ).toLong()
+                )
             }
             if (key == null || key == "folderFilter") {
                 blackListSetFlow.emit(prefs.getStringSet("folderFilter", setOf()) ?: setOf())
@@ -179,8 +185,13 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                             ImageFetchResult(
                                 ThumbnailUtils.createAudioThumbnail(file, options.size.let {
                                     // TODO 10000 is a bad fallback
-                                    Size(it.width.pxOrElse { size?.width.let { if (it == 0) null else it } ?: 10000 },
-                                        it.height.pxOrElse { size?.height.let { if (it == 0) null else it } ?: 10000 })
+                                    Size(
+                                        it.width.pxOrElse {
+                                            size?.width.let { if (it == 0) null else it } ?: 10000
+                                        },
+                                        it.height.pxOrElse {
+                                            size?.height.let { if (it == 0) null else it } ?: 10000
+                                        })
                                 }, null).asImage(), true, DataSource.DISK
                             )
                         }
@@ -192,7 +203,8 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                     return@Factory Fetcher {
                         val cover = MiscUtils.findBestCover(File(data.path!!))
                         if (cover == null) {
-                            val uri = ContentUris.withAppendedId(Constants.baseAlbumCoverUri, data.authority!!.toLong())
+                            val uri =
+                                ContentUris.withAppendedId(Constants.baseAlbumCoverUri, data.authority!!.toLong())
                             val contentResolver = options.context.contentResolver
                             val afd = contentResolver.openAssetFileDescriptor(uri, "r")
                             checkNotNull(afd) { "Unable to open '$uri'." }

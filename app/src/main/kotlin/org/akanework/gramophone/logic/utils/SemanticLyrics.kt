@@ -9,11 +9,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.text.CuesWithTiming
 import androidx.media3.extractor.text.SubtitleParser
 import androidx.media3.extractor.text.subrip.SubripParser
-import androidx.media3.extractor.text.ttml.TtmlParser
-import java.io.StringReader
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.collections.map
-import kotlin.math.min
 import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.WriteWith
@@ -24,6 +19,9 @@ import org.akanework.gramophone.logic.utils.SemanticLyrics.UnsyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
+import java.io.StringReader
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.min
 
 private const val TAG = "SemanticLyrics"
 
@@ -709,7 +707,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
         }
     }
     out.sortBy { it.start }
-    var previousTimestamp = 0uL
+    var previousTimestamp = ULong.MAX_VALUE
     val defaultIsWalaokeM = out.find { it.speaker?.isWalaoke == true } != null &&
             out.find { it.speaker?.isWalaoke == false } == null
     out.forEachIndexed { i, lyric ->
@@ -755,7 +753,7 @@ private fun XmlPullParser.nextAndThrowIfNotText() {
     if (next() != XmlPullParser.TEXT)
         throw XmlPullParserException("expected end tag in nextAndThrowIfNotText()")
 }
-private class TtmlTimeTracker(private val parser: XmlPullParser) {
+private class TtmlTimeTracker(private val parser: XmlPullParser, private val isApple: Boolean) {
     private val effectiveFrameRate: Float
     private val subFrameRate: Int
     private val tickRate: Int
@@ -775,41 +773,44 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
     private val offsetTimeRegex = Regex("^([0-9]+(?:\\.[0-9]+)?)(h|m|s|ms|f|t)$")
     private fun parseTimestampMs(input: String?, offset: ULong): ULong? {
         if (input?.isEmpty() != false) return null
-        val appleMatch = appleTimeRegex.matchEntire(input)
-        if (appleMatch != null) {
-            val hours = if (appleMatch.groupValues[2].isNotEmpty())
-                appleMatch.groupValues[1].toDoubleOrNull() ?: 0.0 else 0.0
-            val minutes = if (appleMatch.groupValues[2].isNotEmpty())
-                appleMatch.groupValues[2].toDoubleOrNull() ?: 0.0 else
-                appleMatch.groupValues[1].toDoubleOrNull() ?: 0.0
-            val seconds = appleMatch.groupValues[3].toDouble()
-            // Apple has no idea how a TTML file works. So omit offset just for their broken files
-            return (hours * 3600000 + minutes * 60000 + seconds * 1000).toULong()
-        }
-        val clockMatch = clockTimeRegex.matchEntire(input)
-        if (clockMatch != null) {
-            val hours = clockMatch.groupValues[1].toDouble()
-            val minutes = clockMatch.groupValues[2].toDouble()
-            val seconds = (clockMatch.groupValues[3] + clockMatch.groupValues[4]).toDouble()
-            val frameSecs = clockMatch.groupValues[5].toDoubleOrNull()
-                ?.div(effectiveFrameRate) ?: 0.0
-            val subFrameSecs = clockMatch.groupValues[6].toDoubleOrNull()
-                ?.div(subFrameRate)?.div(effectiveFrameRate) ?: 0.0
-            return (hours * 3600000 + minutes * 60000 + (seconds + frameSecs +
-                    subFrameSecs) * 1000).toULong() + offset
-        }
-        val offsetMatch = offsetTimeRegex.matchEntire(input)
-        if (offsetMatch != null) {
-            var time = offsetMatch.groupValues[1].toDouble()
-            when (offsetMatch.groupValues[2]) {
-                "h" -> time *= 3600000.0
-                "m" -> time *= 60000.0
-                "s" -> time *= 1000.0
-                "ms" -> {}
-                "f" -> time /= effectiveFrameRate / 1000.0
-                "t" -> time /= tickRate / 1000.0
+        if (isApple) {
+            val appleMatch = appleTimeRegex.matchEntire(input)
+            if (appleMatch != null) {
+                val hours = if (appleMatch.groupValues[2].isNotEmpty())
+                    appleMatch.groupValues[1].toDoubleOrNull() ?: 0.0 else 0.0
+                val minutes = if (appleMatch.groupValues[2].isNotEmpty())
+                    appleMatch.groupValues[2].toDoubleOrNull() ?: 0.0 else
+                    appleMatch.groupValues[1].toDoubleOrNull() ?: 0.0
+                val seconds = appleMatch.groupValues[3].toDouble()
+                // Apple has no idea how a TTML file works. So omit offset just for their broken files
+                return (hours * 3600000 + minutes * 60000 + seconds * 1000).toULong()
             }
-            return time.toULong() + offset
+        } else {
+            val clockMatch = clockTimeRegex.matchEntire(input)
+            if (clockMatch != null) {
+                val hours = clockMatch.groupValues[1].toDouble()
+                val minutes = clockMatch.groupValues[2].toDouble()
+                val seconds = (clockMatch.groupValues[3] + clockMatch.groupValues[4]).toDouble()
+                val frameSecs = clockMatch.groupValues[5].toDoubleOrNull()
+                    ?.div(effectiveFrameRate) ?: 0.0
+                val subFrameSecs = clockMatch.groupValues[6].toDoubleOrNull()
+                    ?.div(subFrameRate)?.div(effectiveFrameRate) ?: 0.0
+                return (hours * 3600000 + minutes * 60000 + (seconds + frameSecs +
+                        subFrameSecs) * 1000).toULong() + offset
+            }
+            val offsetMatch = offsetTimeRegex.matchEntire(input)
+            if (offsetMatch != null) {
+                var time = offsetMatch.groupValues[1].toDouble()
+                when (offsetMatch.groupValues[2]) {
+                    "h" -> time *= 3600000.0
+                    "m" -> time *= 60000.0
+                    "s" -> time *= 1000.0
+                    "ms" -> {}
+                    "f" -> time /= effectiveFrameRate / 1000.0
+                    "t" -> time /= tickRate / 1000.0
+                }
+                return time.toULong() + offset
+            }
         }
         throw XmlPullParserException("can't understand this TTML timestamp: $input")
     }
@@ -838,7 +839,7 @@ private class TtmlTimeTracker(private val parser: XmlPullParser) {
         }
         val last = stack.lastOrNull()
         val range = parseRange(last?.seq ?: last?.time?.first ?: 0uL)
-        val frange = range ?: getTime() ?: 0uL..0uL
+        val frange = range ?: last?.time ?: 0uL..0uL
         stack.add(TtmlLevel(frange, (last?.level ?: 0) + if (range != null) 1 else 0, if (isSeq) frange.first else null))
     }
     fun getTime(): ULongRange? {
@@ -901,7 +902,7 @@ private class TtmlParserState(private val parser: XmlPullParser, private val tim
                 parser.getAttributeValue(itunesInternal, "key")?.let { key = it }
                 texts = mutableListOf()
                 isP = true
-                plevel = timer.getLevel()
+                plevel = level
             }
             "body", "span" -> {}
             else -> throw IllegalStateException("unknown tag ${parser.name}, wanted body/span/div/p")
@@ -937,10 +938,19 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
         return null // not ttml
     }
     // val lang = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "lang")
-    // val timing = parser.getAttributeValue(itunesInternal, "timing")
+    val timing = parser.getAttributeValue(itunesInternal, "timing")
+    var hasItunesNamespace = timing != null
+    if (!hasItunesNamespace) {
+        for (i in 0..<parser.getNamespaceCount(parser.depth)) {
+            if (parser.getNamespaceUri(i) == itunes || parser.getNamespaceUri(i) == itunesInternal) {
+                hasItunesNamespace = true
+                break
+            }
+        }
+    }
     val peopleToType = hashMapOf<String, String>()
     val people = hashMapOf<String, MutableList<String>>()
-    val timer = TtmlTimeTracker(parser)
+    val timer = TtmlTimeTracker(parser, hasItunesNamespace)
     parser.nextTag()
     parser.require(XmlPullParser.START_TAG, tt, "head")
     // TODO parse and reject based on https://www.w3.org/TR/2018/REC-ttml2-20181108/#feature-profile-version-2 to be compliant
@@ -1027,10 +1037,12 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
         val theWords = it.texts.mapIndexed { i, it -> it to words[i] }
             .filter { it.first.time != null }
             .map { Word(it.first.time!!, it.second, false) }
-            .toMutableList()
+            .takeIf { it.isNotEmpty() }
+            ?.toMutableList()
         val isBg = it.role == "x-bg"
         val isGroup = peopleToType[it.agent] == "group"
-        val isVoice2 = people[peopleToType[it.agent]]!!.indexOf(it.agent) % 2 == 1
+        val isVoice2 = it.agent != null && (people[peopleToType[it.agent]] ?: throw NullPointerException(
+            "expected to find ${it.agent} (${peopleToType[it.agent]}) in $people")).indexOf(it.agent) % 2 == 1
         val speaker = when {
             isGroup && isBg -> SpeakerEntity.GroupBackground
             isGroup -> SpeakerEntity.Group

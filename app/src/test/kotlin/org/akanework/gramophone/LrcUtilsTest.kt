@@ -17,23 +17,23 @@ class LrcUtilsTest {
 
 	private fun parse(lrcContent: String, trim: Boolean? = null, multiline: Boolean? = null, mustSkip: Boolean? = false): SemanticLyrics? {
 		if (trim == null) {
-			val a = parse(lrcContent, true, multiline, mustSkip)
-			val b = parse(lrcContent, false, multiline, mustSkip)
-			assertFalse("trim true and false should result in same type of lyrics", a is SemanticLyrics.SyncedLyrics != b is SemanticLyrics.SyncedLyrics)
-			if (a is SemanticLyrics.SyncedLyrics)
-				assertEquals("trim true and false should result in same list for this string", (b as SemanticLyrics.SyncedLyrics).text, a.text)
+			val a = parse(lrcContent, false, multiline, mustSkip)
+			val b = parse(lrcContent, true, multiline, mustSkip)
+			assertFalse("trim false and true should result in same type of lyrics", a is SemanticLyrics.SyncedLyrics != b is SemanticLyrics.SyncedLyrics)
+			if (b is SemanticLyrics.SyncedLyrics)
+				assertEquals("trim false and true should result in same list for this string", (a as SemanticLyrics.SyncedLyrics).text, b.text)
 			else
-				assertEquals("trim true and false should result in same list for this string", b?.unsyncedText, a?.unsyncedText)
+				assertEquals("trim false and true should result in same list for this string", a?.unsyncedText, b?.unsyncedText)
 			return a
 		}
 		if (multiline == null) {
-			val a = parse(lrcContent, trim, true, mustSkip)
-			val b = parse(lrcContent, trim, false, mustSkip)
-			assertFalse("multiline true and false should result in same type of lyrics (trim=$trim)", a is SemanticLyrics.SyncedLyrics != b is SemanticLyrics.SyncedLyrics)
-			if (a is SemanticLyrics.SyncedLyrics)
-				assertEquals("multiline true and false should result in same list for this string (trim=$trim)", (b as SemanticLyrics.SyncedLyrics).text, a.text)
+			val a = parse(lrcContent, trim, false, mustSkip)
+			val b = parse(lrcContent, trim, true, mustSkip)
+			assertFalse("multiline false and true should result in same type of lyrics (trim=$trim)", a is SemanticLyrics.SyncedLyrics != b is SemanticLyrics.SyncedLyrics)
+			if (b is SemanticLyrics.SyncedLyrics)
+				assertEquals("multiline false and true should result in same list for this string (trim=$trim)", (a as SemanticLyrics.SyncedLyrics).text, b.text)
 			else
-				assertEquals("multiline true and false should result in same list for this string (trim=$trim)", b?.unsyncedText, a?.unsyncedText)
+				assertEquals("multiline false and true should result in same list for this string (trim=$trim)", a?.unsyncedText, b?.unsyncedText)
 			return a
 		}
 		val a = LrcUtils.parseLyrics(lrcContent, LrcUtils.LrcParserOptions(trim, multiline, null), null)
@@ -323,6 +323,17 @@ class LrcUtilsTest {
 	@Test
 	fun testParserTtmlTemplate() {
 		val ttml = parseSynced(LrcTestData.TTML_DEATH_BED)
-		assertEquals(ttml, LrcTestData.TTML_DEATH_BED_PARSED)
+		assertEquals(LrcTestData.TTML_DEATH_BED_PARSED, ttml)
+	}
+
+	@Test
+	fun tsZeroIsNotTranslated() {
+		val lrc = parseSynced("[00:00.00]hello[00:01.00]bye")
+		assertNotNull(lrc)
+		assertEquals(2, lrc!!.size)
+		assertEquals("hello", lrc[0].text)
+		assertEquals("bye", lrc[1].text)
+		assert(!lrc[0].isTranslated)
+		assert(!lrc[1].isTranslated)
 	}
 }

@@ -237,6 +237,7 @@ android {
             version = "3.22.1"
         }
     }
+    testOptions.unitTests.isIncludeAndroidResources = true
 
     // https://stackoverflow.com/a/77745844
     tasks.withType<PackageAndroidArtifact> {

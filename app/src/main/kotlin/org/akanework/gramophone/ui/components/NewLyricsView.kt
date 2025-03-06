@@ -22,9 +22,6 @@ import androidx.core.graphics.createBitmap
 import androidx.core.text.getSpans
 import androidx.core.widget.NestedScrollView
 import androidx.preference.PreferenceManager
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.roundToInt
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.getBooleanStrict
@@ -36,13 +33,16 @@ import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.SpeakerEntity
 import org.akanework.gramophone.logic.utils.findBidirectionalBarriers
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 private const val TAG = "NewLyricsView"
 
 class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     private val smallSizeFactor = 0.97f
-    private var lyricAnimTime = 0f
+    private var lyricAnimTime = 750f
     private var currentScrollTarget: Int? = null
 
     // TODO maybe reduce this to avoid really fast word skipping
