@@ -11,9 +11,6 @@ import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import java.io.File
 import java.nio.charset.Charset
-import kotlin.math.min
-import org.akanework.gramophone.logic.forEachSupport
-import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
 
 object LrcUtils {
 
@@ -41,8 +38,8 @@ object LrcUtils {
                 parseLrc(lyrics, parserOptions.trim, parserOptions.multiLine)
             else null
         })) {
-            try {
-                return i() ?: continue
+            return try {
+                i() ?: continue
             } catch (e: Exception) {
                 if (parserOptions.errorText == null)
                     throw e

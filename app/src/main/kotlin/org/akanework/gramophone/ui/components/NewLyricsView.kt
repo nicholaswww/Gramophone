@@ -13,6 +13,7 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
 import android.util.Log
+import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
@@ -39,7 +40,8 @@ import kotlin.math.roundToInt
 
 private const val TAG = "NewLyricsView"
 
-class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
+class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attrs),
+    GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
     private val smallSizeFactor = 0.97f
     private var lyricAnimTime = 750f
@@ -68,8 +70,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
     private var lyrics: SemanticLyrics? = null
     private var posForRender = 0uL
     lateinit var instance: Callbacks
-    private val scrollView // TODO autoscroll
-        get() = parent as? NestedScrollView
+    private val scrollView
+        get() = (parent ?: throw NullPointerException("parent is null")) as NestedScrollView
+    private val gestureDetector = GestureDetector(context, this)
 
     // -/M/F/D insanity starts here
     private var defaultTextColor = 0
@@ -359,6 +362,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
         var animating = false
         var heightSoFar = globalPaddingTop
+        var heightSoFarWithoutTranslated = heightSoFar
+        var determineTimeUntilNext = false
+        var timeUntilNext = 0uL
         var firstHighlight: Int? = null
         var lastHighlight: Int? = null
         canvas.save()
@@ -417,13 +423,25 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             val alignmentNormal = if (isRtl) it.layout.alignment == Layout.Alignment.ALIGN_OPPOSITE
             else it.layout.alignment == Layout.Alignment.ALIGN_NORMAL
             if ((scaleInProgress >= -.1f && scaleInProgress <= 1f) ||
-                (scaleOutProgress >= -.1f && scaleOutProgress <= 1f)
-            )
+                (scaleOutProgress >= -.1f && scaleOutProgress <= 1f))
                 animating = true
-            if (highlight && firstHighlight == null)
-                firstHighlight = heightSoFar
-            if (posForRender >= firstTs - timeOffsetForUse.toULong())
+            if (it.line?.isTranslated != true && it.speaker?.isBackground != true) {
+                if (determineTimeUntilNext) {
+                    determineTimeUntilNext = false
+                    timeUntilNext = max(0uL, (it.line?.start ?: 0uL) - posForRender)
+                }
+                heightSoFarWithoutTranslated = heightSoFar
+            }
+            if (highlight && firstHighlight == null) {
+                firstHighlight = heightSoFarWithoutTranslated
+                determineTimeUntilNext = true
+            }
+            if (posForRender >= firstTs - timeOffsetForUse.toULong() && it.line?.isTranslated != true
+                && it.speaker?.isBackground != true) {
                 lastHighlight = heightSoFar
+                if (firstHighlight == null)
+                    determineTimeUntilNext = true
+            }
             heightSoFar += (it.paddingTop.toFloat() / hlScaleFactor).also {
                 canvas.translate(
                     0f,
@@ -605,64 +623,16 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             invalidate()
         val scrollTarget = firstHighlight ?: lastHighlight ?: 0
         if (scrollTarget != currentScrollTarget) {
-            scrollView?.smoothScrollTo(0, scrollTarget, lyricAnimTime.toInt())
+            scrollView.smoothScrollTo(0, max(0, scrollTarget - paddingTop),
+                min(timeUntilNext, lyricAnimTime.toULong()).toInt())
             currentScrollTarget = scrollTarget
         }
     }
 
     // I don't think accessibility support for a lyric view makes sense.
     @SuppressLint("ClickableViewAccessibility")
-    override fun onTouchEvent(event: MotionEvent?): Boolean {
-        if (spForRender == null) {
-            requestLayout()
-        } else if (event?.action == MotionEvent.ACTION_UP) {
-            val y = event.y
-            var heightSoFar = globalPaddingTop
-            var foundItem: SemanticLyrics.LyricLine? = null
-            if (lyrics is SemanticLyrics.SyncedLyrics) {
-                spForRender!!.forEach {
-                    val firstTs = it.line!!.start.toFloat()
-                    val lastTs = it.line.end.toFloat()
-                    val pos = posForRender.toFloat()
-                    val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs,
-                        lastTs, 0.5f) - firstTs, firstTs))
-                    val highlight = pos >= firstTs - timeOffsetForUse &&
-                            pos <= lastTs + timeOffsetForUse
-                    val scaleInProgress = lerpInv(
-                        firstTs - timeOffsetForUse, firstTs + timeOffsetForUse, pos)
-                    val scaleOutProgress = lerpInv(
-                        lastTs - timeOffsetForUse, lastTs + timeOffsetForUse, pos)
-                    val hlScaleFactor =
-                        // lerp() argument order is swapped because we divide by this factor
-                        if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
-                            lerp(
-                                smallSizeFactor, 1f,
-                                scaleColorInterpolator.getInterpolation(scaleOutProgress)
-                            )
-                        else if (scaleInProgress >= 0f && scaleInProgress <= 1f)
-                            lerp(
-                                1f, smallSizeFactor,
-                                scaleColorInterpolator.getInterpolation(scaleInProgress)
-                            )
-                        else if (highlight)
-                            smallSizeFactor
-                        else 1f
-                    val myHeight =
-                        (it.paddingTop + it.layout.height + it.paddingBottom) / hlScaleFactor
-                    if (y >= heightSoFar && y <= heightSoFar + myHeight && it.line.isClickable)
-                        foundItem = it.line
-                    heightSoFar += myHeight.toInt()
-                }
-            }
-            if (foundItem != null) {
-                instance.seekTo(foundItem.start)
-                performClick()
-            }
-            return true
-        } else if (event?.action == MotionEvent.ACTION_DOWN) {
-            return true // this is needed so that we get the UP event we care about
-        }
-        return super.onTouchEvent(event)
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        return gestureDetector.onTouchEvent(event) || super.onTouchEvent(event)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -816,63 +786,102 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         )
     }
 
+    override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+        if (spForRender == null) {
+            requestLayout()
+            return true
+        }
+        val y = e.y
+        var heightSoFar = globalPaddingTop
+        var foundItem: SemanticLyrics.LyricLine? = null
+        if (lyrics is SemanticLyrics.SyncedLyrics) {
+            spForRender!!.forEach {
+                val firstTs = it.line!!.start.toFloat()
+                val lastTs = it.line.end.toFloat()
+                val pos = posForRender.toFloat()
+                val timeOffsetForUse = min(scaleInAnimTime, min(lerp(firstTs,
+                    lastTs, 0.5f) - firstTs, firstTs))
+                val highlight = pos >= firstTs - timeOffsetForUse &&
+                        pos <= lastTs + timeOffsetForUse
+                val scaleInProgress = lerpInv(
+                    firstTs - timeOffsetForUse, firstTs + timeOffsetForUse, pos)
+                val scaleOutProgress = lerpInv(
+                    lastTs - timeOffsetForUse, lastTs + timeOffsetForUse, pos)
+                val hlScaleFactor =
+                    // lerp() argument order is swapped because we divide by this factor
+                    if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
+                        lerp(
+                            smallSizeFactor, 1f,
+                            scaleColorInterpolator.getInterpolation(scaleOutProgress)
+                        )
+                    else if (scaleInProgress >= 0f && scaleInProgress <= 1f)
+                        lerp(
+                            1f, smallSizeFactor,
+                            scaleColorInterpolator.getInterpolation(scaleInProgress)
+                        )
+                    else if (highlight)
+                        smallSizeFactor
+                    else 1f
+                val myHeight =
+                    (it.paddingTop + it.layout.height + it.paddingBottom) / hlScaleFactor
+                if (y >= heightSoFar && y <= heightSoFar + myHeight && it.line.isClickable)
+                    foundItem = it.line
+                heightSoFar += myHeight.toInt()
+            }
+        }
+        if (foundItem != null) {
+            instance.seekTo(foundItem.start)
+            performClick()
+        }
+        return true
+    }
+
+    override fun onDoubleTap(e: MotionEvent): Boolean {
+        return false
+    }
+
+    override fun onDoubleTapEvent(e: MotionEvent): Boolean {
+        return false
+    }
+
+    override fun onDown(e: MotionEvent): Boolean {
+        return true
+    }
+
+    override fun onShowPress(e: MotionEvent) {
+        // do nothing
+    }
+
+    override fun onSingleTapUp(e: MotionEvent): Boolean {
+        return false
+    }
+
+    override fun onScroll(
+        e1: MotionEvent?,
+        e2: MotionEvent,
+        distanceX: Float,
+        distanceY: Float
+    ): Boolean {
+        return false // handled by parent
+    }
+
+    override fun onLongPress(e: MotionEvent) {
+        // do nothing
+    }
+
+    override fun onFling(
+        e1: MotionEvent?,
+        e2: MotionEvent,
+        velocityX: Float,
+        velocityY: Float
+    ): Boolean {
+        return false // handled by parent
+    }
+
     data class SbItem(
         val layout: StaticLayout, val text: SpannableStringBuilder,
         val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?,
         val rlm: List<Int>?, val speaker: SpeakerEntity?, val line: SemanticLyrics.LyricLine?
     )
-
-    // == start scroll ==
-    /* TODO + maybe center current line
-    private lateinit var edgeEffectTop: EdgeEffect
-    private lateinit var edgeEffectBottom: EdgeEffect
-    private lateinit var edgeEffectLeft: EdgeEffect
-    private lateinit var edgeEffectRight: EdgeEffect
-
-    private var edgeEffectTopActive: Boolean = false
-    private var edgeEffectBottomActive: Boolean = false
-    private var edgeEffectLeftActive: Boolean = false
-    private var edgeEffectRightActive: Boolean = false
-
-    override fun computeScroll() {
-        super.computeScroll()
-
-        var needsInvalidate = false
-
-        // The scroller isn't finished, meaning a fling or
-        // programmatic pan operation is active.
-        if (scroller.computeScrollOffset()) {
-            val surfaceSize: Point = computeScrollSurfaceSize()
-            val currX: Int = scroller.currX
-            val currY: Int = scroller.currY
-
-            val (canScrollX: Boolean, canScrollY: Boolean) = currentViewport.run {
-                (left > AXIS_X_MIN || right < AXIS_X_MAX) to (top > AXIS_Y_MIN || bottom < AXIS_Y_MAX)
-            }
-
-            /*
-             * If you are zoomed in, currX or currY is
-             * outside of bounds, and you aren't already
-             * showing overscroll, then render the overscroll
-             * glow edge effect.
-             */
-            if (canScrollX
-                && currX < 0
-                && edgeEffectLeft.isFinished
-                && !edgeEffectLeftActive) {
-                edgeEffectLeft.onAbsorb(scroller.currVelocity.toInt())
-                edgeEffectLeftActive = true
-                needsInvalidate = true
-            } else if (canScrollX
-                && currX > surfaceSize.x - contentRect.width()
-                && edgeEffectRight.isFinished
-                && !edgeEffectRightActive) {
-                edgeEffectRight.onAbsorb(scroller.currVelocity.toInt())
-                edgeEffectRightActive = true
-                needsInvalidate = true
-            }
-        }
-    }*/
-
 
 }

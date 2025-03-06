@@ -771,8 +771,11 @@ private class TtmlTimeTracker(private val parser: XmlPullParser, private val isA
     private val appleTimeRegex = Regex("^(?:([0-9]+):)?(?:([0-9]+):)?([0-9]+\\.[0-9]+)?$")
     private val clockTimeRegex = Regex("^([0-9][0-9]+):([0-9][0-9]):([0-9][0-9])(?:(\\.[0-9]+)|:([0-9][0-9])(?:\\.([0-9]+))?)?$")
     private val offsetTimeRegex = Regex("^([0-9]+(?:\\.[0-9]+)?)(h|m|s|ms|f|t)$")
-    private fun parseTimestampMs(input: String?, offset: ULong): ULong? {
+    var audioOffset: Long? = null
+    fun parseTimestampMs(input: String?, offset: Long, negative: Boolean): Long? {
         if (input?.isEmpty() != false) return null
+        val multiplier = if (negative && input.startsWith('-')) -1 else 1
+        val input = if (multiplier == -1) input.substring(1) else input
         if (isApple) {
             val appleMatch = appleTimeRegex.matchEntire(input)
             if (appleMatch != null) {
@@ -783,7 +786,7 @@ private class TtmlTimeTracker(private val parser: XmlPullParser, private val isA
                     appleMatch.groupValues[1].toDoubleOrNull() ?: 0.0
                 val seconds = appleMatch.groupValues[3].toDouble()
                 // Apple has no idea how a TTML file works. So omit offset just for their broken files
-                return (hours * 3600000 + minutes * 60000 + seconds * 1000).toULong()
+                return ((hours * 3600000 + minutes * 60000 + seconds * 1000).toLong() + (audioOffset ?: 0L)) * multiplier
             }
         } else {
             val clockMatch = clockTimeRegex.matchEntire(input)
@@ -795,8 +798,8 @@ private class TtmlTimeTracker(private val parser: XmlPullParser, private val isA
                     ?.div(effectiveFrameRate) ?: 0.0
                 val subFrameSecs = clockMatch.groupValues[6].toDoubleOrNull()
                     ?.div(subFrameRate)?.div(effectiveFrameRate) ?: 0.0
-                return (hours * 3600000 + minutes * 60000 + (seconds + frameSecs +
-                        subFrameSecs) * 1000).toULong() + offset
+                return ((hours * 3600000 + minutes * 60000 + (seconds + frameSecs +
+                        subFrameSecs) * 1000).toLong() + offset + (audioOffset ?: 0L)) * multiplier
             }
             val offsetMatch = offsetTimeRegex.matchEntire(input)
             if (offsetMatch != null) {
@@ -809,15 +812,15 @@ private class TtmlTimeTracker(private val parser: XmlPullParser, private val isA
                     "f" -> time /= effectiveFrameRate / 1000.0
                     "t" -> time /= tickRate / 1000.0
                 }
-                return time.toULong() + offset
+                return (time.toLong() + offset + (audioOffset ?: 0L)) * multiplier
             }
         }
         throw XmlPullParserException("can't understand this TTML timestamp: $input")
     }
     private fun parseRange(offset: ULong): ULongRange? {
-        var begin = parseTimestampMs(parser.getAttributeValue("", "begin"), offset)
-        var dur = parseTimestampMs(parser.getAttributeValue("", "dur"), 0uL)
-        var end = parseTimestampMs(parser.getAttributeValue("", "end"), offset)
+        var begin = parseTimestampMs(parser.getAttributeValue("", "begin"), offset.toLong(), false)?.toULong()
+        var dur = parseTimestampMs(parser.getAttributeValue("", "dur"), 0L, false)?.toULong()
+        var end = parseTimestampMs(parser.getAttributeValue("", "end"), offset.toLong(), false)?.toULong()
         if (begin == null && end == null || end == null && dur == null
             || begin == null && dur == null)
             return null
@@ -972,11 +975,18 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
                                     // val songwriter = parser.text
                                     parser.nextAndThrowIfNotEnd()
                                 } else {
-                                    throw XmlPullParserException("expected <songwriter>, got " +
-                                            "<${(parser.prefix?.plus(":") ?: "") + parser.name}> " +
-                                            "in <songwriters> in <iTunesMetadata>")
+                                    throw XmlPullParserException(
+                                        "expected <songwriter>, got " +
+                                                "<${(parser.prefix?.plus(":") ?: "") + parser.name}> " +
+                                                "in <songwriters> in <iTunesMetadata>"
+                                    )
                                 }
                             }
+                        } else if (parser.name == "audio") {
+                            // There's a field named lyricOffset but lyrics are in sync without applying it.
+                            // timer.audioOffset = timer.parseTimestampMs(parser.getAttributeValue(null, "lyricOffset"), 0L, true)
+                            // val role = parser.getAttributeValue(null, "role")
+                            parser.nextAndThrowIfNotEnd()
                         } else {
                             throw XmlPullParserException("unknown element " +
                                     "<${(parser.prefix?.plus(":") ?: "") + parser.name}> in " +
