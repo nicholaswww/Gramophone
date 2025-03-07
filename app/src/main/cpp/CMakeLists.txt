@@ -39,5 +39,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 	dlfunc::dlfunc)
 
 find_package(dlfunc REQUIRED CONFIG)
+add_link_options("-Wl,--build-id=none")
 
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -fvisibility=hidden -Os -fno-exceptions -fwrapv -fomit-frame-pointer -fno-unroll-loops -Xclang -fmerge-functions -Oz)
