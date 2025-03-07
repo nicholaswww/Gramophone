@@ -82,5 +82,10 @@ class GramophoneRenderFactory(context: Context,
             super.reset()
             configurationListener(null)
         }
+
+        override fun release() {
+            super.release()
+            configurationListener(null)
+        }
     }
 }

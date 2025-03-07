@@ -222,6 +222,18 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
     }
 
+    private val btReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action.equals("android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED")) {
+                /*Log.i(
+                    "hi",
+                    "Bluetooth Codec Changed: ${IntentCompat.getParcelableExtra(intent, "android.bluetooth.extra.CODEC_STATUS",
+                        BluetoothCodecConfig::class.java)}"
+                ) TODO*/
+            }
+        }
+    }
+
     override fun onCreate() {
         instanceForWidgetAndLyricsOnly = this
         internalPlaybackThread.start()
@@ -416,6 +428,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             IntentFilter("$packageName.SEEK_TO"),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
+        ContextCompat.registerReceiver(
+            this,
+            btReceiver,
+            IntentFilter("android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED"),
+            ContextCompat.RECEIVER_EXPORTED
+        )
         lastPlayedManager.restore { items, factory ->
             if (mediaSession == null) return@restore
             if (items != null) {
@@ -457,6 +475,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         instanceForWidgetAndLyricsOnly = null
         unregisterReceiver(headSetReceiver)
         unregisterReceiver(seekReceiver)
+        unregisterReceiver(btReceiver)
         // Important: this must happen before sending stop() as that changes state ENDED -> IDLE
         lastPlayedManager.save()
         mediaSession!!.player.stop()
@@ -660,8 +679,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onTracksChanged(eventTime: AnalyticsListener.EventTime, tracks: Tracks) {
-        downstreamFormat = null
-        audioSinkInputFormat = null
         val mediaItem = controller!!.currentMediaItem
 
         lyricsFetcher.launch {
@@ -765,6 +782,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         sendDebouncedFormatChange()
     }
 
+    override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) {
+        if (state == Player.STATE_IDLE) {
+            downstreamFormat = null
+            sendDebouncedFormatChange()
+        }
+    }
+
     override fun onPlayerError(eventTime: AnalyticsListener.EventTime, error: PlaybackException) {
         // TODO
     }
@@ -772,7 +796,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         bitrate = null
         bitrateFetcher.launch {
-            bitrate = mediaItem?.getBitrate() // TODO substract cover size
+            bitrate = mediaItem?.getBitrate() // TODO subtract cover size
             sendDebouncedFormatChange()
         }
         lyrics = null

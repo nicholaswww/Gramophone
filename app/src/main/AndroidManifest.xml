@@ -33,6 +33,10 @@
     <uses-permission
         android:name="android.permission.ACCESS_NETWORK_STATE"
         tools:node="remove" />
+    <!-- Bluetooth device information -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <!-- TODO now that google fixed androidx, for enableOnBackInvokedCallback we need to fix
         1. bottom sheet hide/show (eg settings)
