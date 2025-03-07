@@ -849,7 +849,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val hnw = !LyricWidgetProvider.hasWidget(this)
         if (controller?.isPlaying != true || (!isStatusBarLyricsEnabled && hnw)) return
         val cPos = (controller?.contentPosition ?: 0).toULong()
-        // TODO support lyrics going backwards in time (start of next line is before end of this line)
         val nextUpdate = if (syncedLyrics != null) {
             syncedLyrics?.text?.flatMap {
                 if (hnw && it.start <= cPos) listOf() else if (hnw) listOf(it.start) else
@@ -880,13 +879,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             doUpdateNotification(mediaSession!!)
         }
     }
-    // TODO support lyrics going backwards in time (start of next line is before end of this line)
     fun getCurrentLyricIndex(withTranslation: Boolean) =
         if (syncedLyrics != null) {
-            syncedLyrics?.text?.indexOfLast {
-                it.start <= (controller?.currentPosition ?: 0).toULong()
-                        && (!it.isTranslated || withTranslation)
-            }?.let { if (it == -1) null else it }
+            syncedLyrics?.text?.mapIndexed { i, it -> i to it }?.filter {
+                it.second.start <= (controller?.currentPosition ?: 0).toULong()
+                        && (!it.second.isTranslated || withTranslation)
+            }?.maxByOrNull { it.second.start }?.first
         } else if (lyricsLegacy != null) {
             lyricsLegacy?.indexOfLast {
                 (it.timeStamp ?: Long.MAX_VALUE) <= (controller?.currentPosition ?: 0)
