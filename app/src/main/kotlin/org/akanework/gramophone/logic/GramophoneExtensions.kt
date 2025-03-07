@@ -66,13 +66,6 @@ import androidx.media3.session.SessionCommand
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
-import java.io.File
-import java.util.Locale
-import kotlin.math.max
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_AUDIO_FORMAT
@@ -83,12 +76,14 @@ import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVIC
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_SET_TIMER
 import org.akanework.gramophone.logic.utils.AfFormatInfo
 import org.akanework.gramophone.logic.utils.AudioFormatDetector
-import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
 import org.akanework.gramophone.logic.utils.AudioTrackInfo
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.ui.MainActivity
 import org.jetbrains.annotations.Contract
+import java.io.File
+import java.util.Locale
+import kotlin.math.max
 
 fun Player.playOrPause() {
     if (playWhenReady) {
@@ -292,7 +287,8 @@ fun MediaController.getAudioFormat(): AudioFormatDetector.AudioFormats? =
             it.getBundle("file_format")?.let { bundle -> Format.fromBundle(bundle) },
             it.getBundle("sink_format")?.let { bundle -> Format.fromBundle(bundle) },
             BundleCompat.getParcelable(it, "track_format", AudioTrackInfo::class.java),
-            BundleCompat.getParcelable(it, "hal_format", AfFormatInfo::class.java)
+            BundleCompat.getParcelable(it, "hal_format", AfFormatInfo::class.java),
+            if (it.containsKey("bitrate")) it.getLong("bitrate") else null
         )
     }
 
@@ -459,17 +455,6 @@ fun WindowInsetsCompat.clone(): WindowInsetsCompat =
     WindowInsetsCompat.toWindowInsetsCompat(WindowInsets(toWindowInsets()).also {
         it.unconsumeIfNeeded()
     })
-
-inline fun Semaphore.runInBg(crossinline runnable: suspend () -> Unit) {
-    CoroutineScope(Dispatchers.Default).launch {
-        acquire()
-        try {
-            runnable()
-        } finally {
-            release()
-        }
-    }
-}
 
 val Context.gramophoneApplication
     get() = this.applicationContext as GramophoneApplication

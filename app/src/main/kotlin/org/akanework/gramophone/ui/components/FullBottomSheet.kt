@@ -296,8 +296,7 @@ class FullBottomSheet
                 GramophonePlaybackService.SERVICE_GET_AUDIO_FORMAT -> {
                     val format = instance?.getAudioFormat()
                     this.currentFormat = format
-                    updateQualityIndicators(AudioFormatDetector.detectAudioFormat(
-                        format?.downstreamFormat))
+                    updateQualityIndicators(AudioFormatDetector.detectAudioFormat(format))
                 }
 
                 else -> {

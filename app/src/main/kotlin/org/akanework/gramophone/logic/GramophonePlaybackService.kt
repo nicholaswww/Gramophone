@@ -82,7 +82,7 @@ import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.MeiZuLyricsMediaNotificationProvider
 import org.akanework.gramophone.logic.utils.AfFormatTracker
@@ -153,7 +153,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private lateinit var playbackHandler: Handler
     private lateinit var nm: NotificationManagerCompat
     private lateinit var lastPlayedManager: LastPlayedManager
-    private val lyricsLock = Semaphore(1)
     private lateinit var prefs: SharedPreferences
     private var lastSentHighlightedLyric: String? = null
     private lateinit var afFormatTracker: AfFormatTracker
@@ -161,8 +160,17 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var downstreamFormat: Format? = null
     private var audioSinkInputFormat: Format? = null
     private var audioTrackInfo: AudioTrackInfo? = null
+    private var bitrate: Long? = null
     private var audioTrackInfoCounter = 0
     private var audioTrackReleaseCounter = 0
+    private val lyricsFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
+    private val bitrateFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
+    private val formatChangeRunnable = Runnable {
+        mediaSession?.broadcastCustomCommand(
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+            Bundle.EMPTY
+        )
+    }
 
 	private fun getRepeatCommand() =
         when (controller!!.repeatMode) {
@@ -577,6 +585,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     it.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
                     it.extras.putParcelable("track_format", audioTrackInfo)
                     it.extras.putParcelable("hal_format", afFormatTracker.format)
+                    bitrate?.let { value -> it.extras.putLong("bitrate", value) }
                 }
             }
 
@@ -650,10 +659,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         return settable
     }
 
-    override fun onTracksChanged(tracks: Tracks) {
+    override fun onTracksChanged(eventTime: AnalyticsListener.EventTime, tracks: Tracks) {
+        downstreamFormat = null
+        audioSinkInputFormat = null
         val mediaItem = controller!!.currentMediaItem
 
-        lyricsLock.runInBg {
+        lyricsFetcher.launch {
             val trim = prefs.getBoolean("trim_lyrics", true)
             val multiLine = prefs.getBoolean("lyric_multiline", false)
             val newParser = prefs.getBoolean("lyric_parser", false)
@@ -674,7 +685,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         }
                     }
                 }
-                CoroutineScope(Dispatchers.Main).launch {
+                withContext(Dispatchers.Main) {
                     mediaSession?.let {
                         lyrics = lrc
                         lyricsLegacy = null
@@ -684,7 +695,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         )
                         scheduleSendingLyrics(true)
                     }
-                }.join()
+                }
             } else {
                 var lrc = loadAndParseLyricsFileLegacy(mediaItem?.getFile(), options)
                 if (lrc == null) {
@@ -700,7 +711,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         }
                     }
                 }
-                CoroutineScope(Dispatchers.Main).launch {
+                withContext(Dispatchers.Main) {
                     mediaSession?.let {
                         lyrics = null
                         lyricsLegacy = lrc
@@ -710,9 +721,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         )
                         scheduleSendingLyrics(true)
                     }
-                }.join()
+                }
             }
         }
+    }
+
+    private fun sendDebouncedFormatChange() {
+        handler.removeCallbacks(formatChangeRunnable)
+        handler.postDelayed(formatChangeRunnable, 500)
     }
 
     override fun onAudioTrackInitialized(
@@ -721,10 +737,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     ) {
         audioTrackInfoCounter++
         audioTrackInfo = AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
-        mediaSession?.broadcastCustomCommand(
-            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-            Bundle.EMPTY
-        )
+        sendDebouncedFormatChange()
     }
 
     override fun onAudioTrackReleased(
@@ -735,50 +748,21 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         // without replacement, we want to instantly know that instead of keeping stale data.
         if (++audioTrackReleaseCounter == audioTrackInfoCounter) {
             audioTrackInfo = null
-            mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
+            sendDebouncedFormatChange()
         }
     }
 
-    // TODO make sure this is invalidated if... when should it be invalidated? track change?
     override fun onDownstreamFormatChanged(
         eventTime: AnalyticsListener.EventTime,
         mediaLoadData: MediaLoadData
     ) {
-        /* TODO if downstream format bitrate is not set, calculate overall bitrate
-        if (mediaLoadData.trackFormat?.bitrate == Format.NO_VALUE) {
-            (and try what the details screen does before trying this)
-            private fun calculateOverallBitrate(mediaItem: MediaItem?, duration: Long?): Int? {
-                // TODO this really should avoid counting cover or container data
-                //  or at least do a rough subtraction of cover size
-                if (mediaItem == null || duration == null || duration <= 0) return null
-
-                val uri = mediaItem.localConfiguration?.uri ?: return null
-
-                try {
-                    val file = File(uri.path!!)
-                    val sizeInBits = file.length() * 8
-                    return (sizeInBits / (duration / 1000.0)).toInt()
-                } catch (_: Exception) {
-                    return null
-                }
-            }
-        } */
         downstreamFormat = mediaLoadData.trackFormat
-        mediaSession?.broadcastCustomCommand(
-            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-            Bundle.EMPTY
-        )
+        sendDebouncedFormatChange()
     }
 
     private fun onAudioSinkInputFormatChanged(inputFormat: Format?) {
         audioSinkInputFormat = inputFormat
-        mediaSession?.broadcastCustomCommand(
-            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-            Bundle.EMPTY
-        )
+        sendDebouncedFormatChange()
     }
 
     override fun onPlayerError(eventTime: AnalyticsListener.EventTime, error: PlaybackException) {
@@ -786,6 +770,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        bitrate = null
+        bitrateFetcher.launch {
+            bitrate = mediaItem?.getBitrate() // TODO substract cover size
+            sendDebouncedFormatChange()
+        }
         lyrics = null
         lyricsLegacy = null
         scheduleSendingLyrics(true)
