@@ -965,7 +965,19 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
                     val type = parser.getAttributeValue("", "type")
                     people.getOrPut(type) { mutableListOf() }.add(id)
                     peopleToType[id] = type
-                    parser.nextAndThrowIfNotEnd()
+                    while (parser.nextTag() != XmlPullParser.END_TAG) {
+                        if (parser.namespace == ttm && parser.name == "name") {
+                            // val type = parser.getAttributeValue("", "type")
+                            parser.nextAndThrowIfNotText()
+                            parser.nextAndThrowIfNotEnd()
+                        } else {
+                            throw XmlPullParserException(
+                                "expected <ttm:name>, got " +
+                                        "<${(parser.prefix?.plus(":") ?: "") + parser.name}> " +
+                                        "in <ttm:agent> in <metadata>"
+                            )
+                        }
+                    }
                 } else if (parser.name == "iTunesMetadata") {
                     while (parser.nextTag() != XmlPullParser.END_TAG) {
                         if (parser.name == "songwriters") {
