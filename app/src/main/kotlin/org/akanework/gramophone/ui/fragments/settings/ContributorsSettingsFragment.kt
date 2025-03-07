@@ -7,9 +7,9 @@ import android.view.ViewGroup
 import android.widget.TextView
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.fragments.BaseFragment
-import org.akanework.gramophone.ui.fragments.BaseSettingFragment
+import org.akanework.gramophone.ui.fragments.BaseSettingsActivity
 
-class ContributorsSettingsFragment : BaseSettingFragment(
+class ContributorsSettingsActivity : BaseSettingsActivity(
     R.string.settings_contributors, { ContributorsFragment() })
 
 class ContributorsFragment : BaseFragment(null) {

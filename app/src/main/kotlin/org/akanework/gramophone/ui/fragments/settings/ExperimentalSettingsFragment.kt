@@ -31,14 +31,14 @@ import kotlinx.coroutines.withContext
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
-import org.akanework.gramophone.ui.fragments.BaseSettingFragment
+import org.akanework.gramophone.ui.fragments.BaseSettingsActivity
 import java.io.File
 import java.nio.charset.Charset
 
-class ExperimentalSettingsFragment : BaseSettingFragment(R.string.settings_experimental_settings,
-    { ExperimentalSettingsTopFragment() })
+class ExperimentalSettingsActivity : BaseSettingsActivity(R.string.settings_experimental_settings,
+    { ExperimentalSettingsFragment() })
 
-class ExperimentalSettingsTopFragment : BasePreferenceFragment() {
+class ExperimentalSettingsFragment : BasePreferenceFragment() {
 
     private lateinit var selfLogDir: File
     private lateinit var e: Exception

@@ -5,8 +5,6 @@
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
         <!-- true edge-to-edge, no black bars in display notch -->
         <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="r">always</item>
-        <!-- Work around b/331383944: PreferenceFragmentCompat permanently mutates activity theme (enables vertical scrollbars) -->
-        <item name="android:scrollbars">none</item>
         <item name="viewInflaterClass">org.akanework.gramophone.logic.ui.ViewCompatInflater</item>
         <item name="bottomSheetDialogTheme">@style/ThemeOverlay.App.BottomSheetDialog</item>
         <item name="textAppearanceLargePopupMenu">@style/TextAppearance.App.BodyLarge</item>

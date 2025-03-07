@@ -100,6 +100,11 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             StrictMode.setThreadPolicy(
                 ThreadPolicy.Builder()
                     .detectAll()
+                    .let {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                            it.permitExplicitGc() // oh the irony, StrictMode itself calls this
+                        } else it
+                    }
                     .permitDiskReads() // permit disk reads due to media3 setMetadata() TODO extra player thread
                     .penaltyLog()
                     .penaltyDialog()

@@ -24,12 +24,12 @@ import androidx.preference.Preference
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.components.TabOrderPreference
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
-import org.akanework.gramophone.ui.fragments.BaseSettingFragment
+import org.akanework.gramophone.ui.fragments.BaseSettingsActivity
 
-class AppearanceSettingsFragment : BaseSettingFragment(R.string.settings_category_appearance,
-    { AppearanceSettingsTopFragment() })
+class AppearanceSettingsActivity : BaseSettingsActivity(R.string.settings_category_appearance,
+    { AppearanceSettingsFragment() })
 
-class AppearanceSettingsTopFragment : BasePreferenceFragment() {
+class AppearanceSettingsFragment : BasePreferenceFragment() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings_appearance, rootKey)
     }

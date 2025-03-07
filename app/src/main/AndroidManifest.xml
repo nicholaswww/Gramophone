@@ -54,7 +54,8 @@
         tools:targetApi="upside_down_cake">
         <activity
             android:name=".logic.ui.BugHandlerActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:taskAffinity="org.akanework.gramophone.crashLog" />
 
         <service
             android:name=".logic.GramophonePlaybackService"
@@ -133,6 +134,42 @@
 
         <service android:name=".ui.LyricWidgetService"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <activity
+            android:name=".ui.fragments.settings.PlayerSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.fragments.settings.LyricSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.fragments.settings.AboutSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.fragments.settings.AppearanceSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.fragments.settings.BehaviorSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.fragments.settings.MainSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.fragments.settings.ExperimentalSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.fragments.settings.ContributorsSettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.fragments.settings.BlacklistSettingsActivity"
+            android:exported="false" />
 
     </application>
 

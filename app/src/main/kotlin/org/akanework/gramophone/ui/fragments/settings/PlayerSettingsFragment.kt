@@ -22,12 +22,12 @@ import androidx.preference.Preference
 import com.google.android.material.color.DynamicColors
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
-import org.akanework.gramophone.ui.fragments.BaseSettingFragment
+import org.akanework.gramophone.ui.fragments.BaseSettingsActivity
 
-class PlayerSettingsFragment : BaseSettingFragment(R.string.settings_player_ui,
-    { PlayerSettingsTopFragment() })
+class PlayerSettingsActivity : BaseSettingsActivity(R.string.settings_player_ui,
+    { PlayerSettingsFragment() })
 
-class PlayerSettingsTopFragment : BasePreferenceFragment() {
+class PlayerSettingsFragment : BasePreferenceFragment() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings_player, rootKey)
         findPreference<Preference>("content_based_color")!!
@@ -36,13 +36,7 @@ class PlayerSettingsTopFragment : BasePreferenceFragment() {
 
     override fun onPreferenceTreeClick(preference: Preference): Boolean {
         if (preference.key == "lyrics") {
-            val supportFragmentManager = requireActivity().supportFragmentManager
-            supportFragmentManager
-                .beginTransaction()
-                .addToBackStack(System.currentTimeMillis().toString())
-                .hide(supportFragmentManager.fragments.let { it[it.size - 1] })
-                .add(R.id.container, LyricSettingsFragment())
-                .commit()
+            startActivity(LyricSettingsActivity::class.java)
         }
         return super.onPreferenceTreeClick(preference)
     }

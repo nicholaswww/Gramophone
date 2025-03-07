@@ -36,6 +36,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnLayout
 import androidx.core.view.doOnNextLayout
+import androidx.core.view.isVisible
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.media3.common.MediaItem
@@ -219,9 +220,7 @@ class PlayerBottomSheet private constructor(
             }
             bottomSheetBackCallback = object : OnBackPressedCallback(enabled = false) {
                 override fun handleOnBackStarted(backEvent: BackEventCompat) {
-                    if (fullPlayer.bottomSheetFullLyricView.visibility ==
-                        VISIBLE
-                    ) {
+                    if (fullPlayer.bottomSheetFullLyricView.isVisible) {
                         fullPlayer.bottomSheetFullLyricView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
                         fullPlayer.bottomSheetLyricButton.isChecked = false
                     } else {
@@ -230,9 +229,7 @@ class PlayerBottomSheet private constructor(
                 }
 
                 override fun handleOnBackProgressed(backEvent: BackEventCompat) {
-                    if (fullPlayer.bottomSheetFullLyricView.visibility ==
-                        VISIBLE
-                    ) {
+                    if (fullPlayer.bottomSheetFullLyricView.isVisible) {
                         // TODO
                     } else {
                         standardBottomSheetBehavior!!.updateBackProgress(backEvent)
@@ -240,9 +237,7 @@ class PlayerBottomSheet private constructor(
                 }
 
                 override fun handleOnBackPressed() {
-                    if (fullPlayer.bottomSheetFullLyricView.visibility ==
-                        VISIBLE
-                    ) {
+                    if (fullPlayer.bottomSheetFullLyricView.isVisible) {
                         fullPlayer.bottomSheetFullLyricView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
                         fullPlayer.bottomSheetLyricButton.isChecked = false
                     } else {
@@ -251,9 +246,7 @@ class PlayerBottomSheet private constructor(
                 }
 
                 override fun handleOnBackCancelled() {
-                    if (fullPlayer.bottomSheetFullLyricView.visibility ==
-                        VISIBLE
-                    ) {
+                    if (fullPlayer.bottomSheetFullLyricView.isVisible) {
                         fullPlayer.bottomSheetFullLyricView.fadInAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
                         fullPlayer.bottomSheetLyricButton.isChecked = false
                     } else {
@@ -290,8 +283,8 @@ class PlayerBottomSheet private constructor(
         lastMeasuredHeight = null
         fullPlayer.minimize = null
         lifecycleOwner.lifecycle.removeObserver(this)
-        standardBottomSheetBehavior!!.removeBottomSheetCallback(bottomSheetCallback)
-        bottomSheetBackCallback!!.remove()
+        standardBottomSheetBehavior?.removeBottomSheetCallback(bottomSheetCallback)
+        bottomSheetBackCallback?.remove()
         standardBottomSheetBehavior = null
         onStop(lifecycleOwner)
     }

@@ -4,8 +4,8 @@ import android.content.SharedPreferences
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
-import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.checkbox.MaterialCheckBox
 import org.akanework.gramophone.R
@@ -13,7 +13,7 @@ import org.akanework.gramophone.logic.getStringSetStrict
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 
 class BlacklistFolderAdapter(
-    private val fragment: Fragment,
+    private val activity: AppCompatActivity,
     private val folderArray: MutableList<String>,
     private val prefs: SharedPreferences
 ) : MyRecyclerView.Adapter<BlacklistFolderAdapter.ViewHolder>() {
@@ -22,7 +22,7 @@ class BlacklistFolderAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         ViewHolder(
-            fragment.layoutInflater.inflate(
+            activity.layoutInflater.inflate(
                 R.layout.adapter_blacklist_folder_card,
                 parent,
                 false

@@ -17,7 +17,6 @@
 
 package org.akanework.gramophone.ui.fragments.settings
 
-import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
@@ -34,14 +33,13 @@ import com.mikepenz.aboutlibraries.util.withJson
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.utils.ColorUtils
-import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
-import org.akanework.gramophone.ui.fragments.BaseSettingFragment
+import org.akanework.gramophone.ui.fragments.BaseSettingsActivity
 
-class AboutSettingsFragment : BaseSettingFragment(R.string.settings_about_app,
-    { AboutSettingsTopFragment() })
+class AboutSettingsActivity : BaseSettingsActivity(R.string.settings_about_app,
+    { AboutSettingsFragment() })
 
-class AboutSettingsTopFragment : BasePreferenceFragment() {
+class AboutSettingsFragment : BasePreferenceFragment() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings_about, rootKey)
         val versionPrefs = findPreference<Preference>("app_version")
@@ -82,7 +80,7 @@ class AboutSettingsTopFragment : BasePreferenceFragment() {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
                 rootView.findViewById<View>(R.id.iconCard)!!.visibility = View.GONE
         } else if (preference.key == "contributors") {
-            (requireActivity() as MainActivity).startFragment(ContributorsSettingsFragment())
+            startActivity(ContributorsSettingsActivity::class.java)
         } else if (preference.key == "package_type") {
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.settings_package_type)

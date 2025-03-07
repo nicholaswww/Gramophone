@@ -44,12 +44,11 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.clone
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.getSessionId
-import org.akanework.gramophone.logic.gramophoneApplication
 import org.akanework.gramophone.logic.needsManualSnackBarInset
 import org.akanework.gramophone.logic.updateMargin
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.adapters.ViewPager2Adapter
-import org.akanework.gramophone.ui.fragments.settings.MainSettingsFragment
+import org.akanework.gramophone.ui.fragments.settings.MainSettingsActivity
 
 /**
  * ViewPagerFragment:
@@ -172,7 +171,7 @@ class ViewPagerFragment : BaseFragment(true) {
                 }
 
                 R.id.settings -> {
-                    activity.startFragment(MainSettingsFragment())
+                    activity.startActivity(Intent(activity, MainSettingsActivity::class.java))
                 }
 
                 R.id.shuffle -> {

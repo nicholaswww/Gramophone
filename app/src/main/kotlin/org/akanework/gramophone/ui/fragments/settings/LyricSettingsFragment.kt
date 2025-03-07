@@ -20,13 +20,13 @@ package org.akanework.gramophone.ui.fragments.settings
 import android.os.Bundle
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
-import org.akanework.gramophone.ui.fragments.BaseSettingFragment
+import org.akanework.gramophone.ui.fragments.BaseSettingsActivity
 
-class AudioSettingsFragment : BaseSettingFragment(R.string.settings_audio,
-    { AudioSettingsTopFragment() })
+class LyricSettingsActivity : BaseSettingsActivity(R.string.settings_lyric,
+    { LyricSettingsFragment() })
 
-class AudioSettingsTopFragment : BasePreferenceFragment() {
+class LyricSettingsFragment : BasePreferenceFragment() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-        setPreferencesFromResource(R.xml.settings_audio, rootKey)
+        setPreferencesFromResource(R.xml.settings_lyric, rootKey)
     }
 }

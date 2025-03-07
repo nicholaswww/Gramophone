@@ -17,16 +17,16 @@
 
 package org.akanework.gramophone.ui.fragments
 
+import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
+import androidx.core.graphics.drawable.toDrawable
 import androidx.preference.PreferenceFragmentCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.color.MaterialColors
-import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.allowDiskAccessInStrictMode
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
@@ -55,11 +55,15 @@ abstract class BasePreferenceFragment : PreferenceFragmentCompat(),
     }
 
     override fun setDivider(divider: Drawable?) {
-        super.setDivider(ColorDrawable(Color.TRANSPARENT))
+        super.setDivider(Color.TRANSPARENT.toDrawable())
     }
 
     override fun setDividerHeight(height: Int) {
         super.setDividerHeight(0)
+    }
+
+    fun startActivity(target: Class<*>) {
+        startActivity(Intent(requireActivity(), target))
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
@@ -73,12 +77,6 @@ abstract class BasePreferenceFragment : PreferenceFragmentCompat(),
     override fun onStop() {
         preferenceScreen.sharedPreferences?.unregisterOnSharedPreferenceChangeListener(this)
         super.onStop()
-    }
-
-    override fun onDestroy() {
-        // Work around b/331383944: PreferenceFragmentCompat permanently mutates activity theme (enables vertical scrollbars)
-        requireContext().theme.applyStyle(R.style.Theme_Gramophone, true)
-        super.onDestroy()
     }
 
 }
