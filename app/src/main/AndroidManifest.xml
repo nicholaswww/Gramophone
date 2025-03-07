@@ -148,6 +148,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.fragments.settings.AudioSettingsActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.fragments.settings.AppearanceSettingsActivity"
             android:exported="false" />
 
