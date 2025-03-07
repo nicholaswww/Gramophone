@@ -26,6 +26,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.Uri
@@ -618,6 +619,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     it.extras.putParcelable("track_format", audioTrackInfo)
                     it.extras.putParcelable("hal_format", afFormatTracker.format)
                     bitrate?.let { value -> it.extras.putLong("bitrate", value) }
+                    if (afFormatTracker.format?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                        it.extras.putParcelable("bt", btInfo)
+                    }
                 }
             }
 

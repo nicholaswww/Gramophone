@@ -77,6 +77,7 @@ import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVIC
 import org.akanework.gramophone.logic.utils.AfFormatInfo
 import org.akanework.gramophone.logic.utils.AudioFormatDetector
 import org.akanework.gramophone.logic.utils.AudioTrackInfo
+import org.akanework.gramophone.logic.utils.BtCodecInfo
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.ui.MainActivity
@@ -288,7 +289,8 @@ fun MediaController.getAudioFormat(): AudioFormatDetector.AudioFormats? =
             it.getBundle("sink_format")?.let { bundle -> Format.fromBundle(bundle) },
             BundleCompat.getParcelable(it, "track_format", AudioTrackInfo::class.java),
             BundleCompat.getParcelable(it, "hal_format", AfFormatInfo::class.java),
-            if (it.containsKey("bitrate")) it.getLong("bitrate") else null
+            if (it.containsKey("bitrate")) it.getLong("bitrate") else null,
+            BundleCompat.getParcelable(it, "bt", BtCodecInfo::class.java)
         )
     }
 

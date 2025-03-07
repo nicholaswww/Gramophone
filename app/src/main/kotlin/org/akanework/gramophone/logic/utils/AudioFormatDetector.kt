@@ -17,7 +17,7 @@ import kotlinx.parcelize.Parcelize
 import org.akanework.gramophone.R
 
 object AudioFormatDetector {
-    fun channelConfigToString(context: Context, format: Int): String {
+    fun channelConfigToString(context: Context, format: Int?): String {
         return when (format) {
             AudioFormat.CHANNEL_OUT_MONO -> context.getString(R.string.spk_channel_out_mono)
             AudioFormat.CHANNEL_OUT_STEREO -> context.getString(R.string.spk_channel_out_stereo)
@@ -32,6 +32,7 @@ object AudioFormatDetector {
             AudioFormat.CHANNEL_OUT_7POINT1POINT4 -> context.getString(R.string.spk_channel_out_7point1point4)
             AudioFormat.CHANNEL_OUT_9POINT1POINT4 -> context.getString(R.string.spk_channel_out_9point1point4)
             AudioFormat.CHANNEL_OUT_9POINT1POINT6 -> context.getString(R.string.spk_channel_out_9point1point6)
+            AudioFormat.CHANNEL_INVALID, null -> context.getString(R.string.spk_channel_invalid)
             else -> {
                 val str = mutableListOf<String>()
                 if ((format and AudioFormat.CHANNEL_OUT_FRONT_LEFT) != 0) {
@@ -317,7 +318,7 @@ object AudioFormatDetector {
     data class AudioFormats(
         val downstreamFormat: Format?, val audioSinkInputFormat: Format?,
         val audioTrackInfo: AudioTrackInfo?, val halFormat: AfFormatInfo?,
-        val bitrate: Long?
+        val bitrate: Long?, val btCodecInfo: BtCodecInfo?
     ) {
         fun prettyToString(context: Context): String? {
             if (downstreamFormat == null || audioSinkInputFormat == null || audioTrackInfo == null)
@@ -343,6 +344,11 @@ object AudioFormatDetector {
                     append("(no data available)")
                 else
                     prettyPrintAfFormatInfo(context, halFormat)
+                if (btCodecInfo != null) {
+                    append("\n")
+                    append("== Bluetooth A2DP ==\n")
+                    prettyPrintBtCodecInfo(context, btCodecInfo)
+                }
             }.toString()
         }
 
@@ -436,6 +442,18 @@ object AudioFormatDetector {
                 }\n")
             append("Channel count: ${format.channelCount}\n")
             append("Channel mask: ${format.channelMask}\n")
+        }
+
+        private fun StringBuilder.prettyPrintBtCodecInfo(context: Context, format: BtCodecInfo) {
+            append("Bluetooth codec: ${format.codec}\n")
+            if (format.quality != null) {
+                append("Codec quality: ${format.quality}\n")
+            }
+            append("Sample rate: ${format.sampleRateHz} Hz\n")
+            if (format.bitsPerSample != -1) {
+                append("Bit depth: ${format.bitsPerSample} bits\n")
+            }
+            append("Channel config: ${channelConfigToString(context, format.channelConfig)}\n")
         }
     }
 
