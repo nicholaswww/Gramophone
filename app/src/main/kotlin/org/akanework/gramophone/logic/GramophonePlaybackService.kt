@@ -19,6 +19,12 @@ package org.akanework.gramophone.logic
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.bluetooth.BluetoothA2dp
+import android.bluetooth.BluetoothCodecConfig
+import android.bluetooth.BluetoothCodecStatus
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -28,17 +34,20 @@ import android.graphics.Bitmap
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.os.Process
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Format
@@ -223,13 +232,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private val btReceiver = object : BroadcastReceiver() {
+        @SuppressLint("NewApi") // TODO verify if stable
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action.equals("android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED")) {
-                /*Log.i(
+            if (intent.action.equals("android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED") &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O /* before 8, only sbc was supported */
+            ) {
+                Log.i(
                     "hi",
                     "Bluetooth Codec Changed: ${IntentCompat.getParcelableExtra(intent, "android.bluetooth.extra.CODEC_STATUS",
                         BluetoothCodecConfig::class.java)}"
-                ) TODO*/
+                )
             }
         }
     }
@@ -434,6 +446,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             IntentFilter("android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED"),
             ContextCompat.RECEIVER_EXPORTED
         )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O /* before 8, only sbc was supported */) {
+            val codec = tryGetBluetoothCodec()
+            Log.i("hi", "Bluetooth Codec is: $codec")
+        }
         lastPlayedManager.restore { items, factory ->
             if (mediaSession == null) return@restore
             if (items != null) {
@@ -947,5 +963,38 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 throw IllegalStateException("onForegroundServiceStartNotAllowedException shouldn't be called on T+")
             }
         }
+    }
+
+    // TODO test stability
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun tryGetBluetoothCodec(): BluetoothCodecConfig? {
+        val adapter = ContextCompat.getSystemService(this, BluetoothManager::class.java)!!.adapter
+        adapter.getProfileProxy(this, object : BluetoothProfile.ServiceListener {
+            override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                val a2dp = proxy as BluetoothA2dp
+                val device = try {
+                    BluetoothA2dp::class.java.getMethod("getActiveDevice").invoke(a2dp)
+                } catch (t: Throwable) {
+                    Log.e(TAG, Log.getStackTraceString(t))
+                    return
+                }
+                if (device == null) return
+                @SuppressLint("NewApi")
+                val codec = try {
+                    BluetoothA2dp::class.java.getMethod("getCodecStatus", BluetoothDevice::class.java)
+                        .invoke(a2dp, device) as BluetoothCodecStatus
+                } catch (t: Throwable) {
+                    Log.e(TAG, Log.getStackTraceString(t))
+                    null
+                }?.codecConfig
+                Log.i("hi", "bluetooth codec is actually $codec")
+            }
+
+            override fun onServiceDisconnected(profile: Int) {
+                // TODO
+            }
+
+        }, BluetoothProfile.A2DP)
+        return null
     }
 }
