@@ -969,6 +969,7 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
                         if (parser.namespace == ttm && parser.name == "name") {
                             // val type = parser.getAttributeValue("", "type")
                             parser.nextAndThrowIfNotText()
+                            // val name = parser.text
                             parser.nextAndThrowIfNotEnd()
                         } else {
                             throw XmlPullParserException(
