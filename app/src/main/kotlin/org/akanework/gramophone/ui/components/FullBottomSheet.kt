@@ -59,7 +59,6 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.DynamicColorsOptions
 import com.google.android.material.color.MaterialColors
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
@@ -353,14 +352,14 @@ class FullBottomSheet
             }
         }
 
-        bottomSheetFullQualityDetails.setOnClickListener {
+        /*bottomSheetFullQualityDetails.setOnClickListener {
             MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.audio_signal_chain)
                 .setMessage(currentFormat?.prettyToString(context)
                     ?: context.getString(R.string.audio_not_initialized))
                 .setPositiveButton(android.R.string.ok) { _, _ -> }
 	            .show()
-        }
+        }*/
 
         bottomSheetFullSubtitle.setOnClickListener {
             minimize?.invoke()

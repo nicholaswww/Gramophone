@@ -48,7 +48,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
         val oldPaddingRight = newView?.paddingRight ?: recyclerView?.paddingRight ?: 0
         recyclerView = null
         newView = null
-        if (prefs.getBooleanStrict("lyric_parser", false) && prefs.getBooleanStrict("lyric_ui", false)) {
+        if (false && prefs.getBooleanStrict("lyric_parser", false) && prefs.getBooleanStrict("lyric_ui", false)) {
             inflate(context, R.layout.lyric_view_v2, this)
             newView = findViewById(R.id.lyric_view)
             newView?.setPadding(oldPaddingLeft, oldPaddingTop, oldPaddingRight, oldPaddingBottom)
