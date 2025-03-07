@@ -621,8 +621,9 @@ class AfFormatTracker(
             "audioSink is null in onAudioTrackInitialized"
         )).getAudioTrack()
         if (router !== audioTrack) return // stale callback
-        if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED) return
-        buildFormat(audioTrack)
+        playbackHandler.post {
+            buildFormat(audioTrack)
+        }
     }
 
     // TODO why do we have to reflect on app code, there must be a better solution
@@ -677,14 +678,15 @@ class AfFormatTracker(
 
     private fun buildFormat(audioTrack: AudioTrack?) {
         audioTrack?.let {
+            if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED) return@let null
             val rd = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
                 audioTrack.routedDevice else null
             val pn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                rd!!.productName.toString() else null
+                rd?.productName.toString() else null
             val t = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                rd!!.type else null
+                rd?.type else null
             val id = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                rd!!.id else null
+                rd?.id else null
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 handler.post {
                     val sd = MediaRoutes.getSelectedAudioDevice(context)
