@@ -46,7 +46,7 @@ typedef status_t(*ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17a
         LEGACY_audio_port_role_t, LEGACY_audio_port_type_t, unsigned int *, void *, unsigned int *);
 
 static ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ = nullptr;
-static int gSampleRateOffset = 0;
+static long gSampleRateOffset = 0;
 
 bool initLib(JNIEnv *env) {
     if (init_done)
@@ -434,8 +434,8 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfT
                                 "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) reached "
                                 "mLatency(%d) (mAfLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d)"
                                 " mFormat(%d))",
-                                pos, pointer, pos-pointer, BUFFER_SIZE, mLatency, mAfLatency,
-                                mAfFrameCount, mAfSampleRate, mFormat);
+                                pos, pointer, (int)(pos-pointer), BUFFER_SIZE, mLatency, mAfLatency,
+                                (int)mAfFrameCount, mAfSampleRate, mFormat);
             return INT32_MAX;
         }
         if (pos - pointer < BUFFER_SIZE && *((uint32_t *) pos) == mAfLatency) {
@@ -444,8 +444,8 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfT
                                 "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) found "
                                 "mAfLatency(%d) (mLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d)"
                                 " mFormat(%d))",
-                                pos, pointer, pos-pointer, BUFFER_SIZE, mAfLatency, mLatency,
-                                mAfFrameCount, mAfSampleRate, mFormat);
+                                pos, pointer, (int)(pos-pointer), BUFFER_SIZE, mAfLatency, mLatency,
+                                (int)mAfFrameCount, mAfSampleRate, mFormat);
             pos = (uint8_t*)&structptr->mFormat + sizeof(uint32_t) / sizeof(uint8_t) - 1;
             if (pos - pointer >= BUFFER_SIZE || pos - pointer <= 0) break;
             pos = (uint8_t*)&structptr->mAfTrackFlags;
@@ -454,9 +454,9 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfT
                                     "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong"
                                     " mAfFrameCount(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
                                     "mAfSampleRate(%d) mFormat(%d))",
-                                    pos, pointer, pos-pointer, BUFFER_SIZE, mAfFrameCount,
-                                    structptr->mAfFrameCount, mAfLatency, mLatency, mAfSampleRate,
-                                    mFormat);
+                                    pos, pointer, (int)(pos-pointer), BUFFER_SIZE,
+                                    (int)mAfFrameCount, (int)structptr->mAfFrameCount, mAfLatency,
+                                    mLatency, mAfSampleRate,mFormat);
                 pos = (uint8_t*)&structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
                 continue;
             }
@@ -465,9 +465,9 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfT
                                     "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong"
                                     " mAfSampleRate(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
                                     "mAfFrameCount(%d) mFormat(%d))",
-                                    pos, pointer, pos-pointer, BUFFER_SIZE, mAfSampleRate,
-                                    structptr->mAfSampleRate, mAfLatency, mLatency, mAfFrameCount,
-                                    mFormat);
+                                    pos, pointer, (int)(pos-pointer), BUFFER_SIZE, mAfSampleRate,
+                                    structptr->mAfSampleRate, mAfLatency, mLatency,
+                                    (int)mAfFrameCount, mFormat);
                 pos = (uint8_t*)&structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
                 continue;
             }
@@ -478,17 +478,17 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfT
                                         "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) "
                                         "wrong mFormat(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
                                         "mAfFrameCount(%d) mAfSampleRate(%d)), assume qpr0/qpr1",
-                                        pos, pointer, pos - pointer, BUFFER_SIZE, mFormat,
-                                        structptr->mFormat, mAfLatency, mLatency, mAfFrameCount,
-                                        mAfSampleRate);
+                                        pos, pointer, (int)(pos - pointer), BUFFER_SIZE, mFormat,
+                                        structptr->mFormat, mAfLatency, mLatency,
+                                        (int)mAfFrameCount, mAfSampleRate);
                     return INT32_MIN;
                 }
                 __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
                                     "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) "
                                     "wrong mFormat(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
                                     "mAfFrameCount(%d) mAfSampleRate(%d))",
-                                    pos, pointer, pos - pointer, BUFFER_SIZE, mFormat,
-                                    structptr->mFormat, mAfLatency, mLatency, mAfFrameCount,
+                                    pos, pointer, (int)(pos - pointer), BUFFER_SIZE, mFormat,
+                                    structptr->mFormat, mAfLatency, mLatency, (int)mAfFrameCount,
                                     mAfSampleRate);
                 pos = (uint8_t*)&structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
                 continue;
@@ -500,8 +500,8 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfT
         __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
                             "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) pcf"
                             " (mLatency(%d) mAfLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d))",
-                            pos, pointer, pos-pointer, BUFFER_SIZE, mLatency, mAfLatency,
-                            mAfFrameCount, mAfSampleRate);
+                            pos, pointer, (int)(pos-pointer), BUFFER_SIZE, mLatency, mAfLatency,
+                            (int)mAfFrameCount, mAfSampleRate);
         return INT32_MIN;
     }
 #undef BUFFER_SIZE
