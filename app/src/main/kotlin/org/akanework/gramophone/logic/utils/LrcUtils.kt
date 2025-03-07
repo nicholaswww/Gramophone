@@ -44,6 +44,7 @@ object LrcUtils {
                 if (parserOptions.errorText == null)
                     throw e
                 Log.e(TAG, Log.getStackTraceString(e))
+                Log.e(TAG, "The lyrics are:\n$lyrics")
                 SemanticLyrics.UnsyncedLyrics(listOf(parserOptions.errorText to null))
             }
         }

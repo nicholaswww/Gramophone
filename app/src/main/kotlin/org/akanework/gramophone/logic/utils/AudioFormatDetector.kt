@@ -344,10 +344,19 @@ object AudioFormatDetector {
                     append("(no data available)")
                 else
                     prettyPrintAfFormatInfo(context, halFormat)
-                if (btCodecInfo != null) {
-                    append("\n")
-                    append("== Bluetooth A2DP ==\n")
-                    prettyPrintBtCodecInfo(context, btCodecInfo)
+                append("\n")
+                append("== Playback device ==\n")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && halFormat != null) {
+                    append("Device name: ${halFormat.routedDeviceName} (ID: ${halFormat.routedDeviceId})\n")
+                    append("Device type: ${halFormat.routedDeviceType?.let { audioDeviceTypeToString(context, it) }}\n")
+                } else {
+                    append("(some data is not available)\n")
+                }
+                if (halFormat?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                    if (btCodecInfo != null)
+                        prettyPrintBtCodecInfo(context, btCodecInfo)
+                    else
+                        append("(some data about Bluetooth is not available)\n")
                 }
             }.toString()
         }
@@ -427,10 +436,6 @@ object AudioFormatDetector {
         }
 
         private fun StringBuilder.prettyPrintAfFormatInfo(context: Context, format: AfFormatInfo) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                append("Device name: ${format.routedDeviceName} (ID: ${format.routedDeviceId})\n")
-                append("Device type: ${format.routedDeviceType?.let { audioDeviceTypeToString(context, it) }}\n")
-            }
             append("Mix port: ${format.mixPortName} (ID: ${format.mixPortId})\n")
             append("Mix port flags: ${mixPortFlagsToString(context, format.mixPortFlags)}\n")
             append("I/O handle: ${format.ioHandle}\n")
