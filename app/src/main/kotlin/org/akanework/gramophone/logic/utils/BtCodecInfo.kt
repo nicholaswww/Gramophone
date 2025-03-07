@@ -32,7 +32,7 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                 codecConfig.extendedCodecType?.codecName
             else {
                 val ct = @Suppress("deprecation") @SuppressLint("NewApi") codecConfig.codecType
-                val name = getCodecNameReflection(codecConfig) ?: when {
+                val name = getCodecNameReflection(codecConfig)?.trim() ?: when {
                     ct == @Suppress("deprecation") BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC -> "SBC"
                     ct == @Suppress("deprecation") BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC -> "AAC"
                     ct == @Suppress("deprecation") BluetoothCodecConfig.SOURCE_CODEC_TYPE_APTX -> "aptX"
@@ -65,12 +65,12 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                 BluetoothCodecConfig.CHANNEL_MODE_NONE -> AudioFormat.CHANNEL_INVALID
                 BluetoothCodecConfig.CHANNEL_MODE_MONO -> AudioFormat.CHANNEL_OUT_MONO
                 BluetoothCodecConfig.CHANNEL_MODE_STEREO -> AudioFormat.CHANNEL_OUT_STEREO
-                else -> null
+                else -> { Log.e(TAG, "unknown channel mode flag ${codecConfig.channelMode}"); null }
             }, when (codecConfig.bitsPerSample) {
                 BluetoothCodecConfig.BITS_PER_SAMPLE_16 -> 16
                 BluetoothCodecConfig.BITS_PER_SAMPLE_24 -> 24
                 BluetoothCodecConfig.BITS_PER_SAMPLE_32 -> 32
-                else -> null
+                else -> { Log.e(TAG, "unknown bit per sample flag flag ${codecConfig.bitsPerSample}"); null }
             }, when {
                 codec == "LDAC" && codecConfig.codecSpecific1 == 1000L -> "Auto"
                 codec == "LDAC" && codecConfig.codecSpecific1 == 1001L -> "330kbps"
