@@ -336,6 +336,7 @@ object AudioFormatDetector {
                 if (halFormat != null) {
                     append("Track ID: ${halFormat.trackId}\n")
                     append("Granted flags: ${mixPortFlagsToString(context, halFormat.grantedFlags)}\n")
+                    append("Server flags: ${mixPortFlagsToString(context, halFormat.afTrackFlags)}\n")
                 } else
                     append("(some data is not available)\n")
                 append("\n")

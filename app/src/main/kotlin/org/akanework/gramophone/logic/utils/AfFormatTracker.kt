@@ -23,7 +23,7 @@ data class AfFormatInfo(
     val routedDeviceType: Int?, val mixPortId: Int?, val mixPortName: String?,
     val mixPortFlags: Int?, val ioHandle: Int?, val sampleRateHz: Int?,
     val audioFormat: String?, val channelCount: Int?, val channelMask: Int?,
-    val grantedFlags: Int?, val trackId: Int?
+    val grantedFlags: Int?, val trackId: Int?, val afTrackFlags: Int?
 ) : Parcelable
 
 private class MyMixPort(val id: Int, val name: String?, val flags: Int?, val channelMask: Int?)
@@ -65,6 +65,8 @@ class AfFormatTracker(
 
         @SuppressLint("DiscouragedPrivateApi")
         private fun getAudioTrackPtr(audioTrack: AudioTrack): Long {
+            if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
+                throw IllegalArgumentException("cannot get pointer for released AudioTrack")
             val cls = audioTrack.javaClass
             val field = cls.getDeclaredField("mNativeTrackInJavaObj")
             field.isAccessible = true
@@ -135,7 +137,7 @@ class AfFormatTracker(
                 } catch (e: Throwable) {
                     Log.e(TAG, Log.getStackTraceString(e))
                     null
-                }.also { Log.d(TRACE_TAG, "native getHalChannelCountInternal/getAudioTrackPtr is done") }
+                }.also { Log.d(TRACE_TAG, "native getHalChannelCountInternal/getAudioTrackPtr is done: $it") }
         }
 
         private external fun getHalChannelCountInternal(@Suppress("unused") audioTrackPtr: Long): Int
@@ -152,7 +154,7 @@ class AfFormatTracker(
                 } catch (e: Throwable) {
                     Log.e(TAG, Log.getStackTraceString(e))
                     null
-                }.also { Log.d(TRACE_TAG, "native getHalChannelCountInternal/getAudioTrackPtr is done") }
+                }.also { Log.d(TRACE_TAG, "native getHalChannelCountInternal/getAudioTrackPtr is done: $it") }
                 if (ret != null && ret != 0)
                     return audioFormatToString(ret.toUInt())
                 return null
@@ -492,15 +494,56 @@ class AfFormatTracker(
                     if (it == Int.MAX_VALUE || it == Int.MIN_VALUE)
                         null // something went wrong, this was logged to logcat
                     else it
-                }.also { Log.d(TRACE_TAG, "native findAfFlagsForPortInternal is done") }
+                }.also { Log.d(TRACE_TAG, "native findAfFlagsForPortInternal is done: $it") }
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
                 null
             }
         }
-
         @Suppress("unused") // for parameters
         private external fun findAfFlagsForPortInternal(id: Int, sr: Int, isForChannels: Boolean): Int
+
+        private fun findAfTrackFlags(dump: String?, latency: Int?, track: AudioTrack, grantedFlags: Int?): Int? {
+            // First exposure to client process was below commit, which first appeared in U QPR2.
+            // https://cs.android.com/android/_/android/platform/frameworks/av/+/94ed47c6b6ca5a69b90238f6ae97af2ce7df9be0
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                return null
+            try {
+                val dump = dump ?: throw NullPointerException("af track dump is null, check prior logs")
+                val latency = latency ?: throw NullPointerException("af track latency is null, check prior logs")
+                val theLine = dump.split('\n').first { it.contains("AF SampleRate") }
+                val theLine2 = dump.split('\n').first { it.contains("format(0x") }
+                val regex = Regex(".*AF latency \\(([0-9]+)\\) AF frame count\\(([0-9]+)\\) AF SampleRate\\(([0-9]+)\\).*")
+                val regex2 = Regex(".*format\\(0x([0-9a-f]+)\\), .*")
+                val match = regex.matchEntire(theLine) ?: throw NullPointerException("failed match of $theLine")
+                val match2 = regex2.matchEntire(theLine2) ?: throw NullPointerException("failed match2 of $theLine2")
+                val afLatency = match.groupValues.getOrNull(1)?.toIntOrNull()
+                    ?: throw NullPointerException("failed parsing afLatency in: $theLine")
+                val afFrameCount = match.groupValues.getOrNull(2)?.toLongOrNull()
+                    ?: throw NullPointerException("failed parsing afFrameCount in: $theLine")
+                val afSampleRate = match.groupValues.getOrNull(3)?.toIntOrNull()
+                    ?: throw NullPointerException("failed parsing afSampleRate in: $theLine")
+                val format = match2.groupValues.getOrNull(1)?.toUIntOrNull(radix = 16)?.toInt()
+                    ?: throw NullPointerException("failed parsing format in: $theLine2")
+                val ptr = getAudioTrackPtr(track)
+                Log.d(TRACE_TAG, "calling native findAfTrackFlagsInternal")
+                return findAfTrackFlagsInternal(ptr, afLatency, afFrameCount, afSampleRate, latency, format).let {
+                    if (it == Int.MAX_VALUE || it == Int.MIN_VALUE)
+                        null // something went wrong, this was logged to logcat
+                    else if (grantedFlags != null && (it or grantedFlags) != it) {
+                        // should never happen
+                        Log.e(TAG, "af track flags($it) are nonsense, |$grantedFlags = ${it or grantedFlags}")
+                        null
+                    } else it
+                }.also { Log.d(TRACE_TAG, "native findAfTrackFlagsInternal is done: $it") }
+            } catch (e: Throwable) {
+                Log.e(TAG, Log.getStackTraceString(e))
+                return null
+            }
+        }
+        @Suppress("unused") // for parameters
+        private external fun findAfTrackFlagsInternal(pointer: Long, afLatency: Int, afFrameCount: Long,
+                                                      afSampleRate: Int, latency: Int, format: Int): Int
 
         private fun getOutput(audioTrack: AudioTrack): Int? {
             if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
@@ -511,7 +554,7 @@ class AfFormatTracker(
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
                 null
-            }.also { Log.d(TRACE_TAG, "native getOutputInternal/getAudioTrackPtr is done") }
+            }.also { Log.d(TRACE_TAG, "native getOutputInternal/getAudioTrackPtr is done: $it") }
         }
 
         private external fun getOutputInternal(@Suppress("unused") audioTrackPtr: Long): Int
@@ -525,7 +568,7 @@ class AfFormatTracker(
             } catch (e: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(e))
                 null
-            }.also { Log.d(TRACE_TAG, "native dump/getAudioTrackPtr is done") }
+            }.also { Log.d(TRACE_TAG, "native dump/getAudioTrackPtr is done: $it") }
         }
 
         private external fun dumpInternal(@Suppress("unused") audioTrackPtr: Long): String
@@ -658,15 +701,21 @@ class AfFormatTracker(
             val mp = if (oid != null && sr != null && sr > 8000 && sr < 1600000) {
                 getMixPortForThread(oid, sr)
             } else null
+            val latency = try {
+                // this call writes to mAfLatency and mLatency fields, hence changes dump content
+                AudioTrack::class.java.getMethod("getLatency").invoke(audioTrack) as Int
+            } catch (t: Throwable) {
+                Log.e(TAG, Log.getStackTraceString(t))
+                null
+            }
             val dump = dump(audioTrack)
-            if (LOG_EVENTS)
-                Log.d(TAG, "got dump: $dump")
+            val grantedFlags = getFlagFromDump(dump)
             AfFormatInfo(
                 pn, id, t,
                 mp?.id, mp?.name, mp?.flags,
                 oid, sr,
                 getHalFormat(audioTrack), getHalChannelCount(audioTrack), mp?.channelMask,
-                getFlagFromDump(dump), getIdFromDump(dump)
+                grantedFlags, getIdFromDump(dump), findAfTrackFlags(dump, latency, audioTrack, grantedFlags)
             )
         }.let {
             if (LOG_EVENTS)

@@ -402,3 +402,108 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
         return INT32_MAX;
     }
 }
+
+struct audio_track_partial { // use struct for automatic alignment handling
+    uint32_t mAfLatency;
+    size_t mAfFrameCount;
+    uint32_t mAfSampleRate;
+    [[maybe_unused]] uint32_t mAfChannelCount;
+    [[maybe_unused]] uint32_t mAfFormat;
+    uint32_t mAfTrackFlags;
+    uint32_t mFormat;
+};
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfTrackFlagsInternal(
+        JNIEnv*, jobject, jlong in_pointer, jint in_af_latency,
+        jlong in_af_frame_count, jint in_af_sample_rate, jint in_latency, jint in_format) {
+    auto pointer = (uint8_t*) in_pointer;
+    uint32_t mLatency = in_latency;
+    uint32_t mAfLatency = in_af_latency;
+    size_t mAfFrameCount = in_af_frame_count;
+    uint32_t mAfSampleRate = in_af_sample_rate;
+    uint32_t mFormat = in_format;
+    uint8_t *pos = pointer;
+    // arbitrary approximation
+#define BUFFER_SIZE 800
+    while (pos - pointer < BUFFER_SIZE) {
+        pos += sizeof(uint32_t) / sizeof(uint8_t);
+        if (pos - pointer < BUFFER_SIZE && *((uint32_t *) pos) == mLatency) {
+            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+                                "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) reached "
+                                "mLatency(%d) (mAfLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d)"
+                                " mFormat(%d))",
+                                pos, pointer, pos-pointer, BUFFER_SIZE, mLatency, mAfLatency,
+                                mAfFrameCount, mAfSampleRate, mFormat);
+            return INT32_MAX;
+        }
+        if (pos - pointer < BUFFER_SIZE && *((uint32_t *) pos) == mAfLatency) {
+            auto structptr = (audio_track_partial*)pos;
+            __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,
+                                "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) found "
+                                "mAfLatency(%d) (mLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d)"
+                                " mFormat(%d))",
+                                pos, pointer, pos-pointer, BUFFER_SIZE, mAfLatency, mLatency,
+                                mAfFrameCount, mAfSampleRate, mFormat);
+            pos = (uint8_t*)&structptr->mFormat + sizeof(uint32_t) / sizeof(uint8_t) - 1;
+            if (pos - pointer >= BUFFER_SIZE || pos - pointer <= 0) break;
+            pos = (uint8_t*)&structptr->mAfTrackFlags;
+            if (structptr->mAfFrameCount != mAfFrameCount) {
+                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+                                    "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong"
+                                    " mAfFrameCount(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
+                                    "mAfSampleRate(%d) mFormat(%d))",
+                                    pos, pointer, pos-pointer, BUFFER_SIZE, mAfFrameCount,
+                                    structptr->mAfFrameCount, mAfLatency, mLatency, mAfSampleRate,
+                                    mFormat);
+                pos = (uint8_t*)&structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
+                continue;
+            }
+            if (structptr->mAfSampleRate != mAfSampleRate) {
+                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+                                    "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong"
+                                    " mAfSampleRate(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
+                                    "mAfFrameCount(%d) mFormat(%d))",
+                                    pos, pointer, pos-pointer, BUFFER_SIZE, mAfSampleRate,
+                                    structptr->mAfSampleRate, mAfLatency, mLatency, mAfFrameCount,
+                                    mFormat);
+                pos = (uint8_t*)&structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
+                continue;
+            }
+            if (structptr->mFormat != mFormat) {
+                if (android_get_device_api_level() == 34 && *((int32_t*)(&structptr->mFormat))
+                /* mOriginalStreamType */ == -1 /* AUDIO_STREAM_DEFAULT */) {
+                    __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+                                        "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) "
+                                        "wrong mFormat(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
+                                        "mAfFrameCount(%d) mAfSampleRate(%d)), assume qpr0/qpr1",
+                                        pos, pointer, pos - pointer, BUFFER_SIZE, mFormat,
+                                        structptr->mFormat, mAfLatency, mLatency, mAfFrameCount,
+                                        mAfSampleRate);
+                    return INT32_MIN;
+                }
+                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+                                    "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) "
+                                    "wrong mFormat(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
+                                    "mAfFrameCount(%d) mAfSampleRate(%d))",
+                                    pos, pointer, pos - pointer, BUFFER_SIZE, mFormat,
+                                    structptr->mFormat, mAfLatency, mLatency, mAfFrameCount,
+                                    mAfSampleRate);
+                pos = (uint8_t*)&structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
+                continue;
+            }
+            break;
+        }
+    }
+    if (pos - pointer >= BUFFER_SIZE || pos - pointer <= 0) {
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+                            "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) pcf"
+                            " (mLatency(%d) mAfLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d))",
+                            pos, pointer, pos-pointer, BUFFER_SIZE, mLatency, mAfLatency,
+                            mAfFrameCount, mAfSampleRate);
+        return INT32_MIN;
+    }
+#undef BUFFER_SIZE
+    return (int32_t) (*((uint32_t * /*audio_output_flags_t*/) pos));
+}
