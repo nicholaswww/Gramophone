@@ -1328,6 +1328,7 @@ class FullBottomSheet
 
     private val positionRunnable = object : Runnable {
         override fun run() {
+            // TODO we may no longer need to poll duration after midi audio sink bugfix is released
             val position =
                 CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
             val duration = instance?.currentMediaItem?.mediaMetadata?.durationMs
