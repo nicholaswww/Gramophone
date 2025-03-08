@@ -313,10 +313,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             )
         afFormatTracker = AfFormatTracker(this, playbackHandler, handler)
         afFormatTracker.formatChangedCallback = {
-            mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
+            sendDebouncedFormatChange()
         }
         val player = EndedWorkaroundPlayer(
             ExoPlayer.Builder(
@@ -538,12 +535,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
                 Bundle.EMPTY
             )
-
-            session.sendCustomCommand(
-                controller,
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
+            sendDebouncedFormatChange()
         }
 
         return MediaSession.ConnectionResult.AcceptedResultBuilder(session)

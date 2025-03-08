@@ -617,13 +617,11 @@ class AfFormatTracker(
     } else null
 
     private fun onRoutingChanged(router: AudioTrack) {
-        playbackHandler.post {
-            val audioTrack = (audioSink ?: throw NullPointerException(
-                "audioSink is null in onAudioTrackInitialized"
-            )).getAudioTrack()
-            if (router !== audioTrack) return@post // stale callback
-            buildFormat(audioTrack)
-        }
+        val audioTrack = (audioSink ?: throw NullPointerException(
+            "audioSink is null in onAudioTrackInitialized"
+        )).getAudioTrack()
+        if (router !== audioTrack) return // stale callback
+        buildFormat(audioTrack)
     }
 
     // TODO why do we have to reflect on app code, there must be a better solution
