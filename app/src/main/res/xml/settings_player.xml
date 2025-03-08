@@ -68,6 +68,15 @@
             android:title="@string/settings_default_progress_bar"
             android:widgetLayout="@layout/preference_switch_widget" />
 
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:icon="@drawable/ic_high_res"
+            android:key="audio_quality_info"
+            android:layout="@layout/preference_switch"
+            android:summary="@string/settings_audio_quality_info_summary"
+            android:title="@string/settings_audio_quality_info"
+            android:widgetLayout="@layout/preference_switch_widget" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

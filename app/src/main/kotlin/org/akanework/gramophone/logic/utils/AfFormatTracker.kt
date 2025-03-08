@@ -617,11 +617,11 @@ class AfFormatTracker(
     } else null
 
     private fun onRoutingChanged(router: AudioTrack) {
-        val audioTrack = (audioSink ?: throw NullPointerException(
-            "audioSink is null in onAudioTrackInitialized"
-        )).getAudioTrack()
-        if (router !== audioTrack) return // stale callback
         playbackHandler.post {
+            val audioTrack = (audioSink ?: throw NullPointerException(
+                "audioSink is null in onAudioTrackInitialized"
+            )).getAudioTrack()
+            if (router !== audioTrack) return@post // stale callback
             buildFormat(audioTrack)
         }
     }

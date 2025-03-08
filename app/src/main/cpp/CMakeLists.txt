@@ -39,7 +39,11 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 	dlfunc::dlfunc)
 
 find_package(dlfunc REQUIRED CONFIG)
-add_compile_options(-fno-ident)
-add_link_options("-Wl,--build-id=none")
 
-target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -fvisibility=hidden -Os -fno-exceptions -fwrapv -fomit-frame-pointer -fno-unroll-loops -Xclang -fmerge-functions -Oz)
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -fvisibility=hidden -fomit-frame-pointer -fno-unroll-loops -Xclang -fmerge-functions)
+
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME}
+		POST_BUILD
+		COMMAND ${CMAKE_OBJCOPY} --remove-section .comment --remove-section .note.gnu.build-id $<TARGET_FILE:${CMAKE_PROJECT_NAME}>
+		VERBATIM
+)

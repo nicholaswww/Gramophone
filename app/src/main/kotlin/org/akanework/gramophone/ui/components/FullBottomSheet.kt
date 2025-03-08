@@ -132,6 +132,7 @@ class FullBottomSheet
     private var isUserTracking = false
     private var runnableRunning = false
     private var firstTime = false
+    private var enableQualityInfo = false
 
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
     private var currentFormat: AudioFormatDetector.AudioFormats? = null
@@ -296,7 +297,8 @@ class FullBottomSheet
                 GramophonePlaybackService.SERVICE_GET_AUDIO_FORMAT -> {
                     val format = instance?.getAudioFormat()
                     this.currentFormat = format
-                    updateQualityIndicators(AudioFormatDetector.detectAudioFormat(format))
+                    updateQualityIndicators(if (enableQualityInfo)
+                        AudioFormatDetector.detectAudioFormat(format) else null)
                 }
 
                 else -> {
@@ -572,6 +574,11 @@ class FullBottomSheet
                 bottomSheetFullSlider.visibility = GONE
                 bottomSheetFullSeekBar.visibility = VISIBLE
             }
+        }
+        if (key == null || key == "audio_quality_info") {
+            enableQualityInfo = prefs.getBooleanStrict("audio_quality_info", true)
+            updateQualityIndicators(if (enableQualityInfo)
+                AudioFormatDetector.detectAudioFormat(currentFormat) else null)
         }
         if (key == null || key == "centered_title") {
             if (prefs.getBooleanStrict("centered_title", true)) {
