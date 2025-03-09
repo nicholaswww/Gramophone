@@ -100,6 +100,7 @@ import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyricsLegacy
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFile
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFileLegacy
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
+import org.akanework.gramophone.logic.utils.NativeTrack
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFactory
@@ -560,6 +561,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         } else {
             Log.e(TAG, "session id is 0? why????? THIS MIGHT BREAK EQUALIZER")
         }
+        val track = NativeTrack(this)
+        track.set()
     }
 
     private fun broadcastAudioSessionClose() {

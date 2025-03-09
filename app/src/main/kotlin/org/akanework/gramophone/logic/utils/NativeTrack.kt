@@ -6,14 +6,20 @@ import android.os.Parcel
 
 class NativeTrack(context: Context) {
     val ptr: Long
-    var state = State.NOT_SET
+    var myState = State.NOT_SET
         private set
     init {
         try {
-            System.loadLibrary("libgramophone")
+            System.loadLibrary("gramophone")
         } catch (t: Throwable) {
             throw NativeTrackException("failed to load libgramophone.so", t)
         }
+        if (!try {
+            initDlsym()
+        } catch (t: Throwable) {
+            throw NativeTrackException("initDlsym() failed", t)
+        })
+            throw NativeTrackException("initDlsym() returned false")
         ptr = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val ats = context.attributionSource
@@ -32,11 +38,13 @@ class NativeTrack(context: Context) {
             throw NativeTrackException("create() returned NULL")
         }
     }
+    private external fun initDlsym(): Boolean
     private external fun create(@Suppress("unused") parcel: Parcel?): Long
-    private external fun doSet(ptr: Long): Int
+    private external fun doSet(@Suppress("unused") ptr: Long): Int
+    private external fun dtor(@Suppress("unused") ptr: Long): Unit
     fun set(): Boolean {
         doSet(ptr)
-        return state == State.ALIVE
+        return myState == State.ALIVE
     }
 
     class NativeTrackException : Exception {

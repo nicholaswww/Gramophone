@@ -11,11 +11,13 @@
 #include <unistd.h>
 #include <thread>
 #include <dlfunc.h>
+#include "helpers.h"
 
 static bool init_done = false;
 void *libaudioclient_handle = nullptr;
 void* libpermission_handle = nullptr;
 void* libandroid_runtime_handle = nullptr;
+void* libutils_handle = nullptr;
 typedef int audio_io_handle_t;
 
 typedef audio_io_handle_t(*ZNK7android10AudioTrack9getOutputEv_t)(void *);
@@ -62,6 +64,13 @@ bool initLib(JNIEnv *env) {
                 return false;
             }
         }
+        if (!libutils_handle) {
+            libutils_handle = dlopen("libutils.so", RTLD_GLOBAL);
+            if (libutils_handle == nullptr) {
+                ALOGE("dlopen returned nullptr for libutils.so: %s", dlerror());
+                return false;
+            }
+        }
         init_done = true;
         return true;
     }
@@ -71,6 +80,13 @@ bool initLib(JNIEnv *env) {
             libaudioclient_handle = dlfunc_dlopen(env, "libmedia.so", RTLD_GLOBAL);
             if (libaudioclient_handle == nullptr) {
                 ALOGE("dlopen returned nullptr for libmedia.so: %s", dlerror());
+                return false;
+            }
+        }
+        if (!libutils_handle) {
+            libutils_handle = dlfunc_dlopen(env,"libutils.so", RTLD_GLOBAL);
+            if (libutils_handle == nullptr) {
+                ALOGE("dlopen returned nullptr for libutils.so: %s", dlerror());
                 return false;
             }
         }
@@ -91,15 +107,22 @@ bool initLib(JNIEnv *env) {
             return false;
         }
     }
+    if (!libutils_handle) {
+        libutils_handle = linkernsbypass_namespace_dlopen("libutils.so", RTLD_GLOBAL, ns);
+        if (libutils_handle == nullptr) {
+            ALOGE("dlopen returned nullptr for libutils.so: %s", dlerror());
+            return false;
+        }
+    }
     if (android_get_device_api_level() >= 31 && !libpermission_handle) {
-        libaudioclient_handle = linkernsbypass_namespace_dlopen("libpermission.so", RTLD_GLOBAL, ns);
-        if (libaudioclient_handle == nullptr) {
+        libpermission_handle = linkernsbypass_namespace_dlopen("libpermission.so", RTLD_GLOBAL, ns);
+        if (libpermission_handle == nullptr) {
             ALOGE("dlopen returned nullptr for libpermission.so: %s", dlerror());
             return false;
         }
     }
     if (android_get_device_api_level() >= 31 && !libandroid_runtime_handle) {
-        libandroid_runtime_handle = dlfunc_dlopen(env, "libandroid_runtime.so", RTLD_GLOBAL);
+        libandroid_runtime_handle = linkernsbypass_namespace_dlopen("libandroid_runtime.so", RTLD_GLOBAL, ns);
         if (libandroid_runtime_handle == nullptr) {
             ALOGE("dlopen returned nullptr for libandroid_runtime.so: %s", dlerror());
             return false;
@@ -114,16 +137,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalS
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return 0;
-    if (!ZNK7android10AudioTrack16getHalSampleRateEv) {
-        ZNK7android10AudioTrack16getHalSampleRateEv =
-                (ZNK7android10AudioTrack16getHalSampleRateEv_t)
-                dlsym(libaudioclient_handle, "_ZNK7android10AudioTrack16getHalSampleRateEv");
-        if (ZNK7android10AudioTrack16getHalSampleRateEv == nullptr) {
-            ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack16getHalSampleRateEv: %s",
-                                dlerror());
-            return 0;
-        }
-    }
+    DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack16getHalSampleRateEv, 0)
     return (int32_t) ZNK7android10AudioTrack16getHalSampleRateEv((void *) audioTrack);
 }
 
@@ -132,16 +146,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalC
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return 0;
-    if (!ZNK7android10AudioTrack18getHalChannelCountEv) {
-        ZNK7android10AudioTrack18getHalChannelCountEv =
-                (ZNK7android10AudioTrack18getHalChannelCountEv_t)
-                dlsym(libaudioclient_handle, "_ZNK7android10AudioTrack18getHalChannelCountEv");
-        if (ZNK7android10AudioTrack18getHalChannelCountEv == nullptr) {
-            ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack18getHalChannelCountEv: %s",
-                                dlerror());
-            return 0;
-        }
-    }
+    DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack18getHalChannelCountEv, 0)
     return (int32_t) ZNK7android10AudioTrack18getHalChannelCountEv((void *) audioTrack);
 }
 
@@ -150,16 +155,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalF
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return 0;
-    if (!ZNK7android10AudioTrack12getHalFormatEv) {
-        ZNK7android10AudioTrack12getHalFormatEv =
-                (ZNK7android10AudioTrack12getHalFormatEv_t)
-                dlsym(libaudioclient_handle, "_ZNK7android10AudioTrack12getHalFormatEv");
-        if (ZNK7android10AudioTrack12getHalFormatEv == nullptr) {
-           ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack12getHalFormatEv: %s",
-                                dlerror());
-            return 0;
-        }
-    }
+    DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack12getHalFormatEv, 0)
     return (int32_t) ZNK7android10AudioTrack12getHalFormatEv((void *) audioTrack);
 }
 
@@ -168,16 +164,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getOutp
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return 0;
-    if (!ZNK7android10AudioTrack9getOutputEv) {
-        ZNK7android10AudioTrack9getOutputEv =
-                (ZNK7android10AudioTrack9getOutputEv_t)
-                dlsym(libaudioclient_handle, "_ZNK7android10AudioTrack9getOutputEv");
-        if (ZNK7android10AudioTrack9getOutputEv == nullptr) {
-            ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack9getOutputEv: %s",
-                                dlerror());
-            return 0;
-        }
-    }
+    DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack9getOutputEv, 0)
     return ZNK7android10AudioTrack9getOutputEv((void *) audioTrack);
 }
 
@@ -186,16 +173,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_dumpInt
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return nullptr;
-    if (!ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE) {
-        ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE =
-                (ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE_t)
-                dlsym(libaudioclient_handle,"_ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE");
-        if (ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE == nullptr) {
-            ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE: %s",
-                                dlerror());
-            return nullptr;
-        }
-    }
+    DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE, nullptr)
     int pipe_fds[2];
     if (pipe(pipe_fds) == -1) {
         ALOGE("pipe() syscall failed");
