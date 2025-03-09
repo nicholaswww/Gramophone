@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // Copyright © 2021 Billy Laws
 
+#define LOG_TAG "linkernsbypass"
 
 #include <dlfcn.h>
 #include <android/dlext.h>
 #include <unistd.h>
 #include <jni.h>
-extern "C" {
 #include <dlfunc.h>
-}
-#include <android/log.h>
+#include <android/log_macros.h>
 #include <pthread.h>
 #include "android_linker_ns.h"
 #include <sys/mman.h>
@@ -50,7 +49,7 @@ void linkernsbypass_load(JNIEnv* env) {
 		return;
 
 	if (!dlfunc_loaded && dlfunc_init(env) != JNI_OK) {
-		__android_log_print(ANDROID_LOG_ERROR, "linkernsbypass","dlfunc init failed");
+		ALOGE("dlfunc init failed");
 		return;
 	}
 	dlfunc_loaded = true;
@@ -62,8 +61,7 @@ void linkernsbypass_load(JNIEnv* env) {
 	if (!libdlAndroidHandle) {
 		libdlAndroidHandle = dlfunc_dlopen(env, "libdl.so", RTLD_NOW);
 		if (!libdlAndroidHandle) {
-			__android_log_print(ANDROID_LOG_ERROR, "linkernsbypass",
-			                    "dlfunc_dlopen of libdl_android.so failed: %s", dlerror());
+			ALOGE("dlfunc_dlopen of libdl_android.so failed: %s", dlerror());
 			return;
 		}
 	}
@@ -71,9 +69,7 @@ void linkernsbypass_load(JNIEnv* env) {
 	loader_android_create_namespace = reinterpret_cast<loader_android_create_namespace_t>(dlsym(
 			libdlAndroidHandle, "__loader_android_create_namespace"));
 	if (!loader_android_create_namespace) {
-		__android_log_print(ANDROID_LOG_ERROR, "linkernsbypass",
-		                    "dlsym of __loader_android_create_namespace in libdl_android.so failed: %s",
-		                    dlerror());
+		ALOGE("dlsym of __loader_android_create_namespace in libdl_android.so failed: %s", dlerror());
 		return;
 	}
 

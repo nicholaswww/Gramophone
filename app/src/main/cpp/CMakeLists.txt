@@ -28,7 +28,8 @@ project("gramophone")
 add_library(${CMAKE_PROJECT_NAME} SHARED
     # List C/C++ source files with relative paths to this CMakeLists.txt.
 	android_linker_ns.cpp
-    gramophone.cpp)
+    gramophone.cpp
+	NativeTrack.cpp)
 
 # Specifies libraries CMake should link to your target library. You
 # can link libraries from various origins, such as libraries defined in this

@@ -1,8 +1,10 @@
+#define LOG_TAG "AudioTrackHalInfo(JNI)"
+
 #include <jni.h>
 #include "android_linker_ns.h"
 #include "audio-legacy.h"
 #include <dlfcn.h>
-#include <android/log.h>
+#include <android/log_macros.h>
 #include <cstdlib>
 #include <string>
 #include <vector>
@@ -10,10 +12,10 @@
 #include <thread>
 #include <dlfunc.h>
 
-#define LOG_TAG "AudioTrackHalInfo(JNI)"
-
 static bool init_done = false;
-static void *handle = nullptr;
+void *libaudioclient_handle = nullptr;
+void* libpermission_handle = nullptr;
+void* libandroid_runtime_handle = nullptr;
 typedef int audio_io_handle_t;
 
 typedef audio_io_handle_t(*ZNK7android10AudioTrack9getOutputEv_t)(void *);
@@ -46,17 +48,17 @@ typedef status_t(*ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17a
         LEGACY_audio_port_role_t, LEGACY_audio_port_type_t, unsigned int *, void *, unsigned int *);
 
 static ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ = nullptr;
-static long gSampleRateOffset = 0;
+static intptr_t gSampleRateOffset = 0;
+static intptr_t gTrackFlagsOffset = 0;
 
 bool initLib(JNIEnv *env) {
     if (init_done)
         return true;
     if (android_get_device_api_level() < 24) {
-        if (!handle) {
-            handle = dlopen("libmedia.so", RTLD_GLOBAL);
-            if (handle == nullptr) {
-                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                    "dlopen returned nullptr for libmedia.so: %s", dlerror());
+        if (!libaudioclient_handle) {
+            libaudioclient_handle = dlopen("libmedia.so", RTLD_GLOBAL);
+            if (libaudioclient_handle == nullptr) {
+                ALOGE("dlopen returned nullptr for libmedia.so: %s", dlerror());
                 return false;
             }
         }
@@ -65,11 +67,10 @@ bool initLib(JNIEnv *env) {
     }
     linkernsbypass_load(env);
     if (android_get_device_api_level() < 26) {
-        if (!handle) {
-            handle = dlfunc_dlopen(env, "libmedia.so", RTLD_GLOBAL);
-            if (handle == nullptr) {
-                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                    "dlopen returned nullptr for libmedia.so: %s", dlerror());
+        if (!libaudioclient_handle) {
+            libaudioclient_handle = dlfunc_dlopen(env, "libmedia.so", RTLD_GLOBAL);
+            if (libaudioclient_handle == nullptr) {
+                ALOGE("dlopen returned nullptr for libmedia.so: %s", dlerror());
                 return false;
             }
         }
@@ -77,17 +78,30 @@ bool initLib(JNIEnv *env) {
         return true;
     }
     if (!linkernsbypass_load_status()) {
-        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "linker namespace bypass init failed");
+        ALOGE("linker namespace bypass init failed");
         return false;
     }
     android_namespace_t *ns = android_create_namespace_escape("default_copy", nullptr, nullptr,
                                                               ANDROID_NAMESPACE_TYPE_SHARED,
                                                               nullptr, nullptr);
-    if (!handle) {
-        handle = linkernsbypass_namespace_dlopen("libaudioclient.so", RTLD_GLOBAL, ns);
-        if (handle == nullptr) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "dlopen returned nullptr for libaudioclient.so: %s", dlerror());
+    if (!libaudioclient_handle) {
+        libaudioclient_handle = linkernsbypass_namespace_dlopen("libaudioclient.so", RTLD_GLOBAL, ns);
+        if (libaudioclient_handle == nullptr) {
+            ALOGE("dlopen returned nullptr for libaudioclient.so: %s", dlerror());
+            return false;
+        }
+    }
+    if (android_get_device_api_level() >= 31 && !libpermission_handle) {
+        libaudioclient_handle = linkernsbypass_namespace_dlopen("libpermission.so", RTLD_GLOBAL, ns);
+        if (libaudioclient_handle == nullptr) {
+            ALOGE("dlopen returned nullptr for libpermission.so: %s", dlerror());
+            return false;
+        }
+    }
+    if (android_get_device_api_level() >= 31 && !libandroid_runtime_handle) {
+        libandroid_runtime_handle = dlfunc_dlopen(env, "libandroid_runtime.so", RTLD_GLOBAL);
+        if (libandroid_runtime_handle == nullptr) {
+            ALOGE("dlopen returned nullptr for libandroid_runtime.so: %s", dlerror());
             return false;
         }
     }
@@ -103,10 +117,9 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalS
     if (!ZNK7android10AudioTrack16getHalSampleRateEv) {
         ZNK7android10AudioTrack16getHalSampleRateEv =
                 (ZNK7android10AudioTrack16getHalSampleRateEv_t)
-                        dlsym(handle, "_ZNK7android10AudioTrack16getHalSampleRateEv");
+                dlsym(libaudioclient_handle, "_ZNK7android10AudioTrack16getHalSampleRateEv");
         if (ZNK7android10AudioTrack16getHalSampleRateEv == nullptr) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "dlsym returned nullptr for _ZNK7android10AudioTrack16getHalSampleRateEv: %s",
+            ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack16getHalSampleRateEv: %s",
                                 dlerror());
             return 0;
         }
@@ -122,10 +135,9 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalC
     if (!ZNK7android10AudioTrack18getHalChannelCountEv) {
         ZNK7android10AudioTrack18getHalChannelCountEv =
                 (ZNK7android10AudioTrack18getHalChannelCountEv_t)
-                        dlsym(handle, "_ZNK7android10AudioTrack18getHalChannelCountEv");
+                dlsym(libaudioclient_handle, "_ZNK7android10AudioTrack18getHalChannelCountEv");
         if (ZNK7android10AudioTrack18getHalChannelCountEv == nullptr) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "dlsym returned nullptr for _ZNK7android10AudioTrack18getHalChannelCountEv: %s",
+            ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack18getHalChannelCountEv: %s",
                                 dlerror());
             return 0;
         }
@@ -141,10 +153,9 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalF
     if (!ZNK7android10AudioTrack12getHalFormatEv) {
         ZNK7android10AudioTrack12getHalFormatEv =
                 (ZNK7android10AudioTrack12getHalFormatEv_t)
-                        dlsym(handle, "_ZNK7android10AudioTrack12getHalFormatEv");
+                dlsym(libaudioclient_handle, "_ZNK7android10AudioTrack12getHalFormatEv");
         if (ZNK7android10AudioTrack12getHalFormatEv == nullptr) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "dlsym returned nullptr for _ZNK7android10AudioTrack12getHalFormatEv: %s",
+           ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack12getHalFormatEv: %s",
                                 dlerror());
             return 0;
         }
@@ -160,10 +171,9 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getOutp
     if (!ZNK7android10AudioTrack9getOutputEv) {
         ZNK7android10AudioTrack9getOutputEv =
                 (ZNK7android10AudioTrack9getOutputEv_t)
-                        dlsym(handle, "_ZNK7android10AudioTrack9getOutputEv");
+                dlsym(libaudioclient_handle, "_ZNK7android10AudioTrack9getOutputEv");
         if (ZNK7android10AudioTrack9getOutputEv == nullptr) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "dlsym returned nullptr for _ZNK7android10AudioTrack9getOutputEv: %s",
+            ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack9getOutputEv: %s",
                                 dlerror());
             return 0;
         }
@@ -179,19 +189,16 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_dumpInt
     if (!ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE) {
         ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE =
                 (ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE_t)
-                        dlsym(handle,
-                              "_ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE");
+                dlsym(libaudioclient_handle,"_ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE");
         if (ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE == nullptr) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "dlsym returned nullptr for _ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE: %s",
+            ALOGE("dlsym returned nullptr for _ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE: %s",
                                 dlerror());
             return nullptr;
         }
     }
     int pipe_fds[2];
     if (pipe(pipe_fds) == -1) {
-        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                            "pipe() syscall failed");
+        ALOGE("pipe() syscall failed");
         return nullptr;
     }
 
@@ -239,32 +246,27 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
     if (!isForChannels && android_get_device_api_level() < 30) {
         // R added flags field to struct, but it is only populated since T. But app side may
         // want to bet on OEM modification that populates it in R/S.
-        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                            "wrong usage of findAfFlagsForPortInternal: on this sdk, finding flags is impossible...");
+        ALOGE("wrong usage of findAfFlagsForPortInternal: on this sdk, finding flags is impossible...");
         return INT32_MIN;
     }
     if (android_get_device_api_level() >= 28) {
         if (!ZN7android11AudioSystem12getAudioPortEP13audio_port_v7) {
             ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 =
                     (ZN7android11AudioSystem12getAudioPortEP13audio_port_v7_t)
-                            dlsym(handle,
-                                  "_ZN7android11AudioSystem12getAudioPortEP13audio_port_v7");
+                            dlsym(libaudioclient_handle, "_ZN7android11AudioSystem12getAudioPortEP13audio_port_v7");
             if (ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 == nullptr) {
                 ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 =
                         (ZN7android11AudioSystem12getAudioPortEP13audio_port_v7_t)
-                                dlsym(handle,
-                                      "_ZN7android11AudioSystem12getAudioPortEP10audio_port");
+                        dlsym(libaudioclient_handle, "_ZN7android11AudioSystem12getAudioPortEP10audio_port");
                 if (ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 == nullptr) {
-                    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                        "dlsym returned nullptr for _ZN7android11AudioSystem12getAudioPortEP13audio_port_v7: %s",
+                    ALOGE("dlsym returned nullptr for _ZN7android11AudioSystem12getAudioPortEP13audio_port_v7: %s",
                                         dlerror());
                     return INT32_MIN;
                 }
             }
         }
         if (gSampleRateOffset == 0 && sampleRate == 0) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "wrong usage of findAfFlagsForPortInternal: not calibrated and sampleRate is 0");
+            ALOGE("wrong usage of findAfFlagsForPortInternal: not calibrated and sampleRate is 0");
             return INT32_MAX;
         }
 #define BUFFER_SIZE 114000
@@ -284,9 +286,8 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
             pos += gSampleRateOffset;
         }
         if (buffer >= pos) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "buffer(%p) >= pos(%p) (BUFFER_SIZE(%d) id(%d) sampleRate(%d))",
-                                buffer, pos, BUFFER_SIZE, id, sampleRate);
+            ALOGE("buffer(%p) >= pos(%p) (BUFFER_SIZE(%d) id(%d) sampleRate(%d))",
+                  buffer, pos, BUFFER_SIZE, id, sampleRate);
             gSampleRateOffset = 0;
             free(buffer);
             return INT32_MIN;
@@ -305,9 +306,8 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
             pos += sizeof(struct audio_gain_config) / sizeof(uint8_t); // audio_gain_config (gain)
         }
         if (pos >= buffer + BUFFER_SIZE) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "pos(%p) >= buffer(%p) + BUFFER_SIZE(%d) (id(%d) sampleRate(%d))",
-                                pos, buffer, BUFFER_SIZE, id, sampleRate);
+            ALOGE("pos(%p) >= buffer(%p) + BUFFER_SIZE(%d) (id(%d) sampleRate(%d))",
+                  pos, buffer, BUFFER_SIZE, id, sampleRate);
             gSampleRateOffset = 0;
             free(buffer);
             return INT32_MIN;
@@ -320,23 +320,22 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
         if (!ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_) {
             ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ =
                     (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t)
-                            dlsym(handle,
-                                  "_ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_");
+                    dlsym(libaudioclient_handle, "_ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_");
             if (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ ==
                 nullptr) {
                 ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ =
                         (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t)
-                                dlsym(handle,
-                                      "_ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP10audio_portS3_");
+                        dlsym(libaudioclient_handle, "_ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP10audio_portS3_");
                 if (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ ==
                     nullptr) {
-                    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                        "dlsym returned nullptr for _ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP10audio_portS3_: %s",
-                                        dlerror());
+                    ALOGE("dlsym returned nullptr for _ZN7android11AudioSystem14listAudioPortsE17"
+                          "audio_port_role_t17audio_port_type_tPjP10audio_portS3_: %s",
+                          dlerror());
                     return INT32_MIN;
                 }
             }
         }
+        // based on AOSP code
         const bool oreo = android_get_device_api_level() >= 26;
         status_t status;
         unsigned int generation1 = 0;
@@ -349,8 +348,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
         // get the port count and all the ports until they both return the same generation
         do {
             if (attempts-- < 0) {
-                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                    "AudioSystem::listAudioPorts no attempts left");
+                ALOGE("AudioSystem::listAudioPorts no attempts left");
                 return INT32_MIN;
             }
 
@@ -359,13 +357,11 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
                     LEGACY_AUDIO_PORT_ROLE_SOURCE, LEGACY_AUDIO_PORT_TYPE_MIX, &numPorts,
                     nullptr, &generation1);
             if (status != 0) {
-                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                    "AudioSystem::listAudioPorts error %d", status);
+                ALOGE("AudioSystem::listAudioPorts error %d", status);
                 return INT32_MIN;
             }
             if (numPorts == 0) {
-                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                    "AudioSystem::listAudioPorts found no ports");
+                ALOGE("AudioSystem::listAudioPorts found no ports");
                 return INT32_MIN;
             }
             // Tuck on double the space to prevent heap corruption if OEM made the audio_port bigger
@@ -383,8 +379,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
         if (oreo) {
             for (auto port: nPorts) {
                 if (i++ == numPorts) break; // needed because vector size > numPorts
-                __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
-                                    "found port %d named %s", port.id, port.name);
+                ALOGE("found port %d named %s", port.id, port.name);
                 if (port.id == id) {
                     return (int32_t) port.active_config.channel_mask;
                 }
@@ -392,8 +387,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
         } else {
             for (auto port: nPortsOld) {
                 if (i++ == numPorts) break; // needed because vector size > numPorts
-                __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
-                                    "found port %d named %s", port.id, port.name);
+                ALOGE("found port %d named %s", port.id, port.name);
                 if (port.id == id) {
                     return (int32_t) port.active_config.channel_mask;
                 }
@@ -418,92 +412,91 @@ JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfTrackFlagsInternal(
         JNIEnv*, jobject, jlong in_pointer, jint in_af_latency,
         jlong in_af_frame_count, jint in_af_sample_rate, jint in_latency, jint in_format) {
-    auto pointer = (uint8_t*) in_pointer;
+    if (android_get_device_api_level() < 34)
+        return INT32_MIN;
+    auto pointer = (uint8_t *) in_pointer;
     uint32_t mLatency = in_latency;
     uint32_t mAfLatency = in_af_latency;
     size_t mAfFrameCount = in_af_frame_count;
     uint32_t mAfSampleRate = in_af_sample_rate;
     uint32_t mFormat = in_format;
     uint8_t *pos = pointer;
-    // arbitrary approximation
-#define BUFFER_SIZE 800
-    while (pos - pointer < BUFFER_SIZE) {
-        pos += sizeof(uint32_t) / sizeof(uint8_t);
-        if (pos - pointer < BUFFER_SIZE && *((uint32_t *) pos) == mLatency) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) reached "
-                                "mLatency(%d) (mAfLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d)"
-                                " mFormat(%d))",
-                                pos, pointer, (int)(pos-pointer), BUFFER_SIZE, mLatency, mAfLatency,
-                                (int)mAfFrameCount, mAfSampleRate, mFormat);
-            return INT32_MAX;
-        }
-        if (pos - pointer < BUFFER_SIZE && *((uint32_t *) pos) == mAfLatency) {
-            auto structptr = (audio_track_partial*)pos;
-            __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,
-                                "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) found "
-                                "mAfLatency(%d) (mLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d)"
-                                " mFormat(%d))",
-                                pos, pointer, (int)(pos-pointer), BUFFER_SIZE, mAfLatency, mLatency,
-                                (int)mAfFrameCount, mAfSampleRate, mFormat);
-            pos = (uint8_t*)&structptr->mFormat + sizeof(uint32_t) / sizeof(uint8_t) - 1;
-            if (pos - pointer >= BUFFER_SIZE || pos - pointer <= 0) break;
-            pos = (uint8_t*)&structptr->mAfTrackFlags;
-            if (structptr->mAfFrameCount != mAfFrameCount) {
-                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                    "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong"
-                                    " mAfFrameCount(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
-                                    "mAfSampleRate(%d) mFormat(%d))",
-                                    pos, pointer, (int)(pos-pointer), BUFFER_SIZE,
-                                    (int)mAfFrameCount, (int)structptr->mAfFrameCount, mAfLatency,
-                                    mLatency, mAfSampleRate,mFormat);
-                pos = (uint8_t*)&structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
-                continue;
-            }
-            if (structptr->mAfSampleRate != mAfSampleRate) {
-                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                    "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong"
-                                    " mAfSampleRate(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
-                                    "mAfFrameCount(%d) mFormat(%d))",
-                                    pos, pointer, (int)(pos-pointer), BUFFER_SIZE, mAfSampleRate,
-                                    structptr->mAfSampleRate, mAfLatency, mLatency,
-                                    (int)mAfFrameCount, mFormat);
-                pos = (uint8_t*)&structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
-                continue;
-            }
-            if (structptr->mFormat != mFormat) {
-                if (android_get_device_api_level() == 34 && *((int32_t*)(&structptr->mFormat))
-                /* mOriginalStreamType */ == -1 /* AUDIO_STREAM_DEFAULT */) {
-                    __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
-                                        "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) "
-                                        "wrong mFormat(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
-                                        "mAfFrameCount(%d) mAfSampleRate(%d)), assume qpr0/qpr1",
-                                        pos, pointer, (int)(pos - pointer), BUFFER_SIZE, mFormat,
-                                        structptr->mFormat, mAfLatency, mLatency,
-                                        (int)mAfFrameCount, mAfSampleRate);
-                    return INT32_MIN;
-                }
-                __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                                    "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) "
-                                    "wrong mFormat(%d) v(%d) (mAfLatency(%d) mLatency(%d) "
-                                    "mAfFrameCount(%d) mAfSampleRate(%d))",
-                                    pos, pointer, (int)(pos - pointer), BUFFER_SIZE, mFormat,
-                                    structptr->mFormat, mAfLatency, mLatency, (int)mAfFrameCount,
-                                    mAfSampleRate);
-                pos = (uint8_t*)&structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
-                continue;
-            }
-            break;
-        }
-    }
-    if (pos - pointer >= BUFFER_SIZE || pos - pointer <= 0) {
-        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                            "pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) pcf"
-                            " (mLatency(%d) mAfLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d))",
-                            pos, pointer, (int)(pos-pointer), BUFFER_SIZE, mLatency, mAfLatency,
-                            (int)mAfFrameCount, mAfSampleRate);
+    if (gTrackFlagsOffset == INT32_MIN) {
         return INT32_MIN;
-    }
+    } else if (gTrackFlagsOffset == 0) {
+        // arbitrary approximation
+#define BUFFER_SIZE 800
+        while (pos - pointer < BUFFER_SIZE) {
+            pos += sizeof(uint32_t) / sizeof(uint8_t);
+            if (pos - pointer < BUFFER_SIZE && *((uint32_t *) pos) == mLatency) {
+                ALOGE("pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) reached mLatency(%d) "
+                      "(mAfLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d) mFormat(%d))",
+                      pos, pointer, (int) (pos - pointer), BUFFER_SIZE, mLatency, mAfLatency,
+                      (int) mAfFrameCount, mAfSampleRate, mFormat);
+                return INT32_MAX;
+            }
+            if (pos - pointer < BUFFER_SIZE && *((uint32_t *) pos) == mAfLatency) {
+                auto structptr = (audio_track_partial *) pos;
+                ALOGE("pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) found mAfLatency(%d) "
+                      "(mLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d) mFormat(%d))",
+                      pos, pointer, (int) (pos - pointer), BUFFER_SIZE, mAfLatency,
+                      mLatency, (int) mAfFrameCount, mAfSampleRate, mFormat);
+                pos = (uint8_t *) &structptr->mFormat + sizeof(uint32_t) / sizeof(uint8_t) - 1;
+                if (pos - pointer >= BUFFER_SIZE || pos - pointer <= 0) break;
+                pos = (uint8_t *) &structptr->mAfTrackFlags;
+                if (structptr->mAfFrameCount != mAfFrameCount) {
+                    ALOGE("pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong mAfFrameCount"
+                          "(%d) v(%d) (mAfLatency(%d) mLatency(%d) mAfSampleRate(%d) mFormat(%d))",
+                          pos, pointer, (int) (pos - pointer), BUFFER_SIZE, (int) mAfFrameCount,
+                          (int) structptr->mAfFrameCount, mAfLatency, mLatency, mAfSampleRate,
+                          mFormat);
+                    pos = (uint8_t *) &structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
+                    continue;
+                }
+                if (structptr->mAfSampleRate != mAfSampleRate) {
+                    ALOGE("pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong mAfSampleRate"
+                          "(%d) v(%d) (mAfLatency(%d) mLatency(%d) mAfFrameCount(%d) mFormat(%d))",
+                          pos, pointer, (int) (pos - pointer), BUFFER_SIZE, mAfSampleRate,
+                          structptr->mAfSampleRate, mAfLatency, mLatency, (int) mAfFrameCount,
+                          mFormat);
+                    pos = (uint8_t *) &structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
+                    continue;
+                }
+                if (structptr->mFormat != mFormat) {
+                    if (android_get_device_api_level() == 34 && *((int32_t *) (&structptr->mFormat))
+                                                                /* mOriginalStreamType */ ==
+                                                                -1 /* AUDIO_STREAM_DEFAULT */) {
+                        ALOGI("pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong mFormat"
+                              "(%d) v(%d) (mAfLatency(%d) mLatency(%d) mAfFrameCount(%d) "
+                              "mAfSampleRate(%d)), assume qpr0/qpr1",
+                              pos, pointer, (int) (pos - pointer), BUFFER_SIZE, mFormat,
+                              structptr->mFormat, mAfLatency, mLatency, (int) mAfFrameCount,
+                              mAfSampleRate);
+                        gTrackFlagsOffset = INT32_MIN;
+                        return INT32_MIN;
+                    }
+                    ALOGE("pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) wrong mFormat(%d) "
+                          "v(%d) (mAfLatency(%d) mLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d))",
+                          pos, pointer, (int) (pos - pointer), BUFFER_SIZE, mFormat,
+                          structptr->mFormat, mAfLatency, mLatency, (int) mAfFrameCount,
+                          mAfSampleRate);
+                    pos = (uint8_t *) &structptr->mAfLatency + sizeof(uint32_t) / sizeof(uint8_t);
+                    continue;
+                }
+                break;
+            }
+        }
+        if (pos - pointer >= BUFFER_SIZE || pos - pointer <= 0) {
+            ALOGE("pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) pcf (mLatency(%d) "
+                  "mAfLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d))",
+                  pos, pointer, (int) (pos - pointer), BUFFER_SIZE, mLatency, mAfLatency,
+                  (int) mAfFrameCount, mAfSampleRate);
+            return INT32_MIN;
+        }
+        gTrackFlagsOffset = pos - pointer;
 #undef BUFFER_SIZE
+    } else {
+        pos += gTrackFlagsOffset;
+    }
     return (int32_t) (*((uint32_t * /*audio_output_flags_t*/) pos));
 }
