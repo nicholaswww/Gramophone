@@ -43,7 +43,7 @@ data class AudioTrackInfo(
     }
 }
 
-@UnstableApi
+@OptIn(UnstableApi::class)
 class AfFormatTracker(
     private val context: Context, private val playbackHandler: Handler,
     private val handler: Handler
@@ -571,7 +571,7 @@ class AfFormatTracker(
             }.also { Log.d(TRACE_TAG, "native dump/getAudioTrackPtr is done: $it") }
         }
 
-        private external fun dumpInternal(@Suppress("unused") audioTrackPtr: Long): String
+        /*private*/ external fun dumpInternal(@Suppress("unused") audioTrackPtr: Long): String
 
         @SuppressLint("PrivateApi") // only used below U, stable private API
         private fun getAfService(): IBinder? {

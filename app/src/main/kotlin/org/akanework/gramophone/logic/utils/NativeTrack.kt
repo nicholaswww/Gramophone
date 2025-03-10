@@ -3,6 +3,7 @@ package org.akanework.gramophone.logic.utils
 import android.content.Context
 import android.os.Build
 import android.os.Parcel
+import android.util.Log
 
 class NativeTrack(context: Context) {
     val ptr: Long
@@ -41,9 +42,11 @@ class NativeTrack(context: Context) {
     private external fun initDlsym(): Boolean
     private external fun create(@Suppress("unused") parcel: Parcel?): Long
     private external fun doSet(@Suppress("unused") ptr: Long): Int
+    private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
     private external fun dtor(@Suppress("unused") ptr: Long): Unit
     fun set(): Boolean {
         doSet(ptr)
+        Log.e("hi", "dump:${AfFormatTracker.dumpInternal(getRealPtr(ptr))}")
         return myState == State.ALIVE
     }
 

@@ -35,7 +35,7 @@ static ZN7android10AudioTrackC1Ev_t ZN7android10AudioTrackC1Ev = nullptr;
 typedef void(*ZN7android7RefBase12weakref_type7decWeakEPKv_t)(void* thisptr, void* id);
 static ZN7android7RefBase12weakref_type7decWeakEPKv_t ZN7android7RefBase12weakref_type7decWeakEPKv = nullptr;
 typedef int32_t(*ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi_t)
-        (void* thisptr, int32_t streamType, uint32_t sampleRate, uint32_t format, uint32_t channelMask, size_t frameCount /* = 0 */, uint32_t flags /* = 0 */, fake_wp callback /* = nullptr */, int32_t notificationFrames /* = 0 */, fake_sp sharedMemory /* = nullptr */, bool threadCanCallJava /* = false */, int32_t audioSessionId /* = 0 */, transfer_type transferType /* = TRANSFER_DEFAULT */, void* offloadInfo /* = nullptr */, void* attributionSource, void* attributes /* = nullptr */, bool doNotReconnect /* = false */, float maxRequiredSpeed /* = 1.0f */, int selectedDeviceId /* = 0 */);
+        (void* thisptr, int32_t streamType, uint32_t sampleRate, uint32_t format, uint32_t channelMask, size_t frameCount /* = 0 */, uint32_t flags /* = 0 */, fake_wp& callback /* = nullptr */, int32_t notificationFrames /* = 0 */, fake_sp& sharedMemory /* = nullptr */, bool threadCanCallJava /* = false */, int32_t audioSessionId /* = 0 */, transfer_type transferType /* = TRANSFER_DEFAULT */, void* offloadInfo /* = nullptr */, int& attributionSource, void* attributes /* = nullptr */, bool doNotReconnect /* = false */, float maxRequiredSpeed /* = 1.0f */, int selectedDeviceId /* = 0 */);
 static ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi_t ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi = nullptr;
 
 class MyCallback : public virtual android::AudioTrack::IAudioTrackCallback {
@@ -99,15 +99,15 @@ extern "C" JNIEXPORT jlong JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
         JNIEnv *env, jobject, jobject parcel) {
     auto theTrack = ::operator new(AUDIO_TRACK_SIZE);
-    memset(theTrack, 0xdeadbeef, AUDIO_TRACK_SIZE);
+    memset(theTrack, (unsigned char)0xde, AUDIO_TRACK_SIZE);
     auto holder = new track_holder();
-    if (parcel != nullptr) { // implies SDK >= 31
+    if (true || parcel != nullptr) { // implies SDK >= 31
         // I'm too cool to call AttributionSourceState ctor before using it.
         auto myParcel = ZN7android19parcelForJavaObjectEP7_JNIEnvP8_jobject(env, parcel);
         if (myParcel == nullptr) {
             ALOGE("myParcel is NULL");
             ::operator delete(theTrack);
-            return NULL;
+            return 0;
         }
         auto ats = ::operator new(ATTRIBUTION_SOURCE_SIZE);
         memset(ats, 0, ATTRIBUTION_SOURCE_SIZE);
@@ -130,7 +130,9 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
         JNIEnv *, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
     auto refs = holder->callback->createWeak(holder);
-    ALOGE("calling set on %p", holder->track);
+    ALOGE("calling set on %p with ats %p", holder->track, holder->ats);
+    fake_wp callback = { .thePtr = nullptr };
+    fake_sp sharedMemory = { .thePtr = nullptr };
     auto ret = ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi(
             holder->track,
             /* streamType = */ 3 /* AUDIO_STREAM_MUSIC */,
@@ -139,14 +141,14 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
             /* channelMask = */ 1,
             /* frameCount = */ 0 /* default */,
             /* flags = */ 0 /* AUDIO_OUTPUT_FLAG_NONE */,
-            /* callback = */ { .thePtr = nullptr }, // TODO add back ptr/refs
+            /* callback = */ callback, // TODO add back ptr/refs
             /* notificationFrames = */ 0 /* default */,
-            /* sharedBuffer = */ { .thePtr = nullptr },
+            /* sharedBuffer = */ sharedMemory,
             /* threadCanCallJava = */ true,
             /* sessionId = */ 0 /* default */,
             /* transferType = */ TRANSFER_SYNC,
             /* offloadInfo = */ nullptr,
-            /* attributionSource = */ holder->ats,
+            /* attributionSource = */ *((int*)holder->ats),
             /* pAttributes = */ nullptr,
             /* doNotReconnect = */ true, // for emulating DIRECT track developer UX
             /* maxRequiredSpeed = */ 1.0f,
@@ -158,6 +160,12 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
     ::operator delete(holder->ats);
     holder->ats = nullptr;
     return ret;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_org_akanework_gramophone_logic_utils_NativeTrack_getRealPtr(
+        JNIEnv *, jobject, jlong ptr) {
+    return (intptr_t)((track_holder*)ptr)->track;
 }
 
 extern "C" JNIEXPORT void JNICALL
