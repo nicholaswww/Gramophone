@@ -17,6 +17,12 @@ typedef void*(*ZN7android7RefBaseC2Ev_t)(void* thisptr);
 static ZN7android7RefBaseC2Ev_t ZN7android7RefBaseC2Ev = nullptr;
 typedef void*(*ZN7android7RefBaseD2Ev_t)(void* thisptr);
 static ZN7android7RefBaseD2Ev_t ZN7android7RefBaseD2Ev = nullptr;
+typedef void(*ZNK7android7RefBase9incStrongEPKv_t)(void* thisptr, void* id);
+static ZNK7android7RefBase9incStrongEPKv_t ZNK7android7RefBase9incStrongEPKv = nullptr;
+typedef void(*ZNK7android7RefBase9decStrongEPKv_t)(void* thisptr, void* id);
+static ZNK7android7RefBase9decStrongEPKv_t ZNK7android7RefBase9decStrongEPKv = nullptr;
+typedef void*(*ZNK7android7RefBase10createWeakEPKv_t)(void* thisptr, void* id);
+static ZNK7android7RefBase10createWeakEPKv_t ZNK7android7RefBase10createWeakEPKv = nullptr;
 #include "aosp_stubs.h"
 typedef void*(*ZN7android19parcelForJavaObjectEP7_JNIEnvP8_jobject_t)(_JNIEnv*, _jobject*);
 static ZN7android19parcelForJavaObjectEP7_JNIEnvP8_jobject_t ZN7android19parcelForJavaObjectEP7_JNIEnvP8_jobject = nullptr;
@@ -26,19 +32,13 @@ typedef void*(*ZN7android10AudioTrackC1ERKNS_7content22AttributionSourceStateE_t
 static ZN7android10AudioTrackC1ERKNS_7content22AttributionSourceStateE_t ZN7android10AudioTrackC1ERKNS_7content22AttributionSourceStateE = nullptr;
 typedef void*(*ZN7android10AudioTrackC1Ev_t)(void* thisptr);
 static ZN7android10AudioTrackC1Ev_t ZN7android10AudioTrackC1Ev = nullptr;
-typedef void(*ZNK7android7RefBase9incStrongEPKv_t)(void* thisptr, void* id);
-static ZNK7android7RefBase9incStrongEPKv_t ZNK7android7RefBase9incStrongEPKv = nullptr;
-typedef void(*ZNK7android7RefBase9decStrongEPKv_t)(void* thisptr, void* id);
-static ZNK7android7RefBase9decStrongEPKv_t ZNK7android7RefBase9decStrongEPKv = nullptr;
-typedef void*(*ZNK7android7RefBase10createWeakEPKv_t)(void* thisptr, void* id);
-static ZNK7android7RefBase10createWeakEPKv_t ZNK7android7RefBase10createWeakEPKv = nullptr;
 typedef void(*ZN7android7RefBase12weakref_type7decWeakEPKv_t)(void* thisptr, void* id);
 static ZN7android7RefBase12weakref_type7decWeakEPKv_t ZN7android7RefBase12weakref_type7decWeakEPKv = nullptr;
 typedef int32_t(*ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi_t)
         (void* thisptr, int32_t streamType, uint32_t sampleRate, uint32_t format, uint32_t channelMask, size_t frameCount /* = 0 */, uint32_t flags /* = 0 */, fake_wp callback /* = nullptr */, int32_t notificationFrames /* = 0 */, fake_sp sharedMemory /* = nullptr */, bool threadCanCallJava /* = false */, int32_t audioSessionId /* = 0 */, transfer_type transferType /* = TRANSFER_DEFAULT */, void* offloadInfo /* = nullptr */, void* attributionSource, void* attributes /* = nullptr */, bool doNotReconnect /* = false */, float maxRequiredSpeed /* = 1.0f */, int selectedDeviceId /* = 0 */);
 static ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi_t ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi = nullptr;
 
-/*class MyCallback : virtual android::AudioTrack::IAudioTrackCallback {
+class MyCallback : public virtual android::AudioTrack::IAudioTrackCallback {
 public:
     MyCallback() : RefBase() {};
     void onUnderrun() override {
@@ -56,11 +56,11 @@ public:
     void onStreamEnd() override {
         ALOGI("MyCallback::onStreamEnd called");
     }
-};*/
+};
 
 struct track_holder {
     void* track;
-    void* callback;
+    MyCallback* callback;
     void* ats;
 };
 
@@ -113,19 +113,13 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
         memset(ats, 0, ATTRIBUTION_SOURCE_SIZE);
         ZN7android7content22AttributionSourceState14readFromParcelEPKNS_6ParcelE(ats, myParcel);
         ZN7android10AudioTrackC1ERKNS_7content22AttributionSourceStateE(theTrack, ats);
-        //ZN7android7RefBaseC2Ev(theTrack); // TODO
         holder->ats = ats;
     } else {
         ZN7android10AudioTrackC1Ev(theTrack);
     }
-    ALOGE("0");
-    auto callback = nullptr;//new MyCallback();
-    //ZN7android7RefBaseC2Ev(callback); // TODO
-    ALOGE("1");
-    ZNK7android7RefBase9incStrongEPKv(theTrack, holder);
-    ALOGE("2");
-    //ZNK7android7RefBase9incStrongEPKv(callback, holder);
-    ALOGE("3");
+    auto callback = new MyCallback();
+    callback->incStrong(holder);
+    ((android::AudioTrack*)theTrack)->incStrong(holder);
     holder->track = theTrack;
     holder->callback = callback;
     return (intptr_t)holder;
@@ -134,9 +128,9 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
         JNIEnv *, jobject, jlong ptr) {
-    return 0;
     auto holder = (track_holder*) ptr;
-    auto refs = ZNK7android7RefBase10createWeakEPKv(holder->callback, holder);
+    auto refs = holder->callback->createWeak(holder);
+    ALOGE("calling set on %p", holder->track);
     auto ret = ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi(
             holder->track,
             /* streamType = */ 3 /* AUDIO_STREAM_MUSIC */,
@@ -145,7 +139,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
             /* channelMask = */ 1,
             /* frameCount = */ 0 /* default */,
             /* flags = */ 0 /* AUDIO_OUTPUT_FLAG_NONE */,
-            /* callback = */ { .thePtr = holder->callback, .refs = refs },
+            /* callback = */ { .thePtr = nullptr }, // TODO add back ptr/refs
             /* notificationFrames = */ 0 /* default */,
             /* sharedBuffer = */ { .thePtr = nullptr },
             /* threadCanCallJava = */ true,
@@ -171,7 +165,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_dtor(
         JNIEnv *, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
     // RefBase will call the dtor
-    ZNK7android7RefBase9decStrongEPKv(holder->track, holder);
-    ZNK7android7RefBase9decStrongEPKv(holder->callback, holder);
+    ((android::AudioTrack*)holder->track)->decStrong(holder);
+    holder->callback->decStrong(holder);
     delete holder;
 }

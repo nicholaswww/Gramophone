@@ -39,7 +39,7 @@ enum transfer_type {
     TRANSFER_SHARED,    // shared memory
     TRANSFER_SYNC_NOTIF_CALLBACK, // synchronous write(), notif EVENT_CAN_WRITE_MORE_DATA
 };
-/*
+
 namespace android {
     // NOLINTBEGIN
     class RefBase {
@@ -54,6 +54,21 @@ namespace android {
             ZN7android7RefBaseD2Ev(this);
         }
 
+        inline void incStrong(void* id) {
+            ALOGI("fake base impl of incStrong says hello");
+            ZNK7android7RefBase9incStrongEPKv(this, id);
+        }
+
+        inline void decStrong(void* id) {
+            ALOGI("fake base impl of decStrong says hello");
+            ZNK7android7RefBase9decStrongEPKv(this, id);
+        }
+
+        inline void* createWeak(void* id) {
+            ALOGI("fake base impl of createWeak says hello");
+            return ZNK7android7RefBase10createWeakEPKv(this, id);
+        }
+
         virtual void onFirstRef();
 
         virtual void onLastStrongRef(const void *id);
@@ -65,6 +80,19 @@ namespace android {
         void *mRefs;
     };
     // NOLINTEND
+    class AudioSystem {
+    public:
+        class AudioDeviceCallback : public virtual RefBase
+        {
+        public:
+
+            AudioDeviceCallback() {}
+            virtual ~AudioDeviceCallback() {}
+
+            virtual void onAudioDeviceUpdate(int32_t audioIo,
+                                             int32_t deviceId) = 0;
+        };
+    };
     class AudioTimestamp {
     public:
         AudioTimestamp() : mPosition(0), mTime({ .tv_sec = 0, .tv_nsec = 0 }) {
@@ -73,7 +101,7 @@ namespace android {
         uint32_t mPosition;
         struct timespec mTime;
     };
-    class AudioTrack {
+    class AudioTrack : public virtual AudioSystem::AudioDeviceCallback {
     public:
         AudioTrack() {
             ALOGE("if you see this, expect a segfault. this class AudioTrack never was supposed to be instantiated");
@@ -171,4 +199,4 @@ inline bool android::RefBase::onIncStrongAttempted(uint32_t flags, const void*)
 inline void android::RefBase::onLastWeakRef(const void*)
 {
     ALOGI("fake base impl of onLastWeakRef says hello");
-}*/
+}
