@@ -101,7 +101,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
     auto theTrack = ::operator new(AUDIO_TRACK_SIZE);
     memset(theTrack, (unsigned char)0xde, AUDIO_TRACK_SIZE);
     auto holder = new track_holder();
-    if (true || parcel != nullptr) { // implies SDK >= 31
+    if (parcel != nullptr) { // implies SDK >= 31
         // I'm too cool to call AttributionSourceState ctor before using it.
         auto myParcel = ZN7android19parcelForJavaObjectEP7_JNIEnvP8_jobject(env, parcel);
         if (myParcel == nullptr) {
@@ -130,8 +130,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
         JNIEnv *, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
     auto refs = holder->callback->createWeak(holder);
-    ALOGE("calling set on %p with ats %p", holder->track, holder->ats);
-    fake_wp callback = { .thePtr = nullptr };
+    fake_wp callback = { .thePtr = holder->callback, .refs = refs };
     fake_sp sharedMemory = { .thePtr = nullptr };
     auto ret = ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi(
             holder->track,
@@ -141,7 +140,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
             /* channelMask = */ 1,
             /* frameCount = */ 0 /* default */,
             /* flags = */ 0 /* AUDIO_OUTPUT_FLAG_NONE */,
-            /* callback = */ callback, // TODO add back ptr/refs
+            /* callback = */ callback,
             /* notificationFrames = */ 0 /* default */,
             /* sharedBuffer = */ sharedMemory,
             /* threadCanCallJava = */ true,
