@@ -46,10 +46,10 @@ typedef uint32_t(*ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE_t)(
 
 static ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE_t ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE = nullptr;
 
-typedef status_t(*ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t)(
+typedef status_t(*ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3__t)(
         LEGACY_audio_port_role_t, LEGACY_audio_port_type_t, unsigned int *, void *, unsigned int *);
 
-static ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ = nullptr;
+static ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3__t ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ = nullptr;
 static intptr_t gSampleRateOffset = 0;
 static intptr_t gTrackFlagsOffset = 0;
 
@@ -228,19 +228,14 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
         return INT32_MIN;
     }
     if (android_get_device_api_level() >= 28) {
-        if (!ZN7android11AudioSystem12getAudioPortEP13audio_port_v7) {
+        DLSYM_OR_ELSE(libaudioclient, ZN7android11AudioSystem12getAudioPortEP13audio_port_v7) {
             ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 =
                     (ZN7android11AudioSystem12getAudioPortEP13audio_port_v7_t)
-                            dlsym(libaudioclient_handle, "_ZN7android11AudioSystem12getAudioPortEP13audio_port_v7");
-            if (ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 == nullptr) {
-                ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 =
-                        (ZN7android11AudioSystem12getAudioPortEP13audio_port_v7_t)
-                        dlsym(libaudioclient_handle, "_ZN7android11AudioSystem12getAudioPortEP10audio_port");
-                if (ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 == nullptr) {
-                    ALOGE("dlsym returned nullptr for _ZN7android11AudioSystem12getAudioPortEP13audio_port_v7: %s",
-                                        dlerror());
-                    return INT32_MIN;
-                }
+                    dlsym(libaudioclient_handle, "_ZN7android11AudioSystem12getAudioPortEP10audio_port");
+            if (!ZN7android11AudioSystem12getAudioPortEP13audio_port_v7) {
+                ALOGE("dlsym returned nullptr for _ZN7android11AudioSystem12getAudioPortEP10audio_port: %s",
+                                    dlerror());
+                return INT32_MIN;
             }
         }
         if (gSampleRateOffset == 0 && sampleRate == 0) {
@@ -295,22 +290,15 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
         free(buffer);
         return ret;
     } else {
-        if (!ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_) {
+        DLSYM_OR_ELSE(libaudioclient, ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_) {
             ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ =
-                    (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t)
-                    dlsym(libaudioclient_handle, "_ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_");
-            if (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ ==
-                nullptr) {
-                ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ =
-                        (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_t)
-                        dlsym(libaudioclient_handle, "_ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP10audio_portS3_");
-                if (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ ==
-                    nullptr) {
-                    ALOGE("dlsym returned nullptr for _ZN7android11AudioSystem14listAudioPortsE17"
-                          "audio_port_role_t17audio_port_type_tPjP10audio_portS3_: %s",
-                          dlerror());
-                    return INT32_MIN;
-                }
+                    (ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3__t)
+                    dlsym(libaudioclient_handle, "_ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP10audio_portS3_");
+            if (!ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_) {
+                ALOGE("dlsym returned nullptr for ZN7android11AudioSystem14listAudioPortsE17"
+                      "audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_: %s",
+                      dlerror());
+                return INT32_MIN;
             }
         }
         // based on AOSP code

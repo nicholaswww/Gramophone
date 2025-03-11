@@ -40,6 +40,7 @@ enum transfer_type {
     TRANSFER_SYNC_NOTIF_CALLBACK, // synchronous write(), notif EVENT_CAN_WRITE_MORE_DATA
 };
 
+typedef void (*legacy_callback_t)(int event, void* user, void *info);
 namespace android {
     // NOLINTBEGIN
     class RefBase {
@@ -131,7 +132,6 @@ namespace android {
             IAudioTrackCallback() {
                 ALOGI("hi from IAudioTrackCallback ctor");
             }
-        protected:
             // This event only occurs for TRANSFER_CALLBACK.
             virtual inline size_t
             onMoreData([[maybe_unused]] const AudioTrack::Buffer &buffer) {
@@ -177,6 +177,12 @@ namespace android {
                 return 0;
             }
         };
+    };
+    class AudioTrackWithoutDeviceCallback : public virtual RefBase {
+    public:
+        AudioTrackWithoutDeviceCallback() {
+            ALOGE("if you see this, expect a segfault. this class AudioTrack never was supposed to be instantiated");
+        }
     };
 }
 
