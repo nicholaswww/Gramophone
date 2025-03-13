@@ -563,6 +563,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
         val track = NativeTrack(this)
         track.set()
+        track.release()
     }
 
     private fun broadcastAudioSessionClose() {

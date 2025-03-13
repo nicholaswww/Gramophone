@@ -116,6 +116,7 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
         @RequiresApi(Build.VERSION_CODES.O)
         fun getCodec(context: Context, callback: (BtCodecInfo?) -> Unit) {
             val adapter = ContextCompat.getSystemService(context, BluetoothManager::class.java)?.adapter
+            // TODO stop leaking
             if (adapter?.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
                 override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
                     val a2dp = proxy as BluetoothA2dp

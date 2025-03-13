@@ -18,7 +18,6 @@
 #define AUDIO_TRACK_SIZE 5000
 // last observed AOSP size (arm64) was 152
 #define ATTRIBUTION_SOURCE_SIZE 500
-#define FAKE_PTR_SIZE 32
 
 // make sure to call RefBase::incStrong on thePtr before giving fake_sp away, and call
 // decStrong when you don't need it anymore :)
@@ -31,14 +30,63 @@ struct fake_wp {
     void* /* MUST be RefBase* */ thePtr;
     void* /* RefBase::weakref_type* */ refs;
 };
-enum transfer_type {
-    TRANSFER_DEFAULT,   // not specified explicitly; determine from the other parameters
-    TRANSFER_CALLBACK,  // callback EVENT_MORE_DATA
-    TRANSFER_OBTAIN,    // call obtainBuffer() and releaseBuffer()
-    TRANSFER_SYNC,      // synchronous write()
-    TRANSFER_SHARED,    // shared memory
-    TRANSFER_SYNC_NOTIF_CALLBACK, // synchronous write(), notif EVENT_CAN_WRITE_MORE_DATA
-};
+
+extern "C" {
+#define AUDIO_MAKE_OFFLOAD_INFO_VERSION(maj,min) \
+            ((((maj) & 0xff) << 8) | ((min) & 0xff))
+// version 0.1a (initial) and 0.1b use legacy version, 0.1c and 0.2 use new version
+typedef struct {
+    uint16_t version;                   // version of the info structure
+    uint16_t size;                      // total size of the structure including version and size
+    uint32_t sample_rate;               // sample rate in Hz
+    uint32_t channel_mask;  // channel mask
+    uint32_t format;              // audio format
+    int32_t stream_type;    // stream type
+    uint32_t bit_rate;                  // bit rate in bits per second
+    int64_t duration_us;                // duration in microseconds, -1 if unknown
+    bool has_video;                     // true if stream is tied to a video stream
+    bool is_streaming;                  // true if streaming, false if local playback
+    uint32_t bit_width;                 // version 0.1b:
+    uint32_t offload_buffer_size;       // version 0.1b: offload fragment size
+    int32_t usage;                // version 0.1b:
+} audio_offload_info_t_legacy;
+typedef struct {
+    uint16_t version;                   // version of the info structure
+    uint16_t size;                      // total size of the structure including version and size
+    uint32_t sample_rate;               // sample rate in Hz
+    uint32_t channel_mask;  // channel mask
+    uint32_t format;              // audio format
+    int32_t stream_type;    // stream type
+    uint32_t bit_rate;                  // bit rate in bits per second
+    int64_t duration_us;                // duration in microseconds, -1 if unknown
+    bool has_video;                     // true if stream is tied to a video stream
+    bool is_streaming;                  // true if streaming, false if local playback
+    uint32_t bit_width;                 // version 0.1b:
+    uint32_t offload_buffer_size;       // version 0.1b: offload fragment size
+    int32_t usage;                // version 0.1b:
+    int32_t encapsulation_mode;  // version 0.2:
+    int32_t content_id;                 // version 0.2: content id from tuner hal (0 if none)
+    int32_t sync_id;                    // version 0.2: sync id from tuner hal (0 if none)
+} __attribute__((aligned(8))) audio_offload_info_t;
+
+/* Audio attributes */
+typedef struct {
+    int32_t content_type;
+    int32_t usage;
+    int32_t source;
+    uint32_t flags;
+    char tags[256]; /* UTF8 */
+} audio_attributes_t_legacy; // before P
+
+/* Audio attributes */
+typedef struct {
+    int32_t content_type;
+    int32_t usage;
+    int32_t source;
+    uint32_t flags;
+    char tags[256]; /* UTF8 */
+} __attribute__((packed)) audio_attributes_t;
+}
 
 typedef void (*legacy_callback_t)(int event, void* user, void *info);
 namespace android {
@@ -56,7 +104,7 @@ namespace android {
         }
 
         inline void incStrong(void* id) {
-            ALOGI("fake base impl of incStrong says hello");
+            ALOGI("fake base impl of incStrong says hello, this=%p id=%p", this, id);
             ZNK7android7RefBase9incStrongEPKv(this, id);
         }
 
@@ -81,19 +129,6 @@ namespace android {
         void *mRefs;
     };
     // NOLINTEND
-    class AudioSystem {
-    public:
-        class AudioDeviceCallback : public virtual RefBase
-        {
-        public:
-
-            AudioDeviceCallback() {}
-            virtual ~AudioDeviceCallback() {}
-
-            virtual void onAudioDeviceUpdate(int32_t audioIo,
-                                             int32_t deviceId) = 0;
-        };
-    };
     class AudioTimestamp {
     public:
         AudioTimestamp() : mPosition(0), mTime({ .tv_sec = 0, .tv_nsec = 0 }) {
@@ -102,11 +137,14 @@ namespace android {
         uint32_t mPosition;
         struct timespec mTime;
     };
-    class AudioTrack : public virtual AudioSystem::AudioDeviceCallback {
+    class AudioTrack : public virtual RefBase {
     public:
         AudioTrack() {
             ALOGE("if you see this, expect a segfault. this class AudioTrack never was supposed to be instantiated");
         }
+        virtual ~AudioTrack() {
+            ALOGE("if you see this, expect a segfault. this class AudioTrack never was supposed to be dtor'ed");
+        };
         class Buffer
         {
         public:
@@ -177,12 +215,6 @@ namespace android {
                 return 0;
             }
         };
-    };
-    class AudioTrackWithoutDeviceCallback : public virtual RefBase {
-    public:
-        AudioTrackWithoutDeviceCallback() {
-            ALOGE("if you see this, expect a segfault. this class AudioTrack never was supposed to be instantiated");
-        }
     };
 }
 

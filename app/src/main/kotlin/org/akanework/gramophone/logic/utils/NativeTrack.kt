@@ -41,13 +41,25 @@ class NativeTrack(context: Context) {
     }
     private external fun initDlsym(): Boolean
     private external fun create(@Suppress("unused") parcel: Parcel?): Long
-    private external fun doSet(@Suppress("unused") ptr: Long): Int
+    @Suppress("unused") // for parameters, this method has a few of them
+    private external fun doSet(ptr: Long, streamType: Int, sampleRate: Int, format: Int, channelMask: Int,
+                               frameCount: Int, trackFlags: Int, sessionId: Int, maxRequiredSpeed: Float,
+                               selectedDeviceId: Int, bitRate: Int, durationUs: Long, hasVideo: Boolean,
+                               isStreaming: Boolean, bitWidth: Int, offloadBufferSize: Int, usage: Int,
+                               encapsulationMode: Int, contentId: Int, syncId: Int, contentType: Int,
+                               source: Int, attrFlags: Int, tags: String, notificationFrames: Int,
+                               doNotReconnect: Boolean, transferMode: Int): Int
     private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
-    private external fun dtor(@Suppress("unused") ptr: Long): Unit
+    private external fun dtor(@Suppress("unused") ptr: Long)
     fun set(): Boolean {
-        doSet(ptr)
+        //doSet(ptr)
         Log.e("hi", "dump:${AfFormatTracker.dumpInternal(getRealPtr(ptr))}")
         return myState == State.ALIVE
+    }
+
+    fun release() {
+        myState = State.RELEASED
+        dtor(ptr)
     }
 
     class NativeTrackException : Exception {
@@ -57,6 +69,7 @@ class NativeTrack(context: Context) {
     enum class State {
         NOT_SET, // did not call set() yet
         DEAD_OBJECT, // we got killed by lower layer
+        RELEASED, // release() called
         ALIVE, // ready to use
     }
 }
