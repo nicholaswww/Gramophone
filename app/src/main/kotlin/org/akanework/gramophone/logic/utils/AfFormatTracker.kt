@@ -601,19 +601,19 @@ class AfFormatTracker(
         private set
     var formatChangedCallback: ((AfFormatInfo?) -> Unit)? = null
 
-    private val routingChangedListener: Any? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+    private val routingChangedListener = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         object : AudioRouting.OnRoutingChangedListener {
             override fun onRoutingChanged(router: AudioRouting) {
                 this@AfFormatTracker.onRoutingChanged(router as AudioTrack)
             }
-        }
+        } as Any
     } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         @Suppress("deprecation")
         object : AudioTrack.OnRoutingChangedListener {
             override fun onRoutingChanged(router: AudioTrack) {
                 this@AfFormatTracker.onRoutingChanged(router)
             }
-        }
+        } as Any
     } else null
 
     private fun onRoutingChanged(router: AudioTrack) {

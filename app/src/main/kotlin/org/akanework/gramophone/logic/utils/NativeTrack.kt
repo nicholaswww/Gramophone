@@ -52,7 +52,8 @@ class NativeTrack(context: Context) {
     private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
     private external fun dtor(@Suppress("unused") ptr: Long)
     fun set(): Boolean {
-        //doSet(ptr)
+        // TODO assert maxRequiredSpeed==1.0f on L
+        doSet(ptr, 3, 13370, 1, 3, 0, 0, 0, 1.0f, 0, 0, 0, false, false, 16, 0, 1, 0, 0, 0, 2, 0, 0, "", 0, false, 3)
         Log.e("hi", "dump:${AfFormatTracker.dumpInternal(getRealPtr(ptr))}")
         return myState == State.ALIVE
     }

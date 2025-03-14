@@ -24,8 +24,8 @@
 struct fake_sp {
     void* /* MUST be RefBase* (or compatible contract, but ymmv) */ thePtr;
 };
-// make sure to call RefBase::createWeak(thePtr, <arbitrary unique id>) and save returned pointer
-// to refs, then call RefBase::weakref_type::decWeak(refs) when you don't need it anymore
+// make sure to call RefBase::createWeak(thePtr, <unique id>) and save returned pointer to refs,
+// then call RefBase::weakref_type::decWeak(refs, <unique id>) when you don't need it anymore
 struct fake_wp {
     void* /* MUST be RefBase* */ thePtr;
     void* /* RefBase::weakref_type* */ refs;
@@ -94,27 +94,22 @@ namespace android {
     class RefBase {
     public:
         inline RefBase() {
-            ALOGI("fake base impl of ctor says hello");
             ZN7android7RefBaseC2Ev(this);
         }
 
         virtual inline ~RefBase() {
-            ALOGI("fake base impl of dtor says hello");
             ZN7android7RefBaseD2Ev(this);
         }
 
         inline void incStrong(void* id) {
-            ALOGI("fake base impl of incStrong says hello, this=%p id=%p", this, id);
             ZNK7android7RefBase9incStrongEPKv(this, id);
         }
 
         inline void decStrong(void* id) {
-            ALOGI("fake base impl of decStrong says hello");
             ZNK7android7RefBase9decStrongEPKv(this, id);
         }
 
         inline void* createWeak(void* id) {
-            ALOGI("fake base impl of createWeak says hello");
             return ZNK7android7RefBase10createWeakEPKv(this, id);
         }
 
@@ -220,21 +215,17 @@ namespace android {
 
 inline void android::RefBase::onFirstRef()
 {
-    ALOGI("fake base impl of onFirstRef says hello");
 }
 
 inline void android::RefBase::onLastStrongRef(const void*)
 {
-    ALOGI("fake base impl of onLastStrongRef says hello");
 }
 
 inline bool android::RefBase::onIncStrongAttempted(uint32_t flags, const void*)
 {
-    ALOGI("fake base impl of onIncStrongAttempted says hello");
     return flags & 1;
 }
 
 inline void android::RefBase::onLastWeakRef(const void*)
 {
-    ALOGI("fake base impl of onLastWeakRef says hello");
 }
