@@ -300,7 +300,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                     try {
                         if (hasScopedStorageV1()) MediaStore.getMediaUri(this, uri) else null
                     } catch (e: Exception) {
-                        if (e.message != "Provider for this Uri is not supported.")
+                        if (e.message != "Provider for this Uri is not supported." && e !is SecurityException)
                             throw e
                         null
                     } ?: run {

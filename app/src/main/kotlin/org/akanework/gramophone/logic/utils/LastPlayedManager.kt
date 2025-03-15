@@ -24,13 +24,13 @@ import android.util.Base64
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession.MediaItemsWithStartPosition
-import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -49,6 +49,7 @@ import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.items.author
 import uk.akane.libphonograph.items.cdTrackNumber
 import uk.akane.libphonograph.items.modifiedDate
+import java.nio.charset.StandardCharsets
 
 @OptIn(UnstableApi::class)
 class LastPlayedManager(
@@ -355,7 +356,7 @@ private class SafeDelimitedStringDecat(delimiter: String, str: String) {
     fun readInt(): Int? = read()?.toInt()
     fun readLong(): Long? = read()?.toLong()
     fun readBool(): Boolean? = read()?.toBooleanStrict()
-    fun readUri(): Uri? = Uri.parse(readStringSafe())
+    fun readUri(): Uri? = readStringSafe()!!.toUri()
     fun skip() {
         read()
     }

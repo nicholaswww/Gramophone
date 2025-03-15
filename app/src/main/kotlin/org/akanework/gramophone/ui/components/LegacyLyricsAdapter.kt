@@ -29,7 +29,6 @@ import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.CustomSmoothScroller
-import org.akanework.gramophone.logic.ui.CustomSmoothScroller.SNAP_TO_START
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.ui.MainActivity
@@ -317,7 +316,7 @@ class LegacyLyricsAdapter(
     fun smoothScrollTo(position: Int, noAnimation: Boolean = false) {
         val smoothScroller = createSmoothScroller(noAnimation || forceNoAnimation)
         smoothScroller.targetPosition = position
-        recyclerView!!.layoutManager!!.startSmoothScroll(
+        recyclerView?.layoutManager?.startSmoothScroll(
             smoothScroller
         )
     }

@@ -5,9 +5,8 @@ import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.source.ShuffleOrder
-import androidx.media3.session.MediaController
-import kotlin.random.Random
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
+import kotlin.random.Random
 
 /**
  * This shuffle order will take "firstIndex" as first song and play all songs after it.
@@ -173,10 +172,16 @@ class CircularShuffleOrder private constructor(
                 if (data == null || data.length < 2) return Persistent(Random.nextLong(), null)
                 val split = data.split(';')
                 if (split.isEmpty()) return Persistent(Random.nextLong(), null)
-                return Persistent(
-                    split[0].toLong(), if (split.size > 1) split[1]
-                        .split(',').map(String::toInt).toIntArray() else null
-                )
+                return try {
+                    Persistent(
+                        split[0].toLong(), if (split.size > 1) split[1]
+                            .split(',').map(String::toInt).toIntArray() else null
+                    )
+                } catch (e: NumberFormatException) {
+                    // might happen with some real bad luck?
+                    Log.e(TAG, "gave up trying to restore shuffle order: " + Log.getStackTraceString(e))
+                    Persistent(Random.nextLong(), null)
+                }
             }
         }
 

@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.MediaControllerViewModel
 import org.akanework.gramophone.ui.components.NowPlayingDrawable
@@ -300,7 +301,7 @@ class SongAdapter(
         }
 
         override fun getFile(item: MediaItem): File {
-            return item.localConfiguration!!.uri.toFile()
+            return item.getFile()
         }
 
         override fun getTitle(item: MediaItem): String {

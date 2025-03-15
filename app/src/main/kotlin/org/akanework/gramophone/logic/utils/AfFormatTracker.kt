@@ -716,7 +716,7 @@ class AfFormatTracker(
                 oid, sr,
                 getHalFormat(audioTrack), getHalChannelCount(audioTrack), mp?.channelMask,
                 grantedFlags, getIdFromDump(dump), findAfTrackFlags(dump, latency, audioTrack, grantedFlags)
-            )
+            ) // TODO find policy port ID: https://cs.android.com/android/_/android/platform/frameworks/av/+/20b9ef0b55c9150ae11057ab997ae61be2d496ef
         }.let {
             if (LOG_EVENTS)
                 Log.d(TAG, "audio hal format changed to: $it")
