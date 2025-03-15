@@ -356,7 +356,7 @@ private class SafeDelimitedStringDecat(delimiter: String, str: String) {
     fun readInt(): Int? = read()?.toInt()
     fun readLong(): Long? = read()?.toLong()
     fun readBool(): Boolean? = read()?.toBooleanStrict()
-    fun readUri(): Uri? = readStringSafe()!!.toUri()
+    fun readUri(): Uri? = readStringSafe()?.toUri()
     fun skip() {
         read()
     }
