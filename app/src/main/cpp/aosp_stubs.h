@@ -146,11 +146,10 @@ namespace android {
             Buffer() {
                 ALOGE("if you see this, expect a segfault. this class Buffer never was supposed to be instantiated");
             }
-            [[nodiscard]] size_t size() const { return mSize; }
-            [[nodiscard]] size_t getFrameCount() const { return frameCount; }
-            [[nodiscard]] uint8_t * data() const { return ui8; }
+            // [[nodiscard]] size_t size() const { return mSize; }
+            // [[nodiscard]] size_t getFrameCount() const { return frameCount; }
+            // [[nodiscard]] uint8_t * data() const { return ui8; }
             size_t      frameCount = 0;
-        private:
             size_t      mSize = 0;
             union {
                 void*       raw = nullptr;
@@ -163,7 +162,7 @@ namespace android {
             friend AudioTrack;
         public:
             IAudioTrackCallback() {
-                ALOGI("hi from IAudioTrackCallback ctor");
+                // TODO do we need to call the aosp ctor here?
             }
             // This event only occurs for TRANSFER_CALLBACK.
             virtual inline size_t

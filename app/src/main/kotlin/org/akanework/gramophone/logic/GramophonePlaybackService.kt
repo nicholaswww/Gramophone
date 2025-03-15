@@ -20,6 +20,7 @@ package org.akanework.gramophone.logic
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.bluetooth.BluetoothCodecStatus
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -168,6 +169,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var audioTrackInfo: AudioTrackInfo? = null
     private var btInfo: BtCodecInfo? = null
     private var bitrate: Long? = null
+    private var proxy: BtCodecInfo.Companion.Proxy? = null
     private var audioTrackInfoCounter = 0
     private var audioTrackReleaseCounter = 0
     private val lyricsFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
@@ -440,7 +442,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             ContextCompat.RECEIVER_EXPORTED
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O /* before 8, only sbc was supported */) {
-            BtCodecInfo.getCodec(this) {
+            proxy = BtCodecInfo.getCodec(this) {
                 Log.d(TAG, "first bluetooth codec config $btInfo")
                 btInfo = it
                 sendDebouncedFormatChange()
@@ -498,6 +500,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaSession!!.player.release()
         mediaSession = null
         internalPlaybackThread.quitSafely()
+        proxy?.let {
+            it.adapter.closeProfileProxy(BluetoothProfile.A2DP, it.a2dp)
+        }
         LyricWidgetProvider.update(this)
         super.onDestroy()
     }

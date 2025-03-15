@@ -4,8 +4,12 @@ import android.content.Context
 import android.os.Build
 import android.os.Parcel
 import android.util.Log
+import java.nio.ByteBuffer
 
 class NativeTrack(context: Context) {
+    companion object {
+        private const val TAG = "NativeTrack.kt"
+    }
     val ptr: Long
     var myState = State.NOT_SET
         private set
@@ -72,5 +76,48 @@ class NativeTrack(context: Context) {
         DEAD_OBJECT, // we got killed by lower layer
         RELEASED, // release() called
         ALIVE, // ready to use
+    }
+
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onUnderrun() {
+        Log.i(TAG, "onUnderrun called")
+    }
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onMarker(markerPosition: Int) {
+        Log.i(TAG, "onMarker called: $markerPosition")
+    }
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onNewPos(newPos: Int) {
+        Log.i(TAG, "onNewPos called: $newPos")
+    }
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onStreamEnd() {
+        Log.i(TAG, "onStreamEnd called")
+    }
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onNewIAudioTrack() {
+        Log.i(TAG, "onNewIAudioTrack called")
+    }
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onNewTimestamp(timestamp: Int, timeSec: Long, timeNanoSec: Long) {
+        Log.i(TAG, "onNewTimestamp called: timestamp=$timestamp timeSec=$timeSec timeNanoSec=$timeNanoSec")
+    }
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onLoopEnd(loopsRemaining: Int) {
+        Log.i(TAG, "onLoopEnd called")
+    }
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onBufferEnd() {
+        Log.i(TAG, "onBufferEnd called")
+    }
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onMoreData(frameCount: Long, buffer: ByteBuffer): Long {
+        // Be careful to not hold a reference to the buffer after returning. It immediately becomes invalid!
+        Log.i(TAG, "onMoreData called: frameCount=$frameCount sizeBytes=${buffer.capacity()}")
+        return 0
+    }
+    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    private fun onCanWriteMoreData(frameCount: Long, sizeBytes: Long) {
+        Log.i(TAG, "onCanWriteMoreData called: frameCount=$frameCount sizeBytes=$sizeBytes")
     }
 }

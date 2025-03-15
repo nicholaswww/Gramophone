@@ -1,3 +1,20 @@
+/*
+ *     Copyright (C) 2025 nift4
+ *
+ *     Gramophone is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     Gramophone is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #define LOG_TAG "NativeTrack"
 
 #include <jni.h>
@@ -6,6 +23,8 @@
 #include <android/log_macros.h>
 #include <bits/timespec.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <pthread.h>
 #include "helpers.h"
 
 extern void *libaudioclient_handle;
@@ -60,72 +79,207 @@ typedef int32_t(*ZN7android11AudioSystem15getSamplingRateEiPj_t)(int32_t output,
 static ZN7android11AudioSystem15getSamplingRateEiPj_t ZN7android11AudioSystem15getSamplingRateEiPj = nullptr;
 typedef void(*ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t_t)(uint32_t output, int32_t stream, int32_t session);
 static ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t_t ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t = nullptr;
+typedef bool(*ZNK7android10AudioTrack19isOffloadedOrDirectEv_t)(void* thisptr);
+static ZNK7android10AudioTrack19isOffloadedOrDirectEv_t ZNK7android10AudioTrack19isOffloadedOrDirectEv = nullptr;
 
+class MyCallback;
+struct track_holder {
+    explicit track_holder(JNIEnv* env) {
+        int err = env->GetJavaVM(&vm);
+        if (err != 0) {
+            ALOGE("could not get JavaVM: %d. aborting!", err);
+            abort();
+        }
+    }
+    void* track = nullptr;
+    MyCallback* callback = nullptr;
+    void* ats = nullptr;
+    bool deathEmulation = false;
+    bool died = false;
+    JavaVM* vm = nullptr;
+};
+static void myJniDetach(void* arg) {
+    int ret = ((JavaVM*)arg)->DetachCurrentThread();
+    if (ret != JNI_OK) {
+        ALOGE("failed to detach thread: %d", ret);
+    }
+}
 class MyCallback : public virtual android::AudioTrack::IAudioTrackCallback {
-    JNIEnv* mEnv;
-    jobject mJcallback;
+    track_holder* mHolder;
+    jobject mCallback;
     jmethodID mOnUnderrun;
     jmethodID mOnMarker;
     jmethodID mOnNewPos;
     jmethodID mOnNewIAudioTrack;
     jmethodID mOnStreamEnd;
+    jmethodID mOnNewTimestamp;
+    jmethodID mOnLoopEnd;
+    jmethodID mOnBufferEnd;
+    jmethodID mOnMoreData;
+    jmethodID mOnCanWriteMoreData;
 public:
-    MyCallback(JNIEnv* env, jobject jcallback) : RefBase(), mEnv(env), mJcallback(jcallback) {
-        // TODO...
+    MyCallback(track_holder& holder, JNIEnv* env, jobject jcallback) : RefBase(), mHolder(&holder) {
+        static int idCounter = 0;
+        mId = idCounter++;
+        mCallback = env->NewGlobalRef(jcallback);
+        jclass callbackClass = env->GetObjectClass(mCallback);
+#define TRY_GET_JNI(FIELD, METHOD, SIGNATURE) \
+        FIELD = env->GetMethodID(callbackClass, METHOD, SIGNATURE); \
+        if (FIELD == nullptr) { \
+            ALOGI("callback does not have matching " METHOD SIGNATURE " method, " \
+                "assuming it does not care"); \
+            env->ExceptionClear(); \
+        }
+        TRY_GET_JNI(mOnUnderrun, "onUnderrun", "()V")
+        TRY_GET_JNI(mOnMarker, "onMarker", "(I)V")
+        TRY_GET_JNI(mOnNewPos, "onNewPos", "(I)V")
+        TRY_GET_JNI(mOnStreamEnd, "onStreamEnd", "()V")
+        TRY_GET_JNI(mOnNewIAudioTrack, "onNewIAudioTrack", "()V")
+        TRY_GET_JNI(mOnNewTimestamp, "onNewTimestamp", "(IJJ)V")
+        TRY_GET_JNI(mOnLoopEnd, "onLoopEnd", "(I)V")
+        TRY_GET_JNI(mOnBufferEnd, "onBufferEnd", "()V")
+        TRY_GET_JNI(mOnMoreData, "onMoreData", "(JLjava/nio/ByteBuffer;)J")
+        TRY_GET_JNI(mOnCanWriteMoreData, "onCanWriteMoreData", "(JJ)V")
+#undef TRY_GET_JNI
+        env->DeleteLocalRef(callbackClass);
     };
     void onUnderrun() override {
-        ALOGI("MyCallback::onUnderrun called");
+        if (!mCallback || mHolder->died || !mOnUnderrun || !maybeAttachThread(__func__)) return;
+        mEnv->CallVoidMethod(mCallback, mOnUnderrun);
     }
     void onMarker(uint32_t markerPosition) override {
-        ALOGI("MyCallback::onMarker called");
+        if (!mCallback || mHolder->died || !mOnMarker || !maybeAttachThread(__func__)) return;
+        mEnv->CallVoidMethod(mCallback, mOnMarker, (jint) markerPosition);
     }
     void onNewPos(uint32_t newPos) override {
-        ALOGI("MyCallback::onNewPos called");
+        if (!mCallback || mHolder->died || !mOnNewPos || !maybeAttachThread(__func__)) return;
+        mEnv->CallVoidMethod(mCallback, mOnNewPos, (jint) newPos);
     }
     void onNewIAudioTrack() override {
-        ALOGI("MyCallback::onNewIAudioTrack called");
+        if (!mCallback || mHolder->died) return;
+        if (mHolder->deathEmulation) {
+            // block any further callbacks, and access to track object other than dtor
+            mHolder->died = true;
+            // TODO pause+stop the track ASAP
+            return;
+        }
+        if (mOnNewIAudioTrack && maybeAttachThread(__func__)) {
+            mEnv->CallVoidMethod(mCallback, mOnNewIAudioTrack);
+        }
     }
     void onStreamEnd() override {
-        ALOGI("MyCallback::onStreamEnd called");
+        if (!mCallback || mHolder->died || !mOnStreamEnd || !maybeAttachThread(__func__)) return;
+        mEnv->CallVoidMethod(mCallback, mOnStreamEnd);
     }
     void onNewTimestamp(android::AudioTimestamp timestamp) override {
-
+        if (!mCallback || mHolder->died || !mOnNewTimestamp || !maybeAttachThread(__func__)) return;
+        mEnv->CallVoidMethod(mCallback, mOnNewTimestamp,
+                                     (jint) timestamp.mPosition, (jlong) timestamp.mTime.tv_sec,
+                                     (jlong) timestamp.mTime.tv_nsec);
     }
     void onLoopEnd(int32_t loopsRemaining) override {
-
+        if (!mCallback || mHolder->died || !mOnLoopEnd || !maybeAttachThread(__func__)) return;
+        mEnv->CallVoidMethod(mCallback, mOnLoopEnd, (jint) loopsRemaining);
     }
     void onBufferEnd() override {
-
+        if (!mCallback || mHolder->died || !mOnBufferEnd || !maybeAttachThread(__func__)) return;
+        mEnv->CallVoidMethod(mCallback, mOnBufferEnd);
     }
     size_t onMoreData(const android::AudioTrack::Buffer &buffer) override {
-
+        if (!mCallback || mHolder->died || !mOnMoreData || !maybeAttachThread(__func__)) return 0;
+        jobject buf = mEnv->NewDirectByteBuffer(buffer.raw, (jlong) (uint64_t) buffer.mSize);
+        auto ret = (size_t) mEnv->CallLongMethod(mCallback, mOnMoreData, buf,
+                                                     (jlong) (uint64_t) buffer.frameCount);
+        mEnv->DeleteLocalRef(buf);
+        return ret;
     }
     size_t onCanWriteMoreData(const android::AudioTrack::Buffer &buffer) override {
+        if (!mCallback || mHolder->died || !mOnCanWriteMoreData || !maybeAttachThread(__func__)) return 0;
         // this method is a bit of a misnomer, we're supposed to never write in the buffer and
         // always return 0. only the available write capacity is of interest.
-        const uint64_t availableForWrite = buffer.size();
-        // TODO
+        uint64_t size = buffer.mSize;
+        uint64_t frames = buffer.frameCount;
+        mEnv->CallVoidMethod(mCallback, mOnCanWriteMoreData, frames, size);
         return 0;
     }
     void onLastStrongRef(const void *id) override {
-        // TODO clear jni refs
+        mAttached = false; // we're probably _not_ on the callback thread anymore, invalidate mEnv
+        if (maybeAttachThread(__func__)) {
+            mEnv->DeleteGlobalRef(mCallback);
+        } else {
+            ALOGE("leaking callback reference %p because thread is not attached?!", mCallback);
+        }
+        // this will end up crashing if someone with a weak ref calls a callback method and the
+        // method does not check if mCallback != null
+        mEnv = nullptr;
+        mCallback = nullptr;
+        mHolder = nullptr;
     }
     bool onIncStrongAttempted(uint32_t flags, const void *id) override {
         return false; // never revive
     }
-};
-
-struct track_holder {
-    void* track;
-    MyCallback* callback;
-    void* ats;
+    private:
+    bool mAttached = false;
+    JNIEnv* mEnv = nullptr;
+    int mId;
+    bool maybeAttachThread(const char* caller) {
+        // This relies on the fact that all callbacks will be called on the same thread.
+        if (!mAttached) {
+            JNIEnv* env;
+            int ret = mHolder->vm->GetEnv((void**)&env, JNI_VERSION_1_6);
+            if (ret == JNI_OK) {
+                mEnv = env;
+                mAttached = true;
+            } else if (ret == JNI_EDETACHED) {
+                char buf[50] = {'\0'};
+                snprintf(buf, 50, "NativeTrack_cb%d", mId);
+                struct {
+                    jint version;
+                    char *name;
+                    jobject group;
+                } attachArgs = {.version = JNI_VERSION_1_6, .name = &buf[0], .group = nullptr};
+                mHolder->vm->AttachCurrentThread(&env, &attachArgs);
+                static pthread_once_t initialized = PTHREAD_ONCE_INIT;
+                static pthread_key_t jni_env_key;
+                pthread_once(&initialized, [] {
+                    int err = pthread_key_create(&jni_env_key, myJniDetach);
+                    if (err != 0) {
+                        ALOGE("failed to create pthread key: %d, aborting!", err);
+                        abort();
+                    }
+                });
+                int err = pthread_setspecific(jni_env_key, mHolder->vm);
+                if (err != 0) {
+                    ALOGE("failed to set pthread key: %d, aborting!", err);
+                    abort();
+                }
+                mEnv = env;
+                mAttached = true;
+            } else {
+                ALOGE("failed to get jni env %d", ret);
+            }
+        }
+        if (!mAttached) {
+            ALOGE("tried to attach thread but failed (in %s)", caller);
+            return false;
+        }
+        return true;
+    }
 };
 
 static void callbackAdapter(int event, void* userptr, void* info) {
-    auto user = (MyCallback*) userptr;
+    auto user = ((track_holder*) userptr)->callback;
+    if (user == nullptr) {
+        ALOGE("LEAKED callbackAdapter trying to call destroyed callback!!!");
+        if (event == 0 || event == 9) {
+            ((android::AudioTrack::Buffer*)info)->mSize = 0;
+        }
+        return;
+    }
     switch (event) {
         case 0 /* EVENT_MORE_DATA */:
-            user->onMoreData(*(android::AudioTrack::Buffer*)info);
+            ((android::AudioTrack::Buffer*)info)->mSize =
+                    user->onMoreData(*(android::AudioTrack::Buffer*)info);
             break;
         case 1 /* EVENT_UNDERRUN */:
             user->onUnderrun();
@@ -152,7 +306,8 @@ static void callbackAdapter(int event, void* userptr, void* info) {
             user->onNewTimestamp(*(android::AudioTimestamp*)info);
             break;
         case 9 /* EVENT_CAN_WRITE_MORE_DATA */:
-            user->onCanWriteMoreData(*(android::AudioTrack::Buffer*)info);
+            ((android::AudioTrack::Buffer*)info)->mSize =
+                    user->onCanWriteMoreData(*(android::AudioTrack::Buffer*)info);
             break;
         default:
             ALOGE("unsupported event %d (user=%p info=%p infoVal=%d)", event, user, info,
@@ -178,6 +333,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_initDlsym(JNIEnv* env, job
     DLSYM_OR_RETURN(libutils, ZNK7android7RefBase9decStrongEPKv, false)
     DLSYM_OR_RETURN(libutils, ZNK7android7RefBase10createWeakEPKv, false)
     DLSYM_OR_RETURN(libutils, ZN7android7RefBase12weakref_type7decWeakEPKv, false)
+    DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack19isOffloadedOrDirectEv, false)
     if (android_get_device_api_level() == 23) {
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjj14audio_format_tj20audio_output_flags_tiPK20audio_offload_info_t, false)
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem10getLatencyEiPj, false)
@@ -201,10 +357,10 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_initDlsym(JNIEnv* env, job
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
-        JNIEnv *env, jobject, jobject parcel) {
+        JNIEnv *env, jobject thiz, jobject parcel) {
     auto theTrack = ::operator new(AUDIO_TRACK_SIZE);
     memset(theTrack, (unsigned char)0xde, AUDIO_TRACK_SIZE);
-    auto holder = new track_holder();
+    auto holder = new track_holder(env);
     if (parcel != nullptr) { // implies SDK >= 31
         // I'm too cool to call AttributionSourceState ctor before using it.
         auto myParcel = ZN7android19parcelForJavaObjectEP7_JNIEnvP8_jobject(env, parcel);
@@ -221,7 +377,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
     } else {
         ZN7android10AudioTrackC1Ev(theTrack);
     }
-    auto callback = new MyCallback(env, nullptr);
+    auto callback = new MyCallback(*holder, env, thiz);
     callback->incStrong(holder);
     if (android_get_device_api_level() >= 33) {
         // virtual inheritance, let's have the compiler generate the vtable stuff
@@ -251,9 +407,14 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
         ALOGE("Tuner is supported since Android 11, (contentId != 0 || syncId != 0) is wrong");
         return INT32_MIN;
     }
+    // TODO can we backport selectedDeviceId
+    if (android_get_device_api_level() < 28 && selectedDeviceId != 0) {
+        ALOGE("Selected devices are supported since Android 9, selectedDeviceId != 0 is wrong");
+        return INT32_MIN;
+    }
     auto holder = (track_holder*) ptr;
     jint ret = 0;
-    fake_sp sharedMemory = {.thePtr = nullptr};
+    fake_sp sharedMemory = {.thePtr = nullptr}; // TODO impl shared memory
     const char* tags = env->GetStringUTFChars(inTags, nullptr);
     union {
         audio_offload_info_t newInfo = {};
@@ -345,7 +506,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
         // we own attributionSource, so get rid of it
         ::operator delete(holder->ats);
         holder->ats = nullptr;
-    } else if (android_get_device_api_level() >= 28) {// Android 9 (SDK 28) to Android 11 (SDK 30)
+    } else if (android_get_device_api_level() >= 28) { // Android 9 (SDK 28) to Android 11 (SDK 30)
         ret = ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audio_output_flags_tPFviPvS4_ES4_iRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tjiPK18audio_attributes_tbfi(
                 holder->track,
                 /* streamType = */ streamType,
@@ -494,6 +655,9 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
                 /* pid = */ getpid(),
                 /* pAttributes = */ &audioAttributes.newAttrs
                 );
+        if (ret == 0 && doNotReconnect) {
+            holder->deathEmulation = !ZNK7android10AudioTrack19isOffloadedOrDirectEv(holder->track);
+        }
     }
     return ret;
 }
@@ -501,7 +665,10 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
 extern "C" JNIEXPORT jlong JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_getRealPtr(
         JNIEnv *, jobject, jlong ptr) {
-    return (intptr_t)((track_holder*)ptr)->track;
+    auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return 0;
+    return (intptr_t)holder->track;
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -516,5 +683,68 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_dtor(
         ZNK7android7RefBase9decStrongEPKv(holder->track, holder);
     }
     holder->callback->decStrong(holder);
+    holder->track = nullptr;
+    holder->callback = nullptr;
     delete holder;
 }
+
+// TODO
+// void setAudioTrackCallback(const sp<media::IAudioTrackCallback>& callback) {
+//     mAudioTrackCallback->setAudioTrackCallback(callback);
+// }
+
+// TODO
+// audio_port_handle_t getPortId() const { return mPortId; };
+
+// TODO
+// bool isPlaying() {
+//     AutoMutex lock(mLock);
+//     return isPlaying_l();
+// }
+// bool isPlaying_l() {
+//     return mState == STATE_ACTIVE || mState == STATE_STOPPING;
+// }
+
+// TODO
+// audio_output_flags_t getFlags() const { AutoMutex _l(mLock); return mFlags; }
+
+// TODO
+// audio_session_t getSessionId() const { return mSessionId; }
+
+// TODO
+// void setCallerName(const std::string &name) {
+//    mCallerName = name;
+// }
+// std::string getCallerName() const {
+//     return mCallerName;
+// };
+
+// TODO we can just keep ref here?
+// sp<IMemory> sharedBuffer() const { return mSharedBuffer; }
+
+// TODO
+// uint32_t   getNotificationPeriodInFrames() const { return mNotificationFramesAct; }
+
+// TODO
+// size_t      frameSize() const   { return mFrameSize; }
+// uint32_t    channelCount() const { return mChannelCount; }
+// size_t      frameCount() const  { return mFrameCount; }
+// audio_channel_mask_t channelMask() const { return mChannelMask; }
+// audio_format_t format() const   { return mFormat; }
+// status_t    initCheck() const   { return mStatus; }
+
+// TODO
+// status_t addAudioDeviceCallback(const sp<AudioSystem::AudioDeviceCallback>& callback);
+// status_t removeAudioDeviceCallback(
+//      const sp<AudioSystem::AudioDeviceCallback>& callback);
+
+// TODO
+// status_t getTimestamp(ExtendedTimestamp *timestamp);
+
+// TODO
+// media::VolumeShaper::Status applyVolumeShaper(
+//       const sp<media::VolumeShaper::Configuration>& configuration,
+//       const sp<media::VolumeShaper::Operation>& operation);
+
+// TODO
+// status_t getMetrics(mediametrics::Item * &item);
