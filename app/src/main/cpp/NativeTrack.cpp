@@ -81,6 +81,8 @@ typedef void(*ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15aud
 static ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t_t ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t = nullptr;
 typedef bool(*ZNK7android10AudioTrack19isOffloadedOrDirectEv_t)(void* thisptr);
 static ZNK7android10AudioTrack19isOffloadedOrDirectEv_t ZNK7android10AudioTrack19isOffloadedOrDirectEv = nullptr;
+typedef bool(*ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t_t)(audio_offload_info_t_legacy& offloadInfo);
+static ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t_t ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t = nullptr;
 
 class MyCallback;
 struct track_holder {
@@ -317,7 +319,7 @@ static void callbackAdapter(int event, void* userptr, void* info) {
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_initDlsym(JNIEnv* env, jobject) {
+Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_initDlsym(JNIEnv* env, jobject) {
     if (!initLib(env))
         return false;
     if (android_get_device_api_level() >= 31) {
@@ -333,7 +335,12 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_initDlsym(JNIEnv* env, job
     DLSYM_OR_RETURN(libutils, ZNK7android7RefBase9decStrongEPKv, false)
     DLSYM_OR_RETURN(libutils, ZNK7android7RefBase10createWeakEPKv, false)
     DLSYM_OR_RETURN(libutils, ZN7android7RefBase12weakref_type7decWeakEPKv, false)
-    DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack19isOffloadedOrDirectEv, false)
+    if (android_get_device_api_level() <= 23 || android_get_device_api_level() == 28) {
+        DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t, false)
+    }
+    if (android_get_device_api_level() <= 22) {
+        DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack19isOffloadedOrDirectEv, false)
+    }
     if (android_get_device_api_level() == 23) {
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjj14audio_format_tj20audio_output_flags_tiPK20audio_offload_info_t, false)
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem10getLatencyEiPj, false)
@@ -686,6 +693,57 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_dtor(
     holder->track = nullptr;
     holder->callback = nullptr;
     delete holder;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSupported(
+        JNIEnv*, jobject, jint sampleRate, jint format,
+        jint channelMask) {
+    if (android_get_device_api_level() > 23 && android_get_device_api_level() != 28) {
+        ALOGE("isOffloadSupported() should only be used on L, M or P");
+        return false;
+    }
+    union {
+        audio_offload_info_t newInfo = {};
+        audio_offload_info_t_legacy oldInfo;
+    } offloadInfo;
+    if (android_get_device_api_level() >= 28) {
+        offloadInfo.newInfo = {
+                .version = AUDIO_MAKE_OFFLOAD_INFO_VERSION(0, 2),
+                .size = sizeof(audio_offload_info_t),
+                .sample_rate = (uint32_t)sampleRate,
+                .channel_mask = (uint32_t)channelMask,
+                .format = (uint32_t)format,
+                .stream_type = LEGACY_AUDIO_STREAM_MUSIC, // must be MUSIC
+                .bit_rate = (uint32_t)0,
+                .duration_us = 2100 /* 3.5min * 60 */ * 1000 * 1000, // must be >60s
+                .has_video = (bool)false,
+                .is_streaming = (bool)false,
+                .bit_width = (uint32_t)0,
+                .offload_buffer_size = (uint32_t)0,
+                .usage = 0,
+                .encapsulation_mode = 0,
+                .content_id = 0,
+                .sync_id = 0
+        };
+    } else {
+        offloadInfo.oldInfo = {
+                .version = AUDIO_MAKE_OFFLOAD_INFO_VERSION(0, 1),
+                .size = sizeof(audio_offload_info_t_legacy),
+                .sample_rate = (uint32_t)sampleRate,
+                .channel_mask = (uint32_t)channelMask,
+                .format = (uint32_t)format,
+                .stream_type = LEGACY_AUDIO_STREAM_MUSIC, // must be MUSIC
+                .bit_rate = (uint32_t)0,
+                .duration_us = 2100 /* 3.5min * 60 */ * 1000 * 1000, // must be >60s
+                .has_video = (bool)false,
+                .is_streaming = (bool)false,
+                .bit_width = (uint32_t)0,
+                .offload_buffer_size = (uint32_t)0,
+                .usage = 0,
+        };
+    }
+    return ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t(offloadInfo.oldInfo);
 }
 
 // TODO

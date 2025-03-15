@@ -301,7 +301,7 @@ class SongAdapter(
         }
 
         override fun getFile(item: MediaItem): File {
-            return item.getFile()
+            return item.getFile()!!
         }
 
         override fun getTitle(item: MediaItem): String {
