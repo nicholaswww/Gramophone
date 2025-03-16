@@ -353,6 +353,8 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_initDlsym(J
         if (android_get_device_api_level() >= 23) {
             DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack15setOutputDeviceEi, false)
         }
+    }
+    if (android_get_device_api_level() < 26) {
         DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack19isOffloadedOrDirectEv, false)
     }
     if (android_get_device_api_level() == 23) {
