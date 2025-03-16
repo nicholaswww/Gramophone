@@ -235,10 +235,10 @@ struct audio_gain_config {
 extern "C"
 JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfFlagsForPortInternal(
-        JNIEnv *env, jobject, jint id, jint sampleRate, jboolean isForChannels) {
+        JNIEnv *env, jobject, jint id, jint sampleRate, jint type) {
     if (!initLib(env))
         return INT32_MIN;
-    if (!isForChannels && android_get_device_api_level() < 30) {
+    if (type == 0 && android_get_device_api_level() < 30) {
         // R added flags field to struct, but it is only populated since T. But app side may
         // want to bet on OEM modification that populates it in R/S.
         ALOGE("wrong usage of findAfFlagsForPortInternal: on this sdk, finding flags is impossible...");
@@ -290,10 +290,13 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
          * union audio_io_flags     flags;          <--- we want to go here
          */
         pos += sizeof(unsigned int) / sizeof(uint8_t); // unsigned int (sample_rate)
-        if (!isForChannels) {
+        if (type != 1) { // if we don't want the channel mask, we either want the format...
             pos += sizeof(uint32_t) / sizeof(uint8_t); // audio_channel_mask_t (channel_mask)
-            pos += sizeof(uint32_t) / sizeof(uint8_t); // audio_format_t (format)
-            pos += sizeof(struct audio_gain_config) / sizeof(uint8_t); // audio_gain_config (gain)
+            if (type == 0) { // ...or the flags
+                pos += sizeof(uint32_t) / sizeof(uint8_t); // audio_format_t (format)
+                pos += sizeof(struct audio_gain_config) /
+                       sizeof(uint8_t); // audio_gain_config (gain)
+            }
         }
         if (pos >= buffer + BUFFER_SIZE) {
             ALOGE("pos(%p) >= buffer(%p) + BUFFER_SIZE(%d) (id(%d) sampleRate(%d))",
@@ -322,14 +325,20 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
         const bool oreo = android_get_device_api_level() >= 26;
         status_t status;
         unsigned int generation1 = 0;
-        unsigned int generation;
-        unsigned int numPorts;
-        void* nPorts;
+        unsigned int generation = 0;
+        unsigned int numPorts = 0;
+        void* nPorts = nullptr; // TODO do we leak it?
         int attempts = 5;
         // get the port count and all the ports until they both return the same generation
         do {
             if (attempts-- < 0) {
                 ALOGE("AudioSystem::listAudioPorts no attempts left");
+                if (nPorts != nullptr) {
+                    if (oreo)
+                        delete (std::vector<audio_port_oreo>*)nPorts;
+                    else
+                        delete (std::vector<audio_port_legacy>*)nPorts;
+                }
                 return INT32_MIN;
             }
 
@@ -339,49 +348,66 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
                     nullptr, &generation1);
             if (status != 0) {
                 ALOGE("AudioSystem::listAudioPorts error %d", status);
+                if (nPorts != nullptr) {
+                    if (oreo)
+                        delete (std::vector<audio_port_oreo>*)nPorts;
+                    else
+                        delete (std::vector<audio_port_legacy>*)nPorts;
+                }
                 return INT32_MIN;
             }
             if (numPorts == 0) {
                 ALOGE("AudioSystem::listAudioPorts found no ports");
+                if (nPorts != nullptr) {
+                    if (oreo)
+                        delete (std::vector<audio_port_oreo>*)nPorts;
+                    else
+                        delete (std::vector<audio_port_legacy>*)nPorts;
+                }
                 return INT32_MIN;
             }
             // Tuck on double the space to prevent heap corruption if OEM made the audio_port bigger
-            if (oreo)
-                nPorts = new std::vector<audio_port_oreo>(numPorts * 2);
-            else
-                nPorts = new std::vector<audio_port_legacy>(numPorts * 2);
-
+            if (nPorts == nullptr) {
+                if (oreo)
+                    nPorts = new std::vector<audio_port_oreo>(numPorts * 2);
+                else
+                    nPorts = new std::vector<audio_port_legacy>(numPorts * 2);
+            } else {
+                if (oreo)
+                    ((std::vector<audio_port_oreo> *) nPorts)->resize(numPorts * 2);
+                else
+                    ((std::vector<audio_port_legacy>*)nPorts)->resize(numPorts * 2);
+            }
             status = ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_(
                     LEGACY_AUDIO_PORT_ROLE_SOURCE, LEGACY_AUDIO_PORT_TYPE_MIX, &numPorts,
-                    oreo ? (void*)&(*(std::vector<audio_port_oreo>*)nPorts)[0] :
-                    (void*)&(*(std::vector<audio_port_legacy>*)nPorts)[0], &generation);
+                    oreo ? (void*)&((*(std::vector<audio_port_oreo>*)nPorts)[0]) :
+                    (void*)&((*(std::vector<audio_port_legacy>*)nPorts)[0]), &generation);
         } while (generation1 != generation && status == 0);
 
         int i = 0;
+        int32_t ret = 0;
         if (oreo) {
             for (auto port: *(std::vector<audio_port_oreo>*)nPorts) {
                 if (i++ == numPorts) break; // needed because vector size > numPorts
-                ALOGE("found port %d named %s", port.id, port.name);
                 if (port.id == id) {
-                    auto ret = (int32_t) port.active_config.channel_mask;
-                    delete (std::vector<audio_port_oreo>*)nPorts;
-                    return ret;
+                    ret = type == 2 ? (int32_t) port.active_config.format
+                            : (int32_t) port.active_config.channel_mask;
+                    break;
                 }
             }
             delete (std::vector<audio_port_oreo>*)nPorts;
         } else {
             for (auto port: *(std::vector<audio_port_legacy>*)nPorts) {
                 if (i++ == numPorts) break; // needed because vector size > numPorts
-                ALOGE("found port %d named %s", port.id, port.name);
                 if (port.id == id) {
-                    auto ret = (int32_t) port.active_config.channel_mask;
-                    delete (std::vector<audio_port_legacy>*)nPorts;
-                    return ret;
+                    ret = type == 2 ? (int32_t) port.active_config.format
+                                         : (int32_t) port.active_config.channel_mask;
+                    break;
                 }
             }
             delete (std::vector<audio_port_legacy>*)nPorts;
         }
-        return INT32_MAX;
+        return ret;
     }
 }
 

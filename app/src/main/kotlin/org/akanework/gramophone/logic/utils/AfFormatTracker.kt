@@ -26,7 +26,7 @@ data class AfFormatInfo(
     val grantedFlags: Int?, val trackId: Int?, val afTrackFlags: Int?
 ) : Parcelable
 
-private class MyMixPort(val id: Int, val name: String?, val flags: Int?, val channelMask: Int?)
+data class MyMixPort(val id: Int?, val name: String?, val flags: Int?, val channelMask: Int?, val format: Int?)
 
 @Parcelize
 data class AudioTrackInfo(
@@ -120,7 +120,7 @@ class AfFormatTracker(
 
         private external fun getHalSampleRateInternal(@Suppress("unused") audioTrackPtr: Long): Int
 
-        private fun obtainParcel(binder: IBinder) =
+        internal fun obtainParcel(binder: IBinder) =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
                 Parcel.obtain(binder) else Parcel.obtain()
 
@@ -481,16 +481,16 @@ class AfFormatTracker(
             }
         }
 
-        private fun findAfFlagsForPort(id: Int, sr: Int, isForChannels: Boolean): Int? {
+        private fun findAfFlagsForPort(id: Int, sr: Int, type: Int): Int? {
             // flags exposed to app process since below commit which first appeared in T release.
             // https://cs.android.com/android/_/android/platform/frameworks/av/+/99809024b36b243ad162c780c1191bb503a8df47
-            if (!isForChannels && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+            if (type == 0 && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
                 return null
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
                 return null // need listAudioPorts or getAudioPort
             return try {
                 Log.d(TRACE_TAG, "calling native findAfFlagsForPortInternal")
-                findAfFlagsForPortInternal(id, sr, isForChannels).let {
+                findAfFlagsForPortInternal(id, sr, type).let {
                     if (it == Int.MAX_VALUE || it == Int.MIN_VALUE)
                         null // something went wrong, this was logged to logcat
                     else it
@@ -501,7 +501,7 @@ class AfFormatTracker(
             }
         }
         @Suppress("unused") // for parameters
-        private external fun findAfFlagsForPortInternal(id: Int, sr: Int, isForChannels: Boolean): Int
+        private external fun findAfFlagsForPortInternal(id: Int, sr: Int, type: Int): Int
 
         private fun findAfTrackFlags(dump: String?, latency: Int?, track: AudioTrack, grantedFlags: Int?): Int? {
             // First exposure to client process was below commit, which first appeared in U QPR2.
@@ -574,7 +574,7 @@ class AfFormatTracker(
         /*private*/ external fun dumpInternal(@Suppress("unused") audioTrackPtr: Long): String
 
         @SuppressLint("PrivateApi") // only used below U, stable private API
-        private fun getAfService(): IBinder? {
+        internal fun getAfService(): IBinder? {
             return try {
                 Class.forName("android.os.ServiceManager").getMethod(
                     "getService", String::class.java
@@ -585,12 +585,33 @@ class AfFormatTracker(
             }
         }
 
-        private fun readStatus(parcel: Parcel): Boolean {
+        internal fun readStatus(parcel: Parcel): Boolean {
             if (Build.VERSION.SDK_INT < 31) return true
             val status = parcel.readInt()
             if (status == 0) return true
             Log.e(TAG, "binder transaction failed with status $status")
             return false
+        }
+
+        fun getMixPortForThread(oid: Int, sampleRate: Int): MyMixPort? {
+            val ports = listAudioPorts()
+            if (ports != null)
+                for (port in ports.first) {
+                    try {
+                        if (port.javaClass.canonicalName != "android.media.AudioMixPort") continue
+                        val ioHandle = port.javaClass.getMethod("ioHandle").invoke(port) as Int
+                        if (ioHandle != oid) continue
+                        val id = port.javaClass.getMethod("id").invoke(port) as Int
+                        val name = port.javaClass.getMethod("name").invoke(port) as String?
+                        val flags = findAfFlagsForPort(id, sampleRate, 0)
+                        val channelMask = findAfFlagsForPort(id, sampleRate, 1)
+                        val format = findAfFlagsForPort(id, sampleRate, 2)
+                        return MyMixPort(id, name, flags, channelMask, format)
+                    } catch (t: Throwable) {
+                        Log.e(TAG, Log.getStackTraceString(t))
+                    }
+                }
+            return null
         }
     }
 
@@ -818,26 +839,6 @@ class AfFormatTracker(
             TAG,
             "getIdFromDump() failure: $idText didn't convert to int from base 10, DUMP:\n$dump"
         )
-        return null
-    }
-
-    private fun getMixPortForThread(oid: Int, sampleRate: Int): MyMixPort? {
-        val ports = listAudioPorts()
-        if (ports != null)
-            for (port in ports.first) {
-                try {
-                    if (port.javaClass.canonicalName != "android.media.AudioMixPort") continue
-                    val ioHandle = port.javaClass.getMethod("ioHandle").invoke(port) as Int
-                    if (ioHandle != oid) continue
-                    val id = port.javaClass.getMethod("id").invoke(port) as Int
-                    val name = port.javaClass.getMethod("name").invoke(port) as String?
-                    val flags = findAfFlagsForPort(id, sampleRate, false)
-                    val channelMask = findAfFlagsForPort(id, sampleRate, true)
-                    return MyMixPort(id, name, flags, channelMask)
-                } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t))
-                }
-            }
         return null
     }
 }
