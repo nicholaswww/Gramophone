@@ -187,6 +187,10 @@ class FullBottomSheet
                 isUserTracking = false
             }
         }
+    private val formatUpdateRunnable = Runnable {
+        updateQualityIndicators(if (enableQualityInfo)
+            AudioFormatDetector.detectAudioFormat(currentFormat) else null)
+    }
     private val bottomSheetFullCover: ImageView
     private val bottomSheetFullTitle: TextView
     private val bottomSheetFullSubtitle: TextView
@@ -297,8 +301,8 @@ class FullBottomSheet
                 GramophonePlaybackService.SERVICE_GET_AUDIO_FORMAT -> {
                     val format = instance?.getAudioFormat()
                     this.currentFormat = format
-                    updateQualityIndicators(if (enableQualityInfo)
-                        AudioFormatDetector.detectAudioFormat(format) else null)
+                    handler.removeCallbacks(formatUpdateRunnable)
+                    handler.postDelayed(formatUpdateRunnable, 500)
                 }
 
                 else -> {

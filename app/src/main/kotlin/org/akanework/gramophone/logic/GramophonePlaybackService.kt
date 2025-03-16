@@ -34,6 +34,7 @@ import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Bundle.EMPTY
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
@@ -176,14 +177,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var audioTrackReleaseCounter = 0
     private val lyricsFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
     private val bitrateFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
-    private val formatChangeRunnable = Runnable {
-        mediaSession?.broadcastCustomCommand(
-            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-            Bundle.EMPTY
-        )
-    }
 
-	private fun getRepeatCommand() =
+    private fun getRepeatCommand() =
         when (controller!!.repeatMode) {
             Player.REPEAT_MODE_OFF -> customCommands[2]
             Player.REPEAT_MODE_ALL -> customCommands[3]
@@ -234,13 +229,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private val btReceiver = object : BroadcastReceiver() {
-         // TODO verify if stable
+        // TODO verify if stable
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action.equals("android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED") &&
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O /* before 8, only sbc was supported */
             ) {
-                btInfo = BtCodecInfo.fromCodecConfig(@SuppressLint("NewApi") IntentCompat.getParcelableExtra(
-                    intent, "android.bluetooth.extra.CODEC_STATUS", BluetoothCodecStatus::class.java)?.codecConfig)
+                btInfo = BtCodecInfo.fromCodecConfig(
+                    @SuppressLint("NewApi") IntentCompat.getParcelableExtra(
+                        intent, "android.bluetooth.extra.CODEC_STATUS", BluetoothCodecStatus::class.java
+                    )?.codecConfig
+                )
                 Log.d(TAG, "new bluetooth codec config $btInfo")
             }
         }
@@ -318,14 +316,19 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             )
         afFormatTracker = AfFormatTracker(this, playbackHandler, handler)
         afFormatTracker.formatChangedCallback = {
-            sendDebouncedFormatChange()
+            mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
+                EMPTY
+            )
         }
         val player = EndedWorkaroundPlayer(
             ExoPlayer.Builder(
                 this,
-                GramophoneRenderFactory(this, this::onAudioSinkInputFormatChanged,
-                    afFormatTracker::setAudioSink)
-	                .setEnableAudioFloatOutput(
+                GramophoneRenderFactory(
+                    this, this::onAudioSinkInputFormatChanged,
+                    afFormatTracker::setAudioSink
+                )
+                    .setEnableAudioFloatOutput(
                         prefs.getBooleanStrict("floatoutput", false)
                     )
                     .setEnableDecoderFallback(true)
@@ -447,7 +450,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             proxy = BtCodecInfo.getCodec(this) {
                 Log.d(TAG, "first bluetooth codec config $btInfo")
                 btInfo = it
-                sendDebouncedFormatChange()
+                mediaSession?.broadcastCustomCommand(
+                    SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
+                    EMPTY
+                )
             }
         }
         lastPlayedManager.restore { items, factory ->
@@ -462,8 +468,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     )
                 } catch (e: IllegalSeekPositionException) {
                     // song was edited to be shorter and playback position doesn't exist anymore
-                    Log.e(TAG, "failed to restore with startPositionMs, trying without... "
-                            + Log.getStackTraceString(e))
+                    Log.e(
+                        TAG, "failed to restore with startPositionMs, trying without... "
+                                + Log.getStackTraceString(e)
+                    )
                     try {
                         mediaSession?.player?.setMediaItems(
                             items.mediaItems, items.startIndex, C.TIME_UNSET
@@ -543,7 +551,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
                 Bundle.EMPTY
             )
-            sendDebouncedFormatChange()
+            mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
+                EMPTY
+            )
         }
 
         return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
@@ -568,7 +579,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         } else {
             Log.e(TAG, "session id is 0? why????? THIS MIGHT BREAK EQUALIZER")
         }
-        val s = NativeTrack.getDirectPlaybackSupport(this, 192000, AudioFormat.ENCODING_PCM_16BIT, AudioFormat.CHANNEL_OUT_STEREO)
+        val s = NativeTrack.getDirectPlaybackSupport(
+            this,
+            192000,
+            AudioFormat.ENCODING_PCM_16BIT,
+            AudioFormat.CHANNEL_OUT_STEREO
+        )
         Toast.makeText(this, "direct: ${s.directOrOffload}", Toast.LENGTH_LONG).show()
         val track = NativeTrack(this)
         track.set()
@@ -590,83 +606,84 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         customCommand: SessionCommand,
         args: Bundle
     ): ListenableFuture<SessionResult> {
-        return Futures.immediateFuture(when (customCommand.customAction) {
-            PLAYBACK_SHUFFLE_ACTION_ON -> {
-                this.controller!!.shuffleModeEnabled = true
-                SessionResult(SessionResult.RESULT_SUCCESS)
-            }
-
-            PLAYBACK_SHUFFLE_ACTION_OFF -> {
-                this.controller!!.shuffleModeEnabled = false
-                SessionResult(SessionResult.RESULT_SUCCESS)
-            }
-
-            SERVICE_SET_TIMER -> {
-                // 0 = clear timer
-                customCommand.customExtras.getInt("duration").let {
-                    timerDuration = if (it > 0) System.currentTimeMillis() + it else null
+        return Futures.immediateFuture(
+            when (customCommand.customAction) {
+                PLAYBACK_SHUFFLE_ACTION_ON -> {
+                    this.controller!!.shuffleModeEnabled = true
+                    SessionResult(SessionResult.RESULT_SUCCESS)
                 }
-                SessionResult(SessionResult.RESULT_SUCCESS)
-            }
 
-            SERVICE_QUERY_TIMER -> {
-                SessionResult(SessionResult.RESULT_SUCCESS).also {
-                    timerDuration?.let { td ->
-                        it.extras.putInt("duration", (td - System.currentTimeMillis()).toInt())
+                PLAYBACK_SHUFFLE_ACTION_OFF -> {
+                    this.controller!!.shuffleModeEnabled = false
+                    SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                SERVICE_SET_TIMER -> {
+                    // 0 = clear timer
+                    customCommand.customExtras.getInt("duration").let {
+                        timerDuration = if (it > 0) System.currentTimeMillis() + it else null
+                    }
+                    SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                SERVICE_QUERY_TIMER -> {
+                    SessionResult(SessionResult.RESULT_SUCCESS).also {
+                        timerDuration?.let { td ->
+                            it.extras.putInt("duration", (td - System.currentTimeMillis()).toInt())
+                        }
                     }
                 }
-            }
 
-            SERVICE_GET_AUDIO_FORMAT -> {
-                SessionResult(SessionResult.RESULT_SUCCESS).also {
-                    it.extras.putBundle("file_format", downstreamFormat?.toBundle())
-                    it.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
-                    it.extras.putParcelable("track_format", audioTrackInfo)
-                    it.extras.putParcelable("hal_format", afFormatTracker.format)
-                    bitrate?.let { value -> it.extras.putLong("bitrate", value) }
-                    if (afFormatTracker.format?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
-                        it.extras.putParcelable("bt", btInfo)
+                SERVICE_GET_AUDIO_FORMAT -> {
+                    SessionResult(SessionResult.RESULT_SUCCESS).also {
+                        it.extras.putBundle("file_format", downstreamFormat?.toBundle())
+                        it.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
+                        it.extras.putParcelable("track_format", audioTrackInfo)
+                        it.extras.putParcelable("hal_format", afFormatTracker.format)
+                        bitrate?.let { value -> it.extras.putLong("bitrate", value) }
+                        if (afFormatTracker.format?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                            it.extras.putParcelable("bt", btInfo)
+                        }
                     }
                 }
-            }
 
-            SERVICE_GET_LYRICS -> {
-                SessionResult(SessionResult.RESULT_SUCCESS).also {
-                    it.extras.putParcelable("lyrics", lyrics)
+                SERVICE_GET_LYRICS -> {
+                    SessionResult(SessionResult.RESULT_SUCCESS).also {
+                        it.extras.putParcelable("lyrics", lyrics)
+                    }
                 }
-            }
 
-            SERVICE_GET_LYRICS_LEGACY -> {
-                SessionResult(SessionResult.RESULT_SUCCESS).also {
-                    it.extras.putParcelableArray("lyrics", lyricsLegacy?.toTypedArray())
+                SERVICE_GET_LYRICS_LEGACY -> {
+                    SessionResult(SessionResult.RESULT_SUCCESS).also {
+                        it.extras.putParcelableArray("lyrics", lyricsLegacy?.toTypedArray())
+                    }
                 }
-            }
 
-            SERVICE_GET_SESSION -> {
-                SessionResult(SessionResult.RESULT_SUCCESS).also {
-                    it.extras.putInt("session", lastSessionId)
+                SERVICE_GET_SESSION -> {
+                    SessionResult(SessionResult.RESULT_SUCCESS).also {
+                        it.extras.putInt("session", lastSessionId)
+                    }
                 }
-            }
 
-            PLAYBACK_REPEAT_OFF -> {
-                this.controller!!.repeatMode = Player.REPEAT_MODE_OFF
-                SessionResult(SessionResult.RESULT_SUCCESS)
-            }
+                PLAYBACK_REPEAT_OFF -> {
+                    this.controller!!.repeatMode = Player.REPEAT_MODE_OFF
+                    SessionResult(SessionResult.RESULT_SUCCESS)
+                }
 
-            PLAYBACK_REPEAT_ONE -> {
-                this.controller!!.repeatMode = Player.REPEAT_MODE_ONE
-                SessionResult(SessionResult.RESULT_SUCCESS)
-            }
+                PLAYBACK_REPEAT_ONE -> {
+                    this.controller!!.repeatMode = Player.REPEAT_MODE_ONE
+                    SessionResult(SessionResult.RESULT_SUCCESS)
+                }
 
-            PLAYBACK_REPEAT_ALL -> {
-                this.controller!!.repeatMode = Player.REPEAT_MODE_ALL
-                SessionResult(SessionResult.RESULT_SUCCESS)
-            }
+                PLAYBACK_REPEAT_ALL -> {
+                    this.controller!!.repeatMode = Player.REPEAT_MODE_ALL
+                    SessionResult(SessionResult.RESULT_SUCCESS)
+                }
 
-            else -> {
-                SessionResult(SessionError.ERROR_BAD_VALUE)
-            }
-        })
+                else -> {
+                    SessionResult(SessionError.ERROR_BAD_VALUE)
+                }
+            })
     }
 
     override fun onPlaybackResumption(
@@ -765,18 +782,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
     }
 
-    private fun sendDebouncedFormatChange() {
-        handler.removeCallbacks(formatChangeRunnable)
-        handler.postDelayed(formatChangeRunnable, 500)
-    }
-
     override fun onAudioTrackInitialized(
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
         audioTrackInfoCounter++
         audioTrackInfo = AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
-        sendDebouncedFormatChange()
+        mediaSession?.broadcastCustomCommand(
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
+            EMPTY
+        )
     }
 
     override fun onAudioTrackReleased(
@@ -787,7 +802,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         // without replacement, we want to instantly know that instead of keeping stale data.
         if (++audioTrackReleaseCounter == audioTrackInfoCounter) {
             audioTrackInfo = null
-            sendDebouncedFormatChange()
+            mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
+                EMPTY
+            )
         }
     }
 
@@ -796,18 +814,27 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaLoadData: MediaLoadData
     ) {
         downstreamFormat = mediaLoadData.trackFormat
-        sendDebouncedFormatChange()
+        mediaSession?.broadcastCustomCommand(
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
+            EMPTY
+        )
     }
 
     private fun onAudioSinkInputFormatChanged(inputFormat: Format?) {
         audioSinkInputFormat = inputFormat
-        sendDebouncedFormatChange()
+        mediaSession?.broadcastCustomCommand(
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
+            EMPTY
+        )
     }
 
     override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) {
         if (state == Player.STATE_IDLE) {
             downstreamFormat = null
-            sendDebouncedFormatChange()
+            mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
+                EMPTY
+            )
         }
     }
 
@@ -819,7 +846,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         bitrate = null
         bitrateFetcher.launch {
             bitrate = mediaItem?.getBitrate() // TODO subtract cover size
-            sendDebouncedFormatChange()
+            this@GramophonePlaybackService.mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
+                EMPTY
+            )
         }
         lyrics = null
         lyricsLegacy = null
@@ -837,7 +867,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         // if timeline changed, shuffle order is handled elsewhere instead (cloneAndInsert called by
         // ExoPlayer for common case and nextShuffleOrder for resumption case)
         if (events.contains(EVENT_SHUFFLE_MODE_ENABLED_CHANGED)
-            && !events.contains(Player.EVENT_TIMELINE_CHANGED)) {
+            && !events.contains(Player.EVENT_TIMELINE_CHANGED)
+        ) {
             // when enabling shuffle, re-shuffle lists so that the first index is up to date
             Log.i(TAG, "re-shuffling playlist")
             endedWorkaroundPlayer?.setShuffleOrder {
@@ -914,6 +945,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             doUpdateNotification(mediaSession!!)
         }
     }
+
     fun getCurrentLyricIndex(withTranslation: Boolean) =
         if (syncedLyrics != null) {
             syncedLyrics?.text?.mapIndexed { i, it -> i to it }?.filter {
