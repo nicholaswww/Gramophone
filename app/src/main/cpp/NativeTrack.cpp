@@ -73,14 +73,8 @@ static ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audi
 typedef int32_t(*ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audio_output_flags_tPFviPvS4_ES4_jRKNS_2spINS_7IMemoryEEEbiNS0_13transfer_typeEPK20audio_offload_info_tiiPK18audio_attributes_tb_t)
         (void* thisptr, int32_t streamType, uint32_t sampleRate, uint32_t format, uint32_t channelMask, size_t frameCount /* = 0 */, uint32_t flags /* = 0 */, legacy_callback_t callback /* = nullptr */, void* user /* = nullptr */, int32_t notificationFrames /* = 0 */, fake_sp& sharedMemory /* = nullptr */, bool threadCanCallJava /* = false */, int32_t audioSessionId /* = 0 */, int32_t transferType /* = TRANSFER_DEFAULT */, void* offloadInfo /* = nullptr */, uid_t uid, pid_t pid, void* attributes /* = nullptr */, bool doNotReconnect /* = false */);
 static ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audio_output_flags_tPFviPvS4_ES4_jRKNS_2spINS_7IMemoryEEEbiNS0_13transfer_typeEPK20audio_offload_info_tiiPK18audio_attributes_tb_t ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audio_output_flags_tPFviPvS4_ES4_jRKNS_2spINS_7IMemoryEEEbiNS0_13transfer_typeEPK20audio_offload_info_tiiPK18audio_attributes_tb = nullptr;
-typedef int32_t(*ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t_t)(void *attr, uint32_t samplingRate, int32_t format, int32_t channelMask, int32_t flags, void *offloadInfo);
-static ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t_t ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t = nullptr;
 typedef int32_t(*ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjj14audio_format_tj20audio_output_flags_tiPK20audio_offload_info_t_t)(void *attr, int32_t *output, int32_t session, int32_t *stream, uid_t uid, uint32_t samplingRate, int32_t format, int32_t channelMask, int32_t flags, int32_t selectedDeviceId, void *offloadInfo);
 static ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjj14audio_format_tj20audio_output_flags_tiPK20audio_offload_info_t_t ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjj14audio_format_tj20audio_output_flags_tiPK20audio_offload_info_t = nullptr;
-typedef int32_t(*ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t_t)(void *attr, int32_t *output, int32_t session, int32_t *stream, uint32_t samplingRate, int32_t format, int32_t channelMask, int32_t flags, void *offloadInfo);
-static ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t_t ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t = nullptr;
-typedef int32_t(*ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjPK12audio_config20audio_output_flags_tS4_S4__t)(void *attr, int32_t *output, int32_t session, int32_t *stream, uid_t uid, void* config, uint32_t flags, int32_t* selectedDeviceId, int32_t *portId);
-static ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjPK12audio_config20audio_output_flags_tS4_S4__t ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjPK12audio_config20audio_output_flags_tS4_S4_ = nullptr;
 typedef int32_t(*ZN7android11AudioSystem10getLatencyEiPj_t)(int32_t output, uint32_t* latency);
 static ZN7android11AudioSystem10getLatencyEiPj_t ZN7android11AudioSystem10getLatencyEiPj = nullptr;
 typedef int32_t(*ZN7android11AudioSystem13getFrameCountEiPm_t)(int32_t output, size_t* frameCount);
@@ -89,10 +83,10 @@ typedef int32_t(*ZN7android11AudioSystem15getSamplingRateEiPj_t)(int32_t output,
 static ZN7android11AudioSystem15getSamplingRateEiPj_t ZN7android11AudioSystem15getSamplingRateEiPj = nullptr;
 typedef void(*ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t_t)(uint32_t output, int32_t stream, int32_t session);
 static ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t_t ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t = nullptr;
-typedef void(*ZN7android11AudioSystem13releaseOutputEi_t)(uint32_t output);
-static ZN7android11AudioSystem13releaseOutputEi_t ZN7android11AudioSystem13releaseOutputEi = nullptr;
 typedef bool(*ZNK7android10AudioTrack19isOffloadedOrDirectEv_t)(void* thisptr);
 static ZNK7android10AudioTrack19isOffloadedOrDirectEv_t ZNK7android10AudioTrack19isOffloadedOrDirectEv = nullptr;
+typedef bool(*ZN7android10AudioTrack15setOutputDeviceEi_t)(void* thisptr, int32_t selectedDeviceId);
+static ZN7android10AudioTrack15setOutputDeviceEi_t ZN7android10AudioTrack15setOutputDeviceEi = nullptr;
 typedef bool(*ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t_t)(audio_offload_info_t_v26 & offloadInfo);
 static ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t_t ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t = nullptr;
 
@@ -109,6 +103,7 @@ struct track_holder {
     MyCallback* callback = nullptr;
     void* ats = nullptr;
     bool deathEmulation = false;
+    int ignoredDeaths = 0;
     bool died = false;
     JavaVM* vm = nullptr;
 };
@@ -171,6 +166,10 @@ public:
     }
     void onNewIAudioTrack() override {
         if (!mCallback || mHolder->died) return;
+        if (mHolder->ignoredDeaths > 0) {
+            mHolder->ignoredDeaths--;
+            return; // do not call callback, and do not emulate death.
+        }
         if (mHolder->deathEmulation) {
             // block any further callbacks, and access to track object other than dtor
             mHolder->died = true;
@@ -350,29 +349,18 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_initDlsym(J
     if (android_get_device_api_level() <= 30) {
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t, false)
     }
-    if (android_get_device_api_level() <= 22) {
+    if (android_get_device_api_level() < 28) {
+        if (android_get_device_api_level() >= 23) {
+            DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack15setOutputDeviceEi, false)
+        }
         DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack19isOffloadedOrDirectEv, false)
     }
     if (android_get_device_api_level() == 23) {
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem10getLatencyEiPj, false)
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem13getFrameCountEiPm, false)
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem15getSamplingRateEiPj, false)
-    }
-    if (android_get_device_api_level() >= 22 && android_get_device_api_level() < 29) {
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t, false)
-    } else {
-        DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem13releaseOutputEi, false)
-    }
-    if (android_get_device_api_level() < 28) {
-        if (android_get_device_api_level() >= 26) {
-            DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjPK12audio_config20audio_output_flags_tS4_S4_, false)
-        } else if (android_get_device_api_level() >= 23) {
-            DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjj14audio_format_tj20audio_output_flags_tiPK20audio_offload_info_t, false)
-        } else if (android_get_device_api_level() >= 22) {
-            DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t, false)
-        } else {
-            DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t, false)
-        }
+        DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjj14audio_format_tj20audio_output_flags_tiPK20audio_offload_info_t, false)
     }
     if (android_get_device_api_level() >= 31) {
         DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_t20audio_channel_mask_tm20audio_output_flags_tRKNS_2wpINS0_19IAudioTrackCallbackEEEiRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tRKNS_7content22AttributionSourceStateEPK18audio_attributes_tbfi, false)
@@ -438,13 +426,12 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
         ALOGE("Android 5.x does not support speed adjustment, maxRequiredSpeed != 1f is wrong");
         return INT32_MIN;
     }
-    if (android_get_device_api_level() < 30 && (contentId != 0 || syncId != 0)) {
-        ALOGE("Tuner is supported since Android 11, (contentId != 0 || syncId != 0) is wrong");
+    if (android_get_device_api_level() < 23 && selectedDeviceId != 0) {
+        ALOGE("Android 5.x does not support selected devices, selectedDeviceId != 0 is wrong");
         return INT32_MIN;
     }
-    // TODO can we backport selectedDeviceId
-    if (android_get_device_api_level() < 28 && selectedDeviceId != 0) {
-        ALOGE("Selected devices are supported since Android 9, selectedDeviceId != 0 is wrong");
+    if (android_get_device_api_level() < 30 && (contentId != 0 || syncId != 0)) {
+        ALOGE("Tuner is supported since Android 11, (contentId != 0 || syncId != 0) is wrong");
         return INT32_MIN;
     }
     auto holder = (track_holder*) ptr;
@@ -489,7 +476,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
     } else {
         offloadInfo.oldInfo = {
                 .version = AUDIO_MAKE_OFFLOAD_INFO_VERSION(0, 1),
-                .size = sizeof(audio_offload_info_t_legacy),
+                .size = sizeof(audio_offload_info_t_v26),
                 .sample_rate = (uint32_t)sampleRate,
                 .channel_mask = (uint32_t)channelMask,
                 .format = (uint32_t)format,
@@ -566,6 +553,8 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
                 /* selectedDeviceId = */ selectedDeviceId
         );
     } else if (android_get_device_api_level() >= 26) { // Android 8.x
+        // This is safe to call before set() only in O!
+        ZN7android10AudioTrack15setOutputDeviceEi(holder->track, selectedDeviceId);
         ret = ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audio_output_flags_tPFviPvS4_ES4_iRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tjiPK18audio_attributes_tbf(
                 holder->track,
                 /* streamType = */ streamType,
@@ -717,6 +706,24 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
             holder->deathEmulation = !ZNK7android10AudioTrack19isOffloadedOrDirectEv(holder->track);
         }
     }
+    if (android_get_device_api_level() >= 23 && android_get_device_api_level() <= 25) {
+        if (ret == 0 && selectedDeviceId != 0) {
+            // if selectedDeviceId != 0 before O, we can set it with setOutputDevice() which will
+            // invalidate the track (in O, we can call setOutputDevice() before set() which means
+            // there is no track yet). that won't work if it has doNotReconnect set, hence emulate
+            // that to allow setOutputDevice() to work for now.
+            // TODO use memory hacks instead and get rid of ignoredDeaths (that'll fix direct too)
+            if (ZNK7android10AudioTrack19isOffloadedOrDirectEv(holder->track)) {
+                ALOGE("Ignoring selectedDeviceId emulation because track is offloaded/direct");
+            } else {
+                holder->deathEmulation = doNotReconnect;
+                holder->ignoredDeaths = 1;
+                // This will instantly invalidate the track.
+                ZN7android10AudioTrack15setOutputDeviceEi(holder->track, selectedDeviceId);
+                // TODO the track is now invalid but not yet restored, which is inconsistent
+            }
+        }
+    }
     return ret;
 }
 
@@ -795,94 +802,6 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSu
         };
     } // TODO verify Q/R?
     return ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t(offloadInfo.oldInfo);
-}
-
-extern "C"
-JNIEXPORT void JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_runWithOpenedOutput(
-        JNIEnv *env, jobject, jint streamType, jint sampleRate, jint format,
-        jint channelMask, jint frameCount, jint trackFlags, jint sessionId,
-        jint selectedDeviceId, jint bitRate, jlong durationUs, jboolean hasVideo,
-        jboolean isStreaming, jint bitWidth, jint offloadBufferSize, jint usage,
-        jint contentType, jint source,
-        jint attrFlags, jstring inTags, jobject action) {
-    if (android_get_device_api_level() >= 28) {
-        ALOGE("runWithOpenedOutput doesn't work on Pie or later");
-        return;
-    }
-    const char* tags = env->GetStringUTFChars(inTags, nullptr);
-    audio_attributes_legacy audioAttributes = {
-            .content_type = contentType,
-            .usage = usage,
-            .source = source,
-            .flags = (uint32_t) attrFlags,
-    };
-    audioAttributes.tags[255] = '\0';
-    strncpy(audioAttributes.tags, tags, 255);
-    audio_config_v26 config = {};
-    config.format = format;
-    config.channel_mask = channelMask;
-    config.frame_count = frameCount;
-    config.sample_rate = sampleRate;
-    config.offload_info = {
-            .version = AUDIO_MAKE_OFFLOAD_INFO_VERSION(0, 1),
-            .size = sizeof(audio_offload_info_t_legacy),
-            .sample_rate = (uint32_t) sampleRate,
-            .channel_mask = (uint32_t) channelMask,
-            .format = (uint32_t) format,
-            .stream_type = streamType,
-            .bit_rate = (uint32_t) bitRate,
-            .duration_us = durationUs,
-            .has_video = (bool) hasVideo,
-            .is_streaming = (bool) isStreaming,
-            .bit_width = (uint32_t) bitWidth, // informative, since Android 8.0
-            .offload_buffer_size = (uint32_t) offloadBufferSize, // informative, since Android 8.0
-            .usage = usage, // informative, since Android 8.0
-    };
-    env->ReleaseStringUTFChars(inTags, tags);
-    int32_t streamTypeOut = streamType;
-    int32_t output = 0;
-    int32_t portId = 0;
-    int32_t status = 0;
-    int32_t selectedDeviceIdOut = selectedDeviceId;
-    std::vector<int32_t> secondaryOutputs;
-    if (android_get_device_api_level() >= 26) {
-        status = ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjPK12audio_config20audio_output_flags_tS4_S4_(
-                &audioAttributes, &output, sessionId, &streamTypeOut, getuid(), &config,
-                trackFlags, &selectedDeviceIdOut, &portId);
-    } else if (android_get_device_api_level() >= 23) {
-        status = ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tjj14audio_format_tj20audio_output_flags_tiPK20audio_offload_info_t(
-                &audioAttributes, &output, sessionId, &streamTypeOut, getuid(), sampleRate, format, channelMask,
-                trackFlags, selectedDeviceId, &config.offload_info);
-    } else if (android_get_device_api_level() >= 22) {
-        status = ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tPi15audio_session_tP19audio_stream_type_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t(
-                &audioAttributes, &output, sessionId, &streamTypeOut, sampleRate, format, channelMask,
-                trackFlags, &config.offload_info);
-    } else {
-        output = ZN7android11AudioSystem16getOutputForAttrEPK18audio_attributes_tj14audio_format_tj20audio_output_flags_tPK20audio_offload_info_t(
-                &audioAttributes, sampleRate, channelMask, format, trackFlags, &config.offload_info);
-    }
-    if (status != 0 || output == 0) {
-        ALOGE("failed runWithOpenedOutput with status %d output %d", status, output);
-        return;
-    }
-    jclass intCls = env->FindClass("java/lang/Integer");
-    jmethodID intId = env->GetMethodID(intCls, "<init>", "(I)V");
-    jobject outputInt = env->NewObject(intCls, intId, output);
-    env->DeleteLocalRef(intCls);
-    jclass actionCls = env->GetObjectClass(action);
-    jmethodID id = env->GetMethodID(actionCls, "accept", "(Ljava/lang/Object;)V");
-    env->DeleteLocalRef(actionCls);
-    env->CallVoidMethod(action, id, outputInt);
-    env->DeleteLocalRef(outputInt);
-    if (android_get_device_api_level() >= 29) {
-        ZN7android11AudioSystem13releaseOutputEi(portId);
-    } else if (android_get_device_api_level() >= 22) {
-        ZN7android11AudioSystem13releaseOutputEi19audio_stream_type_t15audio_session_t(
-                output, streamType, sessionId);
-    } else {
-        ZN7android11AudioSystem13releaseOutputEi(output);
-    }
 }
 
 // TODO

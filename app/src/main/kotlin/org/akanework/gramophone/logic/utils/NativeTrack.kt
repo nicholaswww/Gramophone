@@ -10,7 +10,6 @@ import android.os.Build
 import android.os.Parcel
 import android.util.Log
 import androidx.core.content.getSystemService
-import androidx.core.util.Consumer
 import java.nio.ByteBuffer
 
 class NativeTrack(context: Context) {
@@ -78,13 +77,10 @@ class NativeTrack(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && hasDirect == null) {
                 hasDirect = false // TODO implement native isDirectPlaybackSupported
             }
-            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.P) {
-                hasDirect = false // TODO we have to create a track to find if direct is supported
-            }
             val bitWidth = when (encoding) {
                 1, 0x0D000000 -> 16
                 2 -> 8
-                3, 4, 5 -> 32
+                3, 4, 5 -> 32 // TODO does 8.24 count as 32?
                 6 -> 24
                 else -> 0
             }
@@ -100,71 +96,32 @@ class NativeTrack(context: Context) {
                     false
                 }
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
                 return DirectPlaybackSupport(hasOffload!!, false, hasDirect!!)
-            // only L-O will enter below code path TODO is this really better than track creation?
+            val tryOffload = hasDirect != null // if we already know if direct works, we want to test for offload.
+            // only L-P will enter below code path
             val bitrate = if (bitWidth != 0) {
                 bitWidth * Integer.bitCount(channelMask) * sampleRate
             } else 128 // arbitrary guess for compressed formats
             // safeguard against bad direct track recycling on O by opening new session every time
             val sessionId = context.getSystemService<AudioManager>()!!.generateAudioSessionId()
             try {
-                val port = run {
-                    var port: MyMixPort? = null
-                    runWithOpenedOutput(
-                        AudioManager.STREAM_MUSIC, sampleRate, encoding, channelMask, 0, 0, sessionId,
-                        0, bitrate, 2100 * 1000 * 1000, false, false, bitWidth, 0,
-                        AudioAttributes.USAGE_MEDIA,
-                        AudioAttributes.CONTENT_TYPE_MUSIC, 0, 0, "", Consumer<Int> {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                port = AfFormatTracker.getMixPortForThread(it, sampleRate)
-                            } else { // TODO dedup with afformattracker?
-                                val af = AfFormatTracker.getAfService()
-                                if (af == null)
-                                    return@Consumer
-                                val inParcel = AfFormatTracker.obtainParcel(af)
-                                val outParcel = AfFormatTracker.obtainParcel(af)
-                                try {
-                                    inParcel.writeInterfaceToken(af.interfaceDescriptor!!)
-                                    inParcel.writeInt(it)
-                                    // IAudioFlingerService.format(audio_io_handle_t)
-                                    Log.d(TAG, "trying to call format() via binder")
-                                    try {
-                                        af.transact(5, inParcel, outParcel, 0)
-                                    } catch (e: Throwable) {
-                                        Log.e(TAG, Log.getStackTraceString(e))
-                                        return@Consumer
-                                    }
-                                    Log.d(TAG, "done calling format() via binder")
-                                    if (!AfFormatTracker.readStatus(outParcel))
-                                        return@Consumer
-                                    port = MyMixPort(null, null, null, null, outParcel.readInt())
-                                } finally {
-                                    inParcel.recycle()
-                                    outParcel.recycle()
-                                }
-                            }
-                        }
-                    )
-                    port
-                }
+                /*val track = NativeTrack(context)
+                track.set()
+                track.release() TODO implement this*/
+                val port: MyMixPort? = null
                 Log.i(TAG, "got port $port")
-                if (port == null)
+                if (port == null) {
+                    Log.w(TAG, "port is null")
                     return DirectPlaybackSupport.NONE
+                }
                 if (port.format != encoding) {
                     Log.w(TAG, "port ${port.name} was found, but is format ${port.format} instead of $encoding")
                     return DirectPlaybackSupport.NONE
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    if (((port.flags ?: 0) and 0x20000) != 0)
-                        return DirectPlaybackSupport.GAPLESS_OFFLOAD
-                    if (((port.flags ?: 0) and 0x10) != 0)
-                        return DirectPlaybackSupport.OFFLOAD
-                    if (((port.flags ?: 0) and 1) != 0)
-                        return DirectPlaybackSupport.DIRECT
-                }
-                // TODO compare port name with audio_policy.conf (O: audio_policy_configuration.xml?) to decide if direct
-                return DirectPlaybackSupport.NONE
+                hasDirect = false
+                // TODO look at granted flags to determine hasDirect
+                return DirectPlaybackSupport(hasOffload == true, false, hasDirect)
             } catch (t: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(t))
             }
@@ -212,12 +169,6 @@ class NativeTrack(context: Context) {
             return formatBuilder.setChannelMask(channelMask).build()
         }
         private external fun isOffloadSupported(sampleRate: Int, format: Int, channelMask: Int): Boolean
-        private external fun runWithOpenedOutput(streamType: Int, sampleRate: Int, format: Int, channelMask: Int,
-                                                 frameCount: Int, trackFlags: Int, sessionId: Int,
-                                                 selectedDeviceId: Int, bitRate: Int, durationUs: Long, hasVideo: Boolean,
-                                                 isStreaming: Boolean, bitWidth: Int, offloadBufferSize: Int, usage: Int,
-                                                 contentType: Int,
-                                                 source: Int, attrFlags: Int, tags: String, action: Consumer<Int>)
         private external fun initDlsym(): Boolean
     }
     val ptr: Long
@@ -255,11 +206,6 @@ class NativeTrack(context: Context) {
     }
     private external fun create(@Suppress("unused") parcel: Parcel?): Long
     /*
-     * If used with direct playback before Android 9, it is required to first check format support using
-     * getDirectPlaybackSupport to avoid invoking bugs in the platform for unsupported formats (ie: requested
-     * float32 but got int24 instead, createTrack and hence set fails as consequence). Below description assumes
-     * this when considering possible scenarios.
-     *
      * CAUTION: Until including Android 7.1, direct outputs could be reused even with different session IDs.
      *          If another app is using a direct (or offload) stream, we might end up with no audio (there can
      *          only ever be one client). However, this problem is isolated to MediaPlayer using compressed offload
@@ -268,14 +214,16 @@ class NativeTrack(context: Context) {
      *          this bug, so either avoid other media player apps or using compressed offload on these versions.
      *
      * CAUTION: From Android 7.0 until Android 8.1, direct outputs with PCM modes int24, int32 or float32 were all
-     *          treated as compatible. To avoid bugs, we should always release our handle to the direct output
-     *          before attempting to switch formats. But if we're unlucky, on Android 7.x only, we may get a busy
-     *          output with a different format anyway because another app has an active direct PCM track - which
-     *          will result in set() failing. In theory, there's another case where set() could fail: on N/O, when
-     *          we request float32 but APM selects int32 instead (but for that, the device would need need to
-     *          support both formats AND have non-deterministic selection, which doesn't seem to happen in AOSP).
-     *          This is because it tries to choose the best profile by bit depth but ignores that int32 and float32
-     *          are different formats.
+     *          treated as compatible. To avoid track creation failures caused by ourselves, we should always
+     *          release active tracks on any direct output before attempting to switch formats - otherwise it may
+     *          try to reuse the track despite the different format. But if we're unlucky, on Android 7.x only, we
+     *          may get a busy output with a different format anyway because another app has an active direct PCM
+     *          track - which will result in set() failing. There's another case where set() could fail: on N/O,
+     *          when we request float32, APM may select int32 instead (because both have the same bit width) - if
+     *          we request int32, we may get float32; and with some bad luck, if we request a 32-bit format, we may
+     *          even get int24 (if no 32 bit format is supported) - or when requesting int24, we may get a 32-bit
+     *          format (if int24 is not supported). After APM gives us that output, AF will fail creating the track
+     *          causing set() to fail. In that case, we have to try again with another format.
      */
     @Suppress("unused") // for parameters, this method has a few of them
     private external fun doSet(ptr: Long, streamType: Int, sampleRate: Int, format: Int, channelMask: Int,
@@ -288,7 +236,6 @@ class NativeTrack(context: Context) {
     private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
     private external fun dtor(@Suppress("unused") ptr: Long)
     fun set(): Boolean {
-        // TODO assert maxRequiredSpeed==1.0f on L
         doSet(ptr, 3, 13370, 1, 3, 0, 0, 0, 1.0f, 0, 0, 0, false, false, 16, 0, 1, 0, 0, 0, 2, 0, 0, "", 0, false, 3)
         Log.e("hi", "dump:${AfFormatTracker.dumpInternal(getRealPtr(ptr))}")
         return myState == State.ALIVE
@@ -343,10 +290,10 @@ class NativeTrack(context: Context) {
         Log.i(TAG, "onBufferEnd called")
     }
     @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // Be careful to not hold a reference to the buffer after returning. It will immediately be invalid!
     private fun onMoreData(frameCount: Long, buffer: ByteBuffer): Long {
-        // Be careful to not hold a reference to the buffer after returning. It immediately becomes invalid!
         Log.i(TAG, "onMoreData called: frameCount=$frameCount sizeBytes=${buffer.capacity()}")
-        return 0
+        return 0 // amount of bytes written
     }
     @Suppress("unused") // called from native, on callback thread (not main thread!)
     private fun onCanWriteMoreData(frameCount: Long, sizeBytes: Long) {

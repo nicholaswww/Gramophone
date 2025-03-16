@@ -730,7 +730,7 @@ class AfFormatTracker(
                 null
             }
             val dump = dump(audioTrack)
-            val grantedFlags = getFlagFromDump(dump)
+            val grantedFlags = getFlagFromDump(dump) // TODO implement extraction for L-O based on fixed offsets (or mayhaps something smarter?)
             AfFormatInfo(
                 pn, id, t,
                 mp?.id, mp?.name, mp?.flags,

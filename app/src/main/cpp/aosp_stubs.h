@@ -36,19 +36,6 @@ struct fake_wp {
 extern "C" {
 #define AUDIO_MAKE_OFFLOAD_INFO_VERSION(maj,min) \
             ((((maj) & 0xff) << 8) | ((min) & 0xff))
-// version 0.1a (initial) and 0.1b use legacy version, 0.1c and 0.2 use new version
-typedef struct {
-    uint16_t version;                   // version of the info structure
-    uint16_t size;                      // total size of the structure including version and size
-    uint32_t sample_rate;               // sample rate in Hz
-    uint32_t channel_mask;  // channel mask
-    uint32_t format;              // audio format
-    int32_t stream_type;    // stream type
-    uint32_t bit_rate;                  // bit rate in bits per second
-    int64_t duration_us;                // duration in microseconds, -1 if unknown
-    bool has_video;                     // true if stream is tied to a video stream
-    bool is_streaming;                  // true if streaming, false if local playback
-} audio_offload_info_t_legacy;
 typedef struct {
     uint16_t version;                   // version of the info structure
     uint16_t size;                      // total size of the structure including version and size
@@ -64,21 +51,6 @@ typedef struct {
     uint32_t offload_buffer_size;       // version 0.1b: offload fragment size
     int32_t usage;                // version 0.1b:
 } audio_offload_info_t_v26;
-typedef struct {
-    uint16_t version;                   // version of the info structure
-    uint16_t size;                      // total size of the structure including version and size
-    uint32_t sample_rate;               // sample rate in Hz
-    uint32_t channel_mask;  // channel mask
-    uint32_t format;              // audio format
-    int32_t stream_type;    // stream type
-    uint32_t bit_rate;                  // bit rate in bits per second
-    int64_t duration_us;                // duration in microseconds, -1 if unknown
-    bool has_video;                     // true if stream is tied to a video stream
-    bool is_streaming;                  // true if streaming, false if local playback
-    uint32_t bit_width;                 // version 0.1b:
-    uint32_t offload_buffer_size;       // version 0.1b: offload fragment size
-    int32_t usage;                // version 0.1b:
-} __attribute__((aligned(8))) audio_offload_info_t_v28;
 typedef struct {
     uint16_t version;                   // version of the info structure
     uint16_t size;                      // total size of the structure including version and size
@@ -113,21 +85,6 @@ typedef struct {
     uint32_t flags;
     char tags[256]; /* UTF8 */
 } __attribute__((packed)) audio_attributes_v28;
-
-struct audio_config_legacy {
-    uint32_t sample_rate;
-    int32_t channel_mask;
-    int32_t  format;
-    audio_offload_info_t_legacy offload_info;
-    size_t frame_count;
-};
-struct audio_config_v26 {
-    uint32_t sample_rate;
-    int32_t channel_mask;
-    int32_t  format;
-    audio_offload_info_t_v26 offload_info;
-    size_t frame_count;
-};
 }
 
 typedef void (*legacy_callback_t)(int event, void* user, void *info);
