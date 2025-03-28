@@ -23,7 +23,7 @@ data class AfFormatInfo(
     val routedDeviceType: Int?, val mixPortId: Int?, val mixPortName: String?,
     val mixPortFlags: Int?, val ioHandle: Int?, val sampleRateHz: Int?,
     val audioFormat: String?, val channelCount: Int?, val channelMask: Int?,
-    val grantedFlags: Int?, val trackId: Int?, val afTrackFlags: Int?
+    val grantedFlags: Int?, val policyPortId: Int?, val afTrackFlags: Int?
 ) : Parcelable
 
 data class MyMixPort(val id: Int?, val name: String?, val flags: Int?, val channelMask: Int?, val format: Int?)
@@ -203,249 +203,11 @@ class AfFormatTracker(
         private external fun getHalFormatInternal(@Suppress("unused") audioTrackPtr: Long): Int
 
         private fun audioFormatToString(audioFormat: UInt): String {
-            return when (audioFormat) {
-                0xFFFFFFFFU -> /* AUDIO_FORMAT_INVALID         */
-                    "AUDIO_FORMAT_INVALID"
-
-                0U -> /* AUDIO_FORMAT_DEFAULT         */
-                    "AUDIO_FORMAT_DEFAULT"
-
-                0x01000000U -> /* AUDIO_FORMAT_MP3             */
-                    "AUDIO_FORMAT_MP3"
-
-                0x02000000U -> /* AUDIO_FORMAT_AMR_NB          */
-                    "AUDIO_FORMAT_AMR_NB"
-
-                0x03000000U -> /* AUDIO_FORMAT_AMR_WB          */
-                    "AUDIO_FORMAT_AMR_WB"
-
-                0x04000000U -> /* AUDIO_FORMAT_AAC             */
-                    "AUDIO_FORMAT_AAC"
-
-                0x05000000U -> /* AUDIO_FORMAT_HE_AAC_V1       */
-                    "AUDIO_FORMAT_HE_AAC_V1"
-
-                0x06000000U -> /* AUDIO_FORMAT_HE_AAC_V2       */
-                    "AUDIO_FORMAT_HE_AAC_V2"
-
-                0x07000000U -> /* AUDIO_FORMAT_VORBIS          */
-                    "AUDIO_FORMAT_VORBIS"
-
-                0x08000000U -> /* AUDIO_FORMAT_OPUS            */
-                    "AUDIO_FORMAT_OPUS"
-
-                0x09000000U -> /* AUDIO_FORMAT_AC3             */
-                    "AUDIO_FORMAT_AC3"
-
-                0x0A000000U -> /* AUDIO_FORMAT_E_AC3           */
-                    "AUDIO_FORMAT_E_AC3"
-
-                0x0B000000U -> /* AUDIO_FORMAT_DTS             */
-                    "AUDIO_FORMAT_DTS"
-
-                0x0C000000U -> /* AUDIO_FORMAT_DTS_HD          */
-                    "AUDIO_FORMAT_DTS_HD"
-
-                0x0D000000U -> /* AUDIO_FORMAT_IEC61937        */
-                    "AUDIO_FORMAT_IEC61937"
-
-                0x0E000000U -> /* AUDIO_FORMAT_DOLBY_TRUEHD    */
-                    "AUDIO_FORMAT_DOLBY_TRUEHD"
-
-                0x10000000U -> /* AUDIO_FORMAT_EVRC            */
-                    "AUDIO_FORMAT_EVRC"
-
-                0x11000000U -> /* AUDIO_FORMAT_EVRCB           */
-                    "AUDIO_FORMAT_EVRCB"
-
-                0x12000000U -> /* AUDIO_FORMAT_EVRCWB          */
-                    "AUDIO_FORMAT_EVRCWB"
-
-                0x13000000U -> /* AUDIO_FORMAT_EVRCNW          */
-                    "AUDIO_FORMAT_EVRCNW"
-
-                0x14000000U -> /* AUDIO_FORMAT_AAC_ADIF        */
-                    "AUDIO_FORMAT_AAC_ADIF"
-
-                0x15000000U -> /* AUDIO_FORMAT_WMA             */
-                    "AUDIO_FORMAT_WMA"
-
-                0x16000000U -> /* AUDIO_FORMAT_WMA_PRO         */
-                    "AUDIO_FORMAT_WMA_PRO"
-
-                0x17000000U -> /* AUDIO_FORMAT_AMR_WB_PLUS     */
-                    "AUDIO_FORMAT_AMR_WB_PLUS"
-
-                0x18000000U -> /* AUDIO_FORMAT_MP2             */
-                    "AUDIO_FORMAT_MP2"
-
-                0x19000000U -> /* AUDIO_FORMAT_QCELP           */
-                    "AUDIO_FORMAT_QCELP"
-
-                0x1A000000U -> /* AUDIO_FORMAT_DSD             */
-                    "AUDIO_FORMAT_DSD"
-
-                0x1B000000U -> /* AUDIO_FORMAT_FLAC            */
-                    "AUDIO_FORMAT_FLAC"
-
-                0x1C000000U -> /* AUDIO_FORMAT_ALAC            */
-                    "AUDIO_FORMAT_ALAC"
-
-                0x1D000000U -> /* AUDIO_FORMAT_APE             */
-                    "AUDIO_FORMAT_APE"
-
-                0x1E000000U -> /* AUDIO_FORMAT_AAC_ADTS        */
-                    "AUDIO_FORMAT_AAC_ADTS"
-
-                0x1F000000U -> /* AUDIO_FORMAT_SBC             */
-                    "AUDIO_FORMAT_SBC"
-
-                0x20000000U -> /* AUDIO_FORMAT_APTX            */
-                    "AUDIO_FORMAT_APTX"
-
-                0x21000000U -> /* AUDIO_FORMAT_APTX_HD         */
-                    "AUDIO_FORMAT_APTX_HD"
-
-                0x22000000U -> /* AUDIO_FORMAT_AC4             */
-                    "AUDIO_FORMAT_AC4"
-
-                0x23000000U -> /* AUDIO_FORMAT_LDAC            */
-                    "AUDIO_FORMAT_LDAC"
-
-                0x24000000U -> /* AUDIO_FORMAT_MAT             */
-                    "AUDIO_FORMAT_MAT"
-
-                0x25000000U -> /* AUDIO_FORMAT_AAC_LATM        */
-                    "AUDIO_FORMAT_AAC_LATM"
-
-                0x26000000U -> /* AUDIO_FORMAT_CELT            */
-                    "AUDIO_FORMAT_CELT"
-
-                0x27000000U -> /* AUDIO_FORMAT_APTX_ADAPTIVE   */
-                    "AUDIO_FORMAT_APTX_ADAPTIVE"
-
-                0x28000000U -> /* AUDIO_FORMAT_LHDC            */
-                    "AUDIO_FORMAT_LHDC"
-
-                0x29000000U -> /* AUDIO_FORMAT_LHDC_LL         */
-                    "AUDIO_FORMAT_LHDC_LL"
-
-                0x2A000000U -> /* AUDIO_FORMAT_APTX_TWSP       */
-                    "AUDIO_FORMAT_APTX_TWSP"
-
-                0x2B000000U -> /* AUDIO_FORMAT_LC3             */
-                    "AUDIO_FORMAT_LC3"
-
-                0x2C000000U -> /* AUDIO_FORMAT_MPEGH           */
-                    "AUDIO_FORMAT_MPEGH"
-
-                0x2D000000U -> /* AUDIO_FORMAT_IEC60958        */
-                    "AUDIO_FORMAT_IEC60958"
-
-                0x2E000000U -> /* AUDIO_FORMAT_DTS_UHD         */
-                    "AUDIO_FORMAT_DTS_UHD"
-
-                0x2F000000U -> /* AUDIO_FORMAT_DRA             */
-                    "AUDIO_FORMAT_DRA"
-
-                0x30000000U -> /* AUDIO_FORMAT_APTX_ADAPTIVE_QLEA */
-                    "AUDIO_FORMAT_APTX_ADAPTIVE_QLEA"
-
-                0x31000000U -> /* AUDIO_FORMAT_APTX_ADAPTIVE_R4   */
-                    "AUDIO_FORMAT_APTX_ADAPTIVE_R4"
-
-                0x32000000U -> /* AUDIO_FORMAT_DTS_HD_MA       */
-                    "AUDIO_FORMAT_DTS_HD_MA"
-
-                0x33000000U -> /* AUDIO_FORMAT_DTS_UHD_P2      */
-                    "AUDIO_FORMAT_DTS_UHD_P2"
-
-                /* Aliases */
-                0x1U -> /* AUDIO_FORMAT_PCM_16_BIT        */
-                    "AUDIO_FORMAT_PCM_16_BIT"        // (PCM | PCM_SUB_16_BIT)
-                0x2U -> /* AUDIO_FORMAT_PCM_8_BIT         */
-                    "AUDIO_FORMAT_PCM_8_BIT"        // (PCM | PCM_SUB_8_BIT)
-                0x3U -> /* AUDIO_FORMAT_PCM_32_BIT        */
-                    "AUDIO_FORMAT_PCM_32_BIT"        // (PCM | PCM_SUB_32_BIT)
-                0x4U -> /* AUDIO_FORMAT_PCM_8_24_BIT      */
-                    "AUDIO_FORMAT_PCM_8_24_BIT"        // (PCM | PCM_SUB_8_24_BIT)
-                0x5U -> /* AUDIO_FORMAT_PCM_FLOAT         */
-                    "AUDIO_FORMAT_PCM_FLOAT"        // (PCM | PCM_SUB_FLOAT)
-                0x6U -> /* AUDIO_FORMAT_PCM_24_BIT_PACKED */
-                    "AUDIO_FORMAT_PCM_24_BIT_PACKED"        // (PCM | PCM_SUB_24_BIT_PACKED)
-                0x4000001U -> /* AUDIO_FORMAT_AAC_MAIN          */
-                    "AUDIO_FORMAT_AAC_MAIN"  // (AAC | AAC_SUB_MAIN)
-                0x4000002U -> /* AUDIO_FORMAT_AAC_LC            */
-                    "AUDIO_FORMAT_AAC_LC"  // (AAC | AAC_SUB_LC)
-                0x4000004U -> /* AUDIO_FORMAT_AAC_SSR           */
-                    "AUDIO_FORMAT_AAC_SSR"  // (AAC | AAC_SUB_SSR)
-                0x4000008U -> /* AUDIO_FORMAT_AAC_LTP           */
-                    "AUDIO_FORMAT_AAC_LTP"  // (AAC | AAC_SUB_LTP)
-                0x4000010U -> /* AUDIO_FORMAT_AAC_HE_V1         */
-                    "AUDIO_FORMAT_AAC_HE_V1"  // (AAC | AAC_SUB_HE_V1)
-                0x4000020U -> /* AUDIO_FORMAT_AAC_SCALABLE      */
-                    "AUDIO_FORMAT_AAC_SCALABLE"  // (AAC | AAC_SUB_SCALABLE)
-                0x4000040U -> /* AUDIO_FORMAT_AAC_ERLC          */
-                    "AUDIO_FORMAT_AAC_ERLC"  // (AAC | AAC_SUB_ERLC)
-                0x4000080U -> /* AUDIO_FORMAT_AAC_LD            */
-                    "AUDIO_FORMAT_AAC_LD"  // (AAC | AAC_SUB_LD)
-                0x4000100U -> /* AUDIO_FORMAT_AAC_HE_V2         */
-                    "AUDIO_FORMAT_AAC_HE_V2"  // (AAC | AAC_SUB_HE_V2)
-                0x4000200U -> /* AUDIO_FORMAT_AAC_ELD           */
-                    "AUDIO_FORMAT_AAC_ELD"  // (AAC | AAC_SUB_ELD)
-                0x4000300U -> /* AUDIO_FORMAT_AAC_XHE           */
-                    "AUDIO_FORMAT_AAC_XHE"  // (AAC | AAC_SUB_XHE)
-                0x1e000001U -> /* AUDIO_FORMAT_AAC_ADTS_MAIN     */
-                    "AUDIO_FORMAT_AAC_ADTS_MAIN" // (AAC_ADTS | AAC_SUB_MAIN)
-                0x1e000002U -> /* AUDIO_FORMAT_AAC_ADTS_LC       */
-                    "AUDIO_FORMAT_AAC_ADTS_LC" // (AAC_ADTS | AAC_SUB_LC)
-                0x1e000004U -> /* AUDIO_FORMAT_AAC_ADTS_SSR      */
-                    "AUDIO_FORMAT_AAC_ADTS_SSR" // (AAC_ADTS | AAC_SUB_SSR)
-                0x1e000008U -> /* AUDIO_FORMAT_AAC_ADTS_LTP      */
-                    "AUDIO_FORMAT_AAC_ADTS_LTP" // (AAC_ADTS | AAC_SUB_LTP)
-                0x1e000010U -> /* AUDIO_FORMAT_AAC_ADTS_HE_V1    */
-                    "AUDIO_FORMAT_AAC_ADTS_HE_V1" // (AAC_ADTS | AAC_SUB_HE_V1)
-                0x1e000020U -> /* AUDIO_FORMAT_AAC_ADTS_SCALABLE */
-                    "AUDIO_FORMAT_AAC_ADTS_SCALABLE" // (AAC_ADTS | AAC_SUB_SCALABLE)
-                0x1e000040U -> /* AUDIO_FORMAT_AAC_ADTS_ERLC     */
-                    "AUDIO_FORMAT_AAC_ADTS_ERLC" // (AAC_ADTS | AAC_SUB_ERLC)
-                0x1e000080U -> /* AUDIO_FORMAT_AAC_ADTS_LD       */
-                    "AUDIO_FORMAT_AAC_ADTS_LD" // (AAC_ADTS | AAC_SUB_LD)
-                0x1e000100U -> /* AUDIO_FORMAT_AAC_ADTS_HE_V2    */
-                    "AUDIO_FORMAT_AAC_ADTS_HE_V2" // (AAC_ADTS | AAC_SUB_HE_V2)
-                0x1e000200U -> /* AUDIO_FORMAT_AAC_ADTS_ELD      */
-                    "AUDIO_FORMAT_AAC_ADTS_ELD" // (AAC_ADTS | AAC_SUB_ELD)
-                0x1e000300U -> /* AUDIO_FORMAT_AAC_ADTS_XHE      */
-                    "AUDIO_FORMAT_AAC_ADTS_XHE" // (AAC_ADTS | AAC_SUB_XHE)
-                0x25000002U -> /* AUDIO_FORMAT_AAC_LATM_LC       */
-                    "AUDIO_FORMAT_AAC_LATM_LC" // (AAC_LATM | AAC_SUB_LC)
-                0x25000010U -> /* AUDIO_FORMAT_AAC_LATM_HE_V1    */
-                    "AUDIO_FORMAT_AAC_LATM_HE_V1" // (AAC_LATM | AAC_SUB_HE_V1)
-                0x25000100U -> /* AUDIO_FORMAT_AAC_LATM_HE_V2    */
-                    "AUDIO_FORMAT_AAC_LATM_HE_V2" // (AAC_LATM | AAC_SUB_HE_V2)
-                0xA000001U -> /* AUDIO_FORMAT_E_AC3_JOC         */
-                    "AUDIO_FORMAT_E_AC3_JOC"  // (E_AC3 | E_AC3_SUB_JOC)
-                0x24000001U -> /* AUDIO_FORMAT_MAT_1_0           */
-                    "AUDIO_FORMAT_MAT_1_0" // (MAT | MAT_SUB_1_0)
-                0x24000002U -> /* AUDIO_FORMAT_MAT_2_0           */
-                    "AUDIO_FORMAT_MAT_2_0" // (MAT | MAT_SUB_2_0)
-                0x24000003U -> /* AUDIO_FORMAT_MAT_2_1           */
-                    "AUDIO_FORMAT_MAT_2_1" // (MAT | MAT_SUB_2_1)
-                0x2C000013U -> /* AUDIO_FORMAT_MPEGH_SUB_BL_L3   */
-                    "AUDIO_FORMAT_MPEGH_SUB_BL_L3"
-
-                0x2C000014U -> /* AUDIO_FORMAT_MPEGH_SUB_BL_L4   */
-                    "AUDIO_FORMAT_MPEGH_SUB_BL_L4"
-
-                0x2C000023U -> /* AUDIO_FORMAT_MPEGH_SUB_LC_L3   */
-                    "AUDIO_FORMAT_MPEGH_SUB_LC_L3"
-
-                0x2C000024U -> /* AUDIO_FORMAT_MPEGH_SUB_LC_L4   */
-                    "AUDIO_FORMAT_MPEGH_SUB_LC_L4"
-
-                else ->
-                    "AUDIO_FORMAT_($audioFormat)"
+            for (encoding in AudioFormatDetector.Encoding.entries) {
+                if (encoding.isSupportedAsNative && encoding.native == audioFormat)
+                    encoding.enc2?.let { return it }
             }
+            return "AUDIO_FORMAT_($audioFormat)"
         }
 
         @SuppressLint("PrivateApi") // sorry, not sorry...
@@ -613,6 +375,103 @@ class AfFormatTracker(
                 }
             return null
         }
+
+        private val idRegex = Regex(".*id\\((.*)\\) .*")
+        fun getPortIdFromDump(dump: String?): Int? {
+            if (dump == null)
+                return null
+            // ID is in dump output since below commit which first appeared in Q.
+            // https://cs.android.com/android/_/android/platform/frameworks/av/+/fb8ede2a020e741cb892ee024fcfba7e689183f2
+            // https://cs.android.com/android/_/android/platform/frameworks/av/+/973db02ac18fa1de9ce6221f47b01af1bdc4bec2
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
+                return null
+            var dt = dump.trim().split('\n').map { it.trim() }
+            if (dt.size < 2) {
+                Log.e(
+                    TAG,
+                    "getIdFromDump() failure: not enough lines, DUMP:\n$dump"
+                )
+                return null
+            }
+            if (dt[0] != "AudioTrack::dump") {
+                Log.e(
+                    TAG,
+                    "getIdFromDump() failure: L0 isn't AudioTrack::dump, DUMP:\n$dump"
+                )
+                return null
+            }
+            if (!dt[1].contains("id(")) {
+                Log.e(
+                    TAG,
+                    "getIdFromDump() failure: L1 didn't contain id(, DUMP:\n$dump"
+                )
+                return null
+            }
+            val idText = idRegex.matchEntire(dt[1])?.groupValues[1]
+            if (idText == null) {
+                Log.e(
+                    TAG,
+                    "getIdFromDump() failure: L1 didn't match regex, DUMP:\n$dump"
+                )
+                return null
+            }
+            idText.toIntOrNull()?.let { return it }
+            Log.e(
+                TAG,
+                "getIdFromDump() failure: $idText didn't convert to int from base 10, DUMP:\n$dump"
+            )
+            return null
+        }
+
+        private val flagRegex = Regex(".*, flags\\(0x(.*)\\).*")
+        private val flagRegexOld = Regex(".*, flags\\((.*)\\).*")
+        private fun getFlagFromDump(dump: String?): Int? {
+            if (dump == null)
+                return null
+            // Flags are in dump output since below commit which first appeared in Pie.
+            // https://cs.android.com/android/_/android/platform/frameworks/av/+/d114b624ea2ec5c51779b74132a60b4a46f6cdba
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P)
+                return null
+            var dt = dump.trim().split('\n').map { it.trim() }
+            if (dt.size < 2) {
+                Log.e(
+                    TAG,
+                    "getFlagFromDump() failure: not enough lines, DUMP:\n$dump"
+                )
+                return null
+            }
+            if (dt[0] != "AudioTrack::dump") {
+                Log.e(
+                    TAG,
+                    "getFlagFromDump() failure: L0 isn't AudioTrack::dump, DUMP:\n$dump"
+                )
+                return null
+            }
+            if (!dt[1].contains(" flags(")) {
+                Log.e(
+                    TAG,
+                    "getFlagFromDump() failure: L1 didn't contain flags(, DUMP:\n$dump"
+                )
+                return null
+            }
+            var flagText = flagRegex.matchEntire(dt[1])?.groupValues[1]
+            if (flagText == null) {
+                flagText = flagRegexOld.matchEntire(dt[1])?.groupValues[1]
+                if (flagText == null) {
+                    Log.e(
+                        TAG,
+                        "getFlagFromDump() failure: L1 didn't match regex, DUMP:\n$dump"
+                    )
+                    return null
+                }
+            }
+            flagText.toIntOrNull(radix = 16)?.let { return it }
+            Log.e(
+                TAG,
+                "getFlagFromDump() failure: $flagText didn't convert to int from base 16, DUMP:\n$dump"
+            )
+            return null
+        }
     }
 
     // only access sink or track on PlaybackThread
@@ -736,7 +595,7 @@ class AfFormatTracker(
                 mp?.id, mp?.name, mp?.flags,
                 oid, sr,
                 getHalFormat(audioTrack), getHalChannelCount(audioTrack), mp?.channelMask,
-                grantedFlags, getIdFromDump(dump), findAfTrackFlags(dump, latency, audioTrack, grantedFlags)
+                grantedFlags, getPortIdFromDump(dump), findAfTrackFlags(dump, latency, audioTrack, grantedFlags)
             ) // TODO find policy port ID: https://cs.android.com/android/_/android/platform/frameworks/av/+/20b9ef0b55c9150ae11057ab997ae61be2d496ef
         }.let {
             if (LOG_EVENTS)
@@ -744,101 +603,5 @@ class AfFormatTracker(
             format = it
             formatChangedCallback?.invoke(it)
         }
-    }
-
-    private val flagRegex = Regex(".*, flags\\(0x(.*)\\).*")
-    private val flagRegexOld = Regex(".*, flags\\((.*)\\).*")
-    private fun getFlagFromDump(dump: String?): Int? {
-        if (dump == null)
-            return null
-        // Flags are in dump output since below commit which first appeared in Pie.
-        // https://cs.android.com/android/_/android/platform/frameworks/av/+/d114b624ea2ec5c51779b74132a60b4a46f6cdba
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P)
-            return null
-        var dt = dump.trim().split('\n').map { it.trim() }
-        if (dt.size < 2) {
-            Log.e(
-                TAG,
-                "getFlagFromDump() failure: not enough lines, DUMP:\n$dump"
-            )
-            return null
-        }
-        if (dt[0] != "AudioTrack::dump") {
-            Log.e(
-                TAG,
-                "getFlagFromDump() failure: L0 isn't AudioTrack::dump, DUMP:\n$dump"
-            )
-            return null
-        }
-        if (!dt[1].contains(" flags(")) {
-            Log.e(
-                TAG,
-                "getFlagFromDump() failure: L1 didn't contain flags(, DUMP:\n$dump"
-            )
-            return null
-        }
-        var flagText = flagRegex.matchEntire(dt[1])?.groupValues[1]
-        if (flagText == null) {
-            flagText = flagRegexOld.matchEntire(dt[1])?.groupValues[1]
-            if (flagText == null) {
-                Log.e(
-                    TAG,
-                    "getFlagFromDump() failure: L1 didn't match regex, DUMP:\n$dump"
-                )
-                return null
-            }
-        }
-        flagText.toIntOrNull(radix = 16)?.let { return it }
-        Log.e(
-            TAG,
-            "getFlagFromDump() failure: $flagText didn't convert to int from base 16, DUMP:\n$dump"
-        )
-        return null
-    }
-
-    private val idRegex = Regex(".*id\\((.*)\\) .*")
-    private fun getIdFromDump(dump: String?): Int? {
-        if (dump == null)
-            return null
-        // ID is in dump output since below commit which first appeared in Q.
-        // https://cs.android.com/android/_/android/platform/frameworks/av/+/fb8ede2a020e741cb892ee024fcfba7e689183f2
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
-            return null
-        var dt = dump.trim().split('\n').map { it.trim() }
-        if (dt.size < 2) {
-            Log.e(
-                TAG,
-                "getIdFromDump() failure: not enough lines, DUMP:\n$dump"
-            )
-            return null
-        }
-        if (dt[0] != "AudioTrack::dump") {
-            Log.e(
-                TAG,
-                "getIdFromDump() failure: L0 isn't AudioTrack::dump, DUMP:\n$dump"
-            )
-            return null
-        }
-        if (!dt[1].contains("id(")) {
-            Log.e(
-                TAG,
-                "getIdFromDump() failure: L1 didn't contain id(, DUMP:\n$dump"
-            )
-            return null
-        }
-        val idText = idRegex.matchEntire(dt[1])?.groupValues[1]
-        if (idText == null) {
-            Log.e(
-                TAG,
-                "getIdFromDump() failure: L1 didn't match regex, DUMP:\n$dump"
-            )
-            return null
-        }
-        idText.toIntOrNull()?.let { return it }
-        Log.e(
-            TAG,
-            "getIdFromDump() failure: $idText didn't convert to int from base 10, DUMP:\n$dump"
-        )
-        return null
     }
 }

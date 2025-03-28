@@ -245,11 +245,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onCreate() {
+        super.onCreate()
         instanceForWidgetAndLyricsOnly = this
         internalPlaybackThread.start()
         playbackHandler = Handler(internalPlaybackThread.looper)
         handler = Handler(Looper.getMainLooper())
-        super.onCreate()
+        setForegroundServiceTimeoutMs(120000)
         nm = NotificationManagerCompat.from(this)
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
         setListener(this)
@@ -586,9 +587,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             AudioFormat.CHANNEL_OUT_STEREO
         )
         Toast.makeText(this, "direct: ${s.directOrOffload}", Toast.LENGTH_LONG).show()
-        val track = NativeTrack(this)
-        track.set()
-        track.release()
+        //val track = NativeTrack(this)
+        //track.release() TODO
     }
 
     private fun broadcastAudioSessionClose() {

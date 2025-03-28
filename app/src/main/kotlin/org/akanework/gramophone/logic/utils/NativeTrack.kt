@@ -9,10 +9,26 @@ import android.media.AudioTrack
 import android.os.Build
 import android.os.Parcel
 import android.util.Log
+import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import java.nio.ByteBuffer
 
-class NativeTrack(context: Context) {
+/*
+ * Exposes entire API surface of AudioTrack.cpp, with some notable exceptions:
+ * - Tuner API related features (including setAudioTrackCallback)
+ * - setCallerName/getCallerName/getMetrics because only used for metrics
+ * - TRANSFER_SHARED because short AudioTracks can be served by java API just fine
+ * None of those will impose any limitations for music playback.
+ */
+class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int, sampleRate: Int,
+                  format: AudioFormatDetector.Encoding,
+                  channelMask: Int,
+                  frameCount: Int, trackFlags: Int, sessionId: Int, maxRequiredSpeed: Float,
+                  selectedDeviceId: Int, bitRate: Int, durationUs: Long, hasVideo: Boolean,
+                  isStreaming: Boolean, bitWidth: Int, offloadBufferSize: Int, usage: Int,
+                  contentType: Int, source: Int, attrFlags: Int, tags: String,
+                  notificationFrames: Int, doNotReconnect: Boolean, transferMode: Int) {
     companion object {
         private const val TAG = "NativeTrack.kt"
 
@@ -77,13 +93,7 @@ class NativeTrack(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && hasDirect == null) {
                 hasDirect = false // TODO implement native isDirectPlaybackSupported
             }
-            val bitWidth = when (encoding) {
-                1, 0x0D000000 -> 16
-                2 -> 8
-                3, 4, 5 -> 32 // TODO does 8.24 count as 32?
-                6 -> 24
-                else -> 0
-            }
+            val bitWidth = bytesPerSampleForFormat(encoding) / 8
             var hasOffload: Boolean? = null
             if (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
                         && Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) || bitWidth < 24
@@ -144,6 +154,13 @@ class NativeTrack(context: Context) {
                 else -> TODO()
             }
         }
+        fun bytesPerSampleForFormat(format: Int): Int = when (format) {
+            1, 0x0D000000 -> 16
+            2 -> 8
+            3, 4, 5 -> 32 // TODO does 8.24 count as 32?
+            6 -> 24
+            else -> 0
+        }
         private fun buildAudioFormat(sampleRate: Int, encoding: Int, channelMask: Int): AudioFormat? {
             val formatBuilder = AudioFormat.Builder()
             try {
@@ -171,10 +188,12 @@ class NativeTrack(context: Context) {
         private external fun isOffloadSupported(sampleRate: Int, format: Int, channelMask: Int): Boolean
         private external fun initDlsym(): Boolean
     }
+    private var sessionId: Int
     val ptr: Long
-    var myState = State.NOT_SET
-        private set
+    var myState: State
     init {
+        if (!format.isSupportedAsNative)
+            throw IllegalArgumentException("encoding $format not supported on this SDK?")
         try {
             System.loadLibrary("gramophone")
         } catch (t: Throwable) {
@@ -186,23 +205,55 @@ class NativeTrack(context: Context) {
             throw NativeTrackException("initDlsym() failed", t)
         })
             throw NativeTrackException("initDlsym() returned false")
-        ptr = try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val ats = context.attributionSource
-                val parcel = Parcel.obtain()
+        ptr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val ats = context.attributionSource
+            val parcel = Parcel.obtain()
+            try {
+                ats.writeToParcel(parcel, 0)
                 try {
-                    ats.writeToParcel(parcel, 0)
                     create(parcel)
-                } finally {
-                    parcel.recycle()
+                } catch (t: Throwable) {
+                    throw NativeTrackException("create() threw exception", t)
                 }
-            } else create(null)
+            } finally {
+                parcel.recycle()
+            }
+        } else try {
+            create(null)
         } catch (t: Throwable) {
             throw NativeTrackException("create() threw exception", t)
         }
         if (ptr == 0L) {
             throw NativeTrackException("create() returned NULL")
         }
+        this.sessionId = if (sessionId == AudioManager.AUDIO_SESSION_ID_GENERATE)
+            ContextCompat.getSystemService(context, AudioManager::class.java)!!
+                .generateAudioSessionId()
+        else sessionId
+        val fmt = format.native!!.toInt()
+        // java streamType is compatible with native streamType
+        val ret = try {
+            set(ptr, streamType, sampleRate, fmt, 3, 0, 0, this.sessionId, 1.0f, 0, 0, 0, false, false, 16, 0, 1, 2, 0, 0, "", 0,
+                false, 3)
+        } catch (t: Throwable) {
+            try {
+                dtor(ptr)
+            } catch (t2: Throwable) {
+                throw NativeTrackException("dtor() threw exception after set() threw exception: " +
+                        Log.getStackTraceString(t2), t)
+            }
+            throw NativeTrackException("set() threw exception", t)
+        }
+        if (ret != 0) {
+            try {
+                dtor(ptr)
+            } catch (t: Throwable) {
+                throw NativeTrackException("dtor() threw exception after set() failed with code $ret", t)
+            }
+            throw NativeTrackException("set() failed with code $ret")
+        }
+        myState = State.ALIVE
+        Log.e("hi", "dump:${AfFormatTracker.dumpInternal(getRealPtr(ptr))}")
     }
     private external fun create(@Suppress("unused") parcel: Parcel?): Long
     /*
@@ -226,24 +277,70 @@ class NativeTrack(context: Context) {
      *          causing set() to fail. In that case, we have to try again with another format.
      */
     @Suppress("unused") // for parameters, this method has a few of them
-    private external fun doSet(ptr: Long, streamType: Int, sampleRate: Int, format: Int, channelMask: Int,
-                               frameCount: Int, trackFlags: Int, sessionId: Int, maxRequiredSpeed: Float,
-                               selectedDeviceId: Int, bitRate: Int, durationUs: Long, hasVideo: Boolean,
-                               isStreaming: Boolean, bitWidth: Int, offloadBufferSize: Int, usage: Int,
-                               encapsulationMode: Int, contentId: Int, syncId: Int, contentType: Int,
-                               source: Int, attrFlags: Int, tags: String, notificationFrames: Int,
-                               doNotReconnect: Boolean, transferMode: Int): Int
+    private external fun set(ptr: Long, streamType: Int, sampleRate: Int, format: Int, channelMask: Int,
+                             frameCount: Int, trackFlags: Int, sessionId: Int, maxRequiredSpeed: Float,
+                             selectedDeviceId: Int, bitRate: Int, durationUs: Long, hasVideo: Boolean,
+                             isStreaming: Boolean, bitWidth: Int, offloadBufferSize: Int, usage: Int,
+                             contentType: Int, source: Int, attrFlags: Int, tags: String,
+                             notificationFrames: Int, doNotReconnect: Boolean, transferMode: Int): Int
     private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
     private external fun dtor(@Suppress("unused") ptr: Long)
-    fun set(): Boolean {
-        doSet(ptr, 3, 13370, 1, 3, 0, 0, 0, 1.0f, 0, 0, 0, false, false, 16, 0, 1, 0, 0, 0, 2, 0, 0, "", 0, false, 3)
-        Log.e("hi", "dump:${AfFormatTracker.dumpInternal(getRealPtr(ptr))}")
-        return myState == State.ALIVE
-    }
 
     fun release() {
         myState = State.RELEASED
         dtor(ptr)
+    }
+
+    fun dump(): String {
+        return ""
+    }
+
+    fun state(): Int {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0 // TODO get from dump()
+    }
+
+    fun isPlaying(): Boolean {
+        val state = state()
+        return state == 0 || state == 5
+    }
+
+    fun frameCount(): Int {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0 // TODO get from dump()
+    }
+
+    fun format(): Int {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0 // TODO get from saved set state
+    }
+
+    fun sessionId() = sessionId
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    fun portId(): Int {
+        return AfFormatTracker.getPortIdFromDump(dump())
+            ?: throw IllegalStateException("getPortId failed, check prior logs")
+    }
+
+    fun channelMask(): Int {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0 // TODO get from saved set state
+    }
+
+    fun channelCount(): Int {
+        return Integer.bitCount(channelMask()) // TODO is this valid?
+    }
+
+    fun frameSize(): Int {
+        val bps = bytesPerSampleForFormat(format())
+        if (bps == 0) // compressed
+            return 1
+        return channelCount() * bps
     }
 
     class NativeTrackException : Exception {
@@ -251,7 +348,6 @@ class NativeTrack(context: Context) {
         constructor(message: String, cause: Throwable) : super(message, cause)
     }
     enum class State {
-        NOT_SET, // did not call set() yet
         DEAD_OBJECT, // we got killed by lower layer
         RELEASED, // release() called
         ALIVE, // ready to use

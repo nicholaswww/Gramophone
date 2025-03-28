@@ -120,132 +120,127 @@ object AudioFormatDetector {
         }
     }
 
-    @UnstableApi
-    enum class Encoding(val enc: Int?, val enc2: String?, private val res: Int) {
-        ENCODING_INVALID(C.ENCODING_INVALID, null, R.string.spk_encoding_invalid),
-        ENCODING_PCM_8BIT(C.ENCODING_PCM_8BIT, "AUDIO_FORMAT_PCM_8_BIT", R.string.spk_encoding_pcm_8bit),
-        ENCODING_PCM_16BIT(C.ENCODING_PCM_16BIT, "AUDIO_FORMAT_PCM_16_BIT", R.string.spk_encoding_pcm_16bit),
-        ENCODING_PCM_16BIT_BIG_ENDIAN(
-            C.ENCODING_PCM_16BIT_BIG_ENDIAN,
-            null,
-            R.string.spk_encoding_pcm_16bit_big_endian
-        ),
-        ENCODING_PCM_24BIT(
-            C.ENCODING_PCM_24BIT,
-            "AUDIO_FORMAT_PCM_24_BIT_PACKED",
-            R.string.spk_encoding_pcm_24bit
-        ),
-        ENCODING_PCM_8_24BIT(null, "AUDIO_FORMAT_PCM_8_24_BIT", R.string.spk_encoding_pcm_8_24bit),
-        ENCODING_PCM_24BIT_BIG_ENDIAN(
-            C.ENCODING_PCM_24BIT_BIG_ENDIAN,
-            null,
-            R.string.spk_encoding_pcm_24bit_big_endian
-        ),
-        ENCODING_PCM_32BIT(C.ENCODING_PCM_32BIT, "AUDIO_FORMAT_PCM_32_BIT", R.string.spk_encoding_pcm_32bit),
-        ENCODING_PCM_32BIT_BIG_ENDIAN(
-            C.ENCODING_PCM_32BIT_BIG_ENDIAN,
-            null,
-            R.string.spk_encoding_pcm_32bit_big_endian
-        ),
-        ENCODING_PCM_FLOAT(C.ENCODING_PCM_FLOAT, "AUDIO_FORMAT_PCM_FLOAT", R.string.spk_encoding_pcm_float),
-        ENCODING_MP3(C.ENCODING_MP3, "AUDIO_FORMAT_MP3", R.string.spk_encoding_mp3),
-        ENCODING_AAC_LC(C.ENCODING_AAC_LC, "AUDIO_FORMAT_AAC_LC", R.string.spk_encoding_aac_lc),
-        ENCODING_AAC_HE_V1(C.ENCODING_AAC_HE_V1, "AUDIO_FORMAT_AAC_HE_V1", R.string.spk_encoding_aac_he_v1),
-        ENCODING_AAC_HE_V2(C.ENCODING_AAC_HE_V2, "AUDIO_FORMAT_AAC_HE_V2", R.string.spk_encoding_aac_he_v2),
-        ENCODING_HE_AAC_V1(null, "AUDIO_FORMAT_HE_AAC_V1", R.string.spk_encoding_aac_he_v1),
-        ENCODING_HE_AAC_V2(null, "AUDIO_FORMAT_HE_AAC_V2", R.string.spk_encoding_aac_he_v2),
-        ENCODING_AAC_XHE(C.ENCODING_AAC_XHE, "AUDIO_FORMAT_AAC_XHE", R.string.spk_encoding_aac_xhe),
-        ENCODING_AAC_ELD(C.ENCODING_AAC_ELD, "AUDIO_FORMAT_AAC_ELD", R.string.spk_encoding_aac_eld),
-        ENCODING_AAC_ER_BSAC(C.ENCODING_AAC_ER_BSAC, null, R.string.spk_encoding_aac_er_bsac),
-        ENCODING_AC3(C.ENCODING_AC3, "AUDIO_FORMAT_AC3", R.string.spk_encoding_ac3),
-        ENCODING_E_AC3(C.ENCODING_E_AC3, "AUDIO_FORMAT_E_AC3", R.string.spk_encoding_e_ac3),
-        ENCODING_E_AC3_JOC(C.ENCODING_E_AC3_JOC, "AUDIO_FORMAT_E_AC3_JOC", R.string.spk_encoding_e_ac3_joc),
-        ENCODING_AC4(C.ENCODING_AC4, "AUDIO_FORMAT_AC4", R.string.spk_encoding_ac4),
-        ENCODING_DTS(C.ENCODING_DTS, "AUDIO_FORMAT_DTS", R.string.spk_encoding_dts),
-        ENCODING_DTS_HD(C.ENCODING_DTS_HD, "AUDIO_FORMAT_DTS_HD", R.string.spk_encoding_dts_hd),
-        ENCODING_DOLBY_TRUEHD(
-            C.ENCODING_DOLBY_TRUEHD,
-            "AUDIO_FORMAT_DOLBY_TRUEHD",
-            R.string.spk_encoding_dolby_truehd
-        ),
-        ENCODING_OPUS(C.ENCODING_OPUS, "AUDIO_FORMAT_OPUS", R.string.spk_encoding_opus),
-        ENCODING_DTS_UHD_P2(C.ENCODING_DTS_UHD_P2, "AUDIO_FORMAT_DTS_UHD_P2", R.string.spk_encoding_dts_uhd_p2),
-        ENCODING_AMR_NB(null, "AUDIO_FORMAT_AMR_NB", R.string.spk_encoding_amr_nb),
-        ENCODING_AMR_WB(null, "AUDIO_FORMAT_AMR_WB", R.string.spk_encoding_amr_wb),
-        ENCODING_AAC(null, "AUDIO_FORMAT_AAC", R.string.spk_encoding_aac),
-        ENCODING_VORBIS(null, "AUDIO_FORMAT_VORBIS", R.string.spk_encoding_vorbis),
-        ENCODING_IEC61937(null, "AUDIO_FORMAT_IEC61937", R.string.spk_encoding_iec61937),
-        ENCODING_EVRC(null, "AUDIO_FORMAT_EVRC", R.string.spk_encoding_evrc),
-        ENCODING_EVRCB(null, "AUDIO_FORMAT_EVRCB", R.string.spk_encoding_evrcb),
-        ENCODING_EVRCWB(null, "AUDIO_FORMAT_EVRCWB", R.string.spk_encoding_evrcwb),
-        ENCODING_EVRCNW(null, "AUDIO_FORMAT_EVRCNW", R.string.spk_encoding_evrcnw),
-        ENCODING_AAC_ADIF(null, "AUDIO_FORMAT_AAC_ADIF", R.string.spk_encoding_aac_adif),
-        ENCODING_WMA(null, "AUDIO_FORMAT_WMA", R.string.spk_encoding_wma),
-        ENCODING_WMA_PRO(null, "AUDIO_FORMAT_WMA_PRO", R.string.spk_encoding_wma_pro),
-        ENCODING_AMR_WB_PLUS(null, "AUDIO_FORMAT_AMR_WB_PLUS", R.string.spk_encoding_amr_wb_plus),
-        ENCODING_MP2(null, "AUDIO_FORMAT_MP2", R.string.spk_encoding_mp2),
-        ENCODING_QCELP(null, "AUDIO_FORMAT_QCELP", R.string.spk_encoding_qcelp),
-        ENCODING_DSD(null, "AUDIO_FORMAT_DSD", R.string.spk_encoding_dsd),
-        ENCODING_FLAC(null, "AUDIO_FORMAT_FLAC", R.string.spk_encoding_flac),
-        ENCODING_ALAC(null, "AUDIO_FORMAT_ALAC", R.string.spk_encoding_alac),
-        ENCODING_APE(null, "AUDIO_FORMAT_APE", R.string.spk_encoding_ape),
-        ENCODING_AAC_ADTS(null, "AUDIO_FORMAT_AAC_ADTS", R.string.spk_encoding_aac_adts),
-        ENCODING_SBC(null, "AUDIO_FORMAT_SBC", R.string.spk_encoding_sbc),
-        ENCODING_APTX(null, "AUDIO_FORMAT_APTX", R.string.spk_encoding_aptx),
-        ENCODING_APTX_HD(null, "AUDIO_FORMAT_APTX_HD", R.string.spk_encoding_aptx_hd),
-        ENCODING_LDAC(null, "AUDIO_FORMAT_LDAC", R.string.spk_encoding_ldac),
-        ENCODING_MAT(null, "AUDIO_FORMAT_MAT", R.string.spk_encoding_mat),
-        ENCODING_AAC_LATM(null, "AUDIO_FORMAT_AAC_LATM", R.string.spk_encoding_aac_latm),
-        ENCODING_CELT(null, "AUDIO_FORMAT_CELT", R.string.spk_encoding_celt),
-        ENCODING_APTX_ADAPTIVE(null, "AUDIO_FORMAT_APTX_ADAPTIVE", R.string.spk_encoding_aptx_adaptive),
-        ENCODING_LHDC(null, "AUDIO_FORMAT_LHDC", R.string.spk_encoding_lhdc),
-        ENCODING_LHDC_LL(null, "AUDIO_FORMAT_LHDC_LL", R.string.spk_encoding_lhdc_ll),
-        ENCODING_APTX_TWSP(null, "AUDIO_FORMAT_APTX_TWSP", R.string.spk_encoding_aptx_twsp),
-        ENCODING_LC3(null, "AUDIO_FORMAT_LC3", R.string.spk_encoding_lc3),
-        ENCODING_MPEGH(null, "AUDIO_FORMAT_MPEGH", R.string.spk_encoding_mpegh),
-        ENCODING_IEC60958(null, "AUDIO_FORMAT_IEC60958", R.string.spk_encoding_iec60958),
-        ENCODING_DTS_UHD(null, "AUDIO_FORMAT_DTS_UHD", R.string.spk_encoding_dts_uhd),
-        ENCODING_DRA(null, "AUDIO_FORMAT_DRA", R.string.spk_encoding_dra),
-        ENCODING_APTX_ADAPTIVE_QLEA(
-            null,
-            "AUDIO_FORMAT_APTX_ADAPTIVE_QLEA",
-            R.string.spk_encoding_aptx_adaptive_qlea
-        ),
-        ENCODING_APTX_ADAPTIVE_R4(null, "AUDIO_FORMAT_APTX_ADAPTIVE_R4", R.string.spk_encoding_aptx_adaptive_r4),
-        ENCODING_DTS_HD_MA(null, "AUDIO_FORMAT_DTS_HD_MA", R.string.spk_encoding_dts_hd_ma),
-        ENCODING_AAC_MAIN(null, "AUDIO_FORMAT_AAC_MAIN", R.string.spk_encoding_aac_main),
-        ENCODING_AAC_SSR(null, "AUDIO_FORMAT_AAC_SSR", R.string.spk_encoding_aac_ssr),
-        ENCODING_AAC_LTP(null, "AUDIO_FORMAT_AAC_LTP", R.string.spk_encoding_aac_ltp),
-        ENCODING_AAC_SCALABLE(null, "AUDIO_FORMAT_AAC_SCALABLE", R.string.spk_encoding_aac_scalable),
-        ENCODING_AAC_ERLC(null, "AUDIO_FORMAT_AAC_ERLC", R.string.spk_encoding_aac_erlc),
-        ENCODING_AAC_LD(null, "AUDIO_FORMAT_AAC_LD", R.string.spk_encoding_aac_ld),
-        ENCODING_AAC_ADTS_MAIN(null, "AUDIO_FORMAT_AAC_ADTS_MAIN", R.string.spk_encoding_aac_adts_main),
-        ENCODING_AAC_ADTS_LC(null, "AUDIO_FORMAT_AAC_ADTS_LC", R.string.spk_encoding_aac_adts_lc),
-        ENCODING_AAC_ADTS_SSR(null, "AUDIO_FORMAT_AAC_ADTS_SSR", R.string.spk_encoding_aac_adts_ssr),
-        ENCODING_AAC_ADTS_LTP(null, "AUDIO_FORMAT_AAC_ADTS_LTP", R.string.spk_encoding_aac_adts_ltp),
-        ENCODING_AAC_ADTS_HE_V1(null, "AUDIO_FORMAT_AAC_ADTS_HE_V1", R.string.spk_encoding_aac_adts_he_v1),
-        ENCODING_AAC_ADTS_SCALABLE(
-            null,
-            "AUDIO_FORMAT_AAC_ADTS_SCALABLE",
-            R.string.spk_encoding_aac_adts_scalable
-        ),
-        ENCODING_AAC_ADTS_ERLC(null, "AUDIO_FORMAT_AAC_ADTS_ERLC", R.string.spk_encoding_aac_adts_erlc),
-        ENCODING_AAC_ADTS_LD(null, "AUDIO_FORMAT_AAC_ADTS_LD", R.string.spk_encoding_aac_adts_ld),
-        ENCODING_AAC_ADTS_HE_V2(null, "AUDIO_FORMAT_AAC_ADTS_HE_V2", R.string.spk_encoding_aac_adts_he_v2),
-        ENCODING_AAC_ADTS_ELD(null, "AUDIO_FORMAT_AAC_ADTS_ELD", R.string.spk_encoding_aac_adts_eld),
-        ENCODING_AAC_ADTS_XHE(null, "AUDIO_FORMAT_AAC_ADTS_XHE", R.string.spk_encoding_aac_adts_xhe),
-        ENCODING_AAC_LATM_LC(null, "AUDIO_FORMAT_AAC_LATM_LC", R.string.spk_encoding_aac_latm_lc),
-        ENCODING_AAC_LATM_HE_V1(null, "AUDIO_FORMAT_AAC_LATM_HE_V1", R.string.spk_encoding_aac_latm_he_v1),
-        ENCODING_AAC_LATM_HE_V2(null, "AUDIO_FORMAT_AAC_LATM_HE_V2", R.string.spk_encoding_aac_latm_he_v2),
-        ENCODING_MAT_1_0(null, "AUDIO_FORMAT_MAT_1_0", R.string.spk_encoding_mat_1_0),
-        ENCODING_MAT_2_0(null, "AUDIO_FORMAT_MAT_2_0", R.string.spk_encoding_mat_2_0),
-        ENCODING_MAT_2_1(null, "AUDIO_FORMAT_MAT_2_1", R.string.spk_encoding_mat_2_1),
-        ENCODING_MPEGH_SUB_BL_L3(null, "AUDIO_FORMAT_MPEGH_SUB_BL_L3", R.string.spk_encoding_mpegh_sub_bl_l3),
-        ENCODING_MPEHG_SUB_BL_L4(null, "AUDIO_FORMAT_MPEGH_SUB_BL_L4", R.string.spk_encoding_mpegh_sub_bl_l4),
-        ENCODING_MPEGH_SUB_LC_L3(null, "AUDIO_FORMAT_MPEGH_SUB_LC_L3", R.string.spk_encoding_mpegh_sub_lc_l3),
-        ENCODING_MPEGH_SUB_LC_L4(null, "AUDIO_FORMAT_MPEGH_SUB_LC_L4", R.string.spk_encoding_mpegh_sub_lc_l4);
+    enum class ChannelMask {
+        // TODO
+    }
 
+    @OptIn(UnstableApi::class)
+    enum class Encoding(val enc: Int?, val enc2: String?, val native: UInt?, val sdkRange: IntRange?, val res: Int) {
+        ENCODING_INVALID(C.ENCODING_INVALID, null, 0xFFFFFFFFU, 0, R.string.spk_encoding_invalid),
+        ENCODING_PCM_8BIT(C.ENCODING_PCM_8BIT, "AUDIO_FORMAT_PCM_8_BIT", 0x1U, 21, R.string.spk_encoding_pcm_8bit),
+        ENCODING_PCM_16BIT(C.ENCODING_PCM_16BIT, "AUDIO_FORMAT_PCM_16_BIT", 0x2U, 21, R.string.spk_encoding_pcm_16bit),
+        ENCODING_PCM_16BIT_BIG_ENDIAN(C.ENCODING_PCM_16BIT_BIG_ENDIAN, null, null, null, R.string.spk_encoding_pcm_16bit_big_endian),
+        ENCODING_PCM_24BIT(C.ENCODING_PCM_24BIT, "AUDIO_FORMAT_PCM_24_BIT_PACKED", 0x6U, 21, R.string.spk_encoding_pcm_24bit),
+        ENCODING_PCM_8_24BIT(null, "AUDIO_FORMAT_PCM_8_24_BIT", 0x4U, 21, R.string.spk_encoding_pcm_8_24bit),
+        ENCODING_PCM_24BIT_BIG_ENDIAN(C.ENCODING_PCM_24BIT_BIG_ENDIAN, null, null, null, R.string.spk_encoding_pcm_24bit_big_endian),
+        ENCODING_PCM_32BIT(C.ENCODING_PCM_32BIT, "AUDIO_FORMAT_PCM_32_BIT", 0x3U, 21, R.string.spk_encoding_pcm_32bit),
+        ENCODING_PCM_32BIT_BIG_ENDIAN(C.ENCODING_PCM_32BIT_BIG_ENDIAN, null, null, null, R.string.spk_encoding_pcm_32bit_big_endian),
+        ENCODING_PCM_FLOAT(C.ENCODING_PCM_FLOAT, "AUDIO_FORMAT_PCM_FLOAT", 0x5U, 21, R.string.spk_encoding_pcm_float),
+        ENCODING_MP3(C.ENCODING_MP3, "AUDIO_FORMAT_MP3", 0x01000000U, 21, R.string.spk_encoding_mp3),
+        ENCODING_AAC_LC(C.ENCODING_AAC_LC, "AUDIO_FORMAT_AAC_LC", 0x4000002U, 21, R.string.spk_encoding_aac_lc),
+        ENCODING_AAC_HE_V1(C.ENCODING_AAC_HE_V1, "AUDIO_FORMAT_AAC_HE_V1", 0x4000010U, 21, R.string.spk_encoding_aac_he_v1),
+        ENCODING_AAC_HE_V2(C.ENCODING_AAC_HE_V2, "AUDIO_FORMAT_AAC_HE_V2", 0x4000100U, 21, R.string.spk_encoding_aac_he_v2),
+        ENCODING_HE_AAC_V1(null, "AUDIO_FORMAT_HE_AAC_V1", 0x05000000U, 21, R.string.spk_encoding_aac_he_v1), // deprecated
+        ENCODING_HE_AAC_V2(null, "AUDIO_FORMAT_HE_AAC_V2", 0x06000000U, 21, R.string.spk_encoding_aac_he_v2), // deprecated
+        ENCODING_AAC_XHE(C.ENCODING_AAC_XHE, "AUDIO_FORMAT_AAC_XHE", 0x4000300U, 28, R.string.spk_encoding_aac_xhe),
+        ENCODING_AAC_ELD(C.ENCODING_AAC_ELD, "AUDIO_FORMAT_AAC_ELD", 0x4000200U, 21, R.string.spk_encoding_aac_eld),
+        ENCODING_AAC_ER_BSAC(C.ENCODING_AAC_ER_BSAC, null, null, null, R.string.spk_encoding_aac_er_bsac),
+        ENCODING_AC3(C.ENCODING_AC3, "AUDIO_FORMAT_AC3", 0x09000000U, 21, R.string.spk_encoding_ac3),
+        ENCODING_E_AC3(C.ENCODING_E_AC3, "AUDIO_FORMAT_E_AC3", 0x0A000000U, 21, R.string.spk_encoding_e_ac3),
+        ENCODING_E_AC3_JOC(C.ENCODING_E_AC3_JOC, "AUDIO_FORMAT_E_AC3_JOC", if (Build.VERSION.SDK_INT >= 28)
+            0xA000001U else 0x1E000000U, if (Build.VERSION.SDK_INT >= 23) 28 else 21, R.string.spk_encoding_e_ac3_joc), // aosp since 28
+        ENCODING_AC4(C.ENCODING_AC4, "AUDIO_FORMAT_AC4", 0x22000000U, 26, R.string.spk_encoding_ac4),
+        ENCODING_DTS(C.ENCODING_DTS, "AUDIO_FORMAT_DTS", if (Build.VERSION.SDK_INT >= 23) 0x0B000000U else 0x12000000U, 21, R.string.spk_encoding_dts), // aosp since 23
+        ENCODING_DTS_HD(C.ENCODING_DTS_HD, "AUDIO_FORMAT_DTS_HD", 0x0C000000U, 23, R.string.spk_encoding_dts_hd),
+        ENCODING_DTS_LBR(null, "AUDIO_FORMAT_DTS_LBR", 0x18000000U, 21..22, R.string.spk_encoding_dts_lbr), // caf
+        ENCODING_DOLBY_TRUEHD(C.ENCODING_DOLBY_TRUEHD, "AUDIO_FORMAT_DOLBY_TRUEHD", 0x0E000000U, 25, R.string.spk_encoding_dolby_truehd),
+        ENCODING_OPUS(C.ENCODING_OPUS, "AUDIO_FORMAT_OPUS", 0x08000000U, 21, R.string.spk_encoding_opus),
+        ENCODING_DTS_UHD_P2(C.ENCODING_DTS_UHD_P2, "AUDIO_FORMAT_DTS_UHD_P2", 0x33000000U, 34, R.string.spk_encoding_dts_uhd_p2),
+        ENCODING_AMR_NB(null, "AUDIO_FORMAT_AMR_NB", 0x02000000U, 21, R.string.spk_encoding_amr_nb),
+        ENCODING_AMR_WB(null, "AUDIO_FORMAT_AMR_WB", 0x03000000U, 21, R.string.spk_encoding_amr_wb),
+        ENCODING_AAC(null, "AUDIO_FORMAT_AAC", 0x04000000U, 21, R.string.spk_encoding_aac),
+        ENCODING_VORBIS(null, "AUDIO_FORMAT_VORBIS", 0x07000000U, 21, R.string.spk_encoding_vorbis),
+        ENCODING_IEC61937(null, "AUDIO_FORMAT_IEC61937", 0x0D000000U, 24, R.string.spk_encoding_iec61937),
+        ENCODING_EVRC(null, "AUDIO_FORMAT_EVRC", 0x10000000U, 21, R.string.spk_encoding_evrc), // aosp since 26
+        ENCODING_EVRCB(null, "AUDIO_FORMAT_EVRCB", if (Build.VERSION.SDK_INT >= 26) 0x11000000U else
+            if (Build.VERSION.SDK_INT >= 23) 0x15000000U else 0x16000000U, 21, R.string.spk_encoding_evrcb), // aosp since 26
+        ENCODING_EVRCWB(null, "AUDIO_FORMAT_EVRCWB", if (Build.VERSION.SDK_INT >= 26) 0x12000000U else
+            if (Build.VERSION.SDK_INT >= 23) 0x16000000U else 0x17000000U, 21, R.string.spk_encoding_evrcwb), // aosp since 26
+        ENCODING_EVRCNW(null, "AUDIO_FORMAT_EVRCNW", if (Build.VERSION.SDK_INT >= 26) 0x13000000U else
+            if (Build.VERSION.SDK_INT >= 23) 0x19000000U else 0x1B000000U, 21, R.string.spk_encoding_evrcnw), // aosp since 26
+        ENCODING_AAC_ADIF(null, "AUDIO_FORMAT_AAC_ADIF", if (Build.VERSION.SDK_INT >= 23) 0x14000000U else
+            0x15000000U, 21, R.string.spk_encoding_aac_adif), // aosp since 26
+        ENCODING_WMA(null, "AUDIO_FORMAT_WMA", if (Build.VERSION.SDK_INT >= 26) 0x15000000U else
+            if (Build.VERSION.SDK_INT >= 23) 0x12000000U else 0x13000000U, 21, R.string.spk_encoding_wma),
+        ENCODING_WMA_PRO(null, "AUDIO_FORMAT_WMA_PRO", if (Build.VERSION.SDK_INT >= 26) 0x16000000U else
+            if (Build.VERSION.SDK_INT >= 23) 0x13000000U else 0x14000000U, 21, R.string.spk_encoding_wma_pro),
+        ENCODING_AMR_WB_PLUS(null, "AUDIO_FORMAT_AMR_WB_PLUS", if (Build.VERSION.SDK_INT >= 23) 0x17000000U else
+            0x19000000U, 21, R.string.spk_encoding_amr_wb_plus), // aosp since 26
+        ENCODING_MP2(null, "AUDIO_FORMAT_MP2", if (Build.VERSION.SDK_INT >= 23) 0x18000000U else
+            0x1A000000U, 21, R.string.spk_encoding_mp2), // aosp since 26
+        ENCODING_QCELP(null, "AUDIO_FORMAT_QCELP", if (Build.VERSION.SDK_INT >= 26) 0x19000000U else
+            0x11000000U, 26, R.string.spk_encoding_qcelp),
+        ENCODING_PCM_16_BIT_OFFLOAD(null, "AUDIO_FORMAT_PCM_16_BIT_OFFLOAD", if (Build.VERSION.SDK_INT >= 23)
+            0x1A000001U else 0x1C000001U, 21..25, R.string.spk_encoding_pcm_16bit_offload), // caf
+        ENCODING_PCM_8_24_BIT_OFFLOAD(null, "AUDIO_FORMAT_PCM_24_BIT_OFFLOAD", if (Build.VERSION.SDK_INT >= 23)
+            0x1A000004U else 0x1C000004U, 21..25, R.string.spk_encoding_pcm_24bit_offload), // caf
+        ENCODING_DSD(null, "AUDIO_FORMAT_DSD", if (Build.VERSION.SDK_INT >= 26) 0x1A000000U else 0x1F000000U, 24, R.string.spk_encoding_dsd), // aosp since 26
+        ENCODING_FLAC(null, "AUDIO_FORMAT_FLAC", if (Build.VERSION.SDK_INT >= 23) 0x1B000000U else 0x1D000000U, 21, R.string.spk_encoding_flac), // aosp since 26
+        ENCODING_ALAC(null, "AUDIO_FORMAT_ALAC", 0x1C000000U, 23, R.string.spk_encoding_alac), // aosp since 26
+        ENCODING_APE(null, "AUDIO_FORMAT_APE", 0x1D000000U, 23, R.string.spk_encoding_ape), // aosp since 26
+        ENCODING_AAC_ADTS(null, "AUDIO_FORMAT_AAC_ADTS", 0x1E000000U, 23, R.string.spk_encoding_aac_adts), // aosp since 26
+        ENCODING_SBC(null, "AUDIO_FORMAT_SBC", if (Build.VERSION.SDK_INT >= 26) 0x1F000000U else 0x20000000U, 24, R.string.spk_encoding_sbc), // aosp since 26
+        ENCODING_APTX(null, "AUDIO_FORMAT_APTX", if (Build.VERSION.SDK_INT >= 26) 0x20000000U else 0x21000000U, 24, R.string.spk_encoding_aptx), // aosp since 26
+        ENCODING_APTX_HD(null, "AUDIO_FORMAT_APTX_HD", if (Build.VERSION.SDK_INT >= 26) 0x21000000U else 0x22000000U, 24, R.string.spk_encoding_aptx_hd), // aosp since 26
+        ENCODING_LDAC(null, "AUDIO_FORMAT_LDAC", 0x23000000U, 26, R.string.spk_encoding_ldac),
+        ENCODING_MAT(null, "AUDIO_FORMAT_MAT", 0x24000000U, 28, R.string.spk_encoding_mat),
+        ENCODING_AAC_LATM(null, "AUDIO_FORMAT_AAC_LATM", 0x25000000U, 29, R.string.spk_encoding_aac_latm),
+        ENCODING_CELT(null, "AUDIO_FORMAT_CELT", 0x26000000U, 29, R.string.spk_encoding_celt),
+        ENCODING_APTX_ADAPTIVE(null, "AUDIO_FORMAT_APTX_ADAPTIVE", 0x27000000U, 29, R.string.spk_encoding_aptx_adaptive),
+        ENCODING_LHDC(null, "AUDIO_FORMAT_LHDC", 0x28000000U, 29, R.string.spk_encoding_lhdc),
+        ENCODING_LHDC_LL(null, "AUDIO_FORMAT_LHDC_LL", 0x29000000U, 29, R.string.spk_encoding_lhdc_ll),
+        ENCODING_APTX_TWSP(null, "AUDIO_FORMAT_APTX_TWSP", 0x2A000000U, 29, R.string.spk_encoding_aptx_twsp),
+        ENCODING_LC3(null, "AUDIO_FORMAT_LC3", 0x2B000000U, 31, R.string.spk_encoding_lc3),
+        ENCODING_MPEGH(null, "AUDIO_FORMAT_MPEGH", 0x2C000000U, 31, R.string.spk_encoding_mpegh),
+        ENCODING_IEC60958(null, "AUDIO_FORMAT_IEC60958", 0x2D000000U, 31, R.string.spk_encoding_iec60958),
+        ENCODING_DTS_UHD(null, "AUDIO_FORMAT_DTS_UHD", 0x2E000000U, 31, R.string.spk_encoding_dts_uhd),
+        ENCODING_DRA(null, "AUDIO_FORMAT_DRA", 0x2F000000U, 31, R.string.spk_encoding_dra),
+        ENCODING_APTX_ADAPTIVE_QLEA(null, "AUDIO_FORMAT_APTX_ADAPTIVE_QLEA", 0x30000000U, 33, R.string.spk_encoding_aptx_adaptive_qlea), // aosp since 34
+        ENCODING_APTX_ADAPTIVE_R4(null, "AUDIO_FORMAT_APTX_ADAPTIVE_R4", 0x31000000U, 34, R.string.spk_encoding_aptx_adaptive_r4),
+        ENCODING_DTS_HD_MA(null, "AUDIO_FORMAT_DTS_HD_MA", 0x32000000U, 34, R.string.spk_encoding_dts_hd_ma),
+        ENCODING_AAC_MAIN(null, "AUDIO_FORMAT_AAC_MAIN", 0x4000001U, 21, R.string.spk_encoding_aac_main),
+        ENCODING_AAC_SSR(null, "AUDIO_FORMAT_AAC_SSR", 0x4000004U, 21, R.string.spk_encoding_aac_ssr),
+        ENCODING_AAC_LTP(null, "AUDIO_FORMAT_AAC_LTP", 0x4000008U, 21, R.string.spk_encoding_aac_ltp),
+        ENCODING_AAC_SCALABLE(null, "AUDIO_FORMAT_AAC_SCALABLE", 0x4000020U, 21, R.string.spk_encoding_aac_scalable),
+        ENCODING_AAC_ERLC(null, "AUDIO_FORMAT_AAC_ERLC", 0x4000040U, 21, R.string.spk_encoding_aac_erlc),
+        ENCODING_AAC_LD(null, "AUDIO_FORMAT_AAC_LD", 0x4000080U, 21, R.string.spk_encoding_aac_ld),
+        ENCODING_AAC_ADTS_MAIN(null, "AUDIO_FORMAT_AAC_ADTS_MAIN",0x1e000001U, 23, R.string.spk_encoding_aac_adts_main), // aosp since 26
+        ENCODING_AAC_ADTS_LC(null, "AUDIO_FORMAT_AAC_ADTS_LC", 0x1e000002U, 23, R.string.spk_encoding_aac_adts_lc), // aosp since 26
+        ENCODING_AAC_ADTS_SSR(null, "AUDIO_FORMAT_AAC_ADTS_SSR", 0x1e000004U, 23, R.string.spk_encoding_aac_adts_ssr), // aosp since 26
+        ENCODING_AAC_ADTS_LTP(null, "AUDIO_FORMAT_AAC_ADTS_LTP", 0x1e000008U, 23, R.string.spk_encoding_aac_adts_ltp), // aosp since 26
+        ENCODING_AAC_ADTS_HE_V1(null, "AUDIO_FORMAT_AAC_ADTS_HE_V1", 0x1e000010U, 23, R.string.spk_encoding_aac_adts_he_v1), // aosp since 26
+        ENCODING_AAC_ADTS_SCALABLE(null, "AUDIO_FORMAT_AAC_ADTS_SCALABLE", 0x1e000020U, 23, R.string.spk_encoding_aac_adts_scalable), // aosp since 26
+        ENCODING_AAC_ADTS_ERLC(null, "AUDIO_FORMAT_AAC_ADTS_ERLC", 0x1e000040U, 23, R.string.spk_encoding_aac_adts_erlc), // aosp since 26
+        ENCODING_AAC_ADTS_LD(null, "AUDIO_FORMAT_AAC_ADTS_LD", 0x1e000080U, 23, R.string.spk_encoding_aac_adts_ld), // aosp since 26
+        ENCODING_AAC_ADTS_HE_V2(null, "AUDIO_FORMAT_AAC_ADTS_HE_V2", 0x1e000100U, 23, R.string.spk_encoding_aac_adts_he_v2), // aosp since 26
+        ENCODING_AAC_ADTS_ELD(null, "AUDIO_FORMAT_AAC_ADTS_ELD", 0x1e000200U, 23, R.string.spk_encoding_aac_adts_eld), // aosp since 26
+        ENCODING_AAC_ADTS_XHE(null, "AUDIO_FORMAT_AAC_ADTS_XHE", 0x1e000300U, 28, R.string.spk_encoding_aac_adts_xhe),
+        ENCODING_AAC_LATM_LC(null, "AUDIO_FORMAT_AAC_LATM_LC", 0x25000002U, 29, R.string.spk_encoding_aac_latm_lc),
+        ENCODING_AAC_LATM_HE_V1(null, "AUDIO_FORMAT_AAC_LATM_HE_V1", 0x25000010U, 29, R.string.spk_encoding_aac_latm_he_v1),
+        ENCODING_AAC_LATM_HE_V2(null, "AUDIO_FORMAT_AAC_LATM_HE_V2", 0x25000100U, 29, R.string.spk_encoding_aac_latm_he_v2),
+        ENCODING_MAT_1_0(null, "AUDIO_FORMAT_MAT_1_0", 0x24000001U, 28, R.string.spk_encoding_mat_1_0),
+        ENCODING_MAT_2_0(null, "AUDIO_FORMAT_MAT_2_0", 0x24000002U, 28, R.string.spk_encoding_mat_2_0),
+        ENCODING_MAT_2_1(null, "AUDIO_FORMAT_MAT_2_1", 0x24000003U, 28, R.string.spk_encoding_mat_2_1),
+        ENCODING_MPEGH_SUB_BL_L3(null, "AUDIO_FORMAT_MPEGH_SUB_BL_L3", 0x2C000013U, 31, R.string.spk_encoding_mpegh_sub_bl_l3),
+        ENCODING_MPEHG_SUB_BL_L4(null, "AUDIO_FORMAT_MPEGH_SUB_BL_L4", 0x2C000014U, 31, R.string.spk_encoding_mpegh_sub_bl_l4),
+        ENCODING_MPEGH_SUB_LC_L3(null, "AUDIO_FORMAT_MPEGH_SUB_LC_L3", 0x2C000023U, 31, R.string.spk_encoding_mpegh_sub_lc_l3),
+        ENCODING_MPEGH_SUB_LC_L4(null, "AUDIO_FORMAT_MPEGH_SUB_LC_L4", 0x2C000024U, 31, R.string.spk_encoding_mpegh_sub_lc_l4);
+
+        constructor(enc: Int?, enc2: String?, native: UInt?, firstSdk: Int, res: Int)
+            : this(enc, enc2, native, firstSdk..1000, res)
         fun getString(context: Context) = context.getString(res)
+        val isSupportedAsNative
+            get() = sdkRange?.contains(Build.VERSION.SDK_INT) == true && native != null
 
         companion object {
             fun get(enc: Int) = Encoding.entries.find { it.enc == enc }
@@ -334,7 +329,7 @@ object AudioFormatDetector {
                 append("== Audio track format ==\n")
                 prettyPrintAudioTrackInfo(context, audioTrackInfo)
                 if (halFormat != null) {
-                    append("Track ID: ${halFormat.trackId}\n")
+                    append("Track ID: ${halFormat.policyPortId}\n")
                     append("Granted flags: ${mixPortFlagsToString(context, halFormat.grantedFlags)}\n")
                     append("Server flags: ${mixPortFlagsToString(context, halFormat.afTrackFlags)}\n")
                 } else

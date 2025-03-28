@@ -416,24 +416,19 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
+Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
         JNIEnv * env, jobject, jlong ptr, jint streamType, jint sampleRate, jint format,
         jint channelMask, jint frameCount, jint trackFlags, jint sessionId, jfloat maxRequiredSpeed,
         jint selectedDeviceId, jint bitRate, jlong durationUs, jboolean hasVideo,
-        jboolean isStreaming, jint bitWidth, jint offloadBufferSize, jint usage,
-        jint encapsulationMode, jint contentId, jint syncId, jint contentType, jint source,
-        jint attrFlags, jstring inTags, jint notificationFrames, jboolean doNotReconnect,
-        jint transferMode) {
+        jboolean isStreaming, jint bitWidth, jint offloadBufferSize, jint usage, jint contentType,
+        jint source, jint attrFlags, jstring inTags, jint notificationFrames,
+        jboolean doNotReconnect, jint transferMode) {
     if (android_get_device_api_level() < 23 && maxRequiredSpeed != 1.0f) {
         ALOGE("Android 5.x does not support speed adjustment, maxRequiredSpeed != 1f is wrong");
         return INT32_MIN;
     }
     if (android_get_device_api_level() < 23 && selectedDeviceId != 0) {
         ALOGE("Android 5.x does not support selected devices, selectedDeviceId != 0 is wrong");
-        return INT32_MIN;
-    }
-    if (android_get_device_api_level() < 30 && (contentId != 0 || syncId != 0)) {
-        ALOGE("Tuner is supported since Android 11, (contentId != 0 || syncId != 0) is wrong");
         return INT32_MIN;
     }
     auto holder = (track_holder*) ptr;
@@ -463,9 +458,9 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_doSet(
                 .bit_width = (uint32_t)bitWidth,
                 .offload_buffer_size = (uint32_t)offloadBufferSize,
                 .usage = usage,
-                .encapsulation_mode = encapsulationMode, // informative, since Android 11
-                .content_id = contentId, // since Android 11
-                .sync_id = syncId, // since Android 11
+                .encapsulation_mode = 0, // tuner
+                .content_id = 0, // tuner
+                .sync_id = 0, // tuner
         };
         audioAttributes.newAttrs = {
                 .content_type = contentType,
@@ -781,7 +776,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSu
                 .is_streaming = (bool)false,
                 .bit_width = (uint32_t)0,
                 .offload_buffer_size = (uint32_t)0,
-                .usage = 0,
+                .usage = LEGACY_AUDIO_USAGE_MEDIA,
                 .encapsulation_mode = 0,
                 .content_id = 0,
                 .sync_id = 0
@@ -806,63 +801,21 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSu
     return ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t(offloadInfo.oldInfo);
 }
 
-// TODO
-// void setAudioTrackCallback(const sp<media::IAudioTrackCallback>& callback) {
-//     mAudioTrackCallback->setAudioTrackCallback(callback);
-// }
-
-// TODO
-// audio_port_handle_t getPortId() const { return mPortId; };
-
-// TODO
-// bool isPlaying() {
-//     AutoMutex lock(mLock);
-//     return isPlaying_l();
-// }
-// bool isPlaying_l() {
-//     return mState == STATE_ACTIVE || mState == STATE_STOPPING;
-// }
-
-// TODO
+// TODO hardcode offsets for 21/22/23/24/25/26/27, dump otherwise
 // audio_output_flags_t getFlags() const { AutoMutex _l(mLock); return mFlags; }
 
-// TODO
-// audio_session_t getSessionId() const { return mSessionId; }
-
-// TODO
-// void setCallerName(const std::string &name) {
-//    mCallerName = name;
-// }
-// std::string getCallerName() const {
-//     return mCallerName;
-// };
-
-// TODO we can just keep ref here?
-// sp<IMemory> sharedBuffer() const { return mSharedBuffer; }
-
-// TODO
+// TODO hardcode offsets for 21/22/23/24/25/26/27, dump otherwise
 // uint32_t   getNotificationPeriodInFrames() const { return mNotificationFramesAct; }
 
-// TODO
-// size_t      frameSize() const   { return mFrameSize; }
-// uint32_t    channelCount() const { return mChannelCount; }
-// size_t      frameCount() const  { return mFrameCount; }
-// audio_channel_mask_t channelMask() const { return mChannelMask; }
-// audio_format_t format() const   { return mFormat; }
-// status_t    initCheck() const   { return mStatus; }
-
-// TODO
+// TODO need datatype but should be easy
 // status_t addAudioDeviceCallback(const sp<AudioSystem::AudioDeviceCallback>& callback);
 // status_t removeAudioDeviceCallback(
 //      const sp<AudioSystem::AudioDeviceCallback>& callback);
 
-// TODO
+// TODO types
 // status_t getTimestamp(ExtendedTimestamp *timestamp);
 
-// TODO
+// TODO types
 // media::VolumeShaper::Status applyVolumeShaper(
 //       const sp<media::VolumeShaper::Configuration>& configuration,
 //       const sp<media::VolumeShaper::Operation>& operation);
-
-// TODO
-// status_t getMetrics(mediametrics::Item * &item);
