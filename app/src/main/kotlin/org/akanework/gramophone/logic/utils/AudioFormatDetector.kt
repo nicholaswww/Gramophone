@@ -127,8 +127,8 @@ object AudioFormatDetector {
     @OptIn(UnstableApi::class)
     enum class Encoding(val enc: Int?, val enc2: String?, val native: UInt?, val sdkRange: IntRange?, val res: Int) {
         ENCODING_INVALID(C.ENCODING_INVALID, null, 0xFFFFFFFFU, 0, R.string.spk_encoding_invalid),
-        ENCODING_PCM_8BIT(C.ENCODING_PCM_8BIT, "AUDIO_FORMAT_PCM_8_BIT", 0x1U, 21, R.string.spk_encoding_pcm_8bit),
-        ENCODING_PCM_16BIT(C.ENCODING_PCM_16BIT, "AUDIO_FORMAT_PCM_16_BIT", 0x2U, 21, R.string.spk_encoding_pcm_16bit),
+        ENCODING_PCM_8BIT(C.ENCODING_PCM_8BIT, "AUDIO_FORMAT_PCM_8_BIT", 0x2U, 21, R.string.spk_encoding_pcm_8bit),
+        ENCODING_PCM_16BIT(C.ENCODING_PCM_16BIT, "AUDIO_FORMAT_PCM_16_BIT", 0x1U, 21, R.string.spk_encoding_pcm_16bit),
         ENCODING_PCM_16BIT_BIG_ENDIAN(C.ENCODING_PCM_16BIT_BIG_ENDIAN, null, null, null, R.string.spk_encoding_pcm_16bit_big_endian),
         ENCODING_PCM_24BIT(C.ENCODING_PCM_24BIT, "AUDIO_FORMAT_PCM_24_BIT_PACKED", 0x6U, 21, R.string.spk_encoding_pcm_24bit),
         ENCODING_PCM_8_24BIT(null, "AUDIO_FORMAT_PCM_8_24_BIT", 0x4U, 21, R.string.spk_encoding_pcm_8_24bit),
@@ -501,6 +501,7 @@ object AudioFormatDetector {
         MimeTypes.AUDIO_FLAC,
         MimeTypes.AUDIO_ALAC,
         MimeTypes.AUDIO_WAV,
+        MimeTypes.AUDIO_RAW,
         MimeTypes.AUDIO_TRUEHD -> true
 
         // TODO distinguish lossless DTS-HD MA vs other lossy DTS-HD encoding schemes

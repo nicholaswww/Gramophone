@@ -425,7 +425,7 @@ class AfFormatTracker(
 
         private val flagRegex = Regex(".*, flags\\(0x(.*)\\).*")
         private val flagRegexOld = Regex(".*, flags\\((.*)\\).*")
-        private fun getFlagFromDump(dump: String?): Int? {
+        fun getFlagsFromDump(dump: String?): Int? {
             if (dump == null)
                 return null
             // Flags are in dump output since below commit which first appeared in Pie.
@@ -589,7 +589,7 @@ class AfFormatTracker(
                 null
             }
             val dump = dump(audioTrack)
-            val grantedFlags = getFlagFromDump(dump) // TODO implement extraction for L-O based on fixed offsets (or mayhaps something smarter?)
+            val grantedFlags = getFlagsFromDump(dump) // TODO implement extraction for L-O based on fixed offsets (or mayhaps something smarter?)
             AfFormatInfo(
                 pn, id, t,
                 mp?.id, mp?.name, mp?.flags,

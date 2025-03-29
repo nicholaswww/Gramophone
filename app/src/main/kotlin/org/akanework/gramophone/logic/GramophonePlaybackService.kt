@@ -28,7 +28,6 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.media.AudioDeviceInfo
-import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.Uri
@@ -40,7 +39,6 @@ import android.os.HandlerThread
 import android.os.Looper
 import android.os.Process
 import android.util.Log
-import android.widget.Toast
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -580,15 +578,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         } else {
             Log.e(TAG, "session id is 0? why????? THIS MIGHT BREAK EQUALIZER")
         }
-        val s = NativeTrack.getDirectPlaybackSupport(
-            this,
-            192000,
-            AudioFormat.ENCODING_PCM_16BIT,
-            AudioFormat.CHANNEL_OUT_STEREO
-        )
-        Toast.makeText(this, "direct: ${s.directOrOffload}", Toast.LENGTH_LONG).show()
-        //val track = NativeTrack(this)
-        //track.release() TODO
+        val track = NativeTrack.forTest(this)
+        //track.release()
     }
 
     private fun broadcastAudioSessionClose() {

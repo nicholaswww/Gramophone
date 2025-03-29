@@ -28,6 +28,7 @@
 #include <pthread.h>
 #include "helpers.h"
 
+using DeviceIdVector = std::vector<int>;
 extern void *libaudioclient_handle;
 extern void *libpermission_handle;
 extern void *libandroid_runtime_handle;
@@ -94,16 +95,17 @@ class MyCallback;
 struct track_holder {
     explicit track_holder(JNIEnv* env) {
         int err = env->GetJavaVM(&vm);
-        if (err != 0) {
+        if (err != JNI_OK) {
             ALOGE("could not get JavaVM: %d. aborting!", err);
             abort();
         }
     }
     void* track = nullptr;
     MyCallback* callback = nullptr;
+    jobject thiz = nullptr;
+    jmethodID onAudioDeviceUpdate = nullptr;
     void* ats = nullptr;
     bool deathEmulation = false;
-    int ignoredDeaths = 0;
     bool died = false;
     JavaVM* vm = nullptr;
 };
@@ -166,10 +168,6 @@ public:
     }
     void onNewIAudioTrack() override {
         if (!mCallback || mHolder->died) return;
-        if (mHolder->ignoredDeaths > 0) {
-            mHolder->ignoredDeaths--;
-            return; // do not call callback, and do not emulate death.
-        }
         if (mHolder->deathEmulation) {
             // block any further callbacks, and access to track object other than dtor
             mHolder->died = true;
@@ -251,7 +249,11 @@ public:
                     char *name;
                     jobject group;
                 } attachArgs = {.version = JNI_VERSION_1_6, .name = &buf[0], .group = nullptr};
-                mHolder->vm->AttachCurrentThread(&env, &attachArgs);
+                ret = mHolder->vm->AttachCurrentThread(&env, &attachArgs);
+                if (ret != JNI_OK) {
+                    ALOGE("failed to attach jni thread %d", ret);
+                    return false;
+                }
                 static pthread_once_t initialized = PTHREAD_ONCE_INIT;
                 static pthread_key_t jni_env_key;
                 pthread_once(&initialized, [] {
@@ -280,6 +282,43 @@ public:
     }
 };
 
+// TODO wire this up
+static void callOnAudioDeviceUpdate(track_holder* holder, int audioIo, const DeviceIdVector& deviceIds) {
+    if (!holder->thiz || holder->died || !holder->onAudioDeviceUpdate) return;
+    JNIEnv* env;
+    int ret = holder->vm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (ret == JNI_EDETACHED) {
+        char buf[50] = {'\0'};
+        snprintf(buf, 50, "audio_cb_tmp_thread");
+        struct {
+            jint version;
+            char *name;
+            jobject group;
+        } attachArgs = {.version = JNI_VERSION_1_6, .name = &buf[0], .group = nullptr};
+        int ret2 = holder->vm->AttachCurrentThread(&env, &attachArgs);
+        if (ret2 != JNI_OK) {
+            ALOGE("failed to attach jni thread %d, dropping callOnAudioDeviceUpdate", ret);
+            return;
+        }
+    } else if (ret != JNI_OK) {
+        ALOGE("failed to get jni env %d, dropping callOnAudioDeviceUpdate", ret);
+        return;
+    }
+    jintArray deviceIdsJni;
+    deviceIdsJni = env->NewIntArray((int32_t)deviceIds.size());
+    if (deviceIdsJni == nullptr) {
+        ALOGE("Out of memory, dropping onAudioDeviceUpdate");
+        env->ExceptionClear();
+        return;
+    }
+    env->SetIntArrayRegion(deviceIdsJni, 0, (int32_t)deviceIds.size(), &deviceIds[0]);
+    env->CallVoidMethod(holder->thiz, holder->onAudioDeviceUpdate, audioIo, deviceIdsJni);
+    env->DeleteLocalRef(deviceIdsJni);
+    if (ret == JNI_EDETACHED) {
+        myJniDetach(holder->vm);
+    }
+}
+
 static void callbackAdapter(int event, void* userptr, void* info) {
     auto user = ((track_holder*) userptr)->callback;
     if (user == nullptr) {
@@ -289,6 +328,7 @@ static void callbackAdapter(int event, void* userptr, void* info) {
         }
         return;
     }
+    // TODO caf L/M event 9 is adsp error? we should make sure this doesn't conflict
     switch (event) {
         case 0 /* EVENT_MORE_DATA */:
             ((android::AudioTrack::Buffer*)info)->mSize =
@@ -402,6 +442,10 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
     } else {
         ZN7android10AudioTrackC1Ev(theTrack);
     }
+    holder->thiz = env->NewGlobalRef(thiz);
+    jclass clazz = env->GetObjectClass(thiz);
+    holder->onAudioDeviceUpdate = env->GetMethodID(clazz, "onAudioDeviceUpdate", "(I[I)V");
+    env->DeleteLocalRef(clazz);
     auto callback = new MyCallback(*holder, env, thiz);
     callback->incStrong(holder);
     if (android_get_device_api_level() >= 33) {
@@ -417,11 +461,11 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
 
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
-        JNIEnv * env, jobject, jlong ptr, jint streamType, jint sampleRate, jint format,
+        JNIEnv *, jobject, jlong ptr, jint streamType, jint sampleRate, jint format,
         jint channelMask, jint frameCount, jint trackFlags, jint sessionId, jfloat maxRequiredSpeed,
         jint selectedDeviceId, jint bitRate, jlong durationUs, jboolean hasVideo,
         jboolean isStreaming, jint bitWidth, jint offloadBufferSize, jint usage, jint contentType,
-        jint source, jint attrFlags, jstring inTags, jint notificationFrames,
+        jint attrFlags, jint notificationFrames,
         jboolean doNotReconnect, jint transferMode) {
     if (android_get_device_api_level() < 23 && maxRequiredSpeed != 1.0f) {
         ALOGE("Android 5.x does not support speed adjustment, maxRequiredSpeed != 1f is wrong");
@@ -434,7 +478,6 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
     auto holder = (track_holder*) ptr;
     jint ret = 0;
     fake_sp sharedMemory = {.thePtr = nullptr}; // TODO impl shared memory
-    const char* tags = env->GetStringUTFChars(inTags, nullptr);
     union {
         audio_offload_info_t_v30 newInfo = {};
         audio_offload_info_t_v26 oldInfo;
@@ -443,6 +486,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
         audio_attributes_v28 newAttrs = {};
         audio_attributes_legacy oldAttrs;
     } audioAttributes;
+    // We must always provide offloadInfo if we can to work around CAF being CAF.
     if (android_get_device_api_level() >= 28) {
         offloadInfo.newInfo = {
                 .version = AUDIO_MAKE_OFFLOAD_INFO_VERSION(0, 2),
@@ -465,11 +509,10 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
         audioAttributes.newAttrs = {
                 .content_type = contentType,
                 .usage = usage,
-                .source = source,
+                .source = 0,
                 .flags = (uint32_t)attrFlags,
         };
-        audioAttributes.newAttrs.tags[255] = '\0';
-        strncpy(audioAttributes.newAttrs.tags, tags, 255);
+        audioAttributes.newAttrs.tags[0] = '\0';
     } else {
         offloadInfo.oldInfo = {
                 .version = AUDIO_MAKE_OFFLOAD_INFO_VERSION(0, 1),
@@ -489,13 +532,11 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
         audioAttributes.oldAttrs = {
                 .content_type = contentType,
                 .usage = usage,
-                .source = source,
+                .source = 0,
                 .flags = (uint32_t)attrFlags,
         };
-        audioAttributes.oldAttrs.tags[255] = '\0';
-        strncpy(audioAttributes.oldAttrs.tags, tags, 255);
+        audioAttributes.oldAttrs.tags[0] = '\0';
     }
-    env->ReleaseStringUTFChars(inTags, tags);
     if (android_get_device_api_level() >= 31) { // Android 12.0 (SDK 31) or later
         auto refs = holder->callback->createWeak(holder);
         fake_wp callback = {.thePtr = holder->callback, .refs = refs};
@@ -575,6 +616,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 /* maxRequiredSpeed = */ maxRequiredSpeed
         );
     } else if (android_get_device_api_level() >= 24) { // Android 7.x
+        *(int32_t*)((uintptr_t)holder->track + 0x300) = selectedDeviceId; // TODO verify on CAF, MTK
         ret = ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audio_output_flags_tPFviPvS4_ES4_iRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tiiPK18audio_attributes_tbf(
                 holder->track,
                 /* streamType = */ streamType,
@@ -598,6 +640,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 /* maxRequiredSpeed = */ maxRequiredSpeed
         );
     } else if (android_get_device_api_level() >= 23) { // Android 6.0 (SDK 23)
+        *(int32_t*)((uintptr_t)holder->track + 0x2e0) = selectedDeviceId; // TODO verify on CAF, MTK
         if (maxRequiredSpeed > 1.0f) {
             if (trackFlags & 4 /* AUDIO_OUTPUT_FLAG_FAST */) {
                 // if we're unlucky, the calculated frame count may be smaller than HAL frame count
@@ -703,39 +746,63 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
             holder->deathEmulation = !ZNK7android10AudioTrack19isOffloadedOrDirectEv(holder->track);
         }
     }
-    if (android_get_device_api_level() >= 23 && android_get_device_api_level() <= 25) {
-        if (ret == 0 && selectedDeviceId != 0) {
-            // if selectedDeviceId != 0 before O, we can set it with setOutputDevice() which will
-            // invalidate the track (in O, we can call setOutputDevice() before set() which means
-            // there is no track yet). that won't work if it has doNotReconnect set, hence emulate
-            // that to allow setOutputDevice() to work for now.
-            // TODO use memory hacks instead and get rid of ignoredDeaths (that'll fix direct too)
-            if (ZNK7android10AudioTrack19isOffloadedOrDirectEv(holder->track)) {
-                ALOGE("Ignoring selectedDeviceId emulation because track is offloaded/direct");
-            } else {
-                holder->deathEmulation = doNotReconnect;
-                holder->ignoredDeaths = 1;
-                // This will instantly invalidate the track.
-                ZN7android10AudioTrack15setOutputDeviceEi(holder->track, selectedDeviceId);
-                // TODO the track is now invalid but not yet restored, which is inconsistent
-            }
-        }
-    }
     return ret;
 }
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_getRealPtr(
         JNIEnv *, jobject, jlong ptr) {
+    return (intptr_t)((track_holder*) ptr)->track;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_akanework_gramophone_logic_utils_NativeTrack_flagsFromOffset(
+        JNIEnv *, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
-    if (holder->died)
-        return 0;
-    return (intptr_t)holder->track;
+    // TODO verify on CAF, MTK
+    switch (android_get_device_api_level()) {
+        case 27:
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x338);
+        case 26:
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x330);
+        case 25:
+        case 24:
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2a0);
+        case 23:
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x280);
+        case 22:
+        case 21:
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x228);
+        default:
+            return INT32_MAX;
+    };
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_akanework_gramophone_logic_utils_NativeTrack_notificationFramesActFromOffset(
+        JNIEnv *, jobject, jlong ptr) {
+    auto holder = (track_holder*) ptr;
+    // TODO verify on CAF, MTK
+    switch (android_get_device_api_level()) {
+        case 27:
+        case 26:
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x228);
+        case 25:
+        case 24:
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x220);
+        case 23:
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x214);
+        case 22:
+        case 21:
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1ec);
+        default:
+            return INT32_MAX;
+    };
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_dtor(
-        JNIEnv *, jobject, jlong ptr) {
+        JNIEnv * env, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
     // RefBase will call the dtor
     if (android_get_device_api_level() >= 33) {
@@ -747,6 +814,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_dtor(
     holder->callback->decStrong(holder);
     holder->track = nullptr;
     holder->callback = nullptr;
+    env->DeleteGlobalRef(holder->thiz);
     delete holder;
 }
 
@@ -801,12 +869,6 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSu
     return ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t(offloadInfo.oldInfo);
 }
 
-// TODO hardcode offsets for 21/22/23/24/25/26/27, dump otherwise
-// audio_output_flags_t getFlags() const { AutoMutex _l(mLock); return mFlags; }
-
-// TODO hardcode offsets for 21/22/23/24/25/26/27, dump otherwise
-// uint32_t   getNotificationPeriodInFrames() const { return mNotificationFramesAct; }
-
 // TODO need datatype but should be easy
 // status_t addAudioDeviceCallback(const sp<AudioSystem::AudioDeviceCallback>& callback);
 // status_t removeAudioDeviceCallback(
@@ -819,3 +881,8 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSu
 // media::VolumeShaper::Status applyVolumeShaper(
 //       const sp<media::VolumeShaper::Configuration>& configuration,
 //       const sp<media::VolumeShaper::Operation>& operation);
+
+// TODO when can we use getTimestamp on CAF L/M?
+
+// TODO on caf L/M, should we pretend to be MediaPlayer or a normal direct track?
+//  is PCM_16_BIT_OFFLOAD the media player format, or is DIRECT_PCM flag?
