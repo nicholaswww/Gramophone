@@ -364,6 +364,14 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     fun sessionId() = sessionId
 
     fun flags(): Int {
+        // TODO can we do anything about N MR0 (all) and N MR1 (caf) not adjusting at all (except fast) here?
+        //  at least detect caf N MR1 programmatically to know if we can trust this or not
+        //  actually yes we can: AudioTrackIsTrackOffloaded (caf only) will tell us if its direct PCM or not
+        //  and offload uses different formats, if isOffloadSupported is true and our track works we have either
+        //  offload or passthrough. compressed passthrough will be detected as offload and PCM passthrough won't be
+        //  detected but it's better than nothing. if we aren't on caf and have N MR0, bad luck - we can only
+        //  detect offload.
+        // TODO document L/M not stripping all flags, only direct / offload / fast
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)

@@ -166,13 +166,13 @@ public:
         if (!mCallback || mHolder->died || !mOnNewPos || !maybeAttachThread(__func__)) return;
         mEnv->CallVoidMethod(mCallback, mOnNewPos, (jint) newPos);
     }
+    // quirk: some ancient (before O) MTK versions don't call this unless track is offload
     void onNewIAudioTrack() override {
         if (!mCallback || mHolder->died) return;
         if (mHolder->deathEmulation) {
             // block any further callbacks, and access to track object other than dtor
             mHolder->died = true;
             // TODO pause+stop the track ASAP
-            return;
         }
         if (mOnNewIAudioTrack && maybeAttachThread(__func__)) {
             mEnv->CallVoidMethod(mCallback, mOnNewIAudioTrack);
@@ -321,14 +321,22 @@ static void callOnAudioDeviceUpdate(track_holder* holder, int audioIo, const Dev
 
 static void callbackAdapter(int event, void* userptr, void* info) {
     auto user = ((track_holder*) userptr)->callback;
+    if (event == 9 && android_get_device_api_level() <= 23)
+        event = 1001; // quirk: caf L (maybe M too) used code 9 for adsp failure event in case of
+                      // LPA(Low Power Audio) playback, the proprietary predecessor of offload.
+                      // while at it, LPA isn't supported here because the code is a royal mess
+                      // and it got deprecated before L, and removed in M.
     if (user == nullptr) {
         ALOGE("LEAKED callbackAdapter trying to call destroyed callback!!!");
         if (event == 0 || event == 9) {
-            ((android::AudioTrack::Buffer*)info)->mSize = 0;
+            if (info) {
+                ((android::AudioTrack::Buffer *) info)->mSize = 0;
+            } else {
+                ALOGE("event %d but info is nullptr? (while leaked?!)", event);
+            }
         }
         return;
     }
-    // TODO caf L/M event 9 is adsp error? we should make sure this doesn't conflict
     switch (event) {
         case 0 /* EVENT_MORE_DATA */:
             ((android::AudioTrack::Buffer*)info)->mSize =
@@ -361,6 +369,9 @@ static void callbackAdapter(int event, void* userptr, void* info) {
         case 9 /* EVENT_CAN_WRITE_MORE_DATA */:
             ((android::AudioTrack::Buffer*)info)->mSize =
                     user->onCanWriteMoreData(*(android::AudioTrack::Buffer*)info);
+            break;
+        case 1001:
+            ALOGE("unexpected event: ADSP failure");
             break;
         default:
             ALOGE("unsupported event %d (user=%p info=%p infoVal=%d)", event, user, info,
@@ -486,7 +497,11 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
         audio_attributes_v28 newAttrs = {};
         audio_attributes_legacy oldAttrs;
     } audioAttributes;
-    // We must always provide offloadInfo if we can to work around CAF being CAF.
+    // We must always provide offloadInfo to work around CAF being CAF.
+    // without offloadInfo, CAF code might try setting it to stub when unsupported operation occurs
+    //  or might not let us pretend to be MediaPlayer / legit track offload or might hardcode wrong
+    //  bitWidth even if hal can do 8.24 offload.
+    // TODO caf changed offloadInfo abi (small bufs, maybe more). did MTK too?
     if (android_get_device_api_level() >= 28) {
         offloadInfo.newInfo = {
                 .version = AUDIO_MAKE_OFFLOAD_INFO_VERSION(0, 2),
@@ -616,7 +631,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 /* maxRequiredSpeed = */ maxRequiredSpeed
         );
     } else if (android_get_device_api_level() >= 24) { // Android 7.x
-        *(int32_t*)((uintptr_t)holder->track + 0x300) = selectedDeviceId; // TODO verify on CAF, MTK
+        *(int32_t*)((uintptr_t)holder->track + 0x300) = selectedDeviceId;
         ret = ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audio_output_flags_tPFviPvS4_ES4_iRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tiiPK18audio_attributes_tbf(
                 holder->track,
                 /* streamType = */ streamType,
@@ -640,7 +655,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 /* maxRequiredSpeed = */ maxRequiredSpeed
         );
     } else if (android_get_device_api_level() >= 23) { // Android 6.0 (SDK 23)
-        *(int32_t*)((uintptr_t)holder->track + 0x2e0) = selectedDeviceId; // TODO verify on CAF, MTK
+        *(int32_t*)((uintptr_t)holder->track + 0x2e0) = selectedDeviceId;
         if (maxRequiredSpeed > 1.0f) {
             if (trackFlags & 4 /* AUDIO_OUTPUT_FLAG_FAST */) {
                 // if we're unlucky, the calculated frame count may be smaller than HAL frame count
@@ -743,6 +758,8 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 /* pAttributes = */ &audioAttributes.newAttrs
                 );
         if (ret == 0 && doNotReconnect) {
+            // TODO this will not work on some mtks for non-offload (ie mixed or direct)
+            //  because onNewIAudioTrack not called
             holder->deathEmulation = !ZNK7android10AudioTrack19isOffloadedOrDirectEv(holder->track);
         }
     }
@@ -759,7 +776,6 @@ extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_flagsFromOffset(
         JNIEnv *, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
-    // TODO verify on CAF, MTK
     switch (android_get_device_api_level()) {
         case 27:
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x338);
@@ -770,8 +786,12 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_flagsFromOffset(
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2a0);
         case 23:
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x280);
-        case 22:
-        case 21:
+        case 22: // TODO caf abi support
+                 //  did caf pick https://github.com/LineageOS/android_frameworks_av/commit/65dfe71d2499c835400d6a71d17a9f3070a49463#diff-5277c03b566cc83f5f9842c3d0faa9ae47c135cf7da0f49331699401a5432965
+                 //  or was that a CM idea? and how do we detect who's ifdefed?
+                 //  same question for https://github.com/LineageOS/android_frameworks_av/commit/aa31cfab23de946abf7b52bfae3667110ba405ef
+                 //  do we have to cover for both with and without either of these commits?
+        case 21: // TODO caf abi support (https://github.com/LineageOS/android_frameworks_av/commit/8c6297e4a78a97cac2c9c4b855828dc06c356686#diff-5277c03b566cc83f5f9842c3d0faa9ae47c135cf7da0f49331699401a5432965)
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x228);
         default:
             return INT32_MAX;
@@ -782,7 +802,6 @@ extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_notificationFramesActFromOffset(
         JNIEnv *, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
-    // TODO verify on CAF, MTK
     switch (android_get_device_api_level()) {
         case 27:
         case 26:
@@ -792,8 +811,8 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_notificationFramesActFromO
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x220);
         case 23:
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x214);
-        case 22:
-        case 21:
+        case 22: // TODO caf abi support (see above)
+        case 21: // TODO caf abi support (see above)
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1ec);
         default:
             return INT32_MAX;
@@ -882,7 +901,4 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSu
 //       const sp<media::VolumeShaper::Configuration>& configuration,
 //       const sp<media::VolumeShaper::Operation>& operation);
 
-// TODO when can we use getTimestamp on CAF L/M?
-
-// TODO on caf L/M, should we pretend to be MediaPlayer or a normal direct track?
-//  is PCM_16_BIT_OFFLOAD the media player format, or is DIRECT_PCM flag?
+// TODO getTimestamp is virtual on CAF L?
