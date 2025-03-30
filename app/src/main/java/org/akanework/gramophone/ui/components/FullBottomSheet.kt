@@ -257,7 +257,7 @@ class FullBottomSheet
         )
         colorPrimaryFinalColor = MaterialColors.getColor(
             this,
-            com.google.android.material.R.attr.colorPrimary
+            androidx.appcompat.R.attr.colorPrimary
         )
         colorOnSecondaryContainerFinalColor = MaterialColors.getColor(
             this,
@@ -348,7 +348,7 @@ class FullBottomSheet
             it.setTint(
                 MaterialColors.getColor(
                     bottomSheetFullSeekBar,
-                    com.google.android.material.R.attr.colorPrimary,
+                    androidx.appcompat.R.attr.colorPrimary,
                 )
             )
         }
@@ -780,7 +780,7 @@ class FullBottomSheet
         val colorPrimary =
             MaterialColors.getColor(
                 ctx,
-                com.google.android.material.R.attr.colorPrimary,
+                androidx.appcompat.R.attr.colorPrimary,
                 -1
             )
 
@@ -813,7 +813,7 @@ class FullBottomSheet
         val colorAccent =
             MaterialColors.getColor(
                 ctx,
-                com.google.android.material.R.attr.colorAccent,
+                androidx.appcompat.R.attr.colorAccent,
                 -1
             )
 

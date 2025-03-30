@@ -161,28 +161,28 @@ class ViewPagerFragment : BaseFragment(true) {
                                     snackBar.dismiss()
                                 }
 
-                                /*
-                                 * Let's override snack bar's color here so it would
-                                 * adapt dark mode.
-                                 */
-                                snackBar.setBackgroundTint(
-                                    MaterialColors.getColor(
-                                        snackBar.view,
-                                        com.google.android.material.R.attr.colorSurface,
-                                    ),
-                                )
-                                snackBar.setActionTextColor(
-                                    MaterialColors.getColor(
-                                        snackBar.view,
-                                        com.google.android.material.R.attr.colorPrimary,
-                                    ),
-                                )
-                                snackBar.setTextColor(
-                                    MaterialColors.getColor(
-                                        snackBar.view,
-                                        com.google.android.material.R.attr.colorOnSurface,
-                                    ),
-                                )
+                        /*
+                         * Let's override snack bar's color here so it would
+                         * adapt dark mode.
+                         */
+                        snackBar.setBackgroundTint(
+                            MaterialColors.getColor(
+                                snackBar.view,
+                                com.google.android.material.R.attr.colorSurface,
+                            ),
+                        )
+                        snackBar.setActionTextColor(
+                            MaterialColors.getColor(
+                                snackBar.view,
+                                androidx.appcompat.R.attr.colorPrimary,
+                            ),
+                        )
+                        snackBar.setTextColor(
+                            MaterialColors.getColor(
+                                snackBar.view,
+                                com.google.android.material.R.attr.colorOnSurface,
+                            ),
+                        )
 
                                 // Set an anchor for snack bar.
                                 if (playerLayout.visible && playerLayout.actuallyVisible)
