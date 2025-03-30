@@ -277,7 +277,7 @@ dependencies {
     implementation("com.mikepenz:aboutlibraries:$aboutLibsVersion")
     implementation("com.google.android.material:material:1.13.0-alpha12")
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
-    implementation("io.coil-kt.coil3:coil:3.0.4")
+    implementation("io.coil-kt.coil3:coil:3.1.0")
     implementation("io.github.nift4.dlfunc:dlfunc:0.1.4")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
     //noinspection GradleDependency newer versions need java.nio which is api 26+
