@@ -631,7 +631,11 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 /* maxRequiredSpeed = */ maxRequiredSpeed
         );
     } else if (android_get_device_api_level() >= 24) { // Android 7.x
-        *(int32_t*)((uintptr_t)holder->track + 0x300) = selectedDeviceId;
+#ifdef __LP64__
+        *(int32_t*)((uintptr_t)holder->track + 0x300) = selectedDeviceId; // TODO x86_64
+#else
+        *(int32_t*)((uintptr_t)holder->track + 0x27c) = selectedDeviceId; // TODO x86
+#endif
         ret = ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audio_output_flags_tPFviPvS4_ES4_iRKNS_2spINS_7IMemoryEEEb15audio_session_tNS0_13transfer_typeEPK20audio_offload_info_tiiPK18audio_attributes_tbf(
                 holder->track,
                 /* streamType = */ streamType,
@@ -655,7 +659,11 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 /* maxRequiredSpeed = */ maxRequiredSpeed
         );
     } else if (android_get_device_api_level() >= 23) { // Android 6.0 (SDK 23)
-        *(int32_t*)((uintptr_t)holder->track + 0x2e0) = selectedDeviceId;
+#ifdef __LP64__
+        *(int32_t*)((uintptr_t)holder->track + 0x2e0) = selectedDeviceId; // TODO x86_64
+#else
+        *(int32_t*)((uintptr_t)holder->track + 0x254) = selectedDeviceId; // TODO x86
+#endif
         if (maxRequiredSpeed > 1.0f) {
             if (trackFlags & 4 /* AUDIO_OUTPUT_FLAG_FAST */) {
                 // if we're unlucky, the calculated frame count may be smaller than HAL frame count
@@ -702,8 +710,8 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
             // calculating the minimum frame count like AudioTrack would in N
             // (where maxRequiredSpeed was added)
             minBufCount = afLatencyMs / ((1000 * afFrameCount) / afSampleRate);
-            minFrameCount = (int32_t)((minBufCount < 2 ? 2 : minBufCount) *
-                    (sampleRate == afSampleRate ? afFrameCount : size_t((uint64_t)afFrameCount *
+            minFrameCount = (int32_t)((double)(minBufCount < 2 ? 2 : minBufCount) *
+                    (double)(sampleRate == afSampleRate ? afFrameCount : (size_t)((uint64_t)afFrameCount *
                     sampleRate / afSampleRate + 1 + 1))
                                     * (double)maxRequiredSpeed + 1 + 1);
             if (frameCount < minFrameCount) {
@@ -775,48 +783,122 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_getRealPtr(
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_flagsFromOffset(
         JNIEnv *, jobject, jlong ptr) {
-    auto holder = (track_holder*) ptr;
+    auto holder = (track_holder*) ptr; // TODO x86
+    size_t extra;
     switch (android_get_device_api_level()) {
         case 27:
+#ifdef __LP64__
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x338);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2d8);
+#endif
         case 26:
+#ifdef __LP64__
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x330);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2d0);
+#endif
         case 25:
         case 24:
+#ifdef __LP64__
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2a0);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x248);
+#endif
         case 23:
+#ifdef __LP64__
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x280);
-        case 22: // TODO caf abi support
-                 //  did caf pick https://github.com/LineageOS/android_frameworks_av/commit/65dfe71d2499c835400d6a71d17a9f3070a49463#diff-5277c03b566cc83f5f9842c3d0faa9ae47c135cf7da0f49331699401a5432965
-                 //  or was that a CM idea? and how do we detect who's ifdefed?
-                 //  same question for https://github.com/LineageOS/android_frameworks_av/commit/aa31cfab23de946abf7b52bfae3667110ba405ef
-                 //  do we have to cover for both with and without either of these commits?
-        case 21: // TODO caf abi support (https://github.com/LineageOS/android_frameworks_av/commit/8c6297e4a78a97cac2c9c4b855828dc06c356686#diff-5277c03b566cc83f5f9842c3d0faa9ae47c135cf7da0f49331699401a5432965)
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x228);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x220);
+#endif
+        case 22:
+            extra =
+#ifdef __ARM_ARCH_7A__
+            /* QCOM_DIRECTTRACK (BOARD_USES_LEGACY_ALSA_AUDIO), only for MSM8x60 in CM12.x */
+                    dlsym(libaudioclient_handle, "_ZN7android10AudioTrack6notifyEi") ? 0x20 /* 0x208 */ :
+#endif
+                    (dlsym(libaudioclient_handle, "_ZN7android10AudioTrack28initializeTrackOffloadParamsEv")
+#if defined(__LP64__)
+                        ? 0x20 /* 0x248 */ : 0x0); // edge case: couldn't find any CM12.1 x86_64 build
+#else
+                        ? 0x18 /* 0x200 */ : 0x0); // TODO is this valid for x86?
+#endif
+            // cm12.1 x86 0x1f8
+            break;
+        case 21:
+            extra =
+#ifdef __ARM_ARCH_7A__
+                /* QCOM_DIRECTTRACK (BOARD_USES_LEGACY_ALSA_AUDIO), only for MSM8x60 in CM12.x */
+                dlsym(libaudioclient_handle, "_ZN7android10AudioTrack6notifyEi") ? 0x8 /* 0x1f0 */ :
+#endif
+                (0);
+            break;
         default:
             return INT32_MAX;
-    };
+    }
+#ifdef __LP64__
+    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x228 + extra);
+#else
+    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1e8 + extra);
+#endif
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_notificationFramesActFromOffset(
         JNIEnv *, jobject, jlong ptr) {
-    auto holder = (track_holder*) ptr;
+    auto holder = (track_holder*) ptr; // TODO x86
+    size_t extra;
     switch (android_get_device_api_level()) {
         case 27:
         case 26:
+#ifdef __LP64__
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x228);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1dc);
+#endif
         case 25:
         case 24:
+#ifdef __LP64__
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x220);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1d4);
+#endif
         case 23:
+#ifdef __LP64__
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x214);
-        case 22: // TODO caf abi support (see above)
-        case 21: // TODO caf abi support (see above)
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1ec);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1c8);
+#endif
+        case 22:
+            extra =
+#ifdef __ARM_ARCH_7A__
+                /* QCOM_DIRECTTRACK (BOARD_USES_LEGACY_ALSA_AUDIO), only for MSM8x60 in CM12.x */
+                dlsym(libaudioclient_handle, "_ZN7android10AudioTrack6notifyEi") ? 0x1c /* 0x1c8 */ :
+#endif
+                (dlsym(libaudioclient_handle, "_ZN7android10AudioTrack28initializeTrackOffloadParamsEv")
+#ifdef __LP64__
+                 ? 0x20 /* 0x20c */ : 0x0); // edge case: couldn't find any CM12.1 x86_64 build
+#else
+                 ? 0x14 /* 0x1c0 */ : 0x0); // TODO is this valid for x86?
+#endif
+                 // cm12.1 x86 0x1bc
+            break;
+        case 21:
+            extra =
+#ifdef __ARM_ARCH_7A__
+                /* QCOM_DIRECTTRACK (BOARD_USES_LEGACY_ALSA_AUDIO), only for MSM8x60 in CM12.x */
+                dlsym(libaudioclient_handle, "_ZN7android10AudioTrack6notifyEi") ? 0x8 /* 0x1b4 */ :
+#endif
+                (0);
+            break;
         default:
             return INT32_MAX;
-    };
+    }
+#ifdef __LP64__
+    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1ec + extra);
+#else
+    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1ac + extra);
+#endif
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -900,5 +982,3 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSu
 // media::VolumeShaper::Status applyVolumeShaper(
 //       const sp<media::VolumeShaper::Configuration>& configuration,
 //       const sp<media::VolumeShaper::Operation>& operation);
-
-// TODO getTimestamp is virtual on CAF L?
