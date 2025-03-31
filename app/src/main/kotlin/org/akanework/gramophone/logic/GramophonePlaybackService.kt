@@ -579,7 +579,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             Log.e(TAG, "session id is 0? why????? THIS MIGHT BREAK EQUALIZER")
         }
         val track = NativeTrack.forTest(this)
-        //track.release()
+        track.release()
     }
 
     private fun broadcastAudioSessionClose() {

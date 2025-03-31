@@ -50,6 +50,7 @@ typedef struct {
     uint32_t bit_width;                 // version 0.1b:
     uint32_t offload_buffer_size;       // version 0.1b: offload fragment size
     int32_t usage;                // version 0.1b:
+    bool use_small_bufs; // caf
 } audio_offload_info_t_v26;
 typedef struct {
     uint16_t version;                   // version of the info structure
@@ -207,6 +208,39 @@ namespace android {
                 ALOGE("stub IAudioTrackCallback::onCanWriteMoreData called");
                 return 0;
             }
+        };
+    };
+    class AudioSystem {
+    public:
+        class AudioDeviceCallbackV23 : public RefBase
+        {
+        public:
+
+            AudioDeviceCallbackV23() {}
+            virtual ~AudioDeviceCallbackV23() {}
+
+            virtual void onAudioDeviceUpdate(int32_t audioIo,
+                                             int32_t deviceId) = 0;
+        };
+        class AudioDeviceCallbackV33 : public virtual RefBase
+        {
+        public:
+
+            AudioDeviceCallbackV33() {}
+            virtual ~AudioDeviceCallbackV33() {}
+
+            virtual void onAudioDeviceUpdate(int32_t audioIo,
+                                             int32_t deviceId) = 0;
+        };
+        class AudioDeviceCallbackV35Qpr2 : public virtual RefBase
+        {
+        public:
+
+            AudioDeviceCallbackV35Qpr2() {}
+            virtual ~AudioDeviceCallbackV35Qpr2() {}
+
+            virtual void onAudioDeviceUpdate(int32_t audioIo,
+                                             const DeviceIdVector& deviceIds) = 0;
         };
     };
 }

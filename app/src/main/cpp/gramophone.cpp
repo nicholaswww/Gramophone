@@ -451,7 +451,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfT
             }
             if (pos - pointer < BUFFER_SIZE && *((uint32_t *) pos) == mAfLatency) {
                 auto structptr = (audio_track_partial *) pos;
-                ALOGE("pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) found mAfLatency(%d) "
+                ALOGD("pos(%p) pointer(%p) pos-pointer(%d) BUFFER_SIZE(%d) found mAfLatency(%d) "
                       "(mLatency(%d) mAfFrameCount(%d) mAfSampleRate(%d) mFormat(%d))",
                       pos, pointer, (int) (pos - pointer), BUFFER_SIZE, mAfLatency,
                       mLatency, (int) mAfFrameCount, mAfSampleRate, mFormat);

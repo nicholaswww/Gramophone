@@ -5,6 +5,8 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioMetadataReadMap
+import android.media.AudioRouting
 import android.media.AudioTrack
 import android.os.Build
 import android.os.Parcel
@@ -12,21 +14,19 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
+import com.google.common.util.concurrent.MoreExecutors
 import java.nio.ByteBuffer
 
 /*
- * Exposes entire API surface of AudioTrack.cpp, with some notable exceptions:
- * - Tuner API related features (including setAudioTrackCallback)
- * - setCallerName/getCallerName/getMetrics because only used for metrics
- * - TRANSFER_SHARED because short AudioTracks can be served by java API just fine
+ * Exposes entire API surface of AudioTrack.cpp, with some minor exceptions:
+ * - Tuner API related features TODO let's bring that back
+ * - setCallerName/getCallerName because I want to avoid offset hardcoding, and it's only used for metrics
  * None of those will impose any limitations for music playback.
  */
 class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int, sampleRate: Int,
-                  format: AudioFormatDetector.Encoding,
-                  channelMask: Int,
-                  frameCount: Int?, trackFlags: Int, sessionId: Int, maxRequiredSpeed: Float,
-                  selectedDeviceId: Int?, bitRate: Int, durationUs: Long, hasVideo: Boolean,
-                  isStreaming: Boolean, offloadBufferSize: Int,
+                  format: AudioFormatDetector.Encoding, channelMask: Int, frameCount: Int?, trackFlags: Int,
+                  sessionId: Int, maxRequiredSpeed: Float, selectedDeviceId: Int?, bitRate: Int, durationUs: Long,
+                  hasVideo: Boolean, smallBuf: Boolean, isStreaming: Boolean, offloadBufferSize: Int,
                   notificationFrames: Int, doNotReconnect: Boolean, transferMode: Int) {
     companion object {
         private const val TAG = "NativeTrack.kt"
@@ -85,6 +85,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 return DirectPlaybackSupport.NONE // TODO implement native getDirectPlaybackSupport
             }
+            // before T, inactive routes were considered in isDirectPlaybackSupported according to AOSP doc. does
+            // that apply to getPlaybackOffloadSupport and isOffloadSupported too?
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 return DirectPlaybackSupport.NONE // TODO implement native getPlaybackOffloadSupport
             }
@@ -94,11 +96,12 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             val bitWidth = bitsPerSampleForFormat(encoding)
             var hasOffload: Boolean? = null
             if (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
-                        && Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) || bitWidth < 24
+                        && Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1)
+                || !formatIsRawPcm(encoding) || bitWidth < 24
             ) {
                 // this cannot be trusted on N/O with hi-res formats due to format confusion bug
                 hasOffload = try {
-                    isOffloadSupported(sampleRate, encoding.native!!.toInt(), channelMask)
+                    isOffloadSupported(sampleRate, encoding.native!!.toInt(), channelMask, 0, bitWidth, 0)
                 } catch (t: Throwable) {
                     Log.e(TAG, Log.getStackTraceString(t))
                     false
@@ -152,6 +155,13 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             AudioFormatDetector.Encoding.ENCODING_PCM_24BIT -> 24
             else -> 0
         }
+        fun formatIsRawPcm(format: AudioFormatDetector.Encoding) =
+            format == AudioFormatDetector.Encoding.ENCODING_PCM_8BIT ||
+                    format == AudioFormatDetector.Encoding.ENCODING_PCM_16BIT ||
+                    format == AudioFormatDetector.Encoding.ENCODING_PCM_24BIT ||
+                    format == AudioFormatDetector.Encoding.ENCODING_PCM_8_24BIT ||
+                    format == AudioFormatDetector.Encoding.ENCODING_PCM_32BIT ||
+                    format == AudioFormatDetector.Encoding.ENCODING_PCM_FLOAT
         private fun buildAudioFormat(sampleRate: Int, encoding: Int, channelMask: Int): AudioFormat? {
             val formatBuilder = AudioFormat.Builder()
             try {
@@ -176,7 +186,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
             return formatBuilder.setChannelMask(channelMask).build()
         }
-        private external fun isOffloadSupported(sampleRate: Int, format: Int, channelMask: Int): Boolean
+        private external fun isOffloadSupported(sampleRate: Int, format: Int, channelMask: Int, bitRate: Int,
+                                                bitWidth: Int, offloadBufferSize: Int): Boolean
         private external fun initDlsym(): Boolean
         fun forTest(context: Context): NativeTrack {
             return NativeTrack(
@@ -186,17 +197,18 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build(),
                 AudioManager.STREAM_MUSIC,
-                sampleRate = 13370,
+                sampleRate = 48000,
                 AudioFormatDetector.Encoding.ENCODING_PCM_16BIT,
                 channelMask = 3,
                 frameCount = null,
-                trackFlags = 1,
+                trackFlags = 0,
                 AudioManager.AUDIO_SESSION_ID_GENERATE,
                 maxRequiredSpeed = 1.0f,
                 selectedDeviceId = null,
                 bitRate = 0,
                 durationUs = 0,
                 hasVideo = false,
+                smallBuf = false,
                 isStreaming = false,
                 offloadBufferSize = 0,
                 notificationFrames = 0,
@@ -208,6 +220,20 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private var sessionId: Int
     val ptr: Long
     var myState: State
+    // proxy limitations: a lot of fields not initialized (mSampleRate, mAudioFormat, mChannelMask, ...) which can
+    // cause some internal checks in various methods to fail; stream event callback is no-op. however, it does:
+    // - register (and overwrite) any codec format listeners on native side ; good for us because we can't register
+    //   one in a normal way due to dependence on volatile offsets. i.e. with proxy we get codec format listeners!
+    // - register player base (which we really should have on N+ to be a nice citizen and have stuff like ducking)
+    // - register (and overwrite) routing callback, which is meh but we can just use the java one, it don't hurt
+    // - volume shapers! these would be near-impossible using the native API because it's all inline.
+    // it's a bit fiddly, but we get all possibilities of a native AudioTrack and a Java one - combined.
+    // however: we MUST call play(), pause(), stop() and don't use the native methods ourselves for this to work.
+    // reminder: do not call write() or any other standard APIs as we break a lot of assumptions. + proxy is not
+    //  always available (i.e. L/M), hence native methods are preferable where we can.
+    private val proxy: AudioTrack?
+    private val codecListener: AudioTrack.OnCodecFormatChangedListener?
+    private val routingListener: AudioRouting.OnRoutingChangedListener?
     init {
         if (frameCount != null && frameCount == 0)
             throw IllegalArgumentException("frameCount cannot be zero (did you mean to use null?)")
@@ -254,6 +280,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         val fmt = format.native!!.toInt()
         val usage = attributes.usage
         val contentType = attributes.contentType
+        val hasOutputFlagDeepBufferSet = false // TODO
         val attrFlags = attributes.flags or
                 (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S_V2
                     && attributes.isContentSpatialized) 0x4000 else 0) or
@@ -266,15 +293,18 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                         AudioAttributes.ALLOW_CAPTURE_BY_NONE -> 0x1400
                         AudioAttributes.ALLOW_CAPTURE_BY_SYSTEM -> 0x400
                         else -> 0x0
-                    } else 0x0)
+                    } else 0x0) or (if (hasOutputFlagDeepBufferSet) 0x200 else 0x0)
         val bitWidth = bitsPerSampleForFormat(format)
-        // TODO add attr flag AUDIO_FLAG_DEEP_BUFFER if output flag deep buffer is set
         // java streamType is compatible with native streamType
         val ret = try {
-            set(ptr, streamType, sampleRate, fmt, channelMask, frameCount ?: 0, trackFlags,
-                this.sessionId, maxRequiredSpeed, selectedDeviceId ?: 0, bitRate, durationUs, hasVideo,
-                isStreaming, bitWidth, offloadBufferSize, usage, contentType, attrFlags, notificationFrames,
-                        doNotReconnect, transferMode)
+            set(ptr = ptr, streamType = streamType, sampleRate = sampleRate, format = fmt,
+                channelMask = channelMask, frameCount = frameCount ?: 0, trackFlags = trackFlags,
+                sessionId = this.sessionId, maxRequiredSpeed = maxRequiredSpeed,
+                selectedDeviceId = selectedDeviceId ?: 0, bitRate = bitRate, durationUs = durationUs,
+                hasVideo = hasVideo, smallBuf = smallBuf, isStreaming = isStreaming, bitWidth = bitWidth,
+                offloadBufferSize = offloadBufferSize, usage = usage, contentType = contentType,
+                attrFlags = attrFlags, notificationFrames = notificationFrames, doNotReconnect = doNotReconnect,
+                transferMode = transferMode)
         } catch (t: Throwable) {
             try {
                 dtor(ptr)
@@ -292,6 +322,30 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
             throw NativeTrackException("set() failed with code $ret")
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            proxy = try {
+                getProxy(ptr, this.sessionId)
+            } catch (t: Throwable) {
+                Log.e(TAG, Log.getStackTraceString(t)); null
+            }
+            routingListener = object : AudioRouting.OnRoutingChangedListener {
+                override fun onRoutingChanged(router: AudioRouting?) {
+                    this@NativeTrack.onRoutingChanged()
+                }
+            }
+            proxy?.addOnRoutingChangedListener(routingListener, null)
+        } else {
+            proxy = null
+            routingListener = null
+        }
+        if (proxy != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            codecListener = object : AudioTrack.OnCodecFormatChangedListener {
+                override fun onCodecFormatChanged(audioTrack: AudioTrack, info: AudioMetadataReadMap?) {
+                    this@NativeTrack.onCodecFormatChanged(info)
+                }
+            }
+            proxy.addOnCodecFormatChangedListener(MoreExecutors.directExecutor(), codecListener)
+        } else codecListener = null
         myState = State.ALIVE
         Log.e("hi", "dump:${AfFormatTracker.dumpInternal(getRealPtr(ptr))}")
         Log.e("hi", "my flags:${flags()} nfa:${notificationFramesAct()}")
@@ -321,21 +375,32 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun set(ptr: Long, streamType: Int, sampleRate: Int, format: Int, channelMask: Int,
                              frameCount: Int, trackFlags: Int, sessionId: Int, maxRequiredSpeed: Float,
                              selectedDeviceId: Int, bitRate: Int, durationUs: Long, hasVideo: Boolean,
-                             isStreaming: Boolean, bitWidth: Int, offloadBufferSize: Int, usage: Int,
-                             contentType: Int, attrFlags: Int,
-                             notificationFrames: Int, doNotReconnect: Boolean, transferMode: Int): Int
+                             smallBuf: Boolean, isStreaming: Boolean, bitWidth: Int, offloadBufferSize: Int,
+                             usage: Int, contentType: Int, attrFlags: Int, notificationFrames: Int,
+                             doNotReconnect: Boolean, transferMode: Int): Int
     private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
     private external fun flagsFromOffset(@Suppress("unused") ptr: Long): Int
     private external fun notificationFramesActFromOffset(@Suppress("unused") ptr: Long): Int
     private external fun dtor(@Suppress("unused") ptr: Long)
+    @RequiresApi(Build.VERSION_CODES.N)
+    private external fun getProxy(@Suppress("unused") ptr: Long, @Suppress("unused") sessionId: Int): AudioTrack
 
     fun release() {
         myState = State.RELEASED
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && codecListener != null) {
+            proxy?.removeOnCodecFormatChangedListener(codecListener)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            proxy?.removeOnRoutingChangedListener(routingListener)
+            proxy?.release() // this doesn't free native obj because we hold extra strong ref, cleared in dtor()
+        }
         dtor(ptr)
     }
 
     fun dump(): String {
-        return ""
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return AfFormatTracker.dumpInternal(getRealPtr(ptr))
     }
 
     fun state(): Int {
@@ -377,7 +442,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
             AfFormatTracker.getFlagsFromDump(dump())
                 ?: throw IllegalStateException("getFlags failed, check prior logs")
-        else flagsFromOffset(ptr)
+        else flagsFromOffset(ptr) // TODO use proxy get_flags on N/O
     }
 
     fun notificationFramesAct(): Int {
@@ -391,6 +456,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
 
     @RequiresApi(Build.VERSION_CODES.Q)
     fun portId(): Int {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
         return AfFormatTracker.getPortIdFromDump(dump())
             ?: throw IllegalStateException("getPortId failed, check prior logs")
     }
@@ -464,8 +531,16 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private fun onCanWriteMoreData(frameCount: Long, sizeBytes: Long) {
         Log.i(TAG, "onCanWriteMoreData called: frameCount=$frameCount sizeBytes=$sizeBytes")
     }
-    @Suppress("unused") // called from native, on random thread (not main thread!)
+    @Suppress("unused") // called from native, on random thread (not main thread!) - only M for now, N+ uses proxy
     private fun onAudioDeviceUpdate(ioHandle: Int, routedDevices: IntArray) {
-        Log.i(TAG, "onAudioDeviceUpdate called: ioHandle=$ioHandle routedDevices=$routedDevices")
+        Log.i(TAG, "onAudioDeviceUpdate called: ioHandle=$ioHandle routedDevices=${routedDevices.contentToString()}")
+    }
+    // called on audio track initialization thread, most often main thread but not always
+    private fun onRoutingChanged() {
+        Log.i(TAG, "onRoutingChanged called")
+    }
+    // called on random thread
+    private fun onCodecFormatChanged(metadata: AudioMetadataReadMap?) {
+        Log.i(TAG, "onCodecFormatChanged called: metadata=$metadata")
     }
 }
