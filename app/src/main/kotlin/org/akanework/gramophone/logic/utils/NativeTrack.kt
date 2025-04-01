@@ -333,25 +333,40 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             proxy = try {
                 getProxy(ptr, this.sessionId)
             } catch (t: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(t)); null
+                try {
+                    dtor(ptr)
+                } catch (t2: Throwable) {
+                    throw NativeTrackException("dtor() threw exception after getProxy() threw exception: " +
+                            Log.getStackTraceString(t2), t)
+                }
+                throw NativeTrackException("getProxy() threw exception", t)
+            }
+            if (proxy == null) {
+                try {
+                    dtor(ptr)
+                } catch (t: Throwable) {
+                    throw NativeTrackException("dtor() threw exception after getProxy() returned null, " +
+                            "check prior logs", t)
+                }
+                throw NativeTrackException("getProxy() returned null, check prior logs")
             }
             routingListener = object : AudioRouting.OnRoutingChangedListener {
                 override fun onRoutingChanged(router: AudioRouting?) {
                     this@NativeTrack.onRoutingChanged()
                 }
             }
-            proxy?.addOnRoutingChangedListener(routingListener, null)
+            proxy.addOnRoutingChangedListener(routingListener, null)
         } else {
             proxy = null
             routingListener = null
         }
-        if (proxy != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             codecListener = object : AudioTrack.OnCodecFormatChangedListener {
                 override fun onCodecFormatChanged(audioTrack: AudioTrack, info: AudioMetadataReadMap?) {
                     this@NativeTrack.onCodecFormatChanged(info)
                 }
             }
-            proxy.addOnCodecFormatChangedListener(MoreExecutors.directExecutor(), codecListener)
+            proxy!!.addOnCodecFormatChangedListener(MoreExecutors.directExecutor(), codecListener)
         } else codecListener = null
         myState = State.ALIVE
         Log.e("hi", "dump:${AfFormatTracker.dumpInternal(getRealPtr(ptr))}")
@@ -387,20 +402,20 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                              doNotReconnect: Boolean, transferMode: Int, contentId: Int, syncId: Int,
                              encapsulationMode: Int): Int
     private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
-    private external fun flagsFromOffset(@Suppress("unused") ptr: Long): Int
+    private external fun flagsFromOffset(@Suppress("unused") ptr: Long, @Suppress("unused") proxy: AudioTrack?): Int
     private external fun notificationFramesActFromOffset(@Suppress("unused") ptr: Long): Int
     private external fun dtor(@Suppress("unused") ptr: Long)
     @RequiresApi(Build.VERSION_CODES.N)
-    private external fun getProxy(@Suppress("unused") ptr: Long, @Suppress("unused") sessionId: Int): AudioTrack
+    private external fun getProxy(@Suppress("unused") ptr: Long, @Suppress("unused") sessionId: Int): AudioTrack?
 
     fun release() {
         myState = State.RELEASED
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && codecListener != null) {
-            proxy?.removeOnCodecFormatChangedListener(codecListener)
+            proxy!!.removeOnCodecFormatChangedListener(codecListener)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            proxy?.removeOnRoutingChangedListener(routingListener)
-            proxy?.release() // this doesn't free native obj because we hold extra strong ref, cleared in dtor()
+            proxy!!.removeOnRoutingChangedListener(routingListener)
+            proxy.release() // this doesn't free native obj because we hold extra strong ref, cleared in dtor()
         }
         dtor(ptr)
     }
@@ -447,10 +462,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         // TODO document L/M not stripping all flags, only direct / offload / fast
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            AfFormatTracker.getFlagsFromDump(dump())
-                ?: throw IllegalStateException("getFlags failed, check prior logs")
-        else flagsFromOffset(ptr) // TODO use proxy get_flags on N/O
+        return flagsFromOffset(ptr, proxy)
     }
 
     fun notificationFramesAct(): Int {

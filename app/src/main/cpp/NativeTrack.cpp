@@ -113,6 +113,7 @@ struct track_holder {
     void* deviceCallback = nullptr;
     jobject thiz = nullptr;
     jmethodID onAudioDeviceUpdate = nullptr;
+    jmethodID nativeGetFlags = nullptr;
     void* ats = nullptr;
     bool deathEmulation = false;
     bool died = false;
@@ -531,6 +532,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
         if (myParcel == nullptr) {
             ALOGE("myParcel is NULL");
             ::operator delete(theTrack);
+            delete holder;
             return 0;
         }
         auto ats = ::operator new(ATTRIBUTION_SOURCE_SIZE);
@@ -592,7 +594,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
         return INT32_MIN;
     }
     if (android_get_device_api_level() < 30 && (contentId != 0 || syncId != 0)) {
-        ALOGE("Tuner supported since Android 11.x, (contentId != 0 || syncId != 0) is wrong");
+        ALOGE("Tuner supported since Android 11, (contentId != 0 || syncId != 0) is wrong");
         return INT32_MIN;
     }
     auto holder = (track_holder*) ptr;
@@ -896,8 +898,19 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_getRealPtr(
 
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_flagsFromOffset(
-        JNIEnv *, jobject, jlong ptr) {
+        JNIEnv * env, jobject, jlong ptr, jobject proxy) {
     auto holder = (track_holder*) ptr;
+    if (android_get_device_api_level() >= 26) {
+        if (proxy == nullptr) {
+            ALOGE("flagsFromOffset: O+ but proxy is null");
+            return INT32_MIN;
+        }
+        if (!holder->nativeGetFlags) {
+            ALOGE("flagsFromOffset: O+ but nativeGetFlags is null");
+            return INT32_MIN;
+        }
+        return env->CallIntMethod(proxy, holder->nativeGetFlags);
+    }
     size_t extra;
     switch (android_get_device_api_level()) {
 #if 0
@@ -917,6 +930,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_flagsFromOffset(
 #else
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2d0);
 #endif
+#endif
         case 25:
         case 24:
 #ifdef __LP64__
@@ -925,7 +939,6 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_flagsFromOffset(
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x23c);
 #else
             return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x248);
-#endif
 #endif
         case 23:
 #ifdef __LP64__
@@ -1043,8 +1056,20 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_getProxy(JNIEnv* env, jobj
         ALOGE("getProxy should only be called on N+");
         return nullptr;
     }
-    auto track = ((track_holder*)ptr)->track;
+    auto holder = (track_holder*)ptr;
+    auto track = holder->track;
     jclass at = env->FindClass("android/media/AudioTrack");
+    if (at == nullptr) {
+        ALOGE("android/media/AudioTrack does not exist?!");
+        return nullptr;
+    }
+    if (android_get_device_api_level() >= 26) {
+        holder->nativeGetFlags = env->GetMethodID(at, "native_get_flags", "()I");
+        if (holder->nativeGetFlags == nullptr) {
+            ALOGE("getProxy: didn't find android/media/AudioTrack.native_get_flags()I");
+            return nullptr;
+        }
+    }
     jmethodID ctor = env->GetMethodID(at, "<init>", "(J)V");
     if (ctor == nullptr) {
         ALOGE("getProxy: didn't find android/media/AudioTrack.<init>(J)V");
@@ -1060,9 +1085,9 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_getProxy(JNIEnv* env, jobj
         ALOGE("getProxy: didn't find android/media/AudioTrack.baseRegisterPlayer(J)V");
         return nullptr;
     }
-    jmethodID setId = env->GetMethodID(at, "native_setPlayerIId", "(J)V");
+    jmethodID setId = env->GetMethodID(at, "native_setPlayerIId", "(I)V");
     if (setId == nullptr) {
-        ALOGW("getProxy: didn't find android/media/AudioTrack.native_setPlayerIId(J)V");
+        ALOGW("getProxy: didn't find android/media/AudioTrack.native_setPlayerIId(I)V");
         env->ExceptionClear(); // TODO is this needed?
         //return nullptr; TODO on which API levels should this work?
     }
