@@ -581,14 +581,18 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
         jint channelMask, jint frameCount, jint trackFlags, jint sessionId, jfloat maxRequiredSpeed,
         jint selectedDeviceId, jint bitRate, jlong durationUs, jboolean hasVideo, jboolean smallBuf,
         jboolean isStreaming, jint bitWidth, jint offloadBufferSize, jint usage, jint contentType,
-        jint attrFlags, jint notificationFrames,
-        jboolean doNotReconnect, jint transferMode) {
+        jint attrFlags, jint notificationFrames, jboolean doNotReconnect, jint transferMode,
+        jint contentId, jint syncId, jint encapsulationMode) {
     if (android_get_device_api_level() < 23 && maxRequiredSpeed != 1.0f) {
         ALOGE("Android 5.x does not support speed adjustment, maxRequiredSpeed != 1f is wrong");
         return INT32_MIN;
     }
     if (android_get_device_api_level() < 23 && selectedDeviceId != 0) {
         ALOGE("Android 5.x does not support selected devices, selectedDeviceId != 0 is wrong");
+        return INT32_MIN;
+    }
+    if (android_get_device_api_level() < 30 && (contentId != 0 || syncId != 0)) {
+        ALOGE("Tuner supported since Android 11.x, (contentId != 0 || syncId != 0) is wrong");
         return INT32_MIN;
     }
     auto holder = (track_holder*) ptr;
@@ -621,9 +625,9 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 .bit_width = (uint32_t)bitWidth,
                 .offload_buffer_size = (uint32_t)offloadBufferSize,
                 .usage = usage,
-                .encapsulation_mode = 0, // tuner
-                .content_id = 0, // tuner
-                .sync_id = 0, // tuner
+                .encapsulation_mode = encapsulationMode, // tuner
+                .content_id = contentType, // tuner
+                .sync_id = syncId, // tuner
         };
         audioAttributes.newAttrs = {
                 .content_type = contentType,

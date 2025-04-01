@@ -8,6 +8,7 @@ import android.media.AudioManager
 import android.media.AudioMetadataReadMap
 import android.media.AudioRouting
 import android.media.AudioTrack
+import android.media.VolumeShaper
 import android.os.Build
 import android.os.Parcel
 import android.util.Log
@@ -19,7 +20,6 @@ import java.nio.ByteBuffer
 
 /*
  * Exposes entire API surface of AudioTrack.cpp, with some minor exceptions:
- * - Tuner API related features TODO let's bring that back
  * - setCallerName/getCallerName because I want to avoid offset hardcoding, and it's only used for metrics
  * None of those will impose any limitations for music playback.
  */
@@ -27,7 +27,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                   format: AudioFormatDetector.Encoding, channelMask: Int, frameCount: Int?, trackFlags: Int,
                   sessionId: Int, maxRequiredSpeed: Float, selectedDeviceId: Int?, bitRate: Int, durationUs: Long,
                   hasVideo: Boolean, smallBuf: Boolean, isStreaming: Boolean, offloadBufferSize: Int,
-                  notificationFrames: Int, doNotReconnect: Boolean, transferMode: Int) {
+                  notificationFrames: Int, doNotReconnect: Boolean, transferMode: Int, contentId: Int, syncId: Int,
+                  encapsulationMode: Int) {
     companion object {
         private const val TAG = "NativeTrack.kt"
 
@@ -213,22 +214,27 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 offloadBufferSize = 0,
                 notificationFrames = 0,
                 doNotReconnect = false,
-                transferMode = 3
+                transferMode = 3,
+                contentId = 0,
+                syncId = 0,
+                encapsulationMode = 0
             )
         }
     }
     private var sessionId: Int
     val ptr: Long
     var myState: State
-    // proxy limitations: a lot of fields not initialized (mSampleRate, mAudioFormat, mChannelMask, ...) which can
-    // cause some internal checks in various methods to fail; stream event callback is no-op. however, it does:
+    // proxy limitations: a lot of fields not initialized (mSampleRate, mAudioFormat, mOffloaded, ...) which can
+    // cause some internal checks in various methods to fail; stream event and playback position callbacks both
+    // are no-op; we MUST call play(), pause(), stop() and don't use the native methods ourselves for this to work;
+    // we must also not cache playing/paused/stopped/volume ourselves because it may change under our feet.
+    // however, it does:
     // - register (and overwrite) any codec format listeners on native side ; good for us because we can't register
     //   one in a normal way due to dependence on volatile offsets. i.e. with proxy we get codec format listeners!
     // - register player base (which we really should have on N+ to be a nice citizen and have stuff like ducking)
     // - register (and overwrite) routing callback, which is meh but we can just use the java one, it don't hurt
-    // - volume shapers! these would be near-impossible using the native API because it's all inline.
+    // - allow for volume shapers! these would be near-impossible using the native API because it's all inline.
     // it's a bit fiddly, but we get all possibilities of a native AudioTrack and a Java one - combined.
-    // however: we MUST call play(), pause(), stop() and don't use the native methods ourselves for this to work.
     // reminder: do not call write() or any other standard APIs as we break a lot of assumptions. + proxy is not
     //  always available (i.e. L/M), hence native methods are preferable where we can.
     private val proxy: AudioTrack?
@@ -304,7 +310,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 hasVideo = hasVideo, smallBuf = smallBuf, isStreaming = isStreaming, bitWidth = bitWidth,
                 offloadBufferSize = offloadBufferSize, usage = usage, contentType = contentType,
                 attrFlags = attrFlags, notificationFrames = notificationFrames, doNotReconnect = doNotReconnect,
-                transferMode = transferMode)
+                transferMode = transferMode, contentId = contentId, syncId = syncId,
+                encapsulationMode = encapsulationMode)
         } catch (t: Throwable) {
             try {
                 dtor(ptr)
@@ -377,7 +384,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                              selectedDeviceId: Int, bitRate: Int, durationUs: Long, hasVideo: Boolean,
                              smallBuf: Boolean, isStreaming: Boolean, bitWidth: Int, offloadBufferSize: Int,
                              usage: Int, contentType: Int, attrFlags: Int, notificationFrames: Int,
-                             doNotReconnect: Boolean, transferMode: Int): Int
+                             doNotReconnect: Boolean, transferMode: Int, contentId: Int, syncId: Int,
+                             encapsulationMode: Int): Int
     private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
     private external fun flagsFromOffset(@Suppress("unused") ptr: Long): Int
     private external fun notificationFramesActFromOffset(@Suppress("unused") ptr: Long): Int
@@ -477,6 +485,11 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         if (bps == 0) // compressed
             return 1
         return channelCount() * bps
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun createVolumeShaper(config: VolumeShaper.Configuration): VolumeShaper {
+        return proxy!!.createVolumeShaper(config)
     }
 
     class NativeTrackException : Exception {
