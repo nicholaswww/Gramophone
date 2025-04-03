@@ -488,6 +488,8 @@ sealed class SemanticLyrics : Parcelable {
     ) : Parcelable {
         val isClickable: Boolean
             get() = text.isNotBlank()
+        val timeRange: ULongRange
+            get() = start..end
     }
 
     @Parcelize

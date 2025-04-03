@@ -197,12 +197,12 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                     .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build(),
-                AudioManager.STREAM_MUSIC,
-                sampleRate = 48000,
-                AudioFormatDetector.Encoding.ENCODING_PCM_16BIT,
+                0,
+                sampleRate = 13370,
+                AudioFormatDetector.Encoding.ENCODING_PCM_8BIT,
                 channelMask = 3,
                 frameCount = null,
-                trackFlags = 0,
+                trackFlags = 1,
                 AudioManager.AUDIO_SESSION_ID_GENERATE,
                 maxRequiredSpeed = 1.0f,
                 selectedDeviceId = null,
@@ -299,7 +299,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                         AudioAttributes.ALLOW_CAPTURE_BY_NONE -> 0x1400
                         AudioAttributes.ALLOW_CAPTURE_BY_SYSTEM -> 0x400
                         else -> 0x0
-                    } else 0x0) or (if (hasOutputFlagDeepBufferSet) 0x200 else 0x0)
+                    } else 0) or (if (hasOutputFlagDeepBufferSet) 0x200 else 0x0)
         val bitWidth = bitsPerSampleForFormat(format)
         // java streamType is compatible with native streamType
         val ret = try {

@@ -367,6 +367,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         var timeUntilNext = 0uL
         var firstHighlight: Int? = null
         var lastHighlight: Int? = null
+        var lastNonTranslated: SemanticLyrics.LyricLine? = null
         canvas.save()
         canvas.translate(globalPaddingHorizontal, heightSoFar.toFloat())
         val width = width - globalPaddingHorizontal * 2
@@ -432,6 +433,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                 }
                 heightSoFarWithoutTranslated = heightSoFar
             }
+            if (it.line?.isTranslated != true)
+                lastNonTranslated = it.line
             if (highlight && firstHighlight == null) {
                 firstHighlight = heightSoFarWithoutTranslated
                 determineTimeUntilNext = true
@@ -451,11 +454,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             if (highlight) {
                 canvas.save()
                 canvas.scale(1f / hlScaleFactor, 1f / hlScaleFactor)
-                if (it.line?.words != null) {
-                    wordIdx = it.line.words.indexOfLast { it.timeRange.start <= posForRender }
+                if (it.theWords != null) {
+                    wordIdx = it.theWords.indexOfLast { it.timeRange.start <= posForRender }
                     if (wordIdx == -1) wordIdx = null
                     if (wordIdx != null) {
-                        val word = it.line.words[wordIdx]
+                        val word = it.theWords[wordIdx]
                         spanEnd = word.charRange.last + 1 // get exclusive end
                         val gradientEndTime = min(
                             lastTs.toFloat() - timeOffsetForUse,
@@ -481,11 +484,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                                 it.layout.getLineForOffset(word.charRange.endInclusive)
                             val firstCharOnStartLine = it.layout.getLineStart(wordStartLine)
                             val lastCharOnEndLineExcl = it.layout.getLineEnd(wordEndLine)
-                            realGradientStart = it.line.words.lastOrNull {
+                            realGradientStart = it.theWords.lastOrNull {
                                 it.charRange.first >= firstCharOnStartLine && it.charRange.last <
                                         word.charRange.first && it.isRtl != word.isRtl
                             }?.charRange?.last?.plus(1) ?: firstCharOnStartLine
-                            realGradientEnd = it.line.words.firstOrNull {
+                            realGradientEnd = it.theWords.firstOrNull {
                                 it.charRange.first > word.charRange.last && it.charRange.last <
                                         lastCharOnEndLineExcl && it.isRtl != word.isRtl
                             }?.charRange?.first ?: lastCharOnEndLineExcl
@@ -662,8 +665,16 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         val pixels = b?.let { IntArray(it.width * it.height) }
         val c = b?.let { Canvas(it) }
         val tmpPaint = b?.let { TextPaint() }
+        var lastNonTranslated: SemanticLyrics.LyricLine? = null
         val spLines = lines.mapIndexed { i, it ->
             val syncedLine = syncedLines?.get(i)
+            if (syncedLine?.isTranslated != true)
+                lastNonTranslated = syncedLine
+            val words = syncedLine?.words ?:
+            if (syncedLine?.isTranslated == true && lastNonTranslated?.words != null)
+                listOf(SemanticLyrics.Word(lastNonTranslated.timeRange, 0..<syncedLine.text.length,
+                    findBidirectionalBarriers(syncedLine.text).firstOrNull()?.second == true
+                )) else null
             val sb = SpannableStringBuilder(it.first)
             val speaker = syncedLine?.speaker ?: it.second
             val align = if (prefs.getBooleanStrict("lyric_center", false) || speaker?.isGroup == true)
@@ -694,7 +705,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             val alignmentNormal = if (paragraphRtl) align == Layout.Alignment.ALIGN_OPPOSITE
             else align == Layout.Alignment.ALIGN_NORMAL
             var l: StaticLayout? = null
-            val lineOffsets = syncedLine?.words?.map {
+            val lineOffsets = words?.map {
                 val ia = mutableListOf<Int>()
                 val firstLine = layout.getLineForOffset(it.charRange.first)
                 val lastLine = layout.getLineForOffset(it.charRange.last + 1)
@@ -764,7 +775,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                 return@map ia
             }
             SbItem(layout, sb, paddingTop.dpToPx(context), paddingBottom.dpToPx(context),
-                lineOffsets, lineOffsets?.let { _ ->
+                words, lineOffsets, lineOffsets?.let { _ ->
                     (0..<layout.lineCount).map { line ->
                         findBidirectionalBarriers(layout.text.subSequence(
                             layout.getLineStart(line), layout.getLineEnd(line))).flatMap {
@@ -880,8 +891,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
 
     data class SbItem(
         val layout: StaticLayout, val text: SpannableStringBuilder,
-        val paddingTop: Int, val paddingBottom: Int, val words: List<List<Int>>?,
-        val rlm: List<Int>?, val speaker: SpeakerEntity?, val line: SemanticLyrics.LyricLine?
+        val paddingTop: Int, val paddingBottom: Int, val theWords: List<SemanticLyrics.Word>?,
+        val words: List<List<Int>>?, val rlm: List<Int>?, val speaker: SpeakerEntity?,
+        val line: SemanticLyrics.LyricLine?
     )
 
 }

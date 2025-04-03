@@ -628,7 +628,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 .offload_buffer_size = (uint32_t)offloadBufferSize,
                 .usage = usage,
                 .encapsulation_mode = encapsulationMode, // tuner
-                .content_id = contentType, // tuner
+                .content_id = contentId, // tuner
                 .sync_id = syncId, // tuner
         };
         audioAttributes.newAttrs = {
@@ -637,7 +637,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 .source = LEGACY_AUDIO_SOURCE_DEFAULT,
                 .flags = (uint32_t)attrFlags,
         };
-        audioAttributes.newAttrs.tags[0] = '\0';
+        memset(&audioAttributes.newAttrs.tags[0], '\0', 256);
     } else {
         offloadInfo.oldInfo = {
                 .version = AUDIO_MAKE_OFFLOAD_INFO_VERSION(0, 1),
@@ -662,7 +662,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 .source = LEGACY_AUDIO_SOURCE_DEFAULT,
                 .flags = (uint32_t)attrFlags,
         };
-        audioAttributes.oldAttrs.tags[0] = '\0';
+        memset(&audioAttributes.newAttrs.tags[0], '\0', 256);
     }
     if (android_get_device_api_level() >= 31) { // Android 12.0 (SDK 31) or later
         auto refs = holder->callback->createWeak(holder);
