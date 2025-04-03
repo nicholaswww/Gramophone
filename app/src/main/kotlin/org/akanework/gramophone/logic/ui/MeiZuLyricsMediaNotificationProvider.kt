@@ -62,11 +62,11 @@ class MeiZuLyricsMediaNotificationProvider(
         ) {
             onNotificationChangedCallback.onNotificationChanged(it.also {
                 if (ticker != null)
-                    it.applyNotificationFlags(false)
+                    it.applyNotificationFlags(true, false)
             })
         }.also {
-            if (ticker != null)
-                it.applyNotificationFlags(isManualNotificationUpdate)
+            if (ticker != null || isManualNotificationUpdate)
+                it.applyNotificationFlags(ticker != null, isManualNotificationUpdate)
         }
     }
 
@@ -76,10 +76,11 @@ class MeiZuLyricsMediaNotificationProvider(
         extras: Bundle
     ) = inner.handleCustomCommand(session, action, extras)
 
-    private fun MediaNotification.applyNotificationFlags(onlyUpdateTicker: Boolean) {
+    private fun MediaNotification.applyNotificationFlags(alwaysShowTicker: Boolean, onlyUpdateTicker: Boolean) {
         notification.apply {
             // Keep the status bar lyrics scrolling
-            flags = flags.or(FLAG_ALWAYS_SHOW_TICKER)
+            if (alwaysShowTicker)
+                flags = flags.or(FLAG_ALWAYS_SHOW_TICKER)
             // Only update the ticker (lyrics), and do not update other properties
             if (onlyUpdateTicker)
                 flags = flags.or(FLAG_ONLY_UPDATE_TICKER)

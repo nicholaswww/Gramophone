@@ -248,13 +248,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         internalPlaybackThread.start()
         playbackHandler = Handler(internalPlaybackThread.looper)
         handler = Handler(Looper.getMainLooper())
-        setForegroundServiceTimeoutMs(120000)
         nm = NotificationManagerCompat.from(this)
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
         setListener(this)
         setMediaNotificationProvider(
             MeiZuLyricsMediaNotificationProvider(this) { lastSentHighlightedLyric }
         )
+        setForegroundServiceTimeoutMs(120000)
         if (mayThrowForegroundServiceStartNotAllowed()
             || mayThrowForegroundServiceStartNotAllowedMiui()
         ) {
