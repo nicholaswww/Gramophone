@@ -367,7 +367,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         var timeUntilNext = 0uL
         var firstHighlight: Int? = null
         var lastHighlight: Int? = null
-        var lastNonTranslated: SemanticLyrics.LyricLine? = null
         canvas.save()
         canvas.translate(globalPaddingHorizontal, heightSoFar.toFloat())
         val width = width - globalPaddingHorizontal * 2
@@ -433,8 +432,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                 }
                 heightSoFarWithoutTranslated = heightSoFar
             }
-            if (it.line?.isTranslated != true)
-                lastNonTranslated = it.line
             if (highlight && firstHighlight == null) {
                 firstHighlight = heightSoFarWithoutTranslated
                 determineTimeUntilNext = true
