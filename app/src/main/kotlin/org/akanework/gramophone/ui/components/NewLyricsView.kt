@@ -668,7 +668,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             if (syncedLine?.isTranslated != true)
                 lastNonTranslated = syncedLine
             val words = syncedLine?.words ?:
-            if (syncedLine?.isTranslated == true && lastNonTranslated?.words != null)
+            if (prefs.getBooleanStrict("translation_auto_word", false) &&
+                syncedLine?.isTranslated == true && lastNonTranslated?.words != null)
                 listOf(SemanticLyrics.Word(lastNonTranslated.timeRange, 0..<syncedLine.text.length,
                     findBidirectionalBarriers(syncedLine.text).firstOrNull()?.second == true
                 )) else null

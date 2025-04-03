@@ -99,7 +99,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
         if ((key == "lyric_center" || key == "lyric_bold") && adapter != null)
             adapter?.onPrefsChanged()
         else if (key == "lyric_center" || key == "lyric_bold" || key == "lyric_no_animation" ||
-            key == "lyric_char_scaling")
+            key == "lyric_char_scaling" || key == "translation_auto_word")
             newView?.onPrefsChanged(key)
         else if (key == "lyric_ui" || key == "lyric_parser")
             createView()
