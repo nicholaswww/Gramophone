@@ -242,17 +242,18 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onCreate() {
+        super.onCreate()
         instanceForWidgetAndLyricsOnly = this
         internalPlaybackThread.start()
         playbackHandler = Handler(internalPlaybackThread.looper)
         handler = Handler(Looper.getMainLooper())
-        super.onCreate()
         nm = NotificationManagerCompat.from(this)
         prefs = PreferenceManager.getDefaultSharedPreferences(this)
         setListener(this)
         setMediaNotificationProvider(
             MeiZuLyricsMediaNotificationProvider(this) { lastSentHighlightedLyric }
         )
+        setForegroundServiceTimeoutMs(120000)
         if (mayThrowForegroundServiceStartNotAllowed()
             || mayThrowForegroundServiceStartNotAllowedMiui()
         ) {
