@@ -546,6 +546,10 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
     holder->thiz = env->NewGlobalRef(thiz);
     jclass clazz = env->GetObjectClass(thiz);
     holder->onAudioDeviceUpdate = env->GetMethodID(clazz, "onAudioDeviceUpdate", "(I[I)V");
+    if (holder->onAudioDeviceUpdate == nullptr) {
+        ALOGI("callback does not have onAudioDeviceUpdate(I[I)V, assuming it does not care");
+        env->ExceptionClear();
+    }
     env->DeleteLocalRef(clazz);
     auto callback = new MyCallback(*holder, env, thiz);
     callback->incStrong(holder);

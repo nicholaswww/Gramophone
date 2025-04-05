@@ -26,8 +26,24 @@
 -keep class org.akanework.gramophone.logic.ui.ViewCompatInflater { *; }
 
 # reflection by lyric getter xposed
--keep class androidx.core.app.NotificationManagerCompat { *; }
--keep class androidx.media3.common.util.Util { *; }
+-keep class androidx.media3.common.util.Util {
+    public static void setForegroundServiceNotification(...);
+}
+
+# JNI
+-keep class org.akanework.gramophone.logic.utils.NativeTrack {
+    onAudioDeviceUpdate(...);
+    onUnderrun(...);
+    onMarker(...);
+    onNewPos(...);
+    onStreamEnd(...);
+    onNewIAudioTrack(...);
+    onNewTimestamp(...);
+    onLoopEnd(...);
+    onBufferEnd(...);
+    onMoreData(...);
+    onCanWriteMoreData(...);
+}
 
 # get rid of spammy logging
 -assumenosideeffects class

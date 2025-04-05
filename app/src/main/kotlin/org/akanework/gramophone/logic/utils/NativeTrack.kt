@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 /*
  * Exposes entire API surface of AudioTrack.cpp, with some minor exceptions:
  * - setCallerName/getCallerName because I want to avoid offset hardcoding, and it's only used for metrics
- * None of those will impose any limitations for music playback.
+ * - Extended timestamps, due to complexity
  */
 class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int, sampleRate: Int,
                   format: AudioFormatDetector.Encoding, channelMask: Int, frameCount: Int?, trackFlags: Int,
