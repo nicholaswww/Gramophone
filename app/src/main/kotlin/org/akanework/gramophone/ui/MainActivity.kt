@@ -18,16 +18,15 @@
 package org.akanework.gramophone.ui
 
 import android.annotation.SuppressLint
-import android.app.ComponentCaller
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.view.Choreographer
 import android.view.ViewGroup
 import android.widget.TextView
@@ -39,37 +38,35 @@ import androidx.activity.viewModels
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.ViewCompat
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks
 import androidx.fragment.app.commit
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.DefaultMediaNotificationProvider
 import coil3.imageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgeProperly
 import org.akanework.gramophone.logic.gramophoneApplication
+import org.akanework.gramophone.logic.hasAudioPermission
 import org.akanework.gramophone.logic.hasScopedStorageV2
 import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import org.akanework.gramophone.logic.needsMissingOnDestroyCallWorkarounds
 import org.akanework.gramophone.logic.postAtFrontOfQueueAsync
 import org.akanework.gramophone.ui.components.PlayerBottomSheet
 import org.akanework.gramophone.ui.fragments.BaseFragment
-import androidx.core.net.toUri
-import androidx.media3.common.C
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
-import org.akanework.gramophone.logic.hasAudioPermission
 
 /**
  * MainActivity:
@@ -178,16 +175,21 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         autoPlay = intent.extras?.getBoolean(PLAYBACK_AUTO_START_FOR_FGS, false) == true
         if (ready) {
-            intent.extras?.getString(PLAYBACK_AUTO_PLAY_ID)?.let { id ->
+            intent.extras?.getString(PLAYBACK_AUTO_PLAY_ID)?.let { theId ->
+                val id = "MediaStore:$theId"
                 val pos = intent.extras?.getLong(PLAYBACK_AUTO_PLAY_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
                 controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
                     runBlocking { reader.songListFlow
-                        .map { it.find { it.mediaId == id } }.first() }?.let { mediaItem ->
-                        controller.setMediaItem(mediaItem)
-                        controller.prepare()
-                        controller.seekTo(pos)
-                        controller.play()
-                    }
+                        .map { it.find { it.mediaId == id } }.firstOrNull() }
+                        .let { mediaItem ->
+                            if (mediaItem != null) {
+                                controller.setMediaItem(mediaItem, pos)
+                                controller.prepare()
+                                controller.play()
+                            } else {
+                                Toast.makeText(this@MainActivity, R.string.cannot_find_file, Toast.LENGTH_LONG).show()
+                            }
+                        }
                     dispose()
                 }
             }
@@ -201,7 +203,14 @@ class MainActivity : AppCompatActivity() {
         ready = true
         Choreographer.getInstance().postFrameCallback {
             handler.postAtFrontOfQueueAsync {
-                super.reportFullyDrawn()
+                try {
+                    super.reportFullyDrawn()
+                } catch (e: SecurityException) {
+                    // samsung SM-G570M on SDK 26: Permission Denial: broadcast from android asks to run as user
+                    // -1 but is calling from user 0; this requires android.permission.INTERACT_ACROSS_USERS_FULL
+                    // or android.permission.INTERACT_ACROSS_USERS
+                    Log.w("MainActivity", e)
+                }
             }
         }
     }

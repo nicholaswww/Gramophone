@@ -48,13 +48,13 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
@@ -222,15 +222,16 @@ abstract class BaseAdapter<T>(
             throw IllegalStateException("scope != null in onAttachedToRecyclerView")
         scope = CoroutineScope(Dispatchers.Default)
         scope!!.launch {
-            flow.collect {
+            flow.collectLatest {
                 // The replay cache may cause us seeing the same list more than one. Make sure to
                 // use === (reference equals) to avoid performance hit.
-                if (list === it) return@collect
-                val diff = if ((list.second.isNotEmpty<T>() && it.second.isNotEmpty<T>())
+                val old = list
+                if (old === it) return@collectLatest
+                val diff = if ((old.second.isNotEmpty<T>() && it.second.isNotEmpty<T>())
                     || allowDiffUtils)
-                            DiffUtil.calculateDiff(SongDiffCallback(list.second, it.second))
+                            DiffUtil.calculateDiff(SongDiffCallback(old.second, it.second))
                 else null
-                val sizeChanged = list.second.size != it.second.size
+                val sizeChanged = old.second.size != it.second.size
                 withContext(Dispatchers.Main + NonCancellable) {
                     list = it
                     if (diff != null)

@@ -10,6 +10,8 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.provider.Settings
+import android.system.ErrnoException
+import android.system.Os
 import android.util.Log
 import android.view.View
 import android.widget.ImageView
@@ -48,6 +50,7 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.components.FullBottomSheet.Companion.SLIDER_UPDATE_INTERVAL
 import org.akanework.gramophone.ui.components.SquigglyProgress
+import java.io.File
 
 private const val TAG = "AudioPreviewActivity"
 
@@ -293,54 +296,80 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                 var fileUri: Uri? = null
                 val queryUri = if (uri.scheme == "file") {
                     fileUri = uri
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                    null
                 } else if (uri.scheme == "content" && uri.authority == MediaStore.AUTHORITY)
                     uri
                 else if (uri.scheme == "content")
                     try {
                         if (hasScopedStorageV1()) MediaStore.getMediaUri(this, uri) else null
                     } catch (e: Exception) {
-                        if (e.message != "Provider for this Uri is not supported." && e !is SecurityException)
-                            throw e
+                        if (e is SecurityException || e.message == "Provider for this Uri is not supported."
+                            || e.message?.startsWith("Invalid URI: ") == true)
+                            Log.w(TAG, e.javaClass.name + ": " + e.message)
+                        else
+                            Log.e(TAG, Log.getStackTraceString(e))
                         null
                     } ?: run {
                         val lp = Uri.decode(uri.lastPathSegment)
                         if (lp?.toUri()?.scheme == "file") { // Let's try our luck! Material Files supports this
                             fileUri = lp.toUri()
-                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                        } else null // ¯\_(ツ)_/¯
+                        } else { // ¯\_(ツ)_/¯
+                            val pfd = contentResolver.openFileDescriptor(uri, "r")
+                            if (pfd == null) return@run null
+                            val l = try {
+                                Os.readlink("/proc/self/fd/" + pfd.fd)
+                            } catch (e: ErrnoException) {
+                                Log.w(TAG, e)
+                                return@run null
+                            } finally {
+                                pfd.close()
+                            }
+                            val f = File(l)
+                            if (f.exists())
+                                fileUri = "file://$l".toUri()
+                            else
+                                Log.w(TAG, "found $l from fd but it doesn't exist")
+                        }
+                        null
                     }
                 else null
+                Log.i(TAG, "Audio preview opening $uri with query=$queryUri file=$fileUri")
                 val projection =
                     arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION)
-                val cursor = if (queryUri != null) contentResolver.query(
-                    queryUri,
+                val cursor = if (queryUri != null || fileUri != null) contentResolver.query(
+                    queryUri ?: MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     projection,
-                    if (fileUri?.scheme == "file")
+                    if (fileUri != null)
                         MediaStore.Audio.Media.DATA + " = ?" else null,
-                    if (fileUri?.scheme == "file") arrayOf(fileUri!!.toFile().absolutePath) else null,
+                    if (fileUri != null) arrayOf(fileUri!!.toFile().absolutePath) else null,
                     null
                 ) else null
                 val mediaItem = MediaItem.Builder()
-                    .setUri(uri)
+                    .setUri(fileUri ?: queryUri ?: uri)
                 if (cursor?.moveToFirst() == true) {
                     val id = cursor.getLong(
                         cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                     )
-                    val durationMs = cursor.getLong(
-                        cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-                    )
-                    mediaItem.setMediaId(id.toString())
-                    mediaItem.setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setDurationMs(durationMs)
-                            .build()
-                    )
-                    openIcon.visibility = View.VISIBLE
-                    openText.visibility = View.VISIBLE
+                    if (id != 0L) {
+                        val durationMs = cursor.getLong(
+                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                        )
+                        mediaItem.setMediaId(id.toString())
+                        mediaItem.setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setDurationMs(durationMs)
+                                .build()
+                        )
+                        openIcon.visibility = View.VISIBLE
+                        openText.visibility = View.VISIBLE
+                        Log.i(TAG, "Audio preview found ID $id for query=$queryUri file=$fileUri (was uri=$uri)")
+                    } else {
+                        Log.i(TAG, "Audio preview found no ID for query=$queryUri file=$fileUri (was uri=$uri)")
+                    }
                 } else {
                     openIcon.visibility = View.GONE
                     openText.visibility = View.GONE
+                    Log.i(TAG, "Audio preview found no data for query=$queryUri file=$fileUri (was uri=$uri)")
                 }
                 try {
                     player.setMediaItem(mediaItem.build())

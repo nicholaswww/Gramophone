@@ -145,6 +145,7 @@
 				android:layout_height="wrap_content"
 				android:layout_gravity="center"
 				android:value="0"
+				android:valueTo="1"
 				android:visibility="gone"
 				android:contentDescription="@string/position_slider"
 				app:labelBehavior="gone"
