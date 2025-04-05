@@ -106,7 +106,8 @@
             android:name=".ui.AudioPreviewActivity"
             android:theme="@style/Theme.AudioPreviewDialogTheme"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 

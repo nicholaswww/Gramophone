@@ -1,7 +1,6 @@
 package org.akanework.gramophone.ui.fragments
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -27,6 +26,7 @@ import org.akanework.gramophone.logic.getBitrate
 import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.logic.hasGenreInMediaStore
 import org.akanework.gramophone.logic.toLocaleString
+import org.akanework.gramophone.logic.toMediaStoreId
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
 
@@ -44,8 +44,8 @@ class DetailDialogFragment : BaseFragment(false) {
         rootView.findViewById<MaterialToolbar>(R.id.topAppBar).setNavigationOnClickListener {
             requireActivity().supportFragmentManager.popBackStack()
         }
-        val id = requireArguments().getString("Id")
-        val mediaItem = runBlocking { mainActivity.reader.songListFlow.map { it.find { it.mediaId == id } }.first() }
+        val id = requireArguments().getString("Id")?.toMediaStoreId()
+        val mediaItem = runBlocking { mainActivity.reader.idMapFlow.map { it[id] }.first() }
             ?: return null.also { requireActivity().supportFragmentManager.popBackStack() }
         val mediaMetadata = mediaItem.mediaMetadata
         val albumCoverImageView = rootView.findViewById<ImageView>(R.id.album_cover)

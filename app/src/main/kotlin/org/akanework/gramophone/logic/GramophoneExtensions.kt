@@ -102,14 +102,14 @@ fun MediaItem.getFile(): File? {
     return getUri()?.toFile()
 }
 
-fun MediaItem.getMediaStoreId(): Long? {
-    return if (mediaId.startsWith("MediaStore:"))
-        mediaId.substring("MediaStore:".length).toLongOrNull()
+fun String.toMediaStoreId(): Long? {
+    return if (startsWith("MediaStore:"))
+        substring("MediaStore:".length).toLongOrNull()
     else null
 }
 
 fun MediaItem.requireMediaStoreId(): Long {
-    return getMediaStoreId()
+    return mediaId.toMediaStoreId()
         ?: throw IllegalArgumentException("Media item with ID $mediaId doesn't appear to be media store item")
 }
 

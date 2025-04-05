@@ -50,9 +50,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import coil3.imageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -175,23 +173,27 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         autoPlay = intent.extras?.getBoolean(PLAYBACK_AUTO_START_FOR_FGS, false) == true
         if (ready) {
-            intent.extras?.getString(PLAYBACK_AUTO_PLAY_ID)?.let { theId ->
-                val id = "MediaStore:$theId"
-                val pos = intent.extras?.getLong(PLAYBACK_AUTO_PLAY_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
-                controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
-                    runBlocking { reader.songListFlow
-                        .map { it.find { it.mediaId == id } }.firstOrNull() }
-                        .let { mediaItem ->
-                            if (mediaItem != null) {
-                                controller.setMediaItem(mediaItem, pos)
-                                controller.prepare()
-                                controller.play()
-                            } else {
-                                Toast.makeText(this@MainActivity, R.string.cannot_find_file, Toast.LENGTH_LONG).show()
-                            }
+            doPlayFromIntent(intent)
+        }
+    }
+
+    private fun doPlayFromIntent(intent: Intent) {
+        intent.extras?.getString(PLAYBACK_AUTO_PLAY_ID)?.let { id ->
+            val pos = intent.extras?.getLong(PLAYBACK_AUTO_PLAY_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
+            controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
+                runBlocking { reader.idMapFlow.firstOrNull() }
+                    .let { col ->
+                        val mediaItem = id.toLongOrNull()?.let { col?.let { it2 -> it2[it] } }
+                        if (mediaItem != null) {
+                            controller.setMediaItem(mediaItem, pos)
+                            controller.prepare()
+                            controller.play()
+                        } else {
+                            Log.e("MainActivity", "can't find file with ID $id in library with ${col?.size} items")
+                            Toast.makeText(this@MainActivity, R.string.cannot_find_file, Toast.LENGTH_LONG).show()
                         }
-                    dispose()
-                }
+                    }
+                dispose()
             }
         }
     }
@@ -217,20 +219,7 @@ class MainActivity : AppCompatActivity() {
 
     fun onLibraryLoaded() {
         if (!ready) reportFullyDrawn()
-        intent?.extras?.getLong(PLAYBACK_AUTO_PLAY_ID, 0L).let { it ->
-            if (it != 0L) {
-                val id = it.toString()
-                controllerViewModel.addControllerCallback(lifecycle) { controller, _ ->
-                    val songs = runBlocking { this@MainActivity.gramophoneApplication.reader.songListFlow.first() }
-                    songs.find { it.mediaId == id }?.let { mediaItem ->
-                        controller.setMediaItem(mediaItem)
-                        controller.prepare()
-                        controller.play()
-                    }
-                    dispose()
-                }
-            }
-        }
+        doPlayFromIntent(intent)
     }
 
     /**

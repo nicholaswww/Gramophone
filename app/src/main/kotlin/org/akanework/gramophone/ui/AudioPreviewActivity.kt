@@ -50,6 +50,7 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.components.FullBottomSheet.Companion.SLIDER_UPDATE_INTERVAL
 import org.akanework.gramophone.ui.components.SquigglyProgress
+import uk.akane.libphonograph.toUriCompat
 import java.io.File
 
 private const val TAG = "AudioPreviewActivity"
@@ -334,42 +335,58 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                     }
                 else null
                 Log.i(TAG, "Audio preview opening $uri with query=$queryUri file=$fileUri")
-                val projection =
-                    arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION)
                 val cursor = if (queryUri != null || fileUri != null) contentResolver.query(
                     queryUri ?: MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                    projection,
-                    if (fileUri != null)
+                    arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION,
+                        MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.DATA),
+                    if (queryUri == null)
                         MediaStore.Audio.Media.DATA + " = ?" else null,
-                    if (fileUri != null) arrayOf(fileUri!!.toFile().absolutePath) else null,
+                    if (queryUri == null) arrayOf(fileUri!!.toFile().absolutePath) else null,
                     null
                 ) else null
                 val mediaItem = MediaItem.Builder()
-                    .setUri(fileUri ?: queryUri ?: uri)
-                if (cursor?.moveToFirst() == true) {
-                    val id = cursor.getLong(
-                        cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                    )
-                    if (id != 0L) {
-                        val durationMs = cursor.getLong(
-                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                run {
+                    if (cursor?.moveToFirst() == true) {
+                        val id = cursor.getLong(
+                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                         )
-                        mediaItem.setMediaId(id.toString())
-                        mediaItem.setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setDurationMs(durationMs)
-                                .build()
-                        )
-                        openIcon.visibility = View.VISIBLE
-                        openText.visibility = View.VISIBLE
-                        Log.i(TAG, "Audio preview found ID $id for query=$queryUri file=$fileUri (was uri=$uri)")
+                        if (id != 0L) {
+                            val durationMs = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                            )
+                            val title = cursor.getString(
+                                cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                            )
+                            val data = cursor.getString(
+                                cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                            )
+                            mediaItem.setUri(File(data).toUriCompat())
+                            mediaItem.setMediaId(id.toString())
+                            mediaItem.setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setTitle(title)
+                                    .setDurationMs(durationMs)
+                                    .build()
+                            )
+                            openIcon.visibility = View.VISIBLE
+                            openText.visibility = View.VISIBLE
+                            Log.i(
+                                TAG,
+                                "Audio preview found ID $id for query=$queryUri file=$fileUri (was uri=$uri)"
+                            )
+                            return@run
+                        } else {
+                            Log.i(
+                                TAG,
+                                "Audio preview found no ID for query=$queryUri file=$fileUri (was uri=$uri)"
+                            )
+                        }
                     } else {
-                        Log.i(TAG, "Audio preview found no ID for query=$queryUri file=$fileUri (was uri=$uri)")
+                        Log.i(TAG, "Audio preview found no data for query=$queryUri file=$fileUri (was uri=$uri)")
                     }
-                } else {
                     openIcon.visibility = View.GONE
                     openText.visibility = View.GONE
-                    Log.i(TAG, "Audio preview found no data for query=$queryUri file=$fileUri (was uri=$uri)")
+                    mediaItem.setUri(fileUri ?: queryUri ?: uri)
                 }
                 try {
                     player.setMediaItem(mediaItem.build())
