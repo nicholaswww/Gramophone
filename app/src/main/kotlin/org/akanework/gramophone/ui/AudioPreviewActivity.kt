@@ -325,7 +325,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                                 pfd.close()
                             }
                             val f = File(l)
-                            if (f.exists())
+                            if (/* f.exists() && */ f.canRead())
                                 fileUri = "file://$l".toUri()
                             else
                                 Log.w(TAG, "found $l from fd but it doesn't exist")
