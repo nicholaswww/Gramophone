@@ -33,7 +33,6 @@ import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Bundle.EMPTY
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
@@ -243,6 +242,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onCreate() {
+        Log.i(TAG, "onCreate()")
         super.onCreate()
         instanceForWidgetAndLyricsOnly = this
         internalPlaybackThread.start()
@@ -316,8 +316,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         afFormatTracker = AfFormatTracker(this, playbackHandler, handler)
         afFormatTracker.formatChangedCallback = {
             mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
-                EMPTY
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
             )
         }
         val player = EndedWorkaroundPlayer(
@@ -450,8 +450,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 Log.d(TAG, "first bluetooth codec config $btInfo")
                 btInfo = it
                 mediaSession?.broadcastCustomCommand(
-                    SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
-                    EMPTY
+                    SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                    Bundle.EMPTY
                 )
             }
         }
@@ -495,6 +495,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     // When destroying, we should release server side player
     // alongside with the mediaSession.
     override fun onDestroy() {
+        Log.i(TAG, "onDestroy()")
         instanceForWidgetAndLyricsOnly = null
         unregisterReceiver(headSetReceiver)
         unregisterReceiver(seekReceiver)
@@ -551,8 +552,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 Bundle.EMPTY
             )
             mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
-                EMPTY
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
             )
         }
 
@@ -701,12 +702,32 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 settable.setException(
                     IndexOutOfBoundsException(
                         "LastPlayedManager restored empty MediaItemsWithStartPosition"
-                    ).also { Log.e(TAG, Log.getStackTraceString(it)) }
+                    )
                 )
             }
         }
         return settable
     }
+
+    /*override fun onGetLibraryRoot(
+        session: MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
+        params: LibraryParams?
+    ): ListenableFuture<LibraryResult<MediaItem>> {
+        val outParams = LibraryParams.Builder()
+            .setOffline(true)
+            .setSuggested(false)
+            .setRecent(false)
+            .build()
+        val item = MediaItem.Builder()
+            .setMediaId("root")
+            .setMediaMetadata(MediaMetadata.Builder()
+                .setIsBrowsable(true)
+                .setIsPlayable(false)
+                .build())
+            .build()
+        return Futures.immediateFuture(LibraryResult.ofItem(item, outParams))
+    }*/
 
     override fun onTracksChanged(eventTime: AnalyticsListener.EventTime, tracks: Tracks) {
         val mediaItem = controller!!.currentMediaItem
@@ -780,8 +801,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         audioTrackInfoCounter++
         audioTrackInfo = AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
         mediaSession?.broadcastCustomCommand(
-            SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
-            EMPTY
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+            Bundle.EMPTY
         )
     }
 
@@ -794,8 +815,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (++audioTrackReleaseCounter == audioTrackInfoCounter) {
             audioTrackInfo = null
             mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
-                EMPTY
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
             )
         }
     }
@@ -806,16 +827,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     ) {
         downstreamFormat = mediaLoadData.trackFormat
         mediaSession?.broadcastCustomCommand(
-            SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
-            EMPTY
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+            Bundle.EMPTY
         )
     }
 
     private fun onAudioSinkInputFormatChanged(inputFormat: Format?) {
         audioSinkInputFormat = inputFormat
         mediaSession?.broadcastCustomCommand(
-            SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
-            EMPTY
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+            Bundle.EMPTY
         )
     }
 
@@ -823,8 +844,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (state == Player.STATE_IDLE) {
             downstreamFormat = null
             mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
-                EMPTY
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
             )
         }
     }
@@ -838,8 +859,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         bitrateFetcher.launch {
             bitrate = mediaItem?.getBitrate() // TODO subtract cover size
             this@GramophonePlaybackService.mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, EMPTY),
-                EMPTY
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
             )
         }
         lyrics = null

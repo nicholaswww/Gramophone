@@ -107,7 +107,8 @@ class LastPlayedManager(
                 data.mediaItems.map {
                     val b = SafeDelimitedStringConcat(":")
                     // add new entries at the bottom and remember they are null for upgrade path
-                    b.writeStringUnsafe(it.mediaId)
+                    b.writeStringUnsafe("ver_" + 1)
+                    b.writeStringSafe(it.mediaId)
                     b.writeUri(it.localConfiguration?.uri)
                     b.writeStringSafe(it.localConfiguration?.mimeType)
                     b.writeStringSafe(it.mediaMetadata.title)
@@ -130,11 +131,8 @@ class LastPlayedManager(
                     b.writeInt(it.mediaMetadata.recordingMonth)
                     b.writeLong(it.mediaMetadata.artistId)
                     b.writeLong(it.mediaMetadata.albumId)
-                    b.skip() // used to be GenreId
                     b.writeStringSafe(it.mediaMetadata.author)
-                    b.skip() // used to be CdTrackNumber
                     b.writeLong(it.mediaMetadata.durationMs)
-                    b.skip() // used to be Path
                     b.writeLong(it.mediaMetadata.modifiedDate)
                     b.writeStringSafe(it.mediaMetadata.cdTrackNumber)
                     b.toString()
@@ -192,7 +190,15 @@ class LastPlayedManager(
                         .map {
                             val b = SafeDelimitedStringDecat(":", it)
                             // add new entries at the bottom and remember they are null for upgrade path
-                            val mediaId = b.readStringUnsafe()
+                            val versionStr = b.readStringUnsafe()
+                            val version = versionStr.let {
+                                if (it?.startsWith("ver_") == true)
+                                    it.substring("ver_".length).toInt()
+                                else 0
+                            }
+                            val mediaId = if (version == 0) {
+                                "MediaStore:$versionStr" // used to be mediaId
+                            } else b.readStringSafe()
                             val uri = b.readUri()
                             val mimeType = b.readStringSafe()
                             val title = b.readStringSafe()
@@ -215,11 +221,14 @@ class LastPlayedManager(
                             val recordingMonth = b.readInt()
                             val artistId = b.readLong()
                             val albumId = b.readLong()
-                            b.skip() // used to be GenreId
+                            if (version < 1)
+                                b.skip() // used to be GenreId
                             val author = b.readStringSafe()
-                            b.skip() // used to be CdTrackNumber
+                            if (version < 1)
+                                b.skip() // used to be CdTrackNumber
                             val duration = b.readLong()
-                            b.skip() // used to be Path
+                            if (version < 1)
+                                b.skip() // used to be Path
                             val modifiedDate = b.readLong()
                             val cdTrackNumber = b.readStringSafe()
                             MediaItem.Builder()

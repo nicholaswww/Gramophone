@@ -25,21 +25,15 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ShareCompat
 import androidx.core.content.FileProvider
-import androidx.core.net.toFile
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import java.io.File
-import java.util.GregorianCalendar
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getFile
+import org.akanework.gramophone.logic.requireMediaStoreId
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.MediaControllerViewModel
 import org.akanework.gramophone.ui.components.NowPlayingDrawable
@@ -51,6 +45,8 @@ import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.items.modifiedDate
 import uk.akane.libphonograph.manipulator.ItemManipulator
+import java.io.File
+import java.util.GregorianCalendar
 
 
 /**
@@ -204,7 +200,7 @@ class SongAdapter(
                 }
 
                 R.id.delete -> {
-                    val res = ItemManipulator.deleteSong(context, item.mediaId.toLong())
+                    val res = ItemManipulator.deleteSong(context, item.requireMediaStoreId())
                     if (res.continueDelete != null) {
                         AlertDialog.Builder(context)
                             .setTitle(R.string.delete)

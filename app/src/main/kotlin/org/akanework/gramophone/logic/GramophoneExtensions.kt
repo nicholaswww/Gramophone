@@ -102,6 +102,17 @@ fun MediaItem.getFile(): File? {
     return getUri()?.toFile()
 }
 
+fun MediaItem.getMediaStoreId(): Long? {
+    return if (mediaId.startsWith("MediaStore:"))
+        mediaId.substring("MediaStore:".length).toLongOrNull()
+    else null
+}
+
+fun MediaItem.requireMediaStoreId(): Long {
+    return getMediaStoreId()
+        ?: throw IllegalArgumentException("Media item with ID $mediaId doesn't appear to be media store item")
+}
+
 fun MediaItem.getBitrate(): Long? {
     val retriever = MediaMetadataRetriever()
     return try {

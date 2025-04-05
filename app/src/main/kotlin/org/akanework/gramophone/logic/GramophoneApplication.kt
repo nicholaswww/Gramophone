@@ -113,7 +113,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             StrictMode.setVmPolicy(
                 VmPolicy.Builder()
                     .detectAll()
-                    .penaltyLog().penaltyDeath().build()
+                    .penaltyLog().build()
             )
         }
         reader = FlowReader(
