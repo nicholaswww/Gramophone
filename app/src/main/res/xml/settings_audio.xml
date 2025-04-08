@@ -38,7 +38,7 @@
         android:title="@string/settings_category_misc">
 
         <SwitchPreferenceCompat
-            android:defaultValue="true"
+            android:defaultValue="false"
             android:key="mp3_index_seeking"
             android:layout="@layout/preference_switch"
             android:summary="@string/settings_mp3_index_seeking_summary"
