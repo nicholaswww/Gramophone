@@ -31,6 +31,12 @@
             android:widgetLayout="@layout/preference_switch_widget"
             app:iconSpaceReserved="false" />
 
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:layout="@layout/preference_category_md"
+        android:title="@string/settings_category_misc">
+
         <SwitchPreferenceCompat
             android:defaultValue="true"
             android:key="mp3_index_seeking"
