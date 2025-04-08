@@ -33,25 +33,10 @@
 
         <SwitchPreferenceCompat
             android:defaultValue="true"
-            android:key="ps_hardware_acc"
+            android:key="mp3_index_seeking"
             android:layout="@layout/preference_switch"
-            android:summary="@string/settings_hardware_acceleration_summary"
-            android:title="@string/settings_hardware_acceleration"
-            android:widgetLayout="@layout/preference_switch_widget"
-            app:iconSpaceReserved="false" />
-
-    </PreferenceCategory>
-
-    <PreferenceCategory
-        android:layout="@layout/preference_category_md"
-        android:title="@string/settings_category_misc">
-
-        <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:key="skip_silence"
-            android:layout="@layout/preference_switch"
-            android:summary="@string/settings_skip_silence_summary"
-            android:title="@string/settings_skip_silence"
+            android:summary="@string/settings_mp3_index_seeking_summary"
+            android:title="@string/settings_mp3_index_seeking"
             android:widgetLayout="@layout/preference_switch_widget"
             app:iconSpaceReserved="false" />
 

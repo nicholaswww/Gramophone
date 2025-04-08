@@ -31,8 +31,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.preference.PreferenceManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -46,6 +48,7 @@ import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import org.akanework.gramophone.logic.playOrPause
 import org.akanework.gramophone.logic.startAnimation
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
+import org.akanework.gramophone.logic.utils.exoplayer.GramophoneExtractorsFactory
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFactory
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.components.FullBottomSheet.Companion.SLIDER_UPDATE_INTERVAL
@@ -162,11 +165,13 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                     prefs.getBooleanStrict("floatoutput", false)
                 )
                 .setEnableDecoderFallback(true)
-                .setEnableAudioTrackPlaybackParams( // hardware/system-accelerated playback speed
-                    prefs.getBooleanStrict("ps_hardware_acc", true)
-                )
+                .setEnableAudioTrackPlaybackParams(true)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
-            GramophoneMediaSourceFactory(this)
+            GramophoneMediaSourceFactory(DefaultDataSource.Factory(this), GramophoneExtractorsFactory().also {
+                it.setConstantBitrateSeekingEnabled(true)
+                if (prefs.getBooleanStrict("mp3_index_seeking", false))
+                    it.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+            })
         )
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .setAudioAttributes(

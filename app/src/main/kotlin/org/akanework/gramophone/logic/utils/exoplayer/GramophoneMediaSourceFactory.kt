@@ -1,6 +1,5 @@
 package org.akanework.gramophone.logic.utils.exoplayer
 
-import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
@@ -9,7 +8,6 @@ import androidx.media3.common.util.Assertions
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.drm.DrmSessionManager
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
 import androidx.media3.exoplayer.source.BundledExtractorsAdapter
@@ -50,16 +48,6 @@ class GramophoneMediaSourceFactory(
     private var liveMaxOffsetMs: Long
     private var liveMinSpeed: Float
     private var liveMaxSpeed: Float
-
-    constructor(context: Context?) : this(
-        DefaultDataSource.Factory(
-            context!!
-        ) as DataSource.Factory
-    )
-
-    constructor(dataSourceFactory: DataSource.Factory) : this(
-        dataSourceFactory, GramophoneExtractorsFactory()
-    )
 
     init {
         delegateFactoryLoader.setDataSourceFactory(dataSourceFactory)

@@ -58,12 +58,14 @@ import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.common.util.Util.isBitmapFactorySupportedMimeType
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.util.EventLogger
+import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaController
@@ -104,6 +106,7 @@ import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.NativeTrack
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
+import org.akanework.gramophone.logic.utils.exoplayer.GramophoneExtractorsFactory
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFactory
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.LyricWidgetProvider
@@ -331,16 +334,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         prefs.getBooleanStrict("floatoutput", false)
                     )
                     .setEnableDecoderFallback(true)
-                    .setEnableAudioTrackPlaybackParams( // hardware/system-accelerated playback speed
-                        prefs.getBooleanStrict("ps_hardware_acc", true)
-                    )
+                    .setEnableAudioTrackPlaybackParams(true)
                     .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
-                GramophoneMediaSourceFactory(this)
-                /* .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING))
-            TODO flag breaks playback of AcousticGuitar.mp3, report exo bug + add UI toggle*/
-            )
+                GramophoneMediaSourceFactory(DefaultDataSource.Factory(this), GramophoneExtractorsFactory().also {
+                    it.setConstantBitrateSeekingEnabled(true)
+                    if (prefs.getBooleanStrict("mp3_index_seeking", false))
+                        it.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+                }))
                 .setWakeMode(C.WAKE_MODE_LOCAL)
-                .setSkipSilenceEnabled(prefs.getBooleanStrict("skip_silence", false))
                 .setAudioAttributes(
                     AudioAttributes
                         .Builder()
