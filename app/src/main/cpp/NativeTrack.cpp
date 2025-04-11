@@ -33,6 +33,7 @@ extern void *libaudioclient_handle;
 extern void *libpermission_handle;
 extern void *libandroid_runtime_handle;
 extern void *libutils_handle;
+extern void *libavenhancements_handle;
 extern bool initLib(JNIEnv *env);
 
 typedef void*(*ZN7android7RefBaseC2Ev_t)(void* thisptr);
@@ -98,6 +99,10 @@ typedef DeviceIdVector(*ZN7android10AudioTrack18getRoutedDeviceIdsEv_t)(void* th
 static ZN7android10AudioTrack18getRoutedDeviceIdsEv_t ZN7android10AudioTrack18getRoutedDeviceIdsEv = nullptr;
 typedef int32_t(*ZN7android10AudioTrack17getRoutedDeviceIdEv_t)(void* thisptr);
 static ZN7android10AudioTrack17getRoutedDeviceIdEv_t ZN7android10AudioTrack17getRoutedDeviceIdEv = nullptr;
+typedef bool(*ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi_t)(void* thisptr, uint32_t output);
+static ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi_t ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi = nullptr;;
+typedef uint32_t(*ZNK7android10AudioTrack9getOutputEv_t)(void* thisptr);
+static ZNK7android10AudioTrack9getOutputEv_t ZNK7android10AudioTrack9getOutputEv = nullptr;
 
 class MyCallback;
 struct track_holder {
@@ -114,6 +119,7 @@ struct track_holder {
     jobject thiz = nullptr;
     jmethodID onAudioDeviceUpdate = nullptr;
     jmethodID nativeGetFlags = nullptr;
+    jobject sharedMemoryBuffer = nullptr;
     void* ats = nullptr;
     bool deathEmulation = false;
     bool died = false;
@@ -488,6 +494,9 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_initDlsym(J
     } else if (android_get_device_api_level() >= 23) {
         DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack17getRoutedDeviceIdEv, false)
     }
+    if (libavenhancements_handle) {
+        DLSYM_OR_RETURN(libavenhancements, ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi, false)
+    }
     if (android_get_device_api_level() >= 23) {
         if (android_get_device_api_level() < 28) {
             DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack15setOutputDeviceEi, false)
@@ -517,6 +526,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_initDlsym(J
     } else {
         DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack3setE19audio_stream_type_tj14audio_format_tjm20audio_output_flags_tPFviPvS4_ES4_jRKNS_2spINS_7IMemoryEEEbiNS0_13transfer_typeEPK20audio_offload_info_tiiPK18audio_attributes_t, false)
     }
+    DLSYM_OR_RETURN(libaudioclient, ZNK7android10AudioTrack9getOutputEv, false)
     return true;
 }
 
@@ -583,12 +593,12 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
 
 extern "C" JNIEXPORT jint JNICALL
 Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
-        JNIEnv *, jobject, jlong ptr, jint streamType, jint sampleRate, jint format,
+        JNIEnv* env, jobject, jlong ptr, jint streamType, jint sampleRate, jint format,
         jint channelMask, jint frameCount, jint trackFlags, jint sessionId, jfloat maxRequiredSpeed,
         jint selectedDeviceId, jint bitRate, jlong durationUs, jboolean hasVideo, jboolean smallBuf,
         jboolean isStreaming, jint bitWidth, jint offloadBufferSize, jint usage, jint contentType,
         jint attrFlags, jint notificationFrames, jboolean doNotReconnect, jint transferMode,
-        jint contentId, jint syncId, jint encapsulationMode) {
+        jint contentId, jint syncId, jint encapsulationMode, jobject sharedMem) {
     if (android_get_device_api_level() < 23 && maxRequiredSpeed != 1.0f) {
         ALOGE("Android 5.x does not support speed adjustment, maxRequiredSpeed != 1f is wrong");
         return INT32_MIN;
@@ -602,8 +612,12 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
         return INT32_MIN;
     }
     auto holder = (track_holder*) ptr;
+    if (sharedMem) {
+        holder->sharedMemoryBuffer = env->NewGlobalRef(sharedMem);
+    }
     jint ret = 0;
-    fake_sp sharedMemory = {.thePtr = nullptr}; // TODO impl shared memory
+    fake_sp sharedMemory = {.thePtr = sharedMem
+                            ? env->GetDirectBufferAddress(sharedMem) : nullptr};
     union {
         audio_offload_info_t_v30 newInfo = {};
         audio_offload_info_t_v26 oldInfo;
@@ -937,12 +951,28 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_flagsFromOffset(
 #endif
         case 25:
         case 24:
-#ifdef __LP64__
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2a0); // aarch64, x86_64
-#elif defined(i386)
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x23c);
+#ifdef i386
+    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x23c);
+#elif defined(__x86_64)
+    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2a0);
 #else
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x248);
+        {
+#ifdef __LP64__
+            auto result = (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2a0);
+#else
+            auto result = (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x248);
+#endif
+            if (ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi) {
+                uint32_t output = ZNK7android10AudioTrack9getOutputEv(holder->track);
+                bool isDirectPcm = ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi((void*) 0xcafebabe, output);
+                if ((result & 0x11) == 0x1 && !isDirectPcm) {
+                    result &= ~0x1;
+                } else if (!(result & 0x11) && isDirectPcm) {
+                    result |= 0x1; // TODO: should this live here or add separate method for server flags?
+                }
+            }
+            return result;
+        }
 #endif
         case 23:
 #ifdef __LP64__
@@ -1092,13 +1122,13 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_getProxy(JNIEnv* env, jobj
     jmethodID setId = env->GetMethodID(at, "native_setPlayerIId", "(I)V");
     if (setId == nullptr) {
         ALOGW("getProxy: didn't find android/media/AudioTrack.native_setPlayerIId(I)V");
-        env->ExceptionClear(); // TODO is this needed?
+        env->ExceptionClear();
         //return nullptr; TODO on which API levels should this work?
     }
     jfieldID id = env->GetFieldID(at, "mPlayerIId", "I");
     if (id == nullptr) {
         ALOGW("getProxy: didn't find android/media/AudioTrack.mPlayerIId int");
-        env->ExceptionClear(); // TODO is this needed?
+        env->ExceptionClear();
         //return nullptr; TODO on which API levels should this work?
     }
     // creating with 0 and then using deferred_connect() skips PlayerBase registration, which
@@ -1132,6 +1162,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_dtor(
         //}
         holder->deviceCallback = nullptr;
     }
+    // TODO call audioTrack stopAndJoinCallbacks where appropriate
     // RefBase will call the dtor
     if (android_get_device_api_level() >= 33) {
         // virtual inheritance, let's have the compiler generate the vtable stuff
@@ -1142,6 +1173,10 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_dtor(
     holder->callback->decStrong(holder);
     holder->track = nullptr;
     holder->callback = nullptr;
+    if (holder->sharedMemoryBuffer) {
+        // TODO is it safe to dealloc shared memory here or will it race with AudioTrack
+        env->DeleteGlobalRef(holder->sharedMemoryBuffer);
+    }
     env->DeleteGlobalRef(holder->thiz);
     delete holder;
 }
@@ -1197,6 +1232,3 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSu
     } // TODO verify Q/R?
     return ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t(offloadInfo.oldInfo);
 }
-
-// TODO types
-// status_t getTimestamp(ExtendedTimestamp *timestamp);

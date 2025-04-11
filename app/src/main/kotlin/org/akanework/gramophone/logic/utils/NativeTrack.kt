@@ -3,14 +3,17 @@ package org.akanework.gramophone.logic.utils
 import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioMetadataReadMap
+import android.media.AudioPresentation
 import android.media.AudioRouting
 import android.media.AudioTrack
 import android.media.VolumeShaper
 import android.os.Build
 import android.os.Parcel
+import android.os.PersistableBundle
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
@@ -19,7 +22,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import java.nio.ByteBuffer
 
 /*
- * Exposes entire API surface of AudioTrack.cpp, with some minor exceptions:
+ * Exposes most of the API surface of AudioTrack.cpp, with some minor exceptions:
  * - setCallerName/getCallerName because I want to avoid offset hardcoding, and it's only used for metrics
  * - Extended timestamps, due to complexity
  */
@@ -28,7 +31,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                   sessionId: Int, maxRequiredSpeed: Float, selectedDeviceId: Int?, bitRate: Int, durationUs: Long,
                   hasVideo: Boolean, smallBuf: Boolean, isStreaming: Boolean, offloadBufferSize: Int,
                   notificationFrames: Int, doNotReconnect: Boolean, transferMode: Int, contentId: Int, syncId: Int,
-                  encapsulationMode: Int) {
+                  encapsulationMode: Int, sharedMem: ByteBuffer?) {
     companion object {
         private const val TAG = "NativeTrack.kt"
 
@@ -86,8 +89,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 return DirectPlaybackSupport.NONE // TODO implement native getDirectPlaybackSupport
             }
-            // before T, inactive routes were considered in isDirectPlaybackSupported according to AOSP doc. does
-            // that apply to getPlaybackOffloadSupport and isOffloadSupported too?
+            // TODO before T, inactive routes were considered in isDirectPlaybackSupported according to AOSP doc.
+            //  does that apply to getPlaybackOffloadSupport and isOffloadSupported too?
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 return DirectPlaybackSupport.NONE // TODO implement native getPlaybackOffloadSupport
             }
@@ -100,7 +103,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                         && Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1)
                 || !formatIsRawPcm(encoding) || bitWidth < 24
             ) {
-                // this cannot be trusted on N/O with hi-res formats due to format confusion bug
+                // this cannot be trusted on N/O with 24+ bit PCM formats due to format confusion bug
                 hasOffload = try {
                     isOffloadSupported(sampleRate, encoding.native!!.toInt(), channelMask, 0, bitWidth, 0)
                 } catch (t: Throwable) {
@@ -187,6 +190,9 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
             return formatBuilder.setChannelMask(channelMask).build()
         }
+        private fun getNotificationFramesActFromDump(dump: String): Int? {
+            return null // TODO impl this
+        }
         private external fun isOffloadSupported(sampleRate: Int, format: Int, channelMask: Int, bitRate: Int,
                                                 bitWidth: Int, offloadBufferSize: Int): Boolean
         private external fun initDlsym(): Boolean
@@ -217,7 +223,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 transferMode = 3,
                 contentId = 0,
                 syncId = 0,
-                encapsulationMode = 0
+                encapsulationMode = 0,
+                sharedMem = null
             )
         }
     }
@@ -241,6 +248,10 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private val codecListener: AudioTrack.OnCodecFormatChangedListener?
     private val routingListener: AudioRouting.OnRoutingChangedListener?
     init {
+        if (sharedMem?.isDirect == false)
+            throw IllegalArgumentException("shared memory specified but isn't direct")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && transferMode == 5)
+            throw IllegalArgumentException("TRANSFER_SYNC_NOTIF_CALLBACK not supported on this android version")
         if (frameCount != null && frameCount == 0)
             throw IllegalArgumentException("frameCount cannot be zero (did you mean to use null?)")
         if (selectedDeviceId != null && selectedDeviceId == 0)
@@ -311,7 +322,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 offloadBufferSize = offloadBufferSize, usage = usage, contentType = contentType,
                 attrFlags = attrFlags, notificationFrames = notificationFrames, doNotReconnect = doNotReconnect,
                 transferMode = transferMode, contentId = contentId, syncId = syncId,
-                encapsulationMode = encapsulationMode)
+                encapsulationMode = encapsulationMode, sharedMem = sharedMem)
         } catch (t: Throwable) {
             try {
                 dtor(ptr)
@@ -370,7 +381,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         } else codecListener = null
         myState = State.ALIVE
         Log.e("hi", "dump:${AfFormatTracker.dumpInternal(getRealPtr(ptr))}")
-        Log.e("hi", "my flags:${flags()} nfa:${notificationFramesAct()}")
+        Log.e("hi", "my flags:${flags()} nfa:${notificationPeriodInFrames()}")
     }
     private external fun create(@Suppress("unused") parcel: Parcel?): Long
     /*
@@ -400,7 +411,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                              smallBuf: Boolean, isStreaming: Boolean, bitWidth: Int, offloadBufferSize: Int,
                              usage: Int, contentType: Int, attrFlags: Int, notificationFrames: Int,
                              doNotReconnect: Boolean, transferMode: Int, contentId: Int, syncId: Int,
-                             encapsulationMode: Int): Int
+                             encapsulationMode: Int, sharedMem: ByteBuffer? /* direct */): Int
     private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
     private external fun flagsFromOffset(@Suppress("unused") ptr: Long, @Suppress("unused") proxy: AudioTrack?): Int
     private external fun notificationFramesActFromOffset(@Suppress("unused") ptr: Long): Int
@@ -451,31 +462,33 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
 
     fun sessionId() = sessionId
 
+    /**
+     * The accuracy of this method depends on the Android version:
+     * Android 8.0 or later / Non-CAF Android 7.1: all flags are adjusted to match output capabilities
+     * CAF Android 7.0 / 7.1: system only adjusts fast flag, we adjust direct flag through a trick
+     * Non-CAF Android 7.0: system only adjusts fast flag
+     * (because Audio HALs from Android 7.x time don't support using compressed formats in for anything except
+     * passthrough or offload, we can assume that if we request offload, we get offload, passthrough, or a creation
+     * failure. this last disambiguation must be done by end user based on mix port name.)
+     * Android 5.x / 6.x: system only adjusts fast, direct and offload flag
+     */
     fun flags(): Int {
-        // TODO can we do anything about N MR0 (all) and N MR1 (caf) not adjusting at all (except fast) here?
-        //  at least detect caf N MR1 programmatically to know if we can trust this or not
-        //  actually yes we can: AudioTrackIsTrackOffloaded (caf only) will tell us if its direct PCM or not
-        //  and offload uses different formats, if isOffloadSupported is true and our track works we have either
-        //  offload or passthrough. compressed passthrough will be detected as offload and PCM passthrough won't be
-        //  detected but it's better than nothing. if we aren't on caf and have N MR0, bad luck - we can only
-        //  detect offload.
-        // TODO document L/M not stripping all flags, only direct / offload / fast
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
         return flagsFromOffset(ptr, proxy)
     }
 
-    fun notificationFramesAct(): Int {
+    fun notificationPeriodInFrames(): Int {
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            AfFormatTracker.getFlagsFromDump(dump()) // TODO
+            getNotificationFramesActFromDump(dump())
                 ?: throw IllegalStateException("notificationFramesAct failed, check prior logs")
         else notificationFramesActFromOffset(ptr)
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
-    fun portId(): Int {
+    fun policyPortId(): Int {
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
         return AfFormatTracker.getPortIdFromDump(dump())
@@ -488,20 +501,250 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         return 0 // TODO get from saved set state
     }
 
+    fun latency(): UInt {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0U // TODO
+    }
+
+    fun getUnderrunCount(): UInt {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0U // TODO
+    }
+
+    fun getBufferSizeInFrames(): ULong {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0UL // TODO
+    }
+
+    fun getBufferDurationInUs(): ULong {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0UL // TODO
+    }
+
+    fun setBufferSizeInFrames(size: ULong) {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        // TODO
+    }
+
+    fun getStartThresholdInFrames(): ULong {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0UL // TODO
+    }
+
+    fun setStartThresholdInFrames(size: ULong) {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        // TODO
+    }
+
+    fun sharedBuffer(): ByteBuffer {
+        TODO()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.P)
+    fun getMetrics(): PersistableBundle {
+        return proxy!!.metrics
+    }
+
+    fun start() {
+        // TODO call into proxy
+    }
+
+    fun stop() {
+        // TODO call into proxy
+    }
+
+    fun stopped(): Boolean {
+        TODO()
+    }
+
+    fun flush() {
+        // TODO
+    }
+
+    fun pause() {
+        // TODO call into proxy
+    }
+
+    fun pauseAndWait(timeoutMs: ULong): Boolean {
+        // TODO call into proxy
+        TODO()
+    }
+
+    fun setVolume(volume: Float) {
+        // TODO call into proxy(?)
+    }
+
+    fun setAuxEffectSendLevel(level: Float) {
+        // TODO
+    }
+
+    fun getAuxEffectSendLevel(): Float {
+        TODO()
+    }
+
+    fun setSampleRate(rate: UInt) {
+        // TODO
+    }
+
+    fun getSampleRate(): UInt {
+        TODO()
+    }
+
+    fun getOriginalSampleRate(): UInt {
+        TODO()
+    }
+
+    fun getHalSampleRate(): UInt {
+        TODO()
+    }
+
+    fun getHalChannelCount(): UInt {
+        TODO()
+    }
+
+    fun getHalFormat(): AudioFormatDetector.Encoding {
+        TODO()
+    }
+
+    fun setPlaybackRate(playbackRate: Nothing) {
+        TODO()
+    }
+
+    fun getPlaybackRate(): Nothing {
+        TODO()
+    }
+
+    fun setDualMonoMode(dualMonoMode: Nothing) {
+        TODO()
+    }
+
+    fun getDualMonoMode(): Nothing {
+        TODO()
+    }
+
+    fun setAudioDescriptionMixLevel(level: Float) {
+        // TODO
+    }
+
+    fun getAudioDescriptionMixLevel(): Float {
+        TODO()
+    }
+
+    fun setLoop(loopStart: UInt, loopEnd: UInt, loopCount: Int) {
+        TODO()
+    }
+
+    fun setMarkerPosition(markerPosition: UInt) {
+        // TODO
+    }
+
+    fun getMarkerPosition(): UInt {
+        TODO()
+    }
+
+    fun setPositionUpdatePeriod(positionUpdatePeriod: UInt) {
+        // TODO
+    }
+
+    fun setPositionUpdatePeriod(): UInt {
+        TODO()
+    }
+
+    fun setPosition(position: UInt) {
+        // TODO
+    }
+
+    fun getPosition(): UInt {
+        TODO()
+    }
+
+    fun getBufferPosition(): UInt {
+        TODO()
+    }
+
+    fun reload() {
+        TODO()
+    }
+
+    fun getOutput(): Int {
+        TODO()
+    }
+
+    fun setSelectedDevice(audioDeviceInfo: AudioDeviceInfo) {
+        TODO()
+    }
+
+    fun getSelectedDevice(): AudioDeviceInfo {
+        TODO()
+    }
+
+    fun getRoutedDevices(): List<AudioDeviceInfo> {
+        TODO()
+    }
+
+    fun attachAuxEffect(effectId: Int) {
+        TODO()
+    }
+
+    // TODO status_t    obtainBuffer(Buffer* audioBuffer, int32_t waitCount,
+    //                               size_t *nonContig = NULL);
+
+    // TODO void        releaseBuffer(const Buffer* audioBuffer);
+
+    // TODO ssize_t     write(const void* buffer, size_t size, bool blocking = true);
+
     fun channelCount(): Int {
         return Integer.bitCount(channelMask()) // TODO is this valid?
     }
 
     fun frameSize(): Int {
-        val bps = bitsPerSampleForFormat(format()) / 8
+        val bps = bitsPerSampleForFormat(format())
         if (bps == 0) // compressed
             return 1
-        return channelCount() * bps
+        return channelCount() * (bps / 8)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun createVolumeShaper(config: VolumeShaper.Configuration): VolumeShaper {
         return proxy!!.createVolumeShaper(config)
+    }
+
+    fun getUnderrunFrames(): UInt {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return 0U // TODO
+    }
+
+    fun setParameters(params: String) {
+        TODO()
+    }
+
+    fun getParameters(params: String): String {
+        TODO()
+    }
+
+    fun selectPresentation(presentation: AudioPresentation) {
+        TODO()
+    }
+
+    // TODO status_t    getTimestamp(AudioTimestamp& timestamp);
+
+    // TODO status_t pendingDuration(int32_t *msec,
+    //      ExtendedTimestamp::Location location = ExtendedTimestamp::LOCATION_SERVER);
+
+    fun hasStarted(): Boolean {
+        TODO()
+    }
+
+    fun setLogSessionId(params: String) {
+        TODO()
     }
 
     class NativeTrackException : Exception {

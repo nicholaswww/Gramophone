@@ -35,6 +35,7 @@ void *libaudioclient_handle = nullptr;
 void* libpermission_handle = nullptr;
 void* libandroid_runtime_handle = nullptr;
 void* libutils_handle = nullptr;
+void* libavenhancements_handle = nullptr;
 typedef int audio_io_handle_t;
 
 typedef audio_io_handle_t(*ZNK7android10AudioTrack9getOutputEv_t)(void *);
@@ -105,6 +106,15 @@ bool initLib(JNIEnv *env) {
             if (libutils_handle == nullptr) {
                 ALOGE("dlopen returned nullptr for libutils.so: %s", dlerror());
                 return false;
+            }
+        }
+        if (android_get_device_api_level() >= 24) {
+            if (!libavenhancements_handle) {
+                libavenhancements_handle = dlfunc_dlopen(env,"libavenhancements.so", RTLD_GLOBAL);
+                if (libavenhancements_handle == nullptr) {
+                    ALOGI("dlopen returned nullptr for libavenhancements.so: %s", dlerror());
+                    // this lib is optional
+                }
             }
         }
         init_done = true;
