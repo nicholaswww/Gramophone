@@ -70,31 +70,21 @@ android {
         }
     }
 
-    java {
-        compileOptions {
-            toolchain {
-                languageVersion = JavaLanguageVersion.of(17)
-            }
-        }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
-
-    kotlin {
-        jvmToolchain(17)
-        compilerOptions {
-            freeCompilerArgs = listOf(
-                "-Xno-param-assertions",
-                "-Xno-call-assertions",
-                "-Xno-receiver-assertions"
-            )
-        }
+    kotlinOptions {
+        jvmTarget = "21"
+        freeCompilerArgs = listOf(
+            "-Xno-param-assertions",
+            "-Xno-call-assertions",
+            "-Xno-receiver-assertions"
+        )
     }
 
     lint {
         lintConfig = file("lint.xml")
-    }
-
-    baselineProfile {
-        dexLayoutOptimization = true
     }
 
     defaultConfig {
@@ -128,11 +118,6 @@ android {
         setProperty("archivesBaseName", "Gramophone-$versionName${versionNameSuffix ?: ""}")
         vectorDrawables {
             useSupportLibrary = true
-        }
-        externalNativeBuild {
-            cmake {
-                cppFlags += ""
-            }
         }
     }
 
@@ -231,18 +216,16 @@ android {
         includeInApk = false
         includeInBundle = false
     }
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
-    }
     testOptions.unitTests.isIncludeAndroidResources = true
+}
 
-    // https://stackoverflow.com/a/77745844
-    tasks.withType<PackageAndroidArtifact> {
-        doFirst { appMetadata.asFile.orNull?.writeText("") }
-    }
+baselineProfile {
+    dexLayoutOptimization = true // TODO generate on every release using fastlane, or disable this
+}
+
+// https://stackoverflow.com/a/77745844
+tasks.withType<PackageAndroidArtifact> {
+    doFirst { appMetadata.asFile.orNull?.writeText("") }
 }
 
 aboutLibraries {
@@ -252,14 +235,16 @@ aboutLibraries {
 }
 
 dependencies {
-    implementation(project(":libphonograph:libPhonograph"))
+    implementation(project(":libPhonograph"))
+    implementation(project(":hificore"))
+    implementation(project(":hifitrack"))
     val media3Version = "1.6.0"
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.collection:collection-ktx:1.5.0")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
-    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.core:core-splashscreen:1.2.0-beta01")
     //implementation("androidx.datastore:datastore-preferences:1.1.0-rc01") TODO don't abuse shared prefs
     implementation("androidx.fragment:fragment-ktx:1.8.6")
@@ -278,7 +263,6 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
     implementation("io.coil-kt.coil3:coil:3.0.4")
-    implementation("io.github.nift4.dlfunc:dlfunc:0.1.4")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
     //noinspection GradleDependency newer versions need java.nio which is api 26+
     //implementation("com.github.albfernandez:juniversalchardet:2.0.3") TODO

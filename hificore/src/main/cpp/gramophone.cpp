@@ -102,19 +102,17 @@ bool initLib(JNIEnv *env) {
             }
         }
         if (!libutils_handle) {
-            libutils_handle = dlfunc_dlopen(env,"libutils.so", RTLD_GLOBAL);
+            libutils_handle = dlfunc_dlopen(env, "libutils.so", RTLD_GLOBAL);
             if (libutils_handle == nullptr) {
                 ALOGE("dlopen returned nullptr for libutils.so: %s", dlerror());
                 return false;
             }
         }
-        if (android_get_device_api_level() >= 24) {
-            if (!libavenhancements_handle) {
-                libavenhancements_handle = dlfunc_dlopen(env,"libavenhancements.so", RTLD_GLOBAL);
-                if (libavenhancements_handle == nullptr) {
-                    ALOGI("dlopen returned nullptr for libavenhancements.so: %s", dlerror());
-                    // this lib is optional
-                }
+        if (!libavenhancements_handle) {
+            libavenhancements_handle = dlfunc_dlopen(env, "libavenhancements.so", RTLD_GLOBAL);
+            if (libavenhancements_handle == nullptr) {
+                ALOGI("dlopen returned nullptr for libavenhancements.so: %s", dlerror());
+                // this lib is optional
             }
         }
         init_done = true;
@@ -220,7 +218,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_dumpInt
 
     // last argument is not allowed to be null, but where will we get a vector?
     ZNK7android10AudioTrack4dumpEiRKNS_6VectorINS_8String16EEE((void *) audioTrack, pipe_fds[1],
-                                                               nullptr);
+                                                               (void *) 0xdeadbaad);
     close(pipe_fds[1]);
 
     reader_thread.join();

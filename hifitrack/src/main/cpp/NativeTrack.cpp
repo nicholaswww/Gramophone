@@ -26,7 +26,7 @@
 #include <cstdlib>
 #include <vector>
 #include <pthread.h>
-#include "helpers.h"
+#include "../../../../hificore/src/main/cpp/helpers.h"
 
 using DeviceIdVector = std::vector<int>;
 extern void *libaudioclient_handle;

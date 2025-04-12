@@ -12,8 +12,9 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/baselineprofile" />
-            <option value="$PROJECT_DIR$/libphonograph" />
-            <option value="$PROJECT_DIR$/libphonograph/libPhonograph" />
+            <option value="$PROJECT_DIR$/hificore" />
+            <option value="$PROJECT_DIR$/hifitrack" />
+            <option value="$PROJECT_DIR$/libPhonograph" />
           </set>
         </option>
       </GradleProjectSettings>

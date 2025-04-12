@@ -12,14 +12,17 @@ android {
 	namespace = "org.nift4.baselineprofile"
 	compileSdk = 35
 
-	java {
-		toolchain {
-			languageVersion = JavaLanguageVersion.of(17)
-		}
+	compileOptions {
+		sourceCompatibility = JavaVersion.VERSION_21
+		targetCompatibility = JavaVersion.VERSION_21
 	}
-
-	kotlin {
-		jvmToolchain(17)
+	kotlinOptions {
+		jvmTarget = "21"
+		freeCompilerArgs = listOf(
+			"-Xno-param-assertions",
+			"-Xno-call-assertions",
+			"-Xno-receiver-assertions"
+		)
 	}
 
 	defaultConfig {

@@ -1,5 +1,11 @@
 @file:Suppress("UnstableApiUsage")
 
+include(":hifitrack")
+
+
+include(":hificore")
+
+
 pluginManagement {
     repositories {
         google()
@@ -31,4 +37,4 @@ rootProject.name = "Gramophone"
         substitute(module("androidx.media3:media3-session")).using(project(":lib-session"))
     }
 }*/
-include(":libphonograph:libPhonograph", ":app", ":baselineprofile")
+include(":libPhonograph", ":app", ":baselineprofile")
