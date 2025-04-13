@@ -103,7 +103,6 @@ import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyricsLegacy
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFile
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFileLegacy
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
-import org.akanework.gramophone.logic.utils.NativeTrack
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneExtractorsFactory
@@ -111,6 +110,7 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.akanework.gramophone.ui.MainActivity
+import org.nift4.gramophone.hificore.NativeTrack
 import kotlin.random.Random
 
 

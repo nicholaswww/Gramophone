@@ -26,9 +26,9 @@
 #include <cstdlib>
 #include <vector>
 #include <pthread.h>
-#include "../../../../hificore/src/main/cpp/helpers.h"
+#include "helpers.h"
+#include "audio-legacy.h"
 
-using DeviceIdVector = std::vector<int>;
 extern void *libaudioclient_handle;
 extern void *libpermission_handle;
 extern void *libandroid_runtime_handle;
@@ -36,6 +36,7 @@ extern void *libutils_handle;
 extern void *libavenhancements_handle;
 extern bool initLib(JNIEnv *env);
 
+using DeviceIdVector = std::vector<int>;
 typedef void*(*ZN7android7RefBaseC2Ev_t)(void* thisptr);
 static ZN7android7RefBaseC2Ev_t ZN7android7RefBaseC2Ev = nullptr;
 typedef void*(*ZN7android7RefBaseD2Ev_t)(void* thisptr);
@@ -100,7 +101,7 @@ static ZN7android10AudioTrack18getRoutedDeviceIdsEv_t ZN7android10AudioTrack18ge
 typedef int32_t(*ZN7android10AudioTrack17getRoutedDeviceIdEv_t)(void* thisptr);
 static ZN7android10AudioTrack17getRoutedDeviceIdEv_t ZN7android10AudioTrack17getRoutedDeviceIdEv = nullptr;
 typedef bool(*ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi_t)(void* thisptr, uint32_t output);
-static ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi_t ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi = nullptr;;
+static ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi_t ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi = nullptr;
 typedef uint32_t(*ZNK7android10AudioTrack9getOutputEv_t)(void* thisptr);
 static ZNK7android10AudioTrack9getOutputEv_t ZNK7android10AudioTrack9getOutputEv = nullptr;
 
@@ -118,7 +119,6 @@ struct track_holder {
     void* deviceCallback = nullptr;
     jobject thiz = nullptr;
     jmethodID onAudioDeviceUpdate = nullptr;
-    jmethodID nativeGetFlags = nullptr;
     jobject sharedMemoryBuffer = nullptr;
     void* ats = nullptr;
     bool deathEmulation = false;
@@ -442,7 +442,7 @@ static void callbackAdapter(int event, void* userptr, void* info) {
         case 5 /* EVENT_BUFFER_END */:
             user->onBufferEnd();
             break;
-        case 6 /* EVENT_NEW_IAUDIOTRACk */:
+        case 6 /* EVENT_NEW_IAUDIOTRACK */:
             user->onNewIAudioTrack();
             break;
         case 7 /* EVENT_STREAM_END */:
@@ -466,7 +466,7 @@ static void callbackAdapter(int event, void* userptr, void* info) {
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_initDlsym(JNIEnv* env, jobject) {
+Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_initDlsym(JNIEnv* env, jobject) {
     if (!initLib(env))
         return false;
     if (android_get_device_api_level() >= 31) {
@@ -531,7 +531,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_initDlsym(J
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
+Java_org_nift4_gramophone_hificore_NativeTrack_create(
         JNIEnv *env, jobject thiz, jobject parcel) {
     auto theTrack = ::operator new(AUDIO_TRACK_SIZE);
     memset(theTrack, (unsigned char)0xde, AUDIO_TRACK_SIZE);
@@ -592,7 +592,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_create(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
+Java_org_nift4_gramophone_hificore_NativeTrack_set(
         JNIEnv* env, jobject, jlong ptr, jint streamType, jint sampleRate, jint format,
         jint channelMask, jint frameCount, jint trackFlags, jint sessionId, jfloat maxRequiredSpeed,
         jint selectedDeviceId, jint bitRate, jlong durationUs, jboolean hasVideo, jboolean smallBuf,
@@ -900,8 +900,8 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
                 /* pAttributes = */ &audioAttributes.newAttrs
                 );
         if (ret == 0 && doNotReconnect) {
-            // quirk: this will not work on some MTKs for non-offload (ie mixed or direct)
-            // because onNewIAudioTrack not called. such is life.
+            // quirk: doNotReconnect will not work on some MTKs for non-offload (ie mixed or direct)
+            // because onNewIAudioTrack is not called (on purpose). such is life.
             holder->deathEmulation = !ZNK7android10AudioTrack19isOffloadedOrDirectEv(holder->track);
         }
     }
@@ -909,115 +909,13 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_set(
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_getRealPtr(
+Java_org_nift4_gramophone_hificore_NativeTrack_getRealPtr(
         JNIEnv *, jobject, jlong ptr) {
     return (intptr_t)((track_holder*) ptr)->track;
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_flagsFromOffset(
-        JNIEnv * env, jobject, jlong ptr, jobject proxy) {
-    auto holder = (track_holder*) ptr;
-    if (android_get_device_api_level() >= 26) {
-        if (proxy == nullptr) {
-            ALOGE("flagsFromOffset: O+ but proxy is null");
-            return INT32_MIN;
-        }
-        if (!holder->nativeGetFlags) {
-            ALOGE("flagsFromOffset: O+ but nativeGetFlags is null");
-            return INT32_MIN;
-        }
-        return env->CallIntMethod(proxy, holder->nativeGetFlags);
-    }
-    size_t extra;
-    switch (android_get_device_api_level()) {
-#if 0
-        case 27:
-#ifdef __LP64__
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x338); // aarch64, x86_64
-#elif defined(i386)
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2cc);
-#else
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2d8);
-#endif
-        case 26:
-#ifdef __LP64__
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x330); // aarch64, x86_64
-#elif defined(i386)
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2c4);
-#else
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2d0);
-#endif
-#endif
-        case 25:
-        case 24:
-#ifdef i386
-    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x23c);
-#elif defined(__x86_64)
-    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2a0);
-#else
-        {
-#ifdef __LP64__
-            auto result = (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x2a0);
-#else
-            auto result = (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x248);
-#endif
-            if (ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi) {
-                uint32_t output = ZNK7android10AudioTrack9getOutputEv(holder->track);
-                bool isDirectPcm = ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi((void*) 0xcafebabe, output);
-                if ((result & 0x11) == 0x1 && !isDirectPcm) {
-                    result &= ~0x1;
-                } else if (!(result & 0x11) && isDirectPcm) {
-                    result |= 0x1; // TODO: should this live here or add separate method for server flags?
-                }
-            }
-            return result;
-        }
-#endif
-        case 23:
-#ifdef __LP64__
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x280); // aarch64, x86_64
-#elif defined(i386)
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x218);
-#else
-            return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x220);
-#endif
-        case 22:
-            extra =
-#ifdef __ARM_ARCH_7A__
-            /* QCOM_DIRECTTRACK (BOARD_USES_LEGACY_ALSA_AUDIO), only for MSM8x60 in CM12.x */
-                    dlsym(libaudioclient_handle, "_ZN7android10AudioTrack6notifyEi") ? 0x20 /* 0x208 */ :
-#endif
-                    (dlsym(libaudioclient_handle, "_ZN7android10AudioTrack28initializeTrackOffloadParamsEv")
-#if defined(__LP64__)
-                        ? 0x20 /* 0x248 */ : 0x0);
-                    // edge case: couldn't find any CM12.1 x86_64 build
-#else
-                        ? 0x18 /* armv7: 0x200, x86: 0x1f8 */ : 0x0);
-#endif
-            break;
-        case 21:
-            extra =
-#ifdef __ARM_ARCH_7A__
-                /* QCOM_DIRECTTRACK (BOARD_USES_LEGACY_ALSA_AUDIO), only for MSM8x60 in CM12.x */
-                dlsym(libaudioclient_handle, "_ZN7android10AudioTrack6notifyEi") ? 0x8 /* 0x1f0 */ :
-#endif
-                (0);
-            break;
-        default:
-            return INT32_MAX;
-    }
-#ifdef __LP64__
-    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x228 + extra); // aarch64, x86_64
-#elif defined(i386)
-    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1e0 + extra);
-#else
-    return (int32_t)*(uint32_t*)((uintptr_t)holder->track + 0x1e8 + extra);
-#endif
-}
-
-extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_notificationFramesActFromOffset(
+Java_org_nift4_gramophone_hificore_NativeTrack_notificationFramesActFromOffset(
         JNIEnv *, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
     size_t extra;
@@ -1085,7 +983,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_notificationFramesActFromO
 }
 
 extern "C" JNIEXPORT jobject JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_getProxy(JNIEnv* env, jobject, jlong ptr, jint sessionId) {
+Java_org_nift4_gramophone_hificore_NativeTrack_getProxy(JNIEnv* env, jobject, jlong ptr, jint sessionId) {
     if (android_get_device_api_level() < 24) {
         ALOGE("getProxy should only be called on N+");
         return nullptr;
@@ -1096,13 +994,6 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_getProxy(JNIEnv* env, jobj
     if (at == nullptr) {
         ALOGE("android/media/AudioTrack does not exist?!");
         return nullptr;
-    }
-    if (android_get_device_api_level() >= 26) {
-        holder->nativeGetFlags = env->GetMethodID(at, "native_get_flags", "()I");
-        if (holder->nativeGetFlags == nullptr) {
-            ALOGE("getProxy: didn't find android/media/AudioTrack.native_get_flags()I");
-            return nullptr;
-        }
     }
     jmethodID ctor = env->GetMethodID(at, "<init>", "(J)V");
     if (ctor == nullptr) {
@@ -1147,7 +1038,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_getProxy(JNIEnv* env, jobj
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_dtor(
+Java_org_nift4_gramophone_hificore_NativeTrack_dtor(
         JNIEnv * env, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
     if (holder->deviceCallback) {
@@ -1182,7 +1073,7 @@ Java_org_akanework_gramophone_logic_utils_NativeTrack_dtor(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_akanework_gramophone_logic_utils_NativeTrack_00024Companion_isOffloadSupported(
+Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_isOffloadSupported(
         JNIEnv*, jobject, jint sampleRate, jint format,
         jint channelMask, jint bitRate, jint bitWidth, jint offloadBufferSize) {
     if (android_get_device_api_level() > 30) {

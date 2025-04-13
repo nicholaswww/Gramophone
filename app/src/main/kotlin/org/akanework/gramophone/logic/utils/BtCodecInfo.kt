@@ -55,18 +55,19 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                         else -> name
                     }
                 }
+                val sr = when (codecConfig.sampleRate) {
+                    BluetoothCodecConfig.SAMPLE_RATE_44100 -> 44100
+                    BluetoothCodecConfig.SAMPLE_RATE_48000 -> 48000
+                    BluetoothCodecConfig.SAMPLE_RATE_88200 -> 88200
+                    BluetoothCodecConfig.SAMPLE_RATE_96000 -> 96000
+                    BluetoothCodecConfig.SAMPLE_RATE_176400 -> 176400
+                    BluetoothCodecConfig.SAMPLE_RATE_192000 -> 192000
+                    else -> {
+                        Log.e(TAG, "unknown sample rate flag ${codecConfig.sampleRate}"); null
+                    }
+                }
                 return BtCodecInfo(
-                    codec, when (codecConfig.sampleRate) {
-                        BluetoothCodecConfig.SAMPLE_RATE_44100 -> 44100
-                        BluetoothCodecConfig.SAMPLE_RATE_48000 -> 48000
-                        BluetoothCodecConfig.SAMPLE_RATE_88200 -> 88200
-                        BluetoothCodecConfig.SAMPLE_RATE_96000 -> 96000
-                        BluetoothCodecConfig.SAMPLE_RATE_176400 -> 176400
-                        BluetoothCodecConfig.SAMPLE_RATE_192000 -> 192000
-                        else -> {
-                            Log.e(TAG, "unknown sample rate flag ${codecConfig.sampleRate}"); null
-                        }
-                    }, when (codecConfig.channelMode) {
+                    codec, sr, when (codecConfig.channelMode) {
                         BluetoothCodecConfig.CHANNEL_MODE_NONE -> AudioFormat.CHANNEL_INVALID
                         BluetoothCodecConfig.CHANNEL_MODE_MONO -> AudioFormat.CHANNEL_OUT_MONO
                         BluetoothCodecConfig.CHANNEL_MODE_STEREO -> AudioFormat.CHANNEL_OUT_STEREO
@@ -80,13 +81,16 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                         else -> {
                             Log.e(TAG, "unknown bit per sample flag flag ${codecConfig.bitsPerSample}"); null
                         }
-                    }, when {
-                        codec == "LDAC" && codecConfig.codecSpecific1 == 1000L -> "Auto"
-                        codec == "LDAC" && codecConfig.codecSpecific1 == 1001L -> "330kbps"
-                        codec == "LDAC" && codecConfig.codecSpecific1 == 1002L -> "660kbps"
-                        codec == "LDAC" && codecConfig.codecSpecific1 == 1003L -> "990kbps"
-                        else -> null
-                    }
+                    }, if (codec == "LDAC") when {
+                        codecConfig.codecSpecific1 == 1000L || codecConfig.codecSpecific1 == 0L -> "Auto"
+                        codecConfig.codecSpecific1 == 1002L && ((sr ?: 1) % 48000) == 0 -> "330kbps"
+                        codecConfig.codecSpecific1 == 1001L && ((sr ?: 1) % 48000) == 0 -> "660kbps"
+                        codecConfig.codecSpecific1 == 1003L && ((sr ?: 1) % 48000) == 0 -> "990kbps"
+                        codecConfig.codecSpecific1 == 1002L && ((sr ?: 1) % 44100) == 0 -> "303kbps"
+                        codecConfig.codecSpecific1 == 1001L && ((sr ?: 1) % 44100) == 0 -> "606kbps"
+                        codecConfig.codecSpecific1 == 1003L && ((sr ?: 1) % 44100) == 0 -> "909kbps"
+                        else -> "ERROR (${codecConfig.codecSpecific1})"
+                    } else null
                 )
             } catch (t: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(t))

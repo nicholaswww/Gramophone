@@ -23,10 +23,6 @@ dependencyResolutionManagement {
     }
 }
 
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
-}
-
 rootProject.name = "Gramophone"
 /*includeBuild(file("media3").toPath().toRealPath().toAbsolutePath().toString()) {
     dependencySubstitution {
@@ -37,4 +33,4 @@ rootProject.name = "Gramophone"
         substitute(module("androidx.media3:media3-session")).using(project(":lib-session"))
     }
 }*/
-include(":libPhonograph", ":app", ":baselineprofile")
+include(":libPhonograph", ":hificore", ":app", ":baselineprofile")

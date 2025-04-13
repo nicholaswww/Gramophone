@@ -15,9 +15,6 @@
  */
 
 // last observed AOSP size (arm64) was 1312
-//#include "../../../../hificore/src/main/cpp/audio-legacy.h"
-
-#include <stdint.h>
 
 #define AUDIO_TRACK_SIZE 5000
 // last observed AOSP size (arm64) was 152

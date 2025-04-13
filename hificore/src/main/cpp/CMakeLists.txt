@@ -26,7 +26,7 @@ project("hificore")
 # used in the AndroidManifest.xml file.
 add_library(${CMAKE_PROJECT_NAME} SHARED
         # List C/C++ source files with relative paths to this CMakeLists.txt.
-        gramophone.cpp android_linker_ns.cpp)
+        gramophone.cpp android_linker_ns.cpp NativeTrack.cpp)
 
 find_package(dlfunc)
 
@@ -37,3 +37,11 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         # List libraries link to the target library
         log
         dlfunc::dlfunc)
+
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -fvisibility=hidden -fomit-frame-pointer -fno-unroll-loops -Xclang -fmerge-functions)
+
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} --remove-section .comment --remove-section .note.gnu.build-id $<TARGET_FILE:${CMAKE_PROJECT_NAME}>
+        VERBATIM
+)

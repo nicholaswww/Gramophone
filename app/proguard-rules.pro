@@ -31,7 +31,7 @@
 }
 
 # JNI
--keep class org.akanework.gramophone.logic.utils.NativeTrack {
+-keep class org.nift4.gramophone.hificore.NativeTrack {
     onAudioDeviceUpdate(...);
     onUnderrun(...);
     onMarker(...);

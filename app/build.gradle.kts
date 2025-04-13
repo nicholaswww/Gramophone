@@ -237,7 +237,6 @@ aboutLibraries {
 dependencies {
     implementation(project(":libPhonograph"))
     implementation(project(":hificore"))
-    implementation(project(":hifitrack"))
     val media3Version = "1.6.0"
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.appcompat:appcompat:1.7.0")

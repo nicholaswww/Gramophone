@@ -31,6 +31,7 @@
 #include "helpers.h"
 
 static bool init_done = false;
+static jmethodID nativeGetFlags = nullptr;
 void *libaudioclient_handle = nullptr;
 void* libpermission_handle = nullptr;
 void* libandroid_runtime_handle = nullptr;
@@ -158,7 +159,7 @@ bool initLib(JNIEnv *env) {
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalSampleRateInternal(
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getHalSampleRateInternal(
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return 0;
@@ -167,7 +168,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalS
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalChannelCountInternal(
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getHalChannelCountInternal(
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return 0;
@@ -176,7 +177,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalC
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalFormatInternal(
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getHalFormatInternal(
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return 0;
@@ -185,7 +186,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getHalF
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getOutputInternal(
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getOutputInternal(
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return 0;
@@ -194,7 +195,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_getOutp
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_dumpInternal(
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_dumpInternal(
         JNIEnv *env, jobject, jlong audioTrack) {
     if (!initLib(env))
         return nullptr;
@@ -241,17 +242,12 @@ struct audio_gain_config {
 };
 
 extern "C"
-JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfFlagsForPortInternal(
-        JNIEnv *env, jobject, jint id, jint sampleRate, jint type) {
+JNIEXPORT jintArray JNICALL
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_findAfFlagsForPortInternal(
+        JNIEnv *env, jobject, jint id, jint sampleRate) {
     if (!initLib(env))
-        return INT32_MIN;
-    if (type == 0 && android_get_device_api_level() < 30) {
-        // R added flags field to struct, but it is only populated since T. But app side may
-        // want to bet on OEM modification that populates it in R/S.
-        ALOGE("wrong usage of findAfFlagsForPortInternal: on this sdk, finding flags is impossible...");
-        return INT32_MIN;
-    }
+        return nullptr;
+    jint out[3] = { 0, 0, 0 };
     if (android_get_device_api_level() >= 28) {
         DLSYM_OR_ELSE(libaudioclient, ZN7android11AudioSystem12getAudioPortEP13audio_port_v7) {
             ZN7android11AudioSystem12getAudioPortEP13audio_port_v7 =
@@ -260,12 +256,12 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
             if (!ZN7android11AudioSystem12getAudioPortEP13audio_port_v7) {
                 ALOGE("dlsym returned nullptr for _ZN7android11AudioSystem12getAudioPortEP10audio_port: %s",
                                     dlerror());
-                return INT32_MIN;
+                return nullptr;
             }
         }
         if (gSampleRateOffset == 0 && sampleRate == 0) {
             ALOGE("wrong usage of findAfFlagsForPortInternal: not calibrated and sampleRate is 0");
-            return INT32_MAX;
+            return nullptr;
         }
 #define BUFFER_SIZE 114000
         auto buffer = (uint8_t *) calloc(1, BUFFER_SIZE); // should be plenty
@@ -288,7 +284,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
                   buffer, pos, BUFFER_SIZE, id, sampleRate);
             gSampleRateOffset = 0;
             free(buffer);
-            return INT32_MIN;
+            return nullptr;
         }
         /*
          * unsigned int             sample_rate;    <--- we are here
@@ -298,25 +294,26 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
          * union audio_io_flags     flags;          <--- we want to go here
          */
         pos += sizeof(unsigned int) / sizeof(uint8_t); // unsigned int (sample_rate)
-        if (type != 1) { // if we don't want the channel mask, we either want the format...
-            pos += sizeof(uint32_t) / sizeof(uint8_t); // audio_channel_mask_t (channel_mask)
-            if (type == 0) { // ...or the flags
-                pos += sizeof(uint32_t) / sizeof(uint8_t); // audio_format_t (format)
-                pos += sizeof(struct audio_gain_config) /
-                       sizeof(uint8_t); // audio_gain_config (gain)
-            }
-        }
-        if (pos >= buffer + BUFFER_SIZE) {
-            ALOGE("pos(%p) >= buffer(%p) + BUFFER_SIZE(%d) (id(%d) sampleRate(%d))",
-                  pos, buffer, BUFFER_SIZE, id, sampleRate);
+        uint8_t* pos2 = pos + sizeof(uint32_t) / sizeof(uint8_t); // audio_channel_mask_t (channel_mask)
+        uint8_t* pos3 = pos2 + sizeof(uint32_t) / sizeof(uint8_t); // audio_format_t (format)
+        pos3 += sizeof(struct audio_gain_config) / sizeof(uint8_t); // audio_gain_config (gain)
+        uint8_t* maxPos = android_get_device_api_level() >= 30 ? pos3 : pos2;
+        if (maxPos >= buffer + BUFFER_SIZE) {
+            ALOGE("maxPos(%p) >= buffer(%p) + BUFFER_SIZE(%d) (id(%d) sampleRate(%d))",
+                  maxPos, buffer, BUFFER_SIZE, id, sampleRate);
             gSampleRateOffset = 0;
             free(buffer);
-            return INT32_MIN;
+            return nullptr;
         }
 #undef BUFFER_SIZE
-        jint ret = (int32_t) (*((uint32_t * /*audio_io_flags / audio_channel_mask_t*/) pos));
+        out[0] = (int32_t) (*((uint32_t *) pos));
+        out[1] = (int32_t) (*((uint32_t *) pos2));
+        if (android_get_device_api_level() >= 30) {
+            // R added flags field to struct, but it is only populated since T. But app side may
+            // want to bet on OEM modification that populates it in R/S.
+            out[2] = (int32_t) (*((uint32_t *) pos3));
+        }
         free(buffer);
-        return ret;
     } else {
         DLSYM_OR_ELSE(libaudioclient, ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_) {
             ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_ =
@@ -326,7 +323,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
                 ALOGE("dlsym returned nullptr for ZN7android11AudioSystem14listAudioPortsE17"
                       "audio_port_role_t17audio_port_type_tPjP13audio_port_v7S3_: %s",
                       dlerror());
-                return INT32_MIN;
+                return nullptr;
             }
         }
         // based on AOSP code
@@ -347,7 +344,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
                     else
                         delete (std::vector<audio_port_legacy>*)nPorts;
                 }
-                return INT32_MIN;
+                return nullptr;
             }
 
             numPorts = 0;
@@ -362,7 +359,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
                     else
                         delete (std::vector<audio_port_legacy>*)nPorts;
                 }
-                return INT32_MIN;
+                return nullptr;
             }
             if (numPorts == 0) {
                 ALOGE("AudioSystem::listAudioPorts found no ports");
@@ -372,7 +369,7 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
                     else
                         delete (std::vector<audio_port_legacy>*)nPorts;
                 }
-                return INT32_MIN;
+                return nullptr;
             }
             // Tuck on double the space to prevent heap corruption if OEM made the audio_port bigger
             if (nPorts == nullptr) {
@@ -393,13 +390,14 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
         } while (generation1 != generation && status == 0);
 
         int i = 0;
-        int32_t ret = 0;
+        bool found = false;
         if (oreo) {
             for (auto port: *(std::vector<audio_port_oreo>*)nPorts) {
                 if (i++ == numPorts) break; // needed because vector size > numPorts
                 if (port.id == id) {
-                    ret = type == 2 ? (int32_t) port.active_config.format
-                            : (int32_t) port.active_config.channel_mask;
+                    out[0] = (int32_t) port.active_config.format;
+                    out[1] = (int32_t) port.active_config.channel_mask;
+                    found = true;
                     break;
                 }
             }
@@ -408,15 +406,22 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfF
             for (auto port: *(std::vector<audio_port_legacy>*)nPorts) {
                 if (i++ == numPorts) break; // needed because vector size > numPorts
                 if (port.id == id) {
-                    ret = type == 2 ? (int32_t) port.active_config.format
-                                         : (int32_t) port.active_config.channel_mask;
+                    out[0] = (int32_t) port.active_config.format;
+                    out[1] = (int32_t) port.active_config.channel_mask;
+                    found = true;
                     break;
                 }
             }
             delete (std::vector<audio_port_legacy>*)nPorts;
         }
-        return ret;
+        if (!found) return nullptr;
     }
+    jintArray theOut = env->NewIntArray(3);
+    if (theOut == nullptr) {
+        return nullptr;
+    }
+    env->SetIntArrayRegion(theOut, 0, sizeof(out)/sizeof(out[0]), &out[0]);
+    return theOut;
 }
 
 struct audio_track_partial { // use struct for automatic alignment handling
@@ -431,7 +436,7 @@ struct audio_track_partial { // use struct for automatic alignment handling
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfTrackFlagsInternal(
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_findAfTrackFlagsInternal(
         JNIEnv*, jobject, jlong in_pointer, jint in_af_latency,
         jlong in_af_frame_count, jint in_af_sample_rate, jint in_latency, jint in_format) {
     if (android_get_device_api_level() < 34)
@@ -521,4 +526,112 @@ Java_org_akanework_gramophone_logic_utils_AfFormatTracker_00024Companion_findAfT
         pos += gTrackFlagsOffset;
     }
     return (int32_t) (*((uint32_t * /*audio_output_flags_t*/) pos));
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getFlagsInternal(JNIEnv *env, jobject thiz,
+                                                                        jobject audio_track,
+                                                                        jlong audio_track_ptr) {
+    if (android_get_device_api_level() >= 26) {
+        if (audio_track == nullptr) {
+            ALOGE("flagsFromOffset: O+ but audio_track is null");
+            return INT32_MIN;
+        }
+        if (!nativeGetFlags) {
+            jclass at = env->GetObjectClass(audio_track);
+            nativeGetFlags = env->GetMethodID(at, "native_get_flags", "()I");
+            env->DeleteLocalRef(at);
+            if (nativeGetFlags == nullptr) {
+                ALOGE("getProxy: didn't find android/media/AudioTrack.native_get_flags()I");
+                return INT32_MIN;
+            }
+        }
+        return env->CallIntMethod(audio_track, nativeGetFlags);
+    }
+    size_t extra;
+    switch (android_get_device_api_level()) {
+#if 0
+        case 27:
+#ifdef __LP64__
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x338); // aarch64, x86_64
+#elif defined(i386)
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x2cc);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x2d8);
+#endif
+        case 26:
+#ifdef __LP64__
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x330); // aarch64, x86_64
+#elif defined(i386)
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x2c4);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x2d0);
+#endif
+#endif
+        case 25:
+        case 24:
+#ifdef i386
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x23c);
+#elif defined(__x86_64)
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x2a0);
+#else
+        {
+#ifdef __LP64__
+            auto result = (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x2a0);
+#else
+            auto result = (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x248);
+#endif
+            if (ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi) {
+                uint32_t output = ZNK7android10AudioTrack9getOutputEv(audio_track_ptr);
+                bool isDirectPcm = ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi((void*) 0xcafebabe, output);
+                if ((result & 0x11) == 0x1 && !isDirectPcm) {
+                    result &= ~0x1;
+                } else if (!(result & 0x11) && isDirectPcm) {
+                    result |= 0x1; // TODO: should this live here or add separate method for server flags?
+                }
+            }
+            return result;
+        }
+#endif
+        case 23:
+#ifdef __LP64__
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x280); // aarch64, x86_64
+#elif defined(i386)
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x218);
+#else
+            return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x220);
+#endif
+        case 22:
+            extra =
+#ifdef __ARM_ARCH_7A__
+                    /* QCOM_DIRECTTRACK (BOARD_USES_LEGACY_ALSA_AUDIO), only for MSM8x60 in CM12.x */
+                    dlsym(libaudioclient_handle, "_ZN7android10AudioTrack6notifyEi") ? 0x20 /* 0x208 */ :
+#endif
+                    (dlsym(libaudioclient_handle, "_ZN7android10AudioTrack28initializeTrackOffloadParamsEv")
+                     #if defined(__LP64__)
+                     ? 0x20 /* 0x248 */ : 0x0);
+                    // edge case: couldn't find any CM12.1 x86_64 build
+                     #else
+                     ? 0x18 /* armv7: 0x200, x86: 0x1f8 */ : 0x0);
+#endif
+            break;
+        case 21:
+            extra =
+#ifdef __ARM_ARCH_7A__
+                    /* QCOM_DIRECTTRACK (BOARD_USES_LEGACY_ALSA_AUDIO), only for MSM8x60 in CM12.x */
+                dlsym(libaudioclient_handle, "_ZN7android10AudioTrack6notifyEi") ? 0x8 /* 0x1f0 */ :
+#endif
+                    (0);
+            break;
+        default:
+            return INT32_MAX;
+    }
+#ifdef __LP64__
+    return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x228 + extra); // aarch64, x86_64
+#elif defined(i386)
+    return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x1e0 + extra);
+#else
+    return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x1e8 + extra);
+#endif
 }
