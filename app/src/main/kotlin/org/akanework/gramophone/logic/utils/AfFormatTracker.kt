@@ -20,7 +20,7 @@ import org.nift4.gramophone.hificore.AudioTrackHiddenApi
 data class AfFormatInfo(
     val routedDeviceName: String?, val routedDeviceId: Int?,
     val routedDeviceType: Int?, val mixPortId: Int?, val mixPortName: String?,
-    val mixPortFlags: Int?, val ioHandle: Int?, val sampleRateHz: Int?,
+    val mixPortFlags: Int?, val ioHandle: Int?, val sampleRateHz: UInt?,
     val audioFormat: String?, val channelCount: Int?, val channelMask: Int?,
     val grantedFlags: Int?, val policyPortId: Int?, val afTrackFlags: Int?
 ) : Parcelable

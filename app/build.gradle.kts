@@ -60,6 +60,7 @@ android {
         }
         jniLibs {
             useLegacyPackaging = false
+            pickFirsts += "lib/arm64-v8a/libdlfunc.so" // why is this needed?
         }
         resources {
             excludes += "META-INF/*.version"

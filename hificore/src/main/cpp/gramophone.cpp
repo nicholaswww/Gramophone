@@ -37,6 +37,7 @@ void* libpermission_handle = nullptr;
 void* libandroid_runtime_handle = nullptr;
 void* libutils_handle = nullptr;
 void* libavenhancements_handle = nullptr;
+void* libbinder_handle = nullptr;
 typedef int audio_io_handle_t;
 
 typedef audio_io_handle_t(*ZNK7android10AudioTrack9getOutputEv_t)(void *);
@@ -72,6 +73,9 @@ static ZN7android11AudioSystem14listAudioPortsE17audio_port_role_t17audio_port_t
 static intptr_t gSampleRateOffset = 0;
 static intptr_t gTrackFlagsOffset = 0;
 
+typedef bool(*ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi_t)(void* thisptr, uint32_t output);
+static ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi_t ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi = nullptr;
+
 bool initLib(JNIEnv *env) {
     if (init_done)
         return true;
@@ -87,6 +91,13 @@ bool initLib(JNIEnv *env) {
             libutils_handle = dlopen("libutils.so", RTLD_GLOBAL);
             if (libutils_handle == nullptr) {
                 ALOGE("dlopen returned nullptr for libutils.so: %s", dlerror());
+                return false;
+            }
+        }
+        if (!libbinder_handle) {
+            libbinder_handle = dlopen("libbinder.so", RTLD_GLOBAL);
+            if (libbinder_handle == nullptr) {
+                ALOGE("dlopen returned nullptr for libbinder.so: %s", dlerror());
                 return false;
             }
         }
@@ -114,6 +125,13 @@ bool initLib(JNIEnv *env) {
             if (libavenhancements_handle == nullptr) {
                 ALOGI("dlopen returned nullptr for libavenhancements.so: %s", dlerror());
                 // this lib is optional
+            }
+        }
+        if (!libbinder_handle) {
+            libbinder_handle = dlfunc_dlopen(env, "libbinder.so", RTLD_GLOBAL);
+            if (libbinder_handle == nullptr) {
+                ALOGE("dlopen returned nullptr for libbinder.so: %s", dlerror());
+                return false;
             }
         }
         init_done = true;
@@ -151,6 +169,13 @@ bool initLib(JNIEnv *env) {
         libandroid_runtime_handle = linkernsbypass_namespace_dlopen("libandroid_runtime.so", RTLD_GLOBAL, ns);
         if (libandroid_runtime_handle == nullptr) {
             ALOGE("dlopen returned nullptr for libandroid_runtime.so: %s", dlerror());
+            return false;
+        }
+    }
+    if (!libbinder_handle) {
+        libbinder_handle = linkernsbypass_namespace_dlopen("libbinder.so", RTLD_GLOBAL, ns);
+        if (libbinder_handle == nullptr) {
+            ALOGE("dlopen returned nullptr for libbinder.so: %s", dlerror());
             return false;
         }
     }
@@ -530,7 +555,7 @@ Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_findAfTrackFlagsInternal(
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getFlagsInternal(JNIEnv *env, jobject thiz,
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getFlagsInternal(JNIEnv *env, jobject,
                                                                         jobject audio_track,
                                                                         jlong audio_track_ptr) {
     if (android_get_device_api_level() >= 26) {
@@ -582,8 +607,13 @@ Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getFlagsInternal(JNIEnv *
 #else
             auto result = (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x248);
 #endif
+            if (libavenhancements_handle) {
+                DLSYM_OR_ELSE(libavenhancements, ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi) {
+                    ALOGE("dlsym ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi failed: %s", dlerror());
+                }
+            }
             if (ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi) {
-                uint32_t output = ZNK7android10AudioTrack9getOutputEv(audio_track_ptr);
+                uint32_t output = ZNK7android10AudioTrack9getOutputEv((void*) audio_track_ptr);
                 bool isDirectPcm = ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi((void*) 0xcafebabe, output);
                 if ((result & 0x11) == 0x1 && !isDirectPcm) {
                     result &= ~0x1;

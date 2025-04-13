@@ -32,7 +32,7 @@ object AudioTrackHiddenApi {
         return field.get(audioTrack) as Long
     }
 
-    fun getHalSampleRate(audioTrack: AudioTrack): Int? {
+    fun getHalSampleRate(audioTrack: AudioTrack): UInt? {
         if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED)
             throw IllegalArgumentException("cannot get hal sample rate for released AudioTrack")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -45,7 +45,7 @@ object AudioTrackHiddenApi {
                 null
             }
             if (ret != null && ret != 0)
-                return ret
+                return ret.toUInt()
             return null
         }
         val output = getOutput(audioTrack)
@@ -70,7 +70,7 @@ object AudioTrackHiddenApi {
             Log.d(TRACE_TAG, "done calling format() via binder")
             if (!readStatus(outParcel))
                 return null
-            return outParcel.readInt()
+            return outParcel.readInt().toUInt()
         } finally {
             inParcel.recycle()
             outParcel.recycle()
@@ -430,6 +430,135 @@ object AudioTrackHiddenApi {
         Log.e(
             TAG,
             "getNotificationFramesActFromDump() failure: $notificationText didn't convert to int, DUMP:\n$dump"
+        )
+        return null
+    }
+
+    private val latencyRegex = Regex(".*\\), latency \\((.*)\\).*")
+    fun getLatencyFromDump(dump: String?): Int? {
+        if (dump == null)
+            return null
+        // use AudioTrack.getLatency() on N+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+            return null
+        var dt = dump.trim().split('\n').map { it.trim() }
+        if (dt.size < 5) {
+            Log.e(
+                TAG,
+                "getLatencyFromDump() failure: not enough lines, DUMP:\n$dump"
+            )
+            return null
+        }
+        if (dt[0] != "AudioTrack::dump") {
+            Log.e(
+                TAG,
+                "getLatencyFromDump() failure: L0 isn't AudioTrack::dump, DUMP:\n$dump"
+            )
+            return null
+        }
+        if (!dt[4].contains("latency (")) {
+            Log.e(
+                TAG,
+                "getLatencyFromDump() failure: L4 didn't contain latency (, DUMP:\n$dump"
+            )
+            return null
+        }
+        val text = latencyRegex.matchEntire(dt[4])?.groupValues[1]
+        if (text == null) {
+            Log.e(
+                TAG,
+                "getLatencyFromDump() failure: L4 didn't match regex, DUMP:\n$dump"
+            )
+            return null
+        }
+        text.toIntOrNull()?.let { return it }
+        Log.e(
+            TAG,
+            "getLatencyFromDump() failure: $text didn't convert to int, DUMP:\n$dump"
+        )
+        return null
+    }
+
+    private val frameCountRegex = Regex(".*\\), frame count \\((.*)\\).*")
+    fun getFrameCountFromDump(dump: String?): Long? {
+        if (dump == null)
+            return null
+        var dt = dump.trim().split('\n').map { it.trim() }
+        if (dt.size < 3) {
+            Log.e(
+                TAG,
+                "getFrameCountFromDump() failure: not enough lines, DUMP:\n$dump"
+            )
+            return null
+        }
+        if (dt[0] != "AudioTrack::dump") {
+            Log.e(
+                TAG,
+                "getFrameCountFromDump() failure: L0 isn't AudioTrack::dump, DUMP:\n$dump"
+            )
+            return null
+        }
+        if (!dt[2].contains("latency (")) {
+            Log.e(
+                TAG,
+                "getFrameCountFromDump() failure: L2 didn't contain latency (, DUMP:\n$dump"
+            )
+            return null
+        }
+        val text = frameCountRegex.matchEntire(dt[2])?.groupValues[1]
+        if (text == null) {
+            Log.e(
+                TAG,
+                "getFrameCountFromDump() failure: L2 didn't match regex, DUMP:\n$dump"
+            )
+            return null
+        }
+        text.toLongOrNull()?.let { return it }
+        Log.e(
+            TAG,
+            "getFrameCountFromDump() failure: $text didn't convert to int, DUMP:\n$dump"
+        )
+        return null
+    }
+
+    private val stateRegex = Regex(".*state\\((.*)\\), latency.*")
+    fun getStateFromDump(dump: String?): Int? {
+        if (dump == null)
+            return null
+        var dt = dump.trim().split('\n').map { it.trim() }
+        if (dt.size < 5) {
+            Log.e(
+                TAG,
+                "getStateFromDump() failure: not enough lines, DUMP:\n$dump"
+            )
+            return null
+        }
+        if (dt[0] != "AudioTrack::dump") {
+            Log.e(
+                TAG,
+                "getStateFromDump() failure: L0 isn't AudioTrack::dump, DUMP:\n$dump"
+            )
+            return null
+        }
+        if (!dt[4].contains("state(")) {
+            Log.e(
+                TAG,
+                "getStateFromDump() failure: L4 didn't contain state(, DUMP:\n$dump"
+            )
+            return null
+        }
+        val text = stateRegex.matchEntire(dt[2])?.groupValues[1]
+        if (text == null) {
+            Log.e(
+                TAG,
+                "getStateFromDump() failure: L4 didn't match regex, DUMP:\n$dump"
+            )
+            return null
+        }
+        text.toIntOrNull()?.let { return it }
+        Log.e(
+            TAG,
+            "getStateFromDump() failure: $text didn't convert to int, DUMP:\n$dump"
         )
         return null
     }

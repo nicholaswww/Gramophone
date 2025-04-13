@@ -31,6 +31,9 @@ struct fake_wp {
     void* /* MUST be RefBase* */ thePtr;
     void* /* RefBase::weakref_type* */ refs;
 };
+struct String8 {
+    const char* data;
+};
 
 extern "C" {
 #define AUDIO_MAKE_OFFLOAD_INFO_VERSION(maj,min) \
