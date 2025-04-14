@@ -23,7 +23,6 @@ import java.nio.ByteBuffer
  * Exposes most of the API surface of AudioTrack.cpp, with some minor exceptions:
  * - setCallerName/getCallerName because I want to avoid offset hardcoding, and it's only used for metrics
  * - Extended timestamps, due to complexity
- * - Obtain/releaseBuffer, as we can't really allocate buffers on stack
  * All native method calls are wrapped to avoid Throwables from being thrown - only Exceptions will be thrown by
  * this class or its methods. However, you should always be prepared to handle such an exception, as everything can
  * fail.
@@ -295,8 +294,6 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private val codecListener: AudioTrack.OnCodecFormatChangedListener?
     private val routingListener: AudioRouting.OnRoutingChangedListener?
     init {
-        if (transferMode == TransferMode.Obtain)
-            throw UnsupportedOperationException("Obtain mode is currently not implemented")
         if (sharedMem?.isDirect == false)
             throw IllegalArgumentException("shared memory specified but isn't direct")
         if (sharedMem == null && transferMode == TransferMode.Shared)
@@ -1021,6 +1018,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
     private external fun attachAuxEffectInternal(@Suppress("unused") ptr: Long,
                                                  @Suppress("unused") effectId: Int): Int
+
+    // TODO obtain/releaseBuffer
 
     fun write(buf: ByteBuffer, blocking: Boolean): Long {
         if (myState != State.ALIVE)

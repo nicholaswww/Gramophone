@@ -602,6 +602,7 @@ Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_initDlsym(JNIEnv* 
     DLSYM_OR_RETURN(libbinder, ZN7android7String8D1Ev, false)
     DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack13setParametersERKNS_7String8E, false)
     DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack12getTimestampERNS_14AudioTimestampE, false)
+    DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack5writeEPKvjb, false)
     return true;
 }
 
