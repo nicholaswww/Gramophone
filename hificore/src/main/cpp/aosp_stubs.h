@@ -146,7 +146,6 @@ namespace android {
         {
         public:
             Buffer() {
-                ALOGE("if you see this, expect a segfault. this class Buffer never was supposed to be instantiated");
             }
             // [[nodiscard]] size_t size() const { return mSize; }
             // [[nodiscard]] size_t getFrameCount() const { return frameCount; }

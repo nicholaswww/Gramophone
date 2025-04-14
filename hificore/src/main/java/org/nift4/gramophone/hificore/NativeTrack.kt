@@ -11,6 +11,7 @@ import android.media.AudioPresentation
 import android.media.AudioRouting
 import android.media.AudioTrack
 import android.media.VolumeShaper
+import android.media.metrics.LogSessionId
 import android.os.Build
 import android.os.Parcel
 import android.os.PersistableBundle
@@ -27,6 +28,7 @@ import java.nio.ByteBuffer
  * this class or its methods. However, you should always be prepared to handle such an exception, as everything can
  * fail.
  */
+@Suppress("unused")
 class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int, sampleRate: Int,
                   format: UInt, channelMask: UInt, frameCount: Int?, trackFlags: Int,
                   sessionId: Int, maxRequiredSpeed: Float, selectedDeviceId: Int?, bitRate: Int, durationUs: Long,
@@ -192,6 +194,9 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
             return DirectPlaybackSupport(hasOffload == true, false, hasDirect == true)
         }
+        fun getMinBufferSize(sampleRateInHz: Int, channelConfig: Int, audioFormat: Int): Int {
+            TODO()
+        }
         fun bitsPerSampleForFormat(format: UInt): Int {
             val cafOffloadMain = when {
                 Build.VERSION.SDK_INT >= 25 -> null
@@ -234,7 +239,6 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
             return formatBuilder.setChannelMask(channelMask).build()
         }
-        @Suppress("unused") // parameters
         private external fun isOffloadSupported(sampleRate: Int, format: Int, channelMask: Int, bitRate: Int,
                                                 bitWidth: Int, offloadBufferSize: Int): Boolean
         private external fun initDlsym(): Boolean
@@ -440,7 +444,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         Log.e("hi", "dump:${AudioTrackHiddenApi.dumpInternal(getRealPtr(ptr))}")
         Log.e("hi", "my flags:${flags()} nfa:${notificationPeriodInFrames()}")
     }
-    private external fun create(@Suppress("unused") parcel: Parcel?): Long
+    private external fun create(parcel: Parcel?): Long
     /*
      * CAUTION: Until including Android 7.1, direct outputs could be reused even with different session IDs.
      *          If another app is using a direct (or offload) stream, we might end up with no audio (there can
@@ -461,7 +465,6 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
      *          format (if int24 is not supported). After APM gives us that output, AF will fail creating the track
      *          causing set() to fail. In that case, we have to try again with another format.
      */
-    @Suppress("unused") // for parameters, this method has a few of them
     private external fun set(ptr: Long, streamType: Int, sampleRate: Int, format: Int, channelMask: Int,
                              frameCount: Int, trackFlags: Int, sessionId: Int, maxRequiredSpeed: Float,
                              selectedDeviceId: Int, bitRate: Int, durationUs: Long, hasVideo: Boolean,
@@ -469,11 +472,11 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                              usage: Int, contentType: Int, attrFlags: Int, notificationFrames: Int,
                              doNotReconnect: Boolean, transferMode: Int, contentId: Int, syncId: Int,
                              encapsulationMode: Int, sharedMem: ByteBuffer? /* direct */): Int
-    private external fun getRealPtr(@Suppress("unused") ptr: Long): Long
-    private external fun notificationFramesActFromOffset(@Suppress("unused") ptr: Long): Int
-    private external fun dtor(@Suppress("unused") ptr: Long)
+    private external fun getRealPtr(ptr: Long): Long
+    private external fun notificationFramesActFromOffset(ptr: Long): Int
+    private external fun dtor(ptr: Long)
     @RequiresApi(Build.VERSION_CODES.N)
-    private external fun getProxy(@Suppress("unused") ptr: Long, @Suppress("unused") sessionId: Int): AudioTrack?
+    private external fun getProxy(ptr: Long, sessionId: Int): AudioTrack?
 
     fun release() {
         if (myState == State.RELEASED)
@@ -592,40 +595,46 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 ?: throw NativeTrackException("getLatencyFromDump failed, see prior logs")).toUInt()
     }
 
-    fun getUnderrunCount(): UInt {
+    @RequiresApi(Build.VERSION_CODES.N)
+    fun getUnderrunCount(): Int {
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
-        return 0U // TODO
+        return proxy!!.underrunCount
     }
 
-    fun getBufferSizeInFrames(): ULong {
+    @RequiresApi(Build.VERSION_CODES.N)
+    fun getBufferSizeInFrames(): Int {
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
-        return 0UL // TODO
+        return proxy!!.bufferSizeInFrames
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     fun getBufferDurationInUs(): ULong {
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
-        return 0UL // TODO
+        TODO()
     }
 
-    fun setBufferSizeInFrames(size: ULong) {
+    @RequiresApi(Build.VERSION_CODES.N)
+    fun setBufferSizeInFrames(size: Int) {
         if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
-        // TODO
+        proxy!!.bufferSizeInFrames = size
     }
 
-    fun getStartThresholdInFrames(): ULong {
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun getStartThresholdInFrames(): Int {
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
-        return 0UL // TODO
+        return proxy!!.startThresholdInFrames
     }
 
-    fun setStartThresholdInFrames(size: ULong) {
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun setStartThresholdInFrames(size: Int) {
         if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
-        // TODO
+        proxy!!.startThresholdInFrames = size
     }
 
     fun sharedBuffer(): ByteBuffer {
@@ -663,7 +672,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
         }
     }
-    private external fun startInternal(@Suppress("unused") ptr: Long): Int
+    private external fun startInternal(ptr: Long): Int
 
     fun stop() {
         if (myState != State.ALIVE)
@@ -678,7 +687,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
         }
     }
-    private external fun stopInternal(@Suppress("unused") ptr: Long)
+    private external fun stopInternal(ptr: Long)
 
     fun stopped(): Boolean {
         if (myState == State.RELEASED)
@@ -689,7 +698,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("failed to check if stopped", t)
         }
     }
-    private external fun stoppedInternal(@Suppress("unused") ptr: Long): Boolean
+    private external fun stoppedInternal(ptr: Long): Boolean
 
     fun flush() {
         if (myState != State.ALIVE)
@@ -700,7 +709,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("failed to flush", t)
         }
     }
-    private external fun flushInternal(@Suppress("unused") ptr: Long)
+    private external fun flushInternal(ptr: Long)
 
     fun pause() {
         if (myState != State.ALIVE)
@@ -715,8 +724,9 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
         }
     }
-    private external fun pauseInternal(@Suppress("unused") ptr: Long)
+    private external fun pauseInternal(ptr: Long)
 
+    @RequiresApi(Build.VERSION_CODES.S_V2)
     fun pauseAndWait(timeoutMs: ULong): Boolean {
         // TODO call into proxy
         TODO()
@@ -738,7 +748,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
         }
     }
-    private external fun setVolumeInternal(@Suppress("unused") ptr: Long, @Suppress("unused") volume: Float): Int
+    private external fun setVolumeInternal(ptr: Long, volume: Float): Int
 
     fun setAuxEffectSendLevel(level: Float) {
         if (myState != State.ALIVE)
@@ -756,8 +766,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
         }
     }
-    private external fun setAuxEffectSendLevelInternal(@Suppress("unused") ptr: Long,
-                                                       @Suppress("unused") level: Float): Int
+    private external fun setAuxEffectSendLevelInternal(ptr: Long, level: Float): Int
 
     fun getAuxEffectSendLevel(): Float {
         if (myState == State.RELEASED)
@@ -768,7 +777,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("failed to get aux effect send level", t)
         }
     }
-    private external fun getAuxEffectSendLevelInternal(@Suppress("unused") ptr: Long): Float
+    private external fun getAuxEffectSendLevelInternal(ptr: Long): Float
 
     fun setSampleRate(rate: UInt) {
         if (myState != State.ALIVE)
@@ -782,8 +791,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("setSampleRate($rate) failed: $ret")
         }
     }
-    private external fun setSampleRateInternal(@Suppress("unused") ptr: Long,
-                                               @Suppress("unused") rate: Int): Int
+    private external fun setSampleRateInternal(ptr: Long, rate: Int): Int
 
     fun getSampleRate(): UInt {
         if (myState == State.RELEASED)
@@ -791,49 +799,75 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         return try {
             getSampleRateInternal(ptr)
         } catch (t: Throwable) {
-            throw NativeTrackException("failed to get sample rate ", t)
+            throw NativeTrackException("failed to get sample rate", t)
         }.toUInt()
     }
-    private external fun getSampleRateInternal(@Suppress("unused") ptr: Long): Int
+    private external fun getSampleRateInternal(ptr: Long): Int
 
+    @RequiresApi(Build.VERSION_CODES.M)
     fun getOriginalSampleRate(): UInt {
-        TODO()
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return try {
+            getOriginalSampleRateInternal(ptr)
+        } catch (t: Throwable) {
+            throw NativeTrackException("failed to get sample rate", t)
+        }.toUInt()
     }
+    @RequiresApi(Build.VERSION_CODES.M)
+    private external fun getOriginalSampleRateInternal(ptr: Long): Int
 
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE) // TODO qpr
     fun getHalSampleRate(): UInt {
         TODO()
     }
 
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE) // TODO qpr
     fun getHalChannelCount(): UInt {
         TODO()
     }
 
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE) // TODO qpr
     fun getHalFormat(): UInt {
         TODO()
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     fun setPlaybackRate(playbackRate: Nothing) {
         TODO()
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     fun getPlaybackRate(): Nothing {
         TODO()
     }
 
-    fun setDualMonoMode(dualMonoMode: Nothing) {
-        TODO()
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun setDualMonoMode(dualMonoMode: Int) {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        proxy!!.setDualMonoMode(dualMonoMode)
     }
 
-    fun getDualMonoMode(): Nothing {
-        TODO()
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun getDualMonoMode(): Int {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return proxy!!.dualMonoMode
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     fun setAudioDescriptionMixLevel(level: Float) {
-        // TODO
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        proxy!!.audioDescriptionMixLeveldB = level
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     fun getAudioDescriptionMixLevel(): Float {
-        TODO()
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return proxy!!.audioDescriptionMixLeveldB
     }
 
     fun setLoop(loopStart: UInt, loopEnd: UInt, loopCount: Int) {
@@ -848,7 +882,6 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("setLoop($loopStart, $loopEnd, $loopCount) failed: $ret")
         }
     }
-    @Suppress("unused") // parameters
     private external fun setLoopInternal(ptr: Long, loopStart: Int, loopEnd: Int, loopCount: Int): Int
 
     fun setMarkerPosition(markerPosition: UInt) {
@@ -863,8 +896,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("setMarkerPosition($markerPosition) failed: $ret")
         }
     }
-    private external fun setMarkerPositionInternal(@Suppress("unused") ptr: Long,
-                                                   @Suppress("unused") pos: Int): Int
+    private external fun setMarkerPositionInternal(ptr: Long, pos: Int): Int
 
     fun getMarkerPosition(): UInt {
         if (myState == State.RELEASED)
@@ -881,7 +913,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         }
         return data
     }
-    private external fun getMarkerPositionInternal(@Suppress("unused") ptr: Long): Long
+    private external fun getMarkerPositionInternal(ptr: Long): Long
 
     fun setPositionUpdatePeriod(pos: UInt) {
         if (myState != State.ALIVE)
@@ -895,8 +927,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("setPositionUpdatePeriod($pos) failed: $ret")
         }
     }
-    private external fun setPositionUpdatePeriodInternal(@Suppress("unused") ptr: Long,
-                                                   @Suppress("unused") pos: Int): Int
+    private external fun setPositionUpdatePeriodInternal(ptr: Long, pos: Int): Int
 
     fun getPositionUpdatePeriod(): UInt {
         if (myState == State.RELEASED)
@@ -913,7 +944,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         }
         return data
     }
-    private external fun getPositionUpdatePeriodInternal(@Suppress("unused") ptr: Long): Long
+    private external fun getPositionUpdatePeriodInternal(ptr: Long): Long
 
     fun setPosition(pos: UInt) {
         if (myState != State.ALIVE)
@@ -927,7 +958,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("setPosition($pos) failed: $ret")
         }
     }
-    private external fun setPositionInternal(@Suppress("unused") ptr: Long, @Suppress("unused") pos: Int): Int
+    private external fun setPositionInternal(ptr: Long, pos: Int): Int
 
     fun getPosition(): UInt {
         if (myState == State.RELEASED)
@@ -944,7 +975,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         }
         return data
     }
-    private external fun getPositionInternal(@Suppress("unused") ptr: Long): Long
+    private external fun getPositionInternal(ptr: Long): Long
 
     fun getBufferPosition(): UInt {
         if (myState == State.RELEASED)
@@ -961,7 +992,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         }
         return data
     }
-    private external fun getBufferPositionInternal(@Suppress("unused") ptr: Long): Long
+    private external fun getBufferPositionInternal(ptr: Long): Long
 
     fun reload() {
         if (myState != State.ALIVE)
@@ -975,7 +1006,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("reload() failed: $ret")
         }
     }
-    private external fun reloadInternal(@Suppress("unused") ptr: Long): Int
+    private external fun reloadInternal(ptr: Long): Int
 
     fun getOutput(): Int {
         if (myState == State.RELEASED)
@@ -986,16 +1017,19 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("failed to get output", t)
         }
     }
-    private external fun getOutputInternal(@Suppress("unused") ptr: Long): Int
+    private external fun getOutputInternal(ptr: Long): Int
 
+    @RequiresApi(Build.VERSION_CODES.M)
     fun setSelectedDevice(audioDeviceInfo: AudioDeviceInfo) {
         TODO()
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     fun getSelectedDevice(): AudioDeviceInfo {
         TODO()
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     fun getRoutedDevices(): List<AudioDeviceInfo> {
         TODO()
     }
@@ -1016,10 +1050,49 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("attachAuxEffect($effectId) failed: $ret")
         }
     }
-    private external fun attachAuxEffectInternal(@Suppress("unused") ptr: Long,
-                                                 @Suppress("unused") effectId: Int): Int
+    private external fun attachAuxEffectInternal(ptr: Long, effectId: Int): Int
 
-    // TODO obtain/releaseBuffer
+    fun obtainBufferWithNonContig(requestedFrames: Long, waitCount: Int): Pair<ByteBuffer, Long> {
+        if (myState != State.ALIVE)
+            throw IllegalStateException("state is $myState")
+        val nc = LongArray(1)
+        val ret = try {
+            obtainBufferInternal(ptr, frameSize(), waitCount, nc, requestedFrames)
+        } catch (t: Throwable) {
+            throw NativeTrackException("failed to obtain buffer of $requestedFrames frames", t)
+        }
+        if (ret == null) {
+            throw NativeTrackException("failed to obtain buffer of $requestedFrames frames, check prior logs")
+        }
+        return ret to nc[0]
+    }
+    fun obtainBuffer(requestedFrames: Long, waitCount: Int): ByteBuffer {
+        if (myState != State.ALIVE)
+            throw IllegalStateException("state is $myState")
+        val ret = try {
+            obtainBufferInternal(ptr, frameSize(), waitCount, null, requestedFrames)
+        } catch (t: Throwable) {
+            throw NativeTrackException("failed to obtain buffer of $requestedFrames frames", t)
+        }
+        if (ret == null) {
+            throw NativeTrackException("failed to obtain buffer of $requestedFrames frames, check prior logs")
+        }
+        return ret
+    }
+    private external fun obtainBufferInternal(ptr: Long, frameSize: Int, waitCount: Int, nonContig: LongArray?,
+                                              requestedFrameCount: Long): ByteBuffer?
+
+    /** set limit to amount of written bytes, and don't call any method on buf after giving it to this method */
+    fun releaseBuffer(buf: ByteBuffer) {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        try {
+             releaseBufferInternal(ptr, frameSize(), buf, buf.limit())
+        } catch (t: Throwable) {
+            throw NativeTrackException("failed to release buffer $buf", t)
+        }
+    }
+    private external fun releaseBufferInternal(ptr: Long, frameSize: Int, buf: ByteBuffer, limit: Int)
 
     fun write(buf: ByteBuffer, blocking: Boolean): Long {
         if (myState != State.ALIVE)
@@ -1057,9 +1130,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         }
         return ret
     }
-    @Suppress("unused") // for parameters
     private external fun writeInternal(ptr: Long, buf: ByteBuffer, offset: Int, size: Int, blocking: Boolean): Long
-    @Suppress("unused") // for parameters
     private external fun writeInternal(ptr: Long, buf: ByteArray, offset: Int, blocking: Boolean): Long
 
     fun channelCount(): Int {
@@ -1089,7 +1160,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("failed to get underrun frames", t)
         }.toUInt()
     }
-    private external fun getUnderrunFramesInternal(@Suppress("unused") ptr: Long): Int
+    private external fun getUnderrunFramesInternal(ptr: Long): Int
 
     fun setParameters(params: String) {
         if (myState != State.ALIVE)
@@ -1107,7 +1178,6 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("setParameters($params) failed: $ret")
         }
     }
-    @Suppress("unused") // for parameters
     private external fun setParametersInternal(ptr: Long, params: String): Int
 
     fun getParameters(params: String): String {
@@ -1119,11 +1189,16 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("failed to get parameters $params", t)
         }
     }
-    @Suppress("unused") // for parameters
     private external fun getParametersInternal(ptr: Long, params: String): String
 
+    @RequiresApi(Build.VERSION_CODES.P)
     fun selectPresentation(presentation: AudioPresentation) {
-        TODO()
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        val ret = proxy!!.setPresentation(presentation)
+        if (ret != 0) {
+            throw NativeTrackException("selectPresentation failed: $ret")
+        }
     }
 
     fun getTimestamp(out: LongArray) {
@@ -1144,18 +1219,30 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw NativeTrackException("getTimestamp() failed: $ret")
         }
     }
-    @Suppress("unused") // for parameters
     private external fun getTimestampInternal(ptr: Long, out: LongArray): Int
 
-    // TODO status_t pendingDuration(int32_t *msec,
-    //      ExtendedTimestamp::Location location = ExtendedTimestamp::LOCATION_SERVER);
+    @RequiresApi(Build.VERSION_CODES.N)
+    fun pendingDuration(location: Nothing): Int {
+        TODO()
+    }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun hasStarted(): Boolean {
         TODO()
     }
 
-    fun setLogSessionId(params: String) {
-        TODO()
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun setLogSessionId(params: LogSessionId) {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        proxy!!.logSessionId = params
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun getLogSessionId(): LogSessionId {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        return proxy!!.logSessionId
     }
 
     class NativeTrackException : Exception {
@@ -1168,49 +1255,49 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         ALIVE, // ready to use
     }
 
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     private fun onUnderrun() {
         Log.i(TAG, "onUnderrun called")
     }
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     private fun onMarker(markerPosition: Int) {
         Log.i(TAG, "onMarker called: $markerPosition")
     }
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     private fun onNewPos(newPos: Int) {
         Log.i(TAG, "onNewPos called: $newPos")
     }
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     private fun onStreamEnd() {
         Log.i(TAG, "onStreamEnd called")
     }
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     private fun onNewIAudioTrack() {
         Log.i(TAG, "onNewIAudioTrack called")
     }
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     private fun onNewTimestamp(timestamp: Int, timeSec: Long, timeNanoSec: Long) {
         Log.i(TAG, "onNewTimestamp called: timestamp=$timestamp timeSec=$timeSec timeNanoSec=$timeNanoSec")
     }
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     private fun onLoopEnd(loopsRemaining: Int) {
         Log.i(TAG, "onLoopEnd called")
     }
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     private fun onBufferEnd() {
         Log.i(TAG, "onBufferEnd called")
     }
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     // Be careful to not hold a reference to the buffer after returning. It will immediately be invalid!
     private fun onMoreData(frameCount: Long, buffer: ByteBuffer): Long {
         Log.i(TAG, "onMoreData called: frameCount=$frameCount sizeBytes=${buffer.capacity()}")
         return 0 // amount of bytes written
     }
-    @Suppress("unused") // called from native, on callback thread (not main thread!)
+    // called from native, on callback thread (not main thread!)
     private fun onCanWriteMoreData(frameCount: Long, sizeBytes: Long) {
         Log.i(TAG, "onCanWriteMoreData called: frameCount=$frameCount sizeBytes=$sizeBytes")
     }
-    @Suppress("unused") // called from native, on random thread (not main thread!) - only M for now, N+ uses proxy
+    // called from native, on random thread (not main thread!) - only M for now, N+ uses proxy
     private fun onAudioDeviceUpdate(ioHandle: Int, routedDevices: IntArray) {
         Log.i(TAG, "onAudioDeviceUpdate called: ioHandle=$ioHandle routedDevices=${routedDevices.contentToString()}")
     }

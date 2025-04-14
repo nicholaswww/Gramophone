@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <vector>
+#include <map>
 #include <pthread.h>
 #include "helpers.h"
 #include "audio-legacy.h"
@@ -157,6 +158,10 @@ typedef int32_t(*ZN7android10AudioTrack12getTimestampERNS_14AudioTimestampE_t)(v
 static ZN7android10AudioTrack12getTimestampERNS_14AudioTimestampE_t ZN7android10AudioTrack12getTimestampERNS_14AudioTimestampE = nullptr;
 typedef ssize_t(*ZN7android10AudioTrack5writeEPKvjb_t)(void* thisptr, void* buf, uint32_t len, bool blocking);
 static ZN7android10AudioTrack5writeEPKvjb_t ZN7android10AudioTrack5writeEPKvjb = nullptr;
+typedef int32_t(*ZN7android10AudioTrack12obtainBufferEPNS0_6BufferEiPj_t)(void* thisptr, android::AudioTrack::Buffer* buf, int32_t waitCount, size_t* nonContig);
+static ZN7android10AudioTrack12obtainBufferEPNS0_6BufferEiPj_t ZN7android10AudioTrack12obtainBufferEPNS0_6BufferEiPj = nullptr;
+typedef void(*ZN7android10AudioTrack13releaseBufferEPKNS0_6BufferE_t)(void* thisptr, android::AudioTrack::Buffer* buf);
+static ZN7android10AudioTrack13releaseBufferEPKNS0_6BufferE_t ZN7android10AudioTrack13releaseBufferEPKNS0_6BufferE = nullptr;
 
 class MyCallback;
 struct track_holder {
@@ -177,6 +182,7 @@ struct track_holder {
     bool deathEmulation = false;
     bool died = false;
     JavaVM* vm = nullptr;
+    std::map<void*, uint32_t> sequences = {};
 };
 static void myJniDetach(void* arg) {
     int ret = ((JavaVM*)arg)->DetachCurrentThread();
@@ -603,6 +609,8 @@ Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_initDlsym(JNIEnv* 
     DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack13setParametersERKNS_7String8E, false)
     DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack12getTimestampERNS_14AudioTimestampE, false)
     DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack5writeEPKvjb, false)
+    DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack12obtainBufferEPNS0_6BufferEiPj, false)
+    DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack13releaseBufferEPKNS0_6BufferE, false)
     return true;
 }
 
@@ -1495,4 +1503,70 @@ Java_org_nift4_gramophone_hificore_NativeTrack_writeInternal__J_3BIZ(JNIEnv *env
     ssize_t ret = ZN7android10AudioTrack5writeEPKvjb(holder->track, base, size, blocking);
     env->ReleaseByteArrayElements(buf, buffer, JNI_ABORT);
     return ret;
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_org_nift4_gramophone_hificore_NativeTrack_obtainBufferInternal(JNIEnv *env, jobject,
+                                                                    jlong ptr, jint frame_size,
+                                                                    jint waitCount, jlongArray nc,
+                                                                    jlong requested_frame_count) {
+    auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return nullptr;
+    android::AudioTrack::Buffer temp;
+    temp.frameCount = requested_frame_count;
+    temp.mSize = requested_frame_count * frame_size; // technically not needed
+    size_t nonContig = 0;
+    int32_t ret = ZN7android10AudioTrack12obtainBufferEPNS0_6BufferEiPj(holder->track, &temp,
+                                                                        waitCount, &nonContig);
+    if (nc != nullptr) {
+        jlong* arr = env->GetLongArrayElements(nc, nullptr);
+        arr[0] = nonContig;
+        env->ReleaseLongArrayElements(nc, arr, 0);
+    }
+    if (ret != 0) {
+        ALOGE("obtainBuffer failed: ret %d", ret);
+        return nullptr;
+    }
+    if (temp.frameCount * frame_size != temp.mSize) {
+        ALOGE("obtainBuffer unexpected frame size frameCount(%d) frameSize(%d) size(%d)",
+              temp.frameCount, frame_size, temp.mSize);
+        temp.frameCount = 0;
+        temp.mSize = 0;
+        ZN7android10AudioTrack13releaseBufferEPKNS0_6BufferE(holder->track, &temp);
+        return nullptr;
+    }
+    holder->sequences.emplace(temp.raw, temp.sequence);
+    return env->NewDirectByteBuffer(temp.raw, temp.mSize);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_org_nift4_gramophone_hificore_NativeTrack_releaseBufferInternal(JNIEnv *env, jobject,
+                                                                     jlong ptr, jint frame_size,
+                                                                     jobject buf, jint limit) {
+    auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return;
+    android::AudioTrack::Buffer temp;
+    temp.raw = env->GetDirectBufferAddress(buf);
+    temp.mSize = limit;
+    temp.frameCount = limit / frame_size;
+    auto iter = holder->sequences.find(temp.raw);
+    if (iter != holder->sequences.end()) {
+        temp.sequence = iter->second;
+        holder->sequences.erase(iter);
+    } else {
+        ALOGE("sequence number of %p not found, this should NEVER happen and is a bug", temp.raw);
+    }
+    ZN7android10AudioTrack13releaseBufferEPKNS0_6BufferE(holder->track, &temp);
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_org_nift4_gramophone_hificore_NativeTrack_getOriginalSampleRateInternal(JNIEnv *env,
+                                                                             jobject thiz,
+                                                                             jlong ptr) {
+    // TODO: implement getOriginalSampleRateInternal()
 }
