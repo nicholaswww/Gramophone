@@ -155,6 +155,8 @@ typedef String8(*ZN7android10AudioTrack13getParametersERKNS_7String8E_t)(void* t
 static ZN7android10AudioTrack13getParametersERKNS_7String8E_t ZN7android10AudioTrack13getParametersERKNS_7String8E = nullptr;
 typedef int32_t(*ZN7android10AudioTrack12getTimestampERNS_14AudioTimestampE_t)(void* thisptr, android::AudioTimestamp& timestamp);
 static ZN7android10AudioTrack12getTimestampERNS_14AudioTimestampE_t ZN7android10AudioTrack12getTimestampERNS_14AudioTimestampE = nullptr;
+typedef ssize_t(*ZN7android10AudioTrack5writeEPKvjb_t)(void* thisptr, void* buf, uint32_t len, bool blocking);
+static ZN7android10AudioTrack5writeEPKvjb_t ZN7android10AudioTrack5writeEPKvjb = nullptr;
 
 class MyCallback;
 struct track_holder {
@@ -1222,6 +1224,8 @@ extern "C"
 JNIEXPORT jint JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_startInternal(JNIEnv *, jobject, jlong ptr) {
     auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return -32; // DEAD_OBJECT
     return ZN7android10AudioTrack5startEv(holder->track);
 }
 
@@ -1388,6 +1392,8 @@ JNIEXPORT jint JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_attachAuxEffectInternal(JNIEnv*, jobject,
                                                                        jlong ptr, jint effect_id) {
     auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return -32; // DEAD_OBJECT
     return ZN7android10AudioTrack15attachAuxEffectEi(holder->track, effect_id);
 }
 
@@ -1404,6 +1410,8 @@ JNIEXPORT jint JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_setParametersInternal(JNIEnv *env, jobject,
                                                                      jlong ptr, jstring params) {
     auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return -32; // DEAD_OBJECT
     const char* str = env->GetStringUTFChars(params, nullptr);
     String8 string8 = {};
     ZN7android7String8C1EPKc(&string8, str);
@@ -1418,6 +1426,8 @@ JNIEXPORT jstring JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_getParametersInternal(JNIEnv *env, jobject,
                                                                      jlong ptr, jstring params) {
     auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return nullptr;
     const char* str = env->GetStringUTFChars(params, nullptr);
     String8 string8 = {};
     ZN7android7String8C1EPKc(&string8, str);
@@ -1434,6 +1444,8 @@ JNIEXPORT jint JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_getTimestampInternal(JNIEnv* env, jobject,
                                                                     jlong ptr, jlongArray out) {
     auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return -32; // DEAD_OBJECT
     android::AudioTimestamp ts;
     int32_t ret = ZN7android10AudioTrack12getTimestampERNS_14AudioTimestampE(holder->track, ts);
     if (ret == 0) {
@@ -1442,5 +1454,44 @@ Java_org_nift4_gramophone_hificore_NativeTrack_getTimestampInternal(JNIEnv* env,
         arr[1] = (jlong)((ts.mTime.tv_sec * 1000000000LL) + ts.mTime.tv_nsec);
         env->ReleaseLongArrayElements(out, arr, 0);
     }
+    return ret;
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_org_nift4_gramophone_hificore_NativeTrack_writeInternal__JLjava_nio_ByteBuffer_2IIZ(JNIEnv *env,
+                                                                                         jobject,
+                                                                                         jlong ptr,
+                                                                                         jobject buf,
+                                                                                         jint offset,
+                                                                                         jint size,
+                                                                                         jboolean blocking) {
+    auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return -32; // DEAD_OBJECT
+    auto buffer = reinterpret_cast<uintptr_t>(env->GetDirectBufferAddress(buf));
+    if (buffer == 0) {
+        return INT32_MIN;
+    }
+    void* base = (void*)(buffer + offset);
+    return ZN7android10AudioTrack5writeEPKvjb(holder->track, base, size, blocking);
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_org_nift4_gramophone_hificore_NativeTrack_writeInternal__J_3BIZ(JNIEnv *env, jobject,
+                                                                    jlong ptr, jbyteArray buf, jint offset,
+                                                                    jboolean blocking) {
+    auto holder = (track_holder*) ptr;
+    if (holder->died)
+        return -32; // DEAD_OBJECT
+    jbyte* buffer = env->GetByteArrayElements(buf, nullptr);
+    if (buffer == nullptr) {
+        return INT32_MIN;
+    }
+    jsize size = env->GetArrayLength(buf);
+    void* base = buffer + offset;
+    ssize_t ret = ZN7android10AudioTrack5writeEPKvjb(holder->track, base, size, blocking);
+    env->ReleaseByteArrayElements(buf, buffer, JNI_ABORT);
     return ret;
 }

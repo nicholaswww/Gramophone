@@ -23,6 +23,7 @@ import java.nio.ByteBuffer
  * Exposes most of the API surface of AudioTrack.cpp, with some minor exceptions:
  * - setCallerName/getCallerName because I want to avoid offset hardcoding, and it's only used for metrics
  * - Extended timestamps, due to complexity
+ * - Obtain/releaseBuffer, as we can't really allocate buffers on stack
  * All native method calls are wrapped to avoid Throwables from being thrown - only Exceptions will be thrown by
  * this class or its methods. However, you should always be prepared to handle such an exception, as everything can
  * fail.
@@ -294,6 +295,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private val codecListener: AudioTrack.OnCodecFormatChangedListener?
     private val routingListener: AudioRouting.OnRoutingChangedListener?
     init {
+        if (transferMode == TransferMode.Obtain)
+            throw UnsupportedOperationException("Obtain mode is currently not implemented")
         if (sharedMem?.isDirect == false)
             throw IllegalArgumentException("shared memory specified but isn't direct")
         if (sharedMem == null && transferMode == TransferMode.Shared)
@@ -501,7 +504,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
 
     fun state(): Int {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         return AudioTrackHiddenApi.getStateFromDump(dump())
             ?: throw IllegalStateException("state failed, check prior logs")
@@ -611,7 +614,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
 
     fun setBufferSizeInFrames(size: ULong) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         // TODO
     }
@@ -623,13 +626,13 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
 
     fun setStartThresholdInFrames(size: ULong) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         // TODO
     }
 
     fun sharedBuffer(): ByteBuffer {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         if (transferMode != TransferMode.Shared)
             throw IllegalStateException("transfer mode isn't shared, sharedBuffer() can't be called")
@@ -644,15 +647,19 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
 
     fun start() {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         if (proxy != null) {
-            proxy.play()
+            proxy.play() // TODO how is dead object signaled here?
         } else {
             val ret = try {
                 startInternal(ptr)
             } catch (t: Throwable) {
                 throw NativeTrackException("failed to play", t)
+            }
+            if (ret == -32) {
+                myState = State.DEAD_OBJECT
+                throw NativeTrackException("start() failed, track died")
             }
             if (ret != 0) {
                 throw NativeTrackException("start() failed: $ret")
@@ -662,7 +669,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun startInternal(@Suppress("unused") ptr: Long): Int
 
     fun stop() {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         if (proxy != null) {
             proxy.stop()
@@ -688,7 +695,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun stoppedInternal(@Suppress("unused") ptr: Long): Boolean
 
     fun flush() {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         try {
             flushInternal(ptr)
@@ -699,7 +706,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun flushInternal(@Suppress("unused") ptr: Long)
 
     fun pause() {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         if (proxy != null) {
             proxy.pause()
@@ -719,7 +726,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
 
     fun setVolume(volume: Float) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         if (proxy != null) {
             proxy.setVolume(volume)
@@ -737,7 +744,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun setVolumeInternal(@Suppress("unused") ptr: Long, @Suppress("unused") volume: Float): Int
 
     fun setAuxEffectSendLevel(level: Float) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         if (proxy != null) {
             proxy.setAuxEffectSendLevel(level)
@@ -767,7 +774,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun getAuxEffectSendLevelInternal(@Suppress("unused") ptr: Long): Float
 
     fun setSampleRate(rate: UInt) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         val ret = try {
             setSampleRateInternal(ptr, rate.toInt())
@@ -833,7 +840,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
 
     fun setLoop(loopStart: UInt, loopEnd: UInt, loopCount: Int) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         val ret = try {
             setLoopInternal(ptr, loopStart.toInt(), loopEnd.toInt(), loopCount)
@@ -848,7 +855,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun setLoopInternal(ptr: Long, loopStart: Int, loopEnd: Int, loopCount: Int): Int
 
     fun setMarkerPosition(markerPosition: UInt) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         val ret = try {
             setMarkerPositionInternal(ptr, markerPosition.toInt())
@@ -880,7 +887,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun getMarkerPositionInternal(@Suppress("unused") ptr: Long): Long
 
     fun setPositionUpdatePeriod(pos: UInt) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         val ret = try {
             setPositionUpdatePeriodInternal(ptr, pos.toInt())
@@ -912,7 +919,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun getPositionUpdatePeriodInternal(@Suppress("unused") ptr: Long): Long
 
     fun setPosition(pos: UInt) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         val ret = try {
             setPositionInternal(ptr, pos.toInt())
@@ -960,7 +967,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun getBufferPositionInternal(@Suppress("unused") ptr: Long): Long
 
     fun reload() {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         val ret = try {
             reloadInternal(ptr)
@@ -997,12 +1004,16 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
 
     fun attachAuxEffect(effectId: Int) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         val ret = try {
             attachAuxEffectInternal(ptr, effectId)
         } catch (t: Throwable) {
-            throw NativeTrackException("failed to attach aux effect", t)
+            throw NativeTrackException("failed to attach aux effect $effectId", t)
+        }
+        if (ret == -32) {
+            myState = State.DEAD_OBJECT
+            throw NativeTrackException("attachAuxEffect($effectId) failed, track died")
         }
         if (ret != 0) {
             throw NativeTrackException("attachAuxEffect($effectId) failed: $ret")
@@ -1011,18 +1022,46 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun attachAuxEffectInternal(@Suppress("unused") ptr: Long,
                                                  @Suppress("unused") effectId: Int): Int
 
-    // TODO status_t    obtainBuffer(Buffer* audioBuffer, int32_t waitCount,
-    //                               size_t *nonContig = NULL);
-
-    // TODO void        releaseBuffer(const Buffer* audioBuffer);
-
     fun write(buf: ByteBuffer, blocking: Boolean): Long {
-        TODO()
+        if (myState != State.ALIVE)
+            throw IllegalStateException("state is $myState")
+        if (!buf.isDirect)
+            throw IllegalArgumentException("must use direct ByteBuffer, otherwise use ByteArray")
+        val ret = try {
+            writeInternal(ptr, buf, buf.position(), buf.limit() - buf.position(), blocking)
+        } catch (t: Throwable) {
+            throw NativeTrackException("write($buf / $blocking) failed", t)
+        }
+        if (ret == -32L) {
+            myState = State.DEAD_OBJECT
+            throw NativeTrackException("write($buf / $blocking) failed, track died")
+        }
+        if (ret < 0) {
+            throw NativeTrackException("write($buf / $blocking) failed: $ret")
+        }
+        return ret
     }
-
-    fun write(buf: ByteArray, blocking: Boolean): Long {
-        TODO()
+    fun write(buf: ByteArray, offset: Int, blocking: Boolean): Long {
+        if (myState != State.ALIVE)
+            throw IllegalStateException("state is $myState")
+        val ret = try {
+            writeInternal(ptr, buf, offset, blocking)
+        } catch (t: Throwable) {
+            throw NativeTrackException("write(${buf.size} / $blocking) failed", t)
+        }
+        if (ret == -32L) {
+            myState = State.DEAD_OBJECT
+            throw NativeTrackException("write(${buf.size} / $blocking) failed, track died")
+        }
+        if (ret < 0) {
+            throw NativeTrackException("write(${buf.size} / $blocking) failed: $ret")
+        }
+        return ret
     }
+    @Suppress("unused") // for parameters
+    private external fun writeInternal(ptr: Long, buf: ByteBuffer, offset: Int, size: Int, blocking: Boolean): Long
+    @Suppress("unused") // for parameters
+    private external fun writeInternal(ptr: Long, buf: ByteArray, offset: Int, blocking: Boolean): Long
 
     fun channelCount(): Int {
         return Integer.bitCount(channelMask().toInt()) // TODO is this valid?
@@ -1037,7 +1076,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun createVolumeShaper(config: VolumeShaper.Configuration): VolumeShaper {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         return proxy!!.createVolumeShaper(config)
     }
@@ -1054,12 +1093,16 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun getUnderrunFramesInternal(@Suppress("unused") ptr: Long): Int
 
     fun setParameters(params: String) {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         val ret = try {
             setParametersInternal(ptr, params)
         } catch (t: Throwable) {
             throw NativeTrackException("failed to set parameters $params", t)
+        }
+        if (ret == -32) {
+            myState = State.DEAD_OBJECT
+            throw NativeTrackException("setParameters() failed, track died")
         }
         if (ret != 0) {
             throw NativeTrackException("setParameters($params) failed: $ret")
@@ -1069,7 +1112,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun setParametersInternal(ptr: Long, params: String): Int
 
     fun getParameters(params: String): String {
-        if (myState == State.RELEASED)
+        if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         return try {
             getParametersInternal(ptr, params)
@@ -1093,6 +1136,10 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             getTimestampInternal(ptr, out)
         } catch (t: Throwable) {
             throw NativeTrackException("failed to get timestamps", t)
+        }
+        if (ret == -32) {
+            myState = State.DEAD_OBJECT
+            throw NativeTrackException("getTimestamp() failed, track died")
         }
         if (ret != 0) {
             throw NativeTrackException("getTimestamp() failed: $ret")
