@@ -20,7 +20,6 @@ import static androidx.media3.common.util.Assertions.checkState;
 import static androidx.media3.common.util.Util.constrainValue;
 import static androidx.media3.common.util.Util.msToUs;
 import static androidx.media3.exoplayer.audio.AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES;
-import static androidx.media3.exoplayer.audio.AudioCapabilities.getCapabilities;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static java.lang.annotation.ElementType.TYPE_USE;
@@ -34,10 +33,12 @@ import android.media.AudioRouting.OnRoutingChangedListener;
 import android.media.AudioTrack;
 import android.media.PlaybackParams;
 import android.media.metrics.LogSessionId;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Pair;
+
 import androidx.annotation.GuardedBy;
 import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
@@ -60,18 +61,33 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
 import androidx.media3.exoplayer.ExoPlayer.AudioOffloadListener;
 import androidx.media3.exoplayer.analytics.PlayerId;
+import androidx.media3.exoplayer.audio.AudioCapabilities;
+import androidx.media3.exoplayer.audio.AudioCapabilitiesReceiver;
+import androidx.media3.exoplayer.audio.AudioOffloadSupport;
+import androidx.media3.exoplayer.audio.AudioSink;
+import androidx.media3.exoplayer.audio.ChannelMappingAudioProcessor;
+import androidx.media3.exoplayer.audio.DefaultAudioOffloadSupportProvider;
+import androidx.media3.exoplayer.audio.DefaultAudioSink;
+import androidx.media3.exoplayer.audio.DefaultAudioSink.AudioOffloadSupportProvider;
+import androidx.media3.exoplayer.audio.DefaultAudioSink.AudioTrackBufferSizeProvider;
+import androidx.media3.exoplayer.audio.PcmAudioUtil;
+import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor;
+import androidx.media3.exoplayer.audio.ToFloatPcmAudioProcessor;
+import androidx.media3.exoplayer.audio.TrimmingAudioProcessor;
 import androidx.media3.extractor.AacUtil;
 import androidx.media3.extractor.Ac3Util;
 import androidx.media3.extractor.Ac4Util;
 import androidx.media3.extractor.DtsUtil;
 import androidx.media3.extractor.MpegAudioUtil;
 import androidx.media3.extractor.OpusUtil;
-import androidx.media3.exoplayer.audio.*;
+
 import com.google.common.collect.ImmutableList;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayDeque;
@@ -88,17 +104,28 @@ import java.util.concurrent.ScheduledExecutorService;
  * example, speed adjustment is not possible while using tunneling.
  */
 @UnstableApi
-public final class DefaultAudioSink implements AudioSink {
+public final class HifiAudioSink implements AudioSink {
 
     /** Provider for {@link AudioTrack} instances. */
     public interface AudioTrackProvider {
 
         /** The default provider for {@link AudioTrack} instances. */
-        AudioTrackProvider DEFAULT = new DefaultAudioTrackProvider();
+        AudioTrackProvider DEFAULT = new AudioTrackProvider() {
+            @Override
+            public AudioTrack getAudioTrack(AudioTrackConfig audioTrackConfig, AudioAttributes audioAttributes, int audioSessionId) {
+                // TODO...
+                return null;
+            }
+        };
 
         /** Returns a new {@link AudioTrack} for the given parameters. */
         AudioTrack getAudioTrack(
                 AudioTrackConfig audioTrackConfig, AudioAttributes audioAttributes, int audioSessionId);
+
+        /** Returns the channel mask config for the given channel count. */
+        default int getAudioTrackChannelConfig(int channelCount) {
+            return Util.getAudioTrackChannelConfig(channelCount);
+        }
     }
 
     /**
@@ -215,61 +242,7 @@ public final class DefaultAudioSink implements AudioSink {
         }
     }
 
-    /** Provides the buffer size to use when creating an {@link AudioTrack}. */
-    public interface AudioTrackBufferSizeProvider {
-        /** Default instance. */
-        AudioTrackBufferSizeProvider DEFAULT =
-                new DefaultAudioTrackBufferSizeProvider.Builder().build();
-
-        /**
-         * Returns the buffer size to use when creating an {@link AudioTrack} for a specific format and
-         * output mode.
-         *
-         * @param minBufferSizeInBytes The minimum buffer size in bytes required to play this format.
-         *     See {@link AudioTrack#getMinBufferSize}.
-         * @param encoding The {@link C.Encoding} of the format.
-         * @param outputMode How the audio will be played. One of the {@link OutputMode output modes}.
-         * @param pcmFrameSize The size of the PCM frames if the {@code encoding} is PCM, 1 otherwise,
-         *     in bytes.
-         * @param sampleRate The sample rate of the format, in Hz.
-         * @param bitrate The bitrate of the audio stream if the stream is compressed, or {@link
-         *     Format#NO_VALUE} if {@code encoding} is PCM or the bitrate is not known.
-         * @param maxAudioTrackPlaybackSpeed The maximum speed the content will be played using {@link
-         *     AudioTrack#setPlaybackParams}. 0.5 is 2x slow motion, 1 is real time, 2 is 2x fast
-         *     forward, etc. This will be {@code 1} unless {@link
-         *     Builder#setEnableAudioTrackPlaybackParams} is enabled.
-         * @return The computed buffer size in bytes. It should always be {@code >=
-         *     minBufferSizeInBytes}. The computed buffer size must contain an integer number of frames:
-         *     {@code bufferSizeInBytes % pcmFrameSize == 0}.
-         */
-        int getBufferSizeInBytes(
-                int minBufferSizeInBytes,
-                @C.Encoding int encoding,
-                @OutputMode int outputMode,
-                int pcmFrameSize,
-                int sampleRate,
-                int bitrate,
-                double maxAudioTrackPlaybackSpeed);
-    }
-
-    /**
-     * Provides the {@link AudioOffloadSupport} to convey the level of offload support the sink can
-     * provide.
-     */
-    public interface AudioOffloadSupportProvider {
-        /**
-         * Returns the {@link AudioOffloadSupport} the audio sink can provide for the media based on its
-         * {@link Format} and {@link AudioAttributes}
-         *
-         * @param format The {@link Format}.
-         * @param audioAttributes The {@link AudioAttributes}.
-         * @return The {@link AudioOffloadSupport} the sink can provide for the media based on its
-         *     {@link Format} and {@link AudioAttributes}.
-         */
-        AudioOffloadSupport getAudioOffloadSupport(Format format, AudioAttributes audioAttributes);
-    }
-
-    /** A builder to create {@link DefaultAudioSink} instances. */
+    /** A builder to create {@link HifiAudioSink} instances. */
     public static final class Builder {
 
         @Nullable private final Context context;
@@ -389,7 +362,7 @@ public final class DefaultAudioSink implements AudioSink {
          * capabilities for a given {@link Format} and {@link AudioAttributes} for calls to {@link
          * #getFormatOffloadSupport(Format)}.
          *
-         * <p>If this setter is not called, then the {@link DefaultAudioSink} uses an instance of {@link
+         * <p>If this setter is not called, then the {@link HifiAudioSink} uses an instance of {@link
          * DefaultAudioOffloadSupportProvider}.
          */
         public Builder setAudioOffloadSupportProvider(
@@ -421,8 +394,8 @@ public final class DefaultAudioSink implements AudioSink {
             return this;
         }
 
-        /** Builds the {@link DefaultAudioSink}. Must only be called once per Builder instance. */
-        public DefaultAudioSink build() {
+        /** Builds the {@link HifiAudioSink}. Must only be called once per Builder instance. */
+        public HifiAudioSink build() {
             checkState(!buildCalled);
             buildCalled = true;
             if (audioProcessorChain == null) {
@@ -431,7 +404,7 @@ public final class DefaultAudioSink implements AudioSink {
             if (audioOffloadSupportProvider == null) {
                 audioOffloadSupportProvider = new DefaultAudioOffloadSupportProvider(context);
             }
-            return new DefaultAudioSink(this);
+            return new HifiAudioSink(this);
         }
     }
 
@@ -461,13 +434,13 @@ public final class DefaultAudioSink implements AudioSink {
     public @interface OutputMode {}
 
     /** The audio sink plays PCM audio. */
-    public static final int OUTPUT_MODE_PCM = 0;
+    public static final int OUTPUT_MODE_PCM = DefaultAudioSink.OUTPUT_MODE_PCM;
 
     /** The audio sink plays encoded audio in offload. */
-    public static final int OUTPUT_MODE_OFFLOAD = 1;
+    public static final int OUTPUT_MODE_OFFLOAD = DefaultAudioSink.OUTPUT_MODE_OFFLOAD;
 
     /** The audio sink plays encoded audio in passthrough. */
-    public static final int OUTPUT_MODE_PASSTHROUGH = 2;
+    public static final int OUTPUT_MODE_PASSTHROUGH = DefaultAudioSink.OUTPUT_MODE_PASSTHROUGH;
 
     /**
      * Native error code equivalent of {@link AudioTrack#ERROR_DEAD_OBJECT} to workaround missing
@@ -481,7 +454,7 @@ public final class DefaultAudioSink implements AudioSink {
      */
     private static final int ERROR_NATIVE_DEAD_OBJECT = -32;
 
-    private static final String TAG = "DefaultAudioSink";
+    private static final String TAG = "HifiAudioSink";
 
     /**
      * Whether to throw an {@link InvalidAudioTrackTimestampException} when a spurious timestamp is
@@ -509,6 +482,7 @@ public final class DefaultAudioSink implements AudioSink {
     private final TrimmingAudioProcessor trimmingAudioProcessor;
     private final ImmutableList<AudioProcessor> toIntPcmAvailableAudioProcessors;
     private final ImmutableList<AudioProcessor> toFloatPcmAvailableAudioProcessors;
+    private final ImmutableList<AudioProcessor> forPreProcessingAvailableAudioProcessors;
     private final AudioTrackPositionTracker audioTrackPositionTracker;
     private final ArrayDeque<MediaPositionParameters> mediaPositionParametersCheckpoints;
     private final boolean preferAudioTrackPlaybackParams;
@@ -573,13 +547,10 @@ public final class DefaultAudioSink implements AudioSink {
     private long accumulatedSkippedSilenceDurationUs;
     private Handler reportSkippedSilenceHandler;
 
-    private DefaultAudioSink(Builder builder) {
-        context = builder.context;
+    private HifiAudioSink(Builder builder) {
+        context = builder.context == null ? null : builder.context.getApplicationContext();
         audioAttributes = AudioAttributes.DEFAULT;
-        audioCapabilities =
-                context != null
-                        ? getCapabilities(context, audioAttributes, /* routedDevice= */ null)
-                        : builder.audioCapabilities;
+        audioCapabilities = context != null ? null : builder.audioCapabilities;
         audioProcessorChain = builder.audioProcessorChain;
         enableFloatOutput = builder.enableFloatOutput;
         preferAudioTrackPlaybackParams = Util.SDK_INT >= 23 && builder.enableAudioTrackPlaybackParams;
@@ -589,10 +560,10 @@ public final class DefaultAudioSink implements AudioSink {
         audioTrackPositionTracker = new AudioTrackPositionTracker(new PositionTrackerListener());
         channelMappingAudioProcessor = new ChannelMappingAudioProcessor();
         trimmingAudioProcessor = new TrimmingAudioProcessor();
-        toIntPcmAvailableAudioProcessors =
-                ImmutableList.of(
-                        new ToInt16PcmAudioProcessor(), channelMappingAudioProcessor, trimmingAudioProcessor);
+        toIntPcmAvailableAudioProcessors = ImmutableList.of(new ToInt16PcmAudioProcessor());
         toFloatPcmAvailableAudioProcessors = ImmutableList.of(new ToFloatPcmAudioProcessor());
+        forPreProcessingAvailableAudioProcessors =
+                ImmutableList.of(trimmingAudioProcessor, channelMappingAudioProcessor);
         volume = 1f;
         audioSessionId = C.AUDIO_SESSION_ID_UNSET;
         auxEffectInfo = new AuxEffectInfo(AuxEffectInfo.NO_AUX_EFFECT_ID, 0f);
@@ -665,7 +636,7 @@ public final class DefaultAudioSink implements AudioSink {
         if (!isAudioTrackInitialized() || startMediaTimeUsNeedsInit) {
             return CURRENT_POSITION_NOT_SET;
         }
-        long positionUs = audioTrackPositionTracker.getCurrentPositionUs(sourceEnded);
+        long positionUs = audioTrackPositionTracker.getCurrentPositionUs();
         positionUs = min(positionUs, configuration.framesToDurationUs(getWrittenFrames()));
         return applySkipping(applyMediaPositionParameters(positionUs));
     }
@@ -690,6 +661,7 @@ public final class DefaultAudioSink implements AudioSink {
             inputPcmFrameSize = Util.getPcmFrameSize(inputFormat.pcmEncoding, inputFormat.channelCount);
 
             ImmutableList.Builder<AudioProcessor> pipelineProcessors = new ImmutableList.Builder<>();
+            pipelineProcessors.addAll(forPreProcessingAvailableAudioProcessors);
             if (shouldUseFloatOutput(inputFormat.pcmEncoding)) {
                 pipelineProcessors.addAll(toFloatPcmAvailableAudioProcessors);
             } else {
@@ -719,7 +691,10 @@ public final class DefaultAudioSink implements AudioSink {
             outputMode = OUTPUT_MODE_PCM;
             outputEncoding = outputFormat.encoding;
             outputSampleRate = outputFormat.sampleRate;
-            outputChannelConfig = Util.getAudioTrackChannelConfig(outputFormat.channelCount);
+
+            outputChannelConfig =
+                    audioTrackProvider.getAudioTrackChannelConfig(outputFormat.channelCount);
+
             outputPcmFrameSize = Util.getPcmFrameSize(outputEncoding, outputFormat.channelCount);
             enableAudioTrackPlaybackParams = preferAudioTrackPlaybackParams;
         } else {
@@ -736,7 +711,10 @@ public final class DefaultAudioSink implements AudioSink {
                 outputMode = OUTPUT_MODE_OFFLOAD;
                 outputEncoding =
                         MimeTypes.getEncoding(checkNotNull(inputFormat.sampleMimeType), inputFormat.codecs);
-                outputChannelConfig = Util.getAudioTrackChannelConfig(inputFormat.channelCount);
+
+                outputChannelConfig =
+                        audioTrackProvider.getAudioTrackChannelConfig(inputFormat.channelCount);
+
                 // Offload requires AudioTrack playback parameters to apply speed changes quickly.
                 enableAudioTrackPlaybackParams = true;
                 enableOffloadGapless = audioOffloadSupport.isGaplessSupported;
@@ -989,7 +967,7 @@ public final class DefaultAudioSink implements AudioSink {
                     && Math.abs(expectedPresentationTimeUs - presentationTimeUs) > 200000) {
                 if (listener != null) {
                     listener.onAudioSinkError(
-                            new AudioSink.UnexpectedDiscontinuityException(
+                            new UnexpectedDiscontinuityException(
                                     presentationTimeUs, expectedPresentationTimeUs));
                 }
                 startMediaTimeUsNeedsSync = true;
@@ -1095,6 +1073,7 @@ public final class DefaultAudioSink implements AudioSink {
                     audioTrackConfig.sampleRate,
                     audioTrackConfig.channelConfig,
                     audioTrackConfig.encoding,
+                    audioTrackConfig.bufferSize,
                     inputFormat,
                     /* isRecoverable= */ audioTrackConfig.offload,
                     e);
@@ -1113,6 +1092,7 @@ public final class DefaultAudioSink implements AudioSink {
                     audioTrackConfig.sampleRate,
                     audioTrackConfig.channelConfig,
                     audioTrackConfig.encoding,
+                    audioTrackConfig.bufferSize,
                     inputFormat,
                     /* isRecoverable= */ audioTrackConfig.offload,
                     /* audioTrackException= */ null);
@@ -1228,7 +1208,7 @@ public final class DefaultAudioSink implements AudioSink {
         int bytesRemaining = outputBuffer.remaining();
         int bytesWrittenOrError = 0; // Error if negative
         if (tunneling) {
-            Assertions.checkState(avSyncPresentationTimeUs != C.TIME_UNSET);
+            checkState(avSyncPresentationTimeUs != C.TIME_UNSET);
             if (avSyncPresentationTimeUs == C.TIME_END_OF_SOURCE) {
                 // Audio processors during tunneling are required to produce buffers immediately when
                 // queuing, so we can assume the timestamp during draining at the end of the stream is the
@@ -1266,8 +1246,9 @@ public final class DefaultAudioSink implements AudioSink {
             if (listener != null) {
                 listener.onAudioSinkError(e);
             }
-            if (e.isRecoverable) {
+            if (e.isRecoverable && context != null) {
                 // Change to the audio capabilities supported by all the devices during the error recovery.
+                // Only do this if we have a context and the capabilities can automatically adjust back.
                 audioCapabilities = DEFAULT_AUDIO_CAPABILITIES;
                 throw e; // Do not delay the exception if it can be recovered at higher level.
             }
@@ -1305,7 +1286,7 @@ public final class DefaultAudioSink implements AudioSink {
             if (configuration.outputMode != OUTPUT_MODE_PCM) {
                 // When playing non-PCM, the inputBuffer is never processed, thus the last inputBuffer
                 // must be the current input buffer.
-                Assertions.checkState(outputBuffer == inputBuffer);
+                checkState(outputBuffer == inputBuffer);
                 writtenEncodedFrames += (long) framesPerEncodedSample * inputBufferAccessUnitCount;
             }
             outputBuffer = null;
@@ -1443,8 +1424,25 @@ public final class DefaultAudioSink implements AudioSink {
     }
 
     @Override
+    public long getAudioTrackBufferSizeUs() {
+        if (!isAudioTrackInitialized()) {
+            return C.TIME_UNSET;
+        }
+        if (Util.SDK_INT >= 23) {
+            return Api23.getAudioTrackBufferSizeUs(audioTrack, configuration);
+        }
+        long byteRate =
+                /*configuration.outputMode == OUTPUT_MODE_PCM
+                        ?*/ (long) configuration.outputSampleRate * configuration.outputPcmFrameSize
+                        /*: DefaultAudioTrackBufferSizeProvider.getMaximumEncodedRateBytesPerSecond(
+                        configuration.outputEncoding) TODO reenable*/;
+        return Util.scaleLargeValue(
+                configuration.bufferSize, C.MICROS_PER_SECOND, byteRate, RoundingMode.DOWN);
+    }
+
+    @Override
     public void enableTunnelingV21() {
-        Assertions.checkState(externalAudioSessionIdProvided);
+        checkState(externalAudioSessionIdProvided);
         if (!tunneling) {
             tunneling = true;
             flush();
@@ -1462,7 +1460,7 @@ public final class DefaultAudioSink implements AudioSink {
     @RequiresApi(29)
     @Override
     public void setOffloadMode(@OffloadMode int offloadMode) {
-        Assertions.checkState(Util.SDK_INT >= 29);
+        checkState(Util.SDK_INT >= 29);
         this.offloadMode = offloadMode;
     }
 
@@ -1574,7 +1572,7 @@ public final class DefaultAudioSink implements AudioSink {
                             + playbackLooperName
                             + ")");
         }
-        if (!audioCapabilities.equals(this.audioCapabilities)) {
+        if (this.audioCapabilities != null && !audioCapabilities.equals(this.audioCapabilities)) {
             this.audioCapabilities = audioCapabilities;
             if (listener != null) {
                 listener.onAudioCapabilitiesChanged();
@@ -1790,9 +1788,11 @@ public final class DefaultAudioSink implements AudioSink {
             playbackLooper = Looper.myLooper();
             audioCapabilitiesReceiver =
                     new AudioCapabilitiesReceiver(
-                            context, this::onAudioCapabilitiesChanged, audioAttributes, preferredDevice);
+                            context, this::onAudioCapabilitiesChanged, audioAttributes,
+                            preferredDevice != null && Build.VERSION.SDK_INT >= 23 ? preferredDevice.audioDeviceInfo : null);
             audioCapabilities = audioCapabilitiesReceiver.register();
         }
+        checkNotNull(audioCapabilities);
     }
 
     private static boolean isOffloadedPlayback(AudioTrack audioTrack) {
@@ -2004,7 +2004,7 @@ public final class DefaultAudioSink implements AudioSink {
             }
             @Nullable AudioDeviceInfo routedDevice = router.getRoutedDevice();
             if (routedDevice != null) {
-                capabilitiesReceiver.setRoutedDevice(router.getRoutedDevice());
+                capabilitiesReceiver.setRoutedDevice(routedDevice);
             }
         }
     }
@@ -2017,7 +2017,7 @@ public final class DefaultAudioSink implements AudioSink {
         public StreamEventCallbackV29() {
             handler = new Handler(Looper.myLooper());
             // Avoid StreamEventCallbackV29 inheriting directly from AudioTrack.StreamEventCallback as it
-            // would cause a NoClassDefFoundError warning on load of DefaultAudioSink for SDK < 29.
+            // would cause a NoClassDefFoundError warning on load of HifiAudioSink for SDK < 29.
             // See: https://github.com/google/ExoPlayer/issues/8058
             callback =
                     new AudioTrack.StreamEventCallback() {
@@ -2099,7 +2099,7 @@ public final class DefaultAudioSink implements AudioSink {
     private static int getAudioTrackMinBufferSize(
             int sampleRateInHz, int channelConfig, int encoding) {
         int minBufferSize = AudioTrack.getMinBufferSize(sampleRateInHz, channelConfig, encoding);
-        Assertions.checkState(minBufferSize != AudioTrack.ERROR_BAD_VALUE);
+        checkState(minBufferSize != AudioTrack.ERROR_BAD_VALUE);
         return minBufferSize;
     }
 
@@ -2351,6 +2351,18 @@ public final class DefaultAudioSink implements AudioSink {
             audioTrack.setPreferredDevice(
                     audioDeviceInfo == null ? null : audioDeviceInfo.audioDeviceInfo);
         }
+
+        public static long getAudioTrackBufferSizeUs(
+                AudioTrack audioTrack, Configuration configuration) {
+            return configuration.outputMode == OUTPUT_MODE_PCM
+                    ? configuration.framesToDurationUs(audioTrack.getBufferSizeInFrames())
+                    : Util.scaleLargeValue(
+                    audioTrack.getBufferSizeInFrames(),
+                    C.MICROS_PER_SECOND,
+                    /*DefaultAudioTrackBufferSizeProvider.getMaximumEncodedRateBytesPerSecond(
+                            configuration.outputEncoding) TODO reenable*/0,
+                    RoundingMode.DOWN);
+        }
     }
 
     @RequiresApi(31)
@@ -2362,6 +2374,22 @@ public final class DefaultAudioSink implements AudioSink {
             if (!logSessionId.equals(LogSessionId.LOG_SESSION_ID_NONE)) {
                 audioTrack.setLogSessionId(logSessionId);
             }
+        }
+    }
+
+    @RequiresApi(23)
+    /* package */ final class AudioDeviceInfoApi23 {
+
+        /** The platform {@link AudioDeviceInfo}. */
+        public final AudioDeviceInfo audioDeviceInfo;
+
+        /**
+         * Creates the audio device info wrapper.
+         *
+         * @param audioDeviceInfo The platform {@link AudioDeviceInfo}.
+         */
+        public AudioDeviceInfoApi23(AudioDeviceInfo audioDeviceInfo) {
+            this.audioDeviceInfo = audioDeviceInfo;
         }
     }
 }
