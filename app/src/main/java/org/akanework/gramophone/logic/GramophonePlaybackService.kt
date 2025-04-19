@@ -110,7 +110,6 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.akanework.gramophone.ui.MainActivity
-import org.nift4.gramophone.hificore.NativeTrack
 import kotlin.random.Random
 
 
@@ -580,8 +579,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         } else {
             Log.e(TAG, "session id is 0? why????? THIS MIGHT BREAK EQUALIZER")
         }
-        val track = NativeTrack.forTest(this)
-        track.release()
     }
 
     private fun broadcastAudioSessionClose() {

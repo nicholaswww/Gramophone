@@ -78,6 +78,7 @@ import androidx.media3.extractor.AacUtil;
 import androidx.media3.extractor.Ac3Util;
 import androidx.media3.extractor.Ac4Util;
 import androidx.media3.extractor.DtsUtil;
+import androidx.media3.extractor.ExtractorUtil;
 import androidx.media3.extractor.MpegAudioUtil;
 import androidx.media3.extractor.OpusUtil;
 
@@ -1432,10 +1433,9 @@ public final class HifiAudioSink implements AudioSink {
             return Api23.getAudioTrackBufferSizeUs(audioTrack, configuration);
         }
         long byteRate =
-                /*configuration.outputMode == OUTPUT_MODE_PCM
-                        ?*/ (long) configuration.outputSampleRate * configuration.outputPcmFrameSize
-                        /*: DefaultAudioTrackBufferSizeProvider.getMaximumEncodedRateBytesPerSecond(
-                        configuration.outputEncoding) TODO reenable*/;
+                configuration.outputMode == OUTPUT_MODE_PCM
+                        ? (long) configuration.outputSampleRate * configuration.outputPcmFrameSize
+                        : getNonPcmMaximumEncodedRateBytesPerSecond(configuration.outputEncoding);
         return Util.scaleLargeValue(
                 configuration.bufferSize, C.MICROS_PER_SECOND, byteRate, RoundingMode.DOWN);
     }
@@ -2342,6 +2342,12 @@ public final class HifiAudioSink implements AudioSink {
         }
     }
 
+    private static int getNonPcmMaximumEncodedRateBytesPerSecond(@C.Encoding int encoding) {
+        int rate = ExtractorUtil.getMaximumEncodedRateBytesPerSecond(encoding);
+        checkState(rate != C.RATE_UNSET_INT);
+        return rate;
+    }
+
     @RequiresApi(23)
     private static final class Api23 {
         private Api23() {}
@@ -2359,8 +2365,7 @@ public final class HifiAudioSink implements AudioSink {
                     : Util.scaleLargeValue(
                     audioTrack.getBufferSizeInFrames(),
                     C.MICROS_PER_SECOND,
-                    /*DefaultAudioTrackBufferSizeProvider.getMaximumEncodedRateBytesPerSecond(
-                            configuration.outputEncoding) TODO reenable*/0,
+                    getNonPcmMaximumEncodedRateBytesPerSecond(configuration.outputEncoding),
                     RoundingMode.DOWN);
         }
     }
