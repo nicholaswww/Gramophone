@@ -191,8 +191,8 @@ class ViewPagerFragment : BaseFragment(true) {
 
         // Connect ViewPager2.
 
-        // Set this to 9999 so it won't lag anymore.
-        viewPager2.offscreenPageLimit = 9999
+        // TODO does 1 here cause lag when swiping?
+        viewPager2.offscreenPageLimit = 1
         val adapter =
             ViewPager2Adapter(
                 childFragmentManager,

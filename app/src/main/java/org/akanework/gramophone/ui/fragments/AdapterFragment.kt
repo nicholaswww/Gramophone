@@ -54,6 +54,7 @@ class AdapterFragment : BaseFragment(null) {
     ): View? {
         val rootView = inflater.inflate(R.layout.fragment_recyclerview, container, false)
         recyclerView = rootView.findViewById(R.id.recyclerview)
+        // TODO share recycled view pool across all RecyclerViews to reduce performance hit when swiping
         recyclerView.enableEdgeToEdgePaddingListener()
         adapter = createAdapter()
         recyclerView.adapter = adapter.concatAdapter
