@@ -1002,11 +1002,7 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
                             // timer.audioOffset = timer.parseTimestampMs(parser.getAttributeValue(null, "lyricOffset"), 0L, true)
                             // val role = parser.getAttributeValue(null, "role")
                             parser.nextAndThrowIfNotEnd()
-                        } else {
-                            throw XmlPullParserException("unknown element " +
-                                    "<${(parser.prefix?.plus(":") ?: "") + parser.name}> in " +
-                                    "<iTunesMetadata>")
-                        }
+                        } else parser.skipToEndOfTag() // <translations> or other
                     }
                 } else parser.skipToEndOfTag()
             }
