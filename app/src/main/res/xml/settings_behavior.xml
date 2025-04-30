@@ -72,7 +72,7 @@
             app:iconSpaceReserved="false" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:key="album_covers"
             android:layout="@layout/preference_switch"
             android:summary="@string/album_covers_enhance_desc"

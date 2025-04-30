@@ -172,7 +172,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                 blackListSetFlow.emit(prefs.getStringSet("folderFilter", setOf()) ?: setOf())
             }
             if ((key == null || key == "album_covers") && !hasScopedStorageWithMediaTypes()) {
-                shouldUseEnhancedCoverReadingFlow!!.emit(prefs.getBoolean("album_covers", false))
+                shouldUseEnhancedCoverReadingFlow!!.emit(prefs.getBoolean("album_covers", true))
             }
         }
     }
@@ -189,8 +189,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                     if (file !is File?) return@Factory null
                     return@Factory Fetcher {
                         val bmp = try {
-                            if (hasScopedStorageV1() && (!hasScopedStorageWithMediaTypes()
-                                        || context.hasImagePermission()) && file != null) {
+                            if (hasScopedStorageV1() && file != null) {
                                 ThumbnailUtils.createAudioThumbnail(file, options.size.let {
                                     Size(
                                         it.width.pxOrElse { throw IllegalArgumentException("missing required size") },
