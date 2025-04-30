@@ -28,9 +28,9 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
+import android.util.Patterns
 import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
@@ -50,6 +50,8 @@ import androidx.core.view.marginRight
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -162,17 +164,8 @@ class BugHandlerActivity : AppCompatActivity() {
             }
         }
         findViewById<Button>(R.id.sendEmail).setOnClickListener { sendEmail() }
-
-        // Make our life easier by copying the log to clipboard
-        val clipboard: ClipboardManager = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("error msg", log)
-        allowDiskAccessInStrictMode {
-            clipboard.setPrimaryClip(clip)
-        }
-        if (!hasOsClipboardDialog()) {
-            Toast.makeText(this, R.string.crash_clipboard, Toast.LENGTH_LONG).show()
-        }
-
+        if (!shouldSendEmail)
+            copyToClipboard()
         actionShare.setOnClickListener {
             val sendIntent = Intent().apply {
                 action = Intent.ACTION_SEND
@@ -192,6 +185,18 @@ class BugHandlerActivity : AppCompatActivity() {
             sendEmail()
     }
 
+    private fun copyToClipboard() {
+        // Make our life easier by copying the log to clipboard
+        val clipboard: ClipboardManager = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("error msg", log)
+        allowDiskAccessInStrictMode {
+            clipboard.setPrimaryClip(clip)
+        }
+        if (!hasOsClipboardDialog()) {
+            Toast.makeText(this, R.string.crash_clipboard, Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun sendEmail() {
         Log.w("Gramophone", "Exporting logs due to crash...")
         val crashLogDir = File(cacheDir, "CrashLog")
@@ -201,7 +206,7 @@ class BugHandlerActivity : AppCompatActivity() {
             .setView(R.layout.crash_dialog_content)
             .setCancelable(false)
             .setPositiveButton(R.string.send_email) { d, _ ->
-                val et = DialogCompat.requireViewById(d as AlertDialog, R.id.editText) as EditText
+                val et = DialogCompat.requireViewById(d as AlertDialog, R.id.editText) as TextInputEditText
                 val desc = et.editableText.toString().takeIf { it.isNotBlank() }
                 val mailText = "Hi Nick,\n\nGramophone crashed!\nI was doing:\n\n" +
                         "${desc ?: "--INSERT DESCRIPTION HERE--"}\n\nIt crashed with this" +
@@ -254,7 +259,8 @@ class BugHandlerActivity : AppCompatActivity() {
                     }
                 }
             }.show()
-        val et = DialogCompat.requireViewById(d, R.id.editText) as EditText
+        val til = DialogCompat.requireViewById(d as AlertDialog, R.id.textInputLayout) as TextInputLayout
+        val et = DialogCompat.requireViewById(d, R.id.editText) as TextInputEditText
         val b = d.getButton(DialogInterface.BUTTON_POSITIVE)
         b.isEnabled = false
         et.addTextChangedListener(object : TextWatcher {
@@ -277,7 +283,19 @@ class BugHandlerActivity : AppCompatActivity() {
             }
 
             override fun afterTextChanged(s: Editable?) {
-                b.isEnabled = (s?.trimmedLength() ?: 0) > 3
+                if (!s.isNullOrEmpty() && Patterns.EMAIL_ADDRESS.matcher(s).matches()) {
+                    til.error = getString(R.string.do_not_enter_email_enter_msg)
+                    b.isEnabled = false
+                } else if (s?.contains(log) == true) {
+                    til.error = getString(R.string.log_will_auto_send)
+                    b.isEnabled = false
+                } else if ((s?.trimmedLength() ?: 0) <= 3) {
+                    til.error = null
+                    b.isEnabled = false
+                } else {
+                    til.error = null
+                    b.isEnabled = true
+                }
             }
         })
         et.requestFocus()
@@ -288,5 +306,11 @@ class BugHandlerActivity : AppCompatActivity() {
                 WindowInsetsControllerCompat(d.window!!, et).show(WindowInsetsCompat.Type.ime())
             }
         }
+    }
+
+    override fun onStop() {
+        if (shouldSendEmail && !triedToSendEmail)
+            copyToClipboard()
+        super.onStop()
     }
 }

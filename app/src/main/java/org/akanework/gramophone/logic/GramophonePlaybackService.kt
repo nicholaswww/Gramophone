@@ -437,12 +437,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             this,
             seekReceiver,
             IntentFilter("$packageName.SEEK_TO"),
+            @SuppressLint("WrongConstant") // why is this needed?
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
         ContextCompat.registerReceiver(
             this,
             btReceiver,
             IntentFilter("android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED"),
+            @SuppressLint("WrongConstant") // why is this needed?
             ContextCompat.RECEIVER_EXPORTED
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O /* before 8, only sbc was supported */) {
