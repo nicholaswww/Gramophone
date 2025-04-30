@@ -10,7 +10,6 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.TransitionDrawable
 import android.text.format.DateFormat
 import android.util.AttributeSet
-import android.util.Size
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -30,6 +29,7 @@ import androidx.core.graphics.scale
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
 import androidx.core.view.isInvisible
 import androidx.core.widget.TextViewCompat
 import androidx.media3.common.C
@@ -83,9 +83,6 @@ import org.akanework.gramophone.logic.getIntStrict
 import org.akanework.gramophone.logic.getLyrics
 import org.akanework.gramophone.logic.getLyricsLegacy
 import org.akanework.gramophone.logic.getTimer
-import org.akanework.gramophone.logic.hasImagePermission
-import org.akanework.gramophone.logic.hasScopedStorageV1
-import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import org.akanework.gramophone.logic.playOrPause
 import org.akanework.gramophone.logic.replaceAllSupport
 import org.akanework.gramophone.logic.setTextAnimation
@@ -987,56 +984,45 @@ class FullBottomSheet
         reason: Int
     ) {
         if (instance?.mediaItemCount != 0) {
-            val req = { data: Any?, block: ImageRequest.Builder.() -> Unit ->
-                lastDisposable?.dispose()
-                lastDisposable = context.imageLoader.enqueue(ImageRequest.Builder(context).apply {
-                    data(data)
-                    scale(Scale.FILL)
-                    block()
-                    error(R.drawable.ic_default_cover)
-                    allowHardware(false)
-                }.build())
-            }
-            val load = { data: Any? ->
-                req(data) {
-                    target(onSuccess = {
-                        bottomSheetFullCover.setImageDrawable(it.asDrawable(context.resources))
-                    }, onError = {
-                        bottomSheetFullCover.setImageDrawable(it?.asDrawable(context.resources))
-                    }) // do not react to onStart() which sets placeholder
-                    listener(onSuccess = { _, _ ->
-                        if (DynamicColors.isDynamicColorAvailable() &&
-                            prefs.getBooleanStrict("content_based_color", true)
-                        ) {
-                            addColorScheme()
-                        }
-                    }, onError = { _, _ ->
-                        if (DynamicColors.isDynamicColorAvailable() &&
-                            prefs.getBooleanStrict("content_based_color", true)
-                        ) {
-                            removeColorScheme()
-                        }
-                    })
+            lastDisposable?.dispose()
+            lastDisposable = null
+            doOnLayout {
+                if (lastDisposable != null) {
+                    //throw IllegalStateException("raced while loading cover in onMediaItemTransition?")
+                    lastDisposable?.dispose() // TODO avoid this race by only allowing one delayed listener
                 }
-            }
-            val file = mediaItem?.getFile()
-            if (hasScopedStorageV1() && (!hasScopedStorageWithMediaTypes()
-                        || context.hasImagePermission()) && file != null
-            ) {
-                req(Pair(file, Size(bottomSheetFullCover.width, bottomSheetFullCover.height))) {
-                    target(onSuccess = {
-                        bottomSheetFullCover.setImageDrawable(it.asDrawable(context.resources))
-                        if (DynamicColors.isDynamicColorAvailable() &&
-                            prefs.getBooleanStrict("content_based_color", true)
-                        ) {
-                            addColorScheme()
+                val file = mediaItem?.getFile()
+                lastDisposable = context.imageLoader.enqueue(
+                    ImageRequest.Builder(context).apply {
+                        data(Pair(file, mediaItem?.mediaMetadata?.artworkUri))
+                        if (bottomSheetFullCover.width == 0 || bottomSheetFullCover.height == 0) {
+                            throw IllegalStateException("expected to have box of full cover after layout")
                         }
-                    }, onError = {
-                        load(mediaItem.mediaMetadata.artworkUri)
-                    })
-                }
-            } else {
-                load(mediaItem?.mediaMetadata?.artworkUri)
+                        size(bottomSheetFullCover.width, bottomSheetFullCover.height)
+                        scale(Scale.FILL)
+                        // do not react to onStart() which sets placeholder
+                        target(onSuccess = {
+                            bottomSheetFullCover.setImageDrawable(it.asDrawable(context.resources))
+                        }, onError = {
+                            bottomSheetFullCover.setImageDrawable(it?.asDrawable(context.resources))
+                        }) // do not react to onStart() which sets placeholder
+                        listener(onSuccess = { _, _ ->
+                            if (DynamicColors.isDynamicColorAvailable() &&
+                                prefs.getBooleanStrict("content_based_color", true)
+                            ) {
+                                addColorScheme()
+                            }
+                        }, onError = { _, _ ->
+                            if (DynamicColors.isDynamicColorAvailable() &&
+                                prefs.getBooleanStrict("content_based_color", true)
+                            ) {
+                                removeColorScheme()
+                            }
+                        })
+                        error(R.drawable.ic_default_cover)
+                        allowHardware(false)
+                    }.build()
+                )
             }
             bottomSheetFullTitle.setTextAnimation(
                 mediaItem?.mediaMetadata?.title,

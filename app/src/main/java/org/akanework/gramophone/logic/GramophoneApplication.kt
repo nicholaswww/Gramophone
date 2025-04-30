@@ -48,6 +48,7 @@ import coil3.fetch.ImageFetchResult
 import coil3.fetch.SourceFetchResult
 import coil3.request.NullRequestDataException
 import coil3.size.pxOrElse
+import coil3.toCoilUri
 import coil3.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -180,28 +181,50 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
         return ImageLoader.Builder(context)
             .diskCache(null)
             .components {
-                if (hasScopedStorageV1()) {
-                    add(Fetcher.Factory { data, options, _ ->
-                        if (data !is Pair<*, *>) return@Factory null
-                        val size = data.second
-                        if (size !is Size?) return@Factory null
-                        val file = data.first as? File ?: return@Factory null
-                        return@Factory Fetcher {
-                            ImageFetchResult(
+                add(Fetcher.Factory { data, options, _ ->
+                    if (data !is Pair<*, *>) return@Factory null
+                    val uri = data.second
+                    if (uri !is android.net.Uri?) return@Factory null
+                    val file = data.first
+                    if (file !is File?) return@Factory null
+                    return@Factory Fetcher {
+                        val bmp = try {
+                            if (hasScopedStorageV1() && (!hasScopedStorageWithMediaTypes()
+                                        || context.hasImagePermission()) && file != null) {
                                 ThumbnailUtils.createAudioThumbnail(file, options.size.let {
-                                    // TODO 10000 is a bad fallback
                                     Size(
-                                        it.width.pxOrElse {
-                                            size?.width.let { if (it == 0) null else it } ?: 10000
-                                        },
-                                        it.height.pxOrElse {
-                                            size?.height.let { if (it == 0) null else it } ?: 10000
-                                        })
-                                }, null).asImage(), true, DataSource.DISK
+                                        it.width.pxOrElse { throw IllegalArgumentException("missing required size") },
+                                        it.height.pxOrElse { throw IllegalArgumentException("missing required size") })
+                                }, null)
+                            } else null
+                        } catch (e: IOException) {
+                            if (e.message != "No embedded album art found" &&
+                                e.message != "No thumbnails in Downloads directories" &&
+                                e.message != "No thumbnails in top-level directories" &&
+                                e.message != "No album art found")
+                                throw e
+                            null
+                        }
+                        if (bmp != null) {
+                            ImageFetchResult(
+                                bmp.asImage(), true, DataSource.DISK
+                            )
+                        } else {
+                            if (uri == null) return@Fetcher null
+                            val stream = contentResolver.openAssetFileDescriptor(uri, "r")
+                            checkNotNull(stream) { "Unable to open '$uri'." }
+                            SourceFetchResult(
+                                source = ImageSource(
+                                    source = stream.createInputStream().source().buffer(),
+                                    fileSystem = options.fileSystem,
+                                    metadata = ContentMetadata(uri.toCoilUri(), stream),
+                                ),
+                                mimeType = contentResolver.getType(uri),
+                                dataSource = DataSource.DISK,
                             )
                         }
-                    })
-                }
+                    }
+                })
                 add(Fetcher.Factory { data, options, _ ->
                     if (data !is Uri) return@Factory null
                     if (data.scheme != "gramophoneAlbumCover") return@Factory null

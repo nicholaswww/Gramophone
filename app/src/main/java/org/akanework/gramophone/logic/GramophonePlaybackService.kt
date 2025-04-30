@@ -148,8 +148,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var mediaSession: MediaLibrarySession? = null
     val endedWorkaroundPlayer
         get() = mediaSession?.player as EndedWorkaroundPlayer?
-    var controller: MediaController? = null
-        private set
+    private var controller: MediaController? = null
     private val sendLyrics = Runnable { scheduleSendingLyrics(false) }
     var lyrics: SemanticLyrics? = null
         private set
@@ -487,7 +486,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     throw IllegalStateException("shuffleFactory was not consumed during restore")
                 handler.post {
                     // Prepare Player after UI thread is less busy (loads tracks, required for lyric)
-                    controller?.prepare()
+                    mediaSession?.player?.prepare()
                 }
             }
             lastPlayedManager.allowSavingState = true
@@ -730,9 +729,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }*/
 
     override fun onTracksChanged(eventTime: AnalyticsListener.EventTime, tracks: Tracks) {
-        val mediaItem = controller!!.currentMediaItem
+        // controller will return wrong item at this point TODO why, this is the controller's listener
+        val mediaItem = endedWorkaroundPlayer?.currentMediaItem
 
         lyricsFetcher.launch {
+            // round-trip to make sure the current callback is completed
             val trim = prefs.getBoolean("trim_lyrics", true)
             val multiLine = prefs.getBoolean("lyric_multiline", false)
             val newParser = prefs.getBoolean("lyric_parser", false)

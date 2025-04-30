@@ -39,6 +39,10 @@ import androidx.preference.PreferenceManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.hasAudioPermission
@@ -80,6 +84,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
     private lateinit var openText: TextView
     private lateinit var prefs: SharedPreferences
 
+    private val scope = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
     private val handler = Handler(Looper.getMainLooper())
     private var runnableRunning = false
     private var isUserTracking = false
@@ -296,115 +301,130 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun handleIntent(intent: Intent) {
-        if (intent.action == Intent.ACTION_VIEW) {
-            intent.data?.let { uri ->
-                Log.i(TAG, "Audio preview opening $uri")
-                var fileUri: Uri? = null
-                val queryUri = if (uri.scheme == "file") {
-                    fileUri = uri
-                    null
-                } else if (uri.scheme == "content" && uri.authority == MediaStore.AUTHORITY)
-                    uri
-                else if (uri.scheme == "content")
-                    try {
-                        if (hasScopedStorageV1()) MediaStore.getMediaUri(this, uri) else null
-                    } catch (e: Exception) {
-                        if (e is SecurityException || e.message == "Provider for this Uri is not supported."
-                            || e.message?.startsWith("Invalid URI: ") == true)
-                            Log.w(TAG, e.javaClass.name + ": " + e.message)
-                        else
-                            Log.e(TAG, Log.getStackTraceString(e))
+        scope.launch {
+            if (intent.action == Intent.ACTION_VIEW) {
+                intent.data?.let { uri ->
+                    Log.i(TAG, "Audio preview opening $uri")
+                    var fileUri: Uri? = null
+                    val queryUri = if (uri.scheme == "file") {
+                        fileUri = uri
                         null
-                    } ?: run {
-                        val lp = Uri.decode(uri.lastPathSegment)
-                        if (lp?.toUri()?.scheme == "file") { // Let's try our luck! Material Files supports this
-                            fileUri = lp.toUri()
-                        } else { // ¯\_(ツ)_/¯
-                            val pfd = contentResolver.openFileDescriptor(uri, "r")
-                            if (pfd == null) return@run null
-                            val l = try {
-                                Os.readlink("/proc/self/fd/" + pfd.fd)
-                            } catch (e: ErrnoException) {
-                                Log.w(TAG, e)
-                                return@run null
-                            } finally {
-                                pfd.close()
-                            }
-                            val f = File(l)
-                            if (/* f.exists() && */ f.canRead())
-                                fileUri = "file://$l".toUri()
+                    } else if (uri.scheme == "content" && uri.authority == MediaStore.AUTHORITY)
+                        uri
+                    else if (uri.scheme == "content")
+                        try {
+                            if (hasScopedStorageV1()) MediaStore.getMediaUri(this@AudioPreviewActivity, uri) else null
+                        } catch (e: Exception) {
+                            if (e is SecurityException || e.message == "Provider for this Uri is not supported."
+                                || e.message?.startsWith("Invalid URI: ") == true
+                            )
+                                Log.w(TAG, e.javaClass.name + ": " + e.message)
                             else
-                                Log.w(TAG, "found $l from fd but it doesn't exist")
+                                Log.e(TAG, Log.getStackTraceString(e))
+                            null
+                        } ?: run {
+                            val lp = Uri.decode(uri.lastPathSegment)
+                            if (lp?.toUri()?.scheme == "file") { // Let's try our luck! Material Files supports this
+                                fileUri = lp.toUri()
+                            } else { // ¯\_(ツ)_/¯
+                                val pfd = contentResolver.openFileDescriptor(uri, "r")
+                                if (pfd == null) return@run null
+                                val l = try {
+                                    Os.readlink("/proc/self/fd/" + pfd.fd)
+                                } catch (e: ErrnoException) {
+                                    Log.w(TAG, e)
+                                    return@run null
+                                } finally {
+                                    pfd.close()
+                                }
+                                val f = File(l)
+                                if (/* f.exists() && */ f.canRead())
+                                    fileUri = "file://$l".toUri()
+                                else
+                                    Log.w(TAG, "found $l from fd but it doesn't exist")
+                            }
+                            null
                         }
+                    else null
+                    Log.i(TAG, "Audio preview opening $uri with query=$queryUri file=$fileUri")
+                    val cursor = if (queryUri != null || fileUri != null) contentResolver.query(
+                        queryUri ?: MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        arrayOf(
+                            MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION,
+                            MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.DATA
+                        ),
+                        if (queryUri == null)
+                            MediaStore.Audio.Media.DATA + " = ?" else null,
+                        if (queryUri == null) arrayOf(fileUri!!.toFile().absolutePath) else null,
                         null
-                    }
-                else null
-                Log.i(TAG, "Audio preview opening $uri with query=$queryUri file=$fileUri")
-                val cursor = if (queryUri != null || fileUri != null) contentResolver.query(
-                    queryUri ?: MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                    arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DURATION,
-                        MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.DATA),
-                    if (queryUri == null)
-                        MediaStore.Audio.Media.DATA + " = ?" else null,
-                    if (queryUri == null) arrayOf(fileUri!!.toFile().absolutePath) else null,
-                    null
-                ) else null
-                val mediaItem = MediaItem.Builder()
-                run {
-                    if (cursor?.moveToFirst() == true) {
-                        val id = cursor.getLong(
-                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                        )
-                        if (id != 0L) {
-                            val durationMs = cursor.getLong(
-                                cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                    ) else null
+                    val mediaItem = MediaItem.Builder()
+                    var visible = false
+                    run {
+                        if (cursor?.moveToFirst() == true) {
+                            val id = cursor.getLong(
+                                cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                             )
-                            val title = cursor.getString(
-                                cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                            )
-                            val data = cursor.getString(
-                                cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                            )
-                            mediaItem.setUri(File(data).toUriCompat())
-                            mediaItem.setMediaId(id.toString())
-                            mediaItem.setMediaMetadata(
-                                MediaMetadata.Builder()
-                                    .setTitle(title)
-                                    .setDurationMs(durationMs)
-                                    .build()
-                            )
-                            openIcon.visibility = View.VISIBLE
-                            openText.visibility = View.VISIBLE
-                            Log.i(
-                                TAG,
-                                "Audio preview found ID $id for query=$queryUri file=$fileUri (was uri=$uri)"
-                            )
-                            return@run
+                            if (id != 0L) {
+                                val durationMs = cursor.getLong(
+                                    cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                                )
+                                val title = cursor.getString(
+                                    cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                                )
+                                val data = cursor.getString(
+                                    cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                                )
+                                mediaItem.setUri(File(data).toUriCompat())
+                                mediaItem.setMediaId(id.toString())
+                                mediaItem.setMediaMetadata(
+                                    MediaMetadata.Builder()
+                                        .setTitle(title)
+                                        .setDurationMs(durationMs)
+                                        .build()
+                                )
+                                visible = true
+                                Log.i(
+                                    TAG,
+                                    "Audio preview found ID $id for query=$queryUri file=$fileUri (was uri=$uri)"
+                                )
+                                return@run
+                            } else {
+                                Log.i(
+                                    TAG,
+                                    "Audio preview found no ID for query=$queryUri file=$fileUri (was uri=$uri)"
+                                )
+                            }
                         } else {
                             Log.i(
                                 TAG,
-                                "Audio preview found no ID for query=$queryUri file=$fileUri (was uri=$uri)"
+                                "Audio preview found no data for query=$queryUri file=$fileUri (was uri=$uri)"
                             )
                         }
-                    } else {
-                        Log.i(TAG, "Audio preview found no data for query=$queryUri file=$fileUri (was uri=$uri)")
+                        mediaItem.setUri(fileUri ?: queryUri ?: uri)
                     }
-                    openIcon.visibility = View.GONE
-                    openText.visibility = View.GONE
-                    mediaItem.setUri(fileUri ?: queryUri ?: uri)
+                    cursor?.close()
+                    withContext(Dispatchers.Main) {
+                        if (visible) {
+                            openIcon.visibility = View.VISIBLE
+                            openText.visibility = View.VISIBLE
+                        } else {
+                            openIcon.visibility = View.GONE
+                            openText.visibility = View.GONE
+                        }
+                        try {
+                            player.setMediaItem(mediaItem.build())
+                        } catch (e: IllegalStateException) {
+                            if (e.message?.startsWith("No suitable media source factory found for content type:") != true)
+                                throw e
+                            Toast.makeText(this@AudioPreviewActivity, R.string.cannot_play_file, Toast.LENGTH_LONG).show()
+                            finish()
+                            return@withContext
+                        }
+                        player.prepare()
+                        player.play()
+                    }
                 }
-                try {
-                    player.setMediaItem(mediaItem.build())
-                } catch (e: IllegalStateException) {
-                    if (e.message?.startsWith("No suitable media source factory found for content type:") != true)
-                        throw e
-                    Toast.makeText(this, R.string.cannot_play_file, Toast.LENGTH_LONG).show()
-                    finish()
-                    return
-                }
-                player.prepare()
-                player.play()
-                cursor?.close()
             }
         }
     }

@@ -14,14 +14,16 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
+import androidx.annotation.OptIn
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
+import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService
-import androidx.core.net.toUri
 
 private inline val service
     get() = GramophonePlaybackService.instanceForWidgetAndLyricsOnly
@@ -147,9 +149,10 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
         ForegroundColorSpan(ContextCompat.getColor(themeContext, R.color.sl_lyric_active))
 
     override fun getViewAt(position: Int): RemoteViews? {
+        @OptIn(UnstableApi::class)
         val cPos = runBlocking {
             withContext(Dispatchers.Main) {
-                service?.controller?.contentPosition
+                service?.endedWorkaroundPlayer?.contentPosition
             }
         }
         val item = service?.syncedLyrics?.text?.getOrNull(position)
