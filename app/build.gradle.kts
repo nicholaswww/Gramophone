@@ -263,7 +263,7 @@ dependencies {
     implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("androidx.transition:transition-ktx:1.6.0") // <-- for predictive back TODO can we remove explicit dep now?
     implementation("com.mikepenz:aboutlibraries:$aboutLibsVersion")
-    implementation("com.google.android.material:material:1.13.0-alpha12")
+    implementation("com.google.android.material:material:1.13.0-alpha13")
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
     implementation("io.coil-kt.coil3:coil:3.1.0")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
