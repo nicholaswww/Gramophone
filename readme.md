@@ -58,5 +58,22 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 - GitHub/F-Droid/IzzyOnDroid certificate SHA-256 digest: f451197ad7b80bd1bc981ba38a2c49d471856fb38bcc333676d6e8f8f3ce5d6e
 - Play Store certificate SHA-256 digest: 178869b0f9130d145b53404df4d4e5e311095406cb3c51a3e7a4b03bb3e87786
 
+## FAQ
+
+**Why can't I see songs shorter than 60 seconds?**
+Gramophone hides songs shorter than 60 seconds by default. You can change it in _Three dots > Settings > Behaviour_ (set the setting to 0 to show all songs).
+
+**I changed the min length setting, but some songs are still missing!**
+Make sure you haven't excluded the folder in _Behaviour > Folder blacklist_.
+Then, try to reboot your phone, then wait a few minutes (this will rescan the system-wide media database Gramophone uses to find songs).
+If it's still not visible, your system version may not support the song: this most commonly is observed for .opus, which will only be found since Android 10.
+
+**My song isn't playing! / My song is playing, but it's completely silent, yet the volume is turned up!**
+Please note that Gramophone relys on system media codecs to make the app smaller. This means
+- int32 (32-bit) FLAC files will only work on Android 14 or later
+- FLAC files in general will only work on Android 8 or later
+- ALAC files will most likely not work at all
+- Dolby Digital (AC-3) / Dolby Digital Plus (E-AC-3) requires a device that has licensed decoders for these formats
+
 ## Friends
 [SongSync](https://github.com/lambada10/songsync)
