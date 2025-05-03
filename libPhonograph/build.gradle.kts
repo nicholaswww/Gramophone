@@ -14,7 +14,7 @@ android {
         testFixtures {
             enable = true
         }
-        minSdk = 16
+        minSdk = 21
         consumerProguardFiles("consumer-rules.pro")
     }
 

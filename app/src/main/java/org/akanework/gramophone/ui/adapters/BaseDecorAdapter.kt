@@ -38,7 +38,7 @@ import org.akanework.gramophone.ui.getAdapterType
 open class BaseDecorAdapter<T : BaseAdapter<*>>(
     protected val adapter: T,
     private val pluralStr: Int,
-    private val isSubFragment: Boolean = false
+    private val isSubFragment: Boolean
 ) : MyRecyclerView.Adapter<BaseDecorAdapter<T>.ViewHolder>(), ItemHeightHelper {
 
     protected val context: Context = adapter.context
@@ -56,7 +56,7 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
         return ViewHolder(view)
     }
 
-    final override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val count = adapter.itemCount
         holder.playAll.visibility =
             if (adapter is SongAdapter) View.VISIBLE else View.GONE
@@ -245,6 +245,7 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
         view: View,
     ) : RecyclerView.ViewHolder(view) {
         val sortButton: MaterialButton = view.findViewById(R.id.sort)
+        val createPlaylist: MaterialButton = view.findViewById(R.id.create_playlist)
         val playAll: MaterialButton = view.findViewById(R.id.play_all)
         val shuffleAll: MaterialButton = view.findViewById(R.id.shuffle_all)
         val jumpUp: MaterialButton = view.findViewById(R.id.jumpUp)

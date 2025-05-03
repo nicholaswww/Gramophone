@@ -430,18 +430,33 @@ internal object Reader {
             @Suppress("DEPRECATION")
             MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI, arrayOf(
                 @Suppress("DEPRECATION") MediaStore.Audio.Playlists._ID,
-                @Suppress("DEPRECATION") MediaStore.Audio.Playlists.NAME
+                @Suppress("DEPRECATION") MediaStore.Audio.Playlists.NAME,
+                @Suppress("DEPRECATION") MediaStore.Audio.Playlists.DATA,
+                @Suppress("DEPRECATION") MediaStore.Audio.Playlists.DATE_ADDED,
+                @Suppress("DEPRECATION") MediaStore.Audio.Playlists.DATE_MODIFIED
             ), null, null, null
         )?.use {
             val playlistIdColumn = it.getColumnIndexOrThrow(
                 @Suppress("DEPRECATION") MediaStore.Audio.Playlists._ID
             )
+            val playlistPathColumn = it.getColumnIndexOrThrow(
+                @Suppress("DEPRECATION") MediaStore.Audio.Playlists.DATA
+            )
             val playlistNameColumn = it.getColumnIndexOrThrow(
                 @Suppress("DEPRECATION") MediaStore.Audio.Playlists.NAME
+            )
+            val playlistDateAddedColumn = it.getColumnIndexOrThrow(
+                @Suppress("DEPRECATION") MediaStore.Audio.Playlists.DATE_ADDED
+            )
+            val playlistDateModifiedColumn = it.getColumnIndexOrThrow(
+                @Suppress("DEPRECATION") MediaStore.Audio.Playlists.DATE_MODIFIED
             )
             while (it.moveToNext()) {
                 val playlistId = it.getLong(playlistIdColumn)
                 val playlistName = it.getString(playlistNameColumn)?.ifEmpty { null }
+                val playlistPath = it.getString(playlistPathColumn)?.ifEmpty { null }
+                val playlistDateAdded = it.getLongOrNullIfThrow(playlistDateAddedColumn)
+                val playlistDateModified = it.getLongOrNullIfThrow(playlistDateModifiedColumn)
                 val content = mutableListOf<Long>()
                 context.contentResolver.query(
                     @Suppress("DEPRECATION") MediaStore.Audio
@@ -458,7 +473,8 @@ internal object Reader {
                         content.add(cursor.getLong(column))
                     }
                 }
-                playlists.add(RawPlaylist(playlistId, playlistName, content))
+                playlists.add(RawPlaylist(playlistId, playlistName, playlistPath?.let { File(it) },
+                    playlistDateAdded, playlistDateModified, content))
             }
         }
         return Pair(playlists, foundPlaylistContent)

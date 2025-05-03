@@ -1,0 +1,49 @@
+package uk.akane.libphonograph.manipulator
+
+import android.content.Context
+import android.media.MediaScannerConnection
+import android.util.Log
+import java.io.File
+
+object PlaylistSerializer {
+    private const val TAG = "PlaylistSerializer"
+
+    @Throws(UnsupportedPlaylistFormatException::class)
+    fun write(context: Context, outFile: File, songs: List<File>) {
+        val format = when (outFile.extension.lowercase()) {
+            "m3u", "m3u8" -> PlaylistFormat.M3u
+            // "xspf" -> PlaylistFormat.Xspf
+            // "wpl" -> PlaylistFormat.Wpl
+            // "pls" -> PlaylistFormat.Pls
+            else -> throw UnsupportedPlaylistFormatException(outFile.extension)
+        }
+        write(context, format, outFile, songs)
+    }
+
+    private fun write(context: Context, format: PlaylistFormat, outFile: File, songs: List<File>) {
+        when (format) {
+            PlaylistFormat.M3u -> {
+                val parent = outFile.parentFile ?: throw NullPointerException("parentFile of playlist is null")
+                val out = "#EXTM3U\n" + songs.joinToString("\n") { it.relativeTo(parent).toString() }.trim()
+                outFile.writeText(out)
+            }
+            PlaylistFormat.Xspf -> TODO()
+            PlaylistFormat.Wpl -> TODO()
+            PlaylistFormat.Pls -> TODO()
+        }
+        MediaScannerConnection.scanFile(context, arrayOf(outFile.toString()), null) { path, uri ->
+            if (uri == null) {
+                Log.e(TAG, "failed to scan playlist $path")
+            }
+        }
+    }
+
+    private enum class PlaylistFormat {
+        M3u,
+        Xspf,
+        Wpl,
+        Pls,
+    }
+
+    class UnsupportedPlaylistFormatException(extension: String) : Exception(extension)
+}

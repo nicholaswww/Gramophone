@@ -102,7 +102,7 @@ class ArtistAdapter(
 
     private class ArtistDecorAdapter(
         artistAdapter: ArtistAdapter
-    ) : BaseDecorAdapter<ArtistAdapter>(artistAdapter, R.plurals.artists) {
+    ) : BaseDecorAdapter<ArtistAdapter>(artistAdapter, R.plurals.artists, false) {
 
         override fun onSortButtonPressed(popupMenu: PopupMenu) {
             popupMenu.menu.findItem(R.id.album_artist_checkbox).isVisible = true

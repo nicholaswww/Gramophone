@@ -1,13 +1,18 @@
 package uk.akane.libphonograph.items
 
 import androidx.media3.common.MediaItem
+import java.io.File
 
 open class Playlist protected constructor(
     override val id: Long?,
-    override val title: String?
+    override val title: String?,
+    val path: File?,
+    val dateAdded: Long?,
+    val dateModified: Long?,
 ) : Item {
     private var _songList: List<MediaItem>? = null
-    constructor(id: Long?, title: String?, songList: List<MediaItem>) : this(id, title) {
+    constructor(id: Long?, title: String?, path: File?, dateAdded: Long?, dateModified: Long?,
+                songList: List<MediaItem>) : this(id, title, path, dateAdded, dateModified) {
         _songList = songList
     }
     override val songList: List<MediaItem>
@@ -38,11 +43,14 @@ open class Playlist protected constructor(
 internal data class RawPlaylist(
     val id: Long?,
     val title: String?,
+    val path: File?,
+    val dateAdded: Long?,
+    val dateModified: Long?,
     val songList: List<Long>
 ) {
     // idMap may be null if and only if all playlists are empty
     fun toPlaylist(idMap: Map<Long, MediaItem>?): Playlist {
-        return Playlist(id, title, songList.mapNotNull { value ->
+        return Playlist(id, title, path, dateAdded, dateModified, songList.mapNotNull { value ->
             idMap!![value]
             // if song is null it's 100% of time a library (or MediaStore?) bug
             // and because I found the MediaStore bug in the wild, don't be so stingy

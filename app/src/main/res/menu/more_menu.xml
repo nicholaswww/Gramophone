@@ -10,6 +10,10 @@
         android:id="@+id/artist"
         android:title="@string/go_to_artist" />
     <item
+        android:id="@+id/rename"
+        android:title="@string/rename"
+        android:visible="false" />
+    <item
         android:id="@+id/details"
         android:title="@string/details" />
     <item
