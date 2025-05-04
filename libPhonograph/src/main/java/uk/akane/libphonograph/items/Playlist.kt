@@ -9,10 +9,11 @@ open class Playlist protected constructor(
     val path: File?,
     val dateAdded: Long?,
     val dateModified: Long?,
+    val hasGaps: Boolean,
 ) : Item {
     private var _songList: List<MediaItem>? = null
     constructor(id: Long?, title: String?, path: File?, dateAdded: Long?, dateModified: Long?,
-                songList: List<MediaItem>) : this(id, title, path, dateAdded, dateModified) {
+                hasGaps: Boolean, songList: List<MediaItem>) : this(id, title, path, dateAdded, dateModified, hasGaps) {
         _songList = songList
     }
     override val songList: List<MediaItem>
@@ -46,14 +47,14 @@ internal data class RawPlaylist(
     val path: File?,
     val dateAdded: Long?,
     val dateModified: Long?,
-    val songList: List<Long>
+    val songList: List<Long?>
 ) {
     // idMap may be null if and only if all playlists are empty
     fun toPlaylist(idMap: Map<Long, MediaItem>?): Playlist {
-        return Playlist(id, title, path, dateAdded, dateModified, songList.mapNotNull { value ->
-            idMap!![value]
-            // if song is null it's 100% of time a library (or MediaStore?) bug
-            // and because I found the MediaStore bug in the wild, don't be so stingy
-        })
+        val result = songList.mapNotNull { value ->
+            value?.let { idMap!![value] }
+            // if we have an id and it's not in the map, something's weird. but it's not a crash-worthy offense
+        }
+        return Playlist(id, title, path, dateAdded, dateModified, result.size != songList.size, result)
     }
 }

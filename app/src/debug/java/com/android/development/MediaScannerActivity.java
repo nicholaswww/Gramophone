@@ -41,10 +41,12 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
 import org.akanework.gramophone.R;
+import org.akanework.gramophone.logic.utils.SdScanner;
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
 import org.jaudiotagger.audio.exceptions.CannotReadException;
@@ -224,9 +226,7 @@ public class MediaScannerActivity extends Activity {
     }
 
 	public void startScan(View v) {
-		/*SdScanner.Companion.scan(getApplicationContext(),
-				new File("/storage/emulated/0//"),
-				false,
+		SdScanner.Companion.scanEverything(getApplicationContext(), 250,
 				prog -> {
 			android.util.Log.e("test", prog.getStep() + " " + prog.getPercentage() + "% " + prog.getPath());
 			mHandler.post(() -> {
@@ -237,11 +237,7 @@ public class MediaScannerActivity extends Activity {
 					Toast.makeText(getApplicationContext(), "Scan progress " + prog.getPercentage(), Toast.LENGTH_SHORT).show();
 				}
 			});
-				});*/
-		startActivity(new Intent(Intent.ACTION_RUN)
-				.setClassName("com.gmail.jerickson314.sdscanner",
-						"com.gmail.jerickson314.sdscanner.MainActivity"));
-		finishAndRemoveTask();
+		});
 	}
 
 	/**

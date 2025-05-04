@@ -35,10 +35,14 @@ import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.clone
@@ -46,6 +50,7 @@ import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.getSessionId
 import org.akanework.gramophone.logic.needsManualSnackBarInset
 import org.akanework.gramophone.logic.updateMargin
+import org.akanework.gramophone.logic.utils.SdScanner
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.adapters.ViewPager2Adapter
 import org.akanework.gramophone.ui.fragments.settings.MainSettingsActivity
@@ -115,58 +120,80 @@ class ViewPagerFragment : BaseFragment(true) {
                 }
 
                 R.id.refresh -> {
+                    val context = requireContext()
                     val playerLayout = activity.playerBottomSheet
-                    activity.updateLibrary {
-                        val snackBar =
-                            Snackbar.make(
-                                requireView(),
-                                getString(
-                                    R.string.refreshed_songs,
-                                    runBlocking { activity.reader.songListFlow.first().size },
-                                ),
-                                Snackbar.LENGTH_LONG,
-                            )
-                        snackBar.setAction(R.string.dismiss) {
-                            snackBar.dismiss()
-                        }
-
-                        /*
-                         * Let's override snack bar's color here so it would
-                         * adapt dark mode.
-                         */
-                        snackBar.setBackgroundTint(
-                            MaterialColors.getColor(
-                                snackBar.view,
-                                com.google.android.material.R.attr.colorSurface,
-                            ),
-                        )
-                        snackBar.setActionTextColor(
-                            MaterialColors.getColor(
-                                snackBar.view,
-                                com.google.android.material.R.attr.colorPrimary,
-                            ),
-                        )
-                        snackBar.setTextColor(
-                            MaterialColors.getColor(
-                                snackBar.view,
-                                com.google.android.material.R.attr.colorOnSurface,
-                            ),
-                        )
-
-                        // Set an anchor for snack bar.
-                        if (playerLayout.visible && playerLayout.actuallyVisible)
-                            snackBar.anchorView = playerLayout
-                        else if (needsManualSnackBarInset()) {
-                            // snack bar only implements proper insets handling for Q+
-                            snackBar.view.updateMargin {
-                                val i = ViewCompat.getRootWindowInsets(activity.window.decorView)
-                                if (i != null) {
-                                    bottom += i.clone()
-                                        .getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+                    MaterialAlertDialogBuilder(context)
+                        .setIcon(R.drawable.ic_refresh)
+                        .setTitle(R.string.did_you_know)
+                        .setMessage(R.string.refresh_did_you_know)
+                        .setPositiveButton(android.R.string.ok) { _, _ -> }
+                        .show()
+                    Toast.makeText(context, R.string.refreshing_wait, Toast.LENGTH_LONG).show()
+                    CoroutineScope(Dispatchers.Default).launch {
+                        SdScanner.scanEverything(context, 5000) { progress ->
+                            if (progress.step != SdScanner.SimpleProgress.Step.DONE) {
+                                val str = if (progress.percentage == null)
+                                    context.getString(R.string.refreshing_wait)
+                                else context.getString(R.string.still_refreshing, progress.step.ordinal,
+                                    SdScanner.SimpleProgress.Step.DONE.ordinal - 1, "${progress.percentage}%")
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    Toast.makeText(context, str, Toast.LENGTH_SHORT).show()
                                 }
+                                return@scanEverything
+                            }
+                            activity.updateLibrary {
+                                val snackBar =
+                                    Snackbar.make(
+                                        requireView(),
+                                        getString(
+                                            R.string.refreshed_songs,
+                                            runBlocking { activity.reader.songListFlow.first().size },
+                                        ),
+                                        Snackbar.LENGTH_LONG,
+                                    )
+                                snackBar.setAction(R.string.dismiss) {
+                                    snackBar.dismiss()
+                                }
+
+                                /*
+                                 * Let's override snack bar's color here so it would
+                                 * adapt dark mode.
+                                 */
+                                snackBar.setBackgroundTint(
+                                    MaterialColors.getColor(
+                                        snackBar.view,
+                                        com.google.android.material.R.attr.colorSurface,
+                                    ),
+                                )
+                                snackBar.setActionTextColor(
+                                    MaterialColors.getColor(
+                                        snackBar.view,
+                                        com.google.android.material.R.attr.colorPrimary,
+                                    ),
+                                )
+                                snackBar.setTextColor(
+                                    MaterialColors.getColor(
+                                        snackBar.view,
+                                        com.google.android.material.R.attr.colorOnSurface,
+                                    ),
+                                )
+
+                                // Set an anchor for snack bar.
+                                if (playerLayout.visible && playerLayout.actuallyVisible)
+                                    snackBar.anchorView = playerLayout
+                                else if (needsManualSnackBarInset()) {
+                                    // snack bar only implements proper insets handling for Q+
+                                    snackBar.view.updateMargin {
+                                        val i = ViewCompat.getRootWindowInsets(activity.window.decorView)
+                                        if (i != null) {
+                                            bottom += i.clone()
+                                                .getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+                                        }
+                                    }
+                                }
+                                snackBar.show()
                             }
                         }
-                        snackBar.show()
                     }
                 }
 

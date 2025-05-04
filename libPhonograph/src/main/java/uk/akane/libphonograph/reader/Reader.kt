@@ -457,18 +457,29 @@ internal object Reader {
                 val playlistPath = it.getString(playlistPathColumn)?.ifEmpty { null }
                 val playlistDateAdded = it.getLongOrNullIfThrow(playlistDateAddedColumn)
                 val playlistDateModified = it.getLongOrNullIfThrow(playlistDateModifiedColumn)
-                val content = mutableListOf<Long>()
+                val content = mutableListOf<Long?>()
                 context.contentResolver.query(
                     @Suppress("DEPRECATION") MediaStore.Audio
                         .Playlists.Members.getContentUri("external", playlistId), arrayOf(
                         @Suppress("DEPRECATION") MediaStore.Audio.Playlists.Members.AUDIO_ID,
+                        @Suppress("DEPRECATION") MediaStore.Audio.Playlists.Members.PLAY_ORDER,
                     ), null, null, @Suppress("DEPRECATION")
                     MediaStore.Audio.Playlists.Members.PLAY_ORDER + " ASC"
                 )?.use { cursor ->
                     val column = cursor.getColumnIndexOrThrow(
                         @Suppress("DEPRECATION") MediaStore.Audio.Playlists.Members.AUDIO_ID
                     )
+                    val column2 = cursor.getColumnIndexOrThrow(
+                        @Suppress("DEPRECATION") MediaStore.Audio.Playlists.Members.PLAY_ORDER
+                    )
+                    var first: Long? = null
                     while (cursor.moveToNext()) {
+                        val last = first
+                        first = cursor.getLong(column2)
+                        while (last != null && first + 1 != last) {
+                            content.add(null)
+                            first++
+                        }
                         foundPlaylistContent = true
                         content.add(cursor.getLong(column))
                     }

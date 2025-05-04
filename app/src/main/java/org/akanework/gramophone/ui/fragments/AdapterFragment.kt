@@ -17,10 +17,14 @@
 
 package org.akanework.gramophone.ui.fragments
 
+import android.content.IntentSender
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
 import me.zhanghai.android.fastscroll.PopupTextProvider
@@ -46,12 +50,17 @@ import org.akanework.gramophone.ui.adapters.SongAdapter
 class AdapterFragment : BaseFragment(null) {
     private lateinit var adapter: BaseInterface<*>
     private lateinit var recyclerView: MyRecyclerView
+    private var pendingRequest: Bundle? = null
+    private lateinit var intentSender: ActivityResultLauncher<IntentSenderRequest>
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View? {
+        if (savedInstanceState?.containsKey("pendingRequest") == true) {
+            pendingRequest = savedInstanceState.getBundle("pendingRequest")
+        }
         val rootView = inflater.inflate(R.layout.fragment_recyclerview, container, false)
         recyclerView = rootView.findViewById(R.id.recyclerview)
         // TODO share recycled view pool across all RecyclerViews to reduce performance hit when swiping
@@ -60,7 +69,26 @@ class AdapterFragment : BaseFragment(null) {
         recyclerView.adapter = adapter.concatAdapter
         recyclerView.setAppBar((requireParentFragment() as ViewPagerFragment).appBarLayout)
         recyclerView.fastScroll(adapter, adapter.itemHeightHelper)
+        (adapter as? RequestAdapter)?.let { it1 ->
+            intentSender =
+                registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+                    it1.onRequest(it.resultCode, pendingRequest.also { pendingRequest = null }
+                        ?: throw IllegalStateException("pendingRequest null, why?"))
+                }
+        }
         return rootView
+    }
+
+    fun startRequest(sender: IntentSender, data: Bundle) {
+        pendingRequest = data
+        intentSender.launch(IntentSenderRequest.Builder(sender).build())
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        if (pendingRequest != null) {
+            outState.putBundle("pendingRequest", pendingRequest)
+        }
     }
 
     private fun createAdapter(): BaseInterface<*> {
@@ -82,5 +110,9 @@ class AdapterFragment : BaseFragment(null) {
         : MyRecyclerView.Adapter<T>(), PopupTextProvider {
         abstract val concatAdapter: ConcatAdapter
         abstract val itemHeightHelper: ItemHeightHelper?
+    }
+
+    interface RequestAdapter {
+        fun onRequest(resultCode: Int, data: Bundle)
     }
 }

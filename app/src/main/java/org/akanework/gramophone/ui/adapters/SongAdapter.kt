@@ -30,7 +30,10 @@ import androidx.fragment.app.activityViewModels
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.logic.requireMediaStoreId
@@ -206,7 +209,9 @@ class SongAdapter(
                             .setTitle(R.string.delete)
                             .setMessage(context.getString(R.string.delete_really, item.mediaMetadata.title))
                             .setPositiveButton(R.string.yes) { _, _ ->
-                                res.continueDelete?.invoke()
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    res.continueDelete?.invoke()
+                                }
                             }
                             .setNegativeButton(R.string.no) { _, _ -> }
                             .show()
@@ -246,6 +251,11 @@ class SongAdapter(
                             Toast.LENGTH_SHORT
                         ).show()
                     }
+                    true
+                }
+
+                R.id.add_to_playlist -> {
+                    mainActivity.addToPlaylistDialog(item.getFile())
                     true
                 }
 

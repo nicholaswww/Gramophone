@@ -259,7 +259,7 @@ class BugHandlerActivity : AppCompatActivity() {
                     }
                 }
             }.show()
-        val til = DialogCompat.requireViewById(d as AlertDialog, R.id.textInputLayout) as TextInputLayout
+        val til = DialogCompat.requireViewById(d, R.id.textInputLayout) as TextInputLayout
         val et = DialogCompat.requireViewById(d, R.id.editText) as TextInputEditText
         val b = d.getButton(DialogInterface.BUTTON_POSITIVE)
         b.isEnabled = false

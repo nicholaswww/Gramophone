@@ -1,35 +1,37 @@
-package org.akanework.gramophone
+package org.akanework.gramophone.logic.utils
 
 import android.content.Context
 import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.storage.StorageManager
 import android.provider.MediaStore
 import android.util.Log
+import androidx.core.content.getSystemService
 import androidx.core.util.Consumer
 import java.io.File
 import java.io.IOException
 
-
 /**
  * Rewrite of jerickson314's great SD Scanner for Lollipop as utility class
- * TODO: well why is it not working?
  * https://github.com/jerickson314/sdscanner/blob/master/src/com/gmail/jerickson314/sdscanner/ScanFragment.java
  */
-class SdScanner(private val context: Context) {
-	var progressFrequencyMs = 250
+class SdScanner(private val context: Context, var progressFrequencyMs: Int = 250) {
 	val progress = SimpleProgress()
 	private val filesToProcess = hashSetOf<File>()
 	private var lastUpdate = 0L
-	private var root: File? = null
+	private var roots: Set<File>? = null
 	private var ignoreDb: Boolean? = null
 
-	fun scan(inRoot: File, inIgnoreDb: Boolean) {
-		root = inRoot
+	fun scan(inRoots: Set<File>, inIgnoreDb: Boolean) {
+		roots = inRoots
 		this.ignoreDb = inIgnoreDb
 		lastUpdate = System.currentTimeMillis()
-		progress.set(
-			SimpleProgress.Step.DIR_SCAN, root!!.path, null)
-		recursiveAddFiles(root!!)
+		for (root in roots!!) {
+			progress.set(SimpleProgress.Step.DIR_SCAN, root.path, null)
+			recursiveAddFiles(root)
+		}
 		context.contentResolver.query(
 			MediaStore.Files.getContentUri("external"),
 			arrayOf(
@@ -95,7 +97,7 @@ class SdScanner(private val context: Context) {
 		progress.set(SimpleProgress.Step.DONE, null, 100)
 		progress.reset()
 		filesToProcess.clear()
-		root = null
+		roots = null
 		ignoreDb = null
 	}
 
@@ -122,18 +124,11 @@ class SdScanner(private val context: Context) {
 		if (!file.canRead()) {
 			Log.w("SdScanner", "cannot read $file")
 		}
-		Log.w("SdScanner", " read $file")
-		if (file.isDirectory()) {
-			val nomedia = File(file, ".nomedia").exists()
-			// Only recurse downward if not blocked by nomedia.
-			if (!nomedia) {
-				val files = file.listFiles()
-				if (files != null) {
-					for (nextFile in files) {
-						recursiveAddFiles(
-							nextFile.getCanonicalFile()
-						)
-					}
+		if (file.isDirectory) {
+			val files = file.listFiles()
+			if (files != null) {
+				for (nextFile in files) {
+					recursiveAddFiles(nextFile.canonicalFile)
 				}
 			}
 		}
@@ -141,22 +136,15 @@ class SdScanner(private val context: Context) {
 
 	@Throws(IOException::class)
 	fun shouldScan(inFile: File?, fromDb: Boolean): Boolean {
-		// Empty directory check.
 		var file = inFile
-		if (file!!.isDirectory()) {
-			val files = file.listFiles()
-			if (files.isNullOrEmpty()) {
-				return false
-			}
-		}
 		if (ignoreDb != false && fromDb) {
 			return true
 		}
 		while (file != null) {
-			if (file == root) {
+			if (roots!!.contains(file)) {
 				return true
 			}
-			file = file.getParentFile()
+			file = file.parentFile
 		}
 		return false
 	}
@@ -200,14 +188,14 @@ class SdScanner(private val context: Context) {
 		}
 
 		enum class Step {
-			NOT_STARTED, DONE, DATABASE, DIR_SCAN, SCAN
+			NOT_STARTED, DIR_SCAN, DATABASE, SCAN, DONE
 		}
 	}
 
 	companion object {
-		fun scan(context: Context, root: File, ignoreDb: Boolean,
-		         listener: Consumer<SimpleProgress>? = null) {
-			val scanner = SdScanner(context)
+		fun scan(context: Context, root: File, ignoreDb: Boolean, progressFrequencyMs: Int = 250,
+                 listener: Consumer<SimpleProgress>? = null) {
+			val scanner = SdScanner(context, progressFrequencyMs)
 			if (listener != null) {
 				scanner.progress.addListener { t ->
 					if (t.step == SimpleProgress.Step.DONE) {
@@ -217,7 +205,36 @@ class SdScanner(private val context: Context) {
 					listener.accept(t)
 				}
 			}
-			scanner.scan(root, ignoreDb)
+			scanner.scan(setOf(root), ignoreDb)
+		}
+
+		fun scanEverything(context: Context, progressFrequencyMs: Int = 250, listener: Consumer<SimpleProgress>? = null) {
+			val scanner = SdScanner(context, progressFrequencyMs)
+			if (listener != null) {
+				scanner.progress.addListener { t ->
+					if (t.step == SimpleProgress.Step.DONE) {
+						// remove listener again to avoid leaking memory
+						scanner.cleanup()
+					}
+					listener.accept(t)
+				}
+			}
+			val roots = hashSetOf<File>()
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+				for (volume in context.getSystemService<StorageManager>()!!.storageVolumes) {
+					if (volume.mediaStoreVolumeName == null) continue
+					if (!volume.state.startsWith(Environment.MEDIA_MOUNTED)) continue
+					roots.add(volume.directory!!)
+				}
+			} else {
+				val volumes = context.getExternalFilesDirs(null).map { it.parentFile!!.parentFile!! }
+				for (volume in volumes) {
+					if (!Environment.getExternalStorageState(volume)
+						.startsWith(Environment.MEDIA_MOUNTED)) continue
+					roots.add(volume)
+				}
+			}
+			scanner.scan(roots, false)
 		}
 	}
 }

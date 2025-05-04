@@ -36,7 +36,7 @@
             android:visibility="gone"
             app:tooltipText="@string/create_playlist"
             android:contentDescription="@string/create_playlist"
-            app:icon="@drawable/outline_add_box_24"
+            app:icon="@drawable/outline_add_24"
             app:iconGravity="textStart"
             app:iconPadding="0dp"
             app:iconSize="26dp"

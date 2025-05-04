@@ -19,12 +19,16 @@ package org.akanework.gramophone.ui
 
 import android.annotation.SuppressLint
 import android.app.NotificationManager
+import android.content.ContentUris
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PersistableBundle
+import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.view.Choreographer
@@ -48,8 +52,12 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.DefaultMediaNotificationProvider
 import coil3.imageLoader
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -63,8 +71,11 @@ import org.akanework.gramophone.logic.hasScopedStorageV2
 import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import org.akanework.gramophone.logic.needsMissingOnDestroyCallWorkarounds
 import org.akanework.gramophone.logic.postAtFrontOfQueueAsync
+import org.akanework.gramophone.ui.adapters.PlaylistAdapter
 import org.akanework.gramophone.ui.components.PlayerBottomSheet
 import org.akanework.gramophone.ui.fragments.BaseFragment
+import uk.akane.libphonograph.manipulator.ItemManipulator
+import java.io.File
 
 /**
  * MainActivity:
@@ -95,10 +106,12 @@ class MainActivity : AppCompatActivity() {
         private set
     lateinit var intentSender: ActivityResultLauncher<IntentSenderRequest>
         private set
+    private lateinit var addToPlaylistIntentSender: ActivityResultLauncher<IntentSenderRequest>
+    private var pendingRequest: Bundle? = null
 
     fun updateLibrary(then: (() -> Unit)? = null) {
-        // If library load takes more than 3s, exit splash to avoid ANR
-        if (!ready) handler.postDelayed(reportFullyDrawnRunnable, 3000)
+        // If library load takes more than 2s, exit splash to avoid ANR
+        if (!ready) handler.postDelayed(reportFullyDrawnRunnable, 2000)
         CoroutineScope(Dispatchers.Default).launch {
             this@MainActivity.gramophoneApplication.reader.refresh()
             withContext(Dispatchers.Main) {
@@ -116,8 +129,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(controllerViewModel)
         enableEdgeToEdgeProperly()
+        if (savedInstanceState?.containsKey("AddToPlaylistPendingRequest") == true) {
+            pendingRequest = savedInstanceState.getBundle("AddToPlaylistPendingRequest")
+        }
         intentSender =
             registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {}
+        addToPlaylistIntentSender =
+            registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+                doAddToPlaylist(it.resultCode, pendingRequest
+                    ?: throw IllegalStateException("pending playlist add request is null"))
+            }
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(object :
             FragmentLifecycleCallbacks() {
@@ -166,6 +187,99 @@ class MainActivity : AppCompatActivity() {
             if (!this@MainActivity.reader.hadFirstRefresh) {
                 updateLibrary()
             } else onLibraryLoaded() // <-- when recreating activity due to rotation
+        }
+    }
+
+    @kotlin.OptIn(FlowPreview::class)
+    fun addToPlaylistDialog(song: File?) {
+        if (song == null) {
+            Toast.makeText(this@MainActivity, R.string.edit_playlist_failed, Toast.LENGTH_LONG).show()
+            return
+        }
+        // TODO debounce(50) sucks, cant we have up to date values with first()
+        val playlists = runBlocking { reader.playlistListFlow.debounce(50).first().filter { it.id != null } }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.add_to_playlist)
+            .setIcon(R.drawable.ic_playlist_play)
+            .setItems((playlists.map { it.title } + getString(R.string.create_playlist)).toTypedArray())
+            { d, item ->
+                if (playlists.size == item) {
+                    PlaylistAdapter.playlistNameDialog(this, R.string.create_playlist, "") { name ->
+                        CoroutineScope(Dispatchers.Default).launch {
+                            val f = try {
+                                ItemManipulator.createPlaylist(this@MainActivity, name)
+                            } catch (e: Exception) {
+                                Log.e("MainActivity", Log.getStackTraceString(e))
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(this@MainActivity, R.string.create_failed_playlist, Toast.LENGTH_LONG).show()
+                                }
+                                return@launch
+                            }
+                            try {
+                                ItemManipulator.setPlaylistContent(this@MainActivity, f, listOf(song))
+                            } catch (e: Exception) {
+                                Log.e("MainActivity", Log.getStackTraceString(e))
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(this@MainActivity, R.string.edit_playlist_failed, Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    }
+                    return@setItems
+                }
+                val pl = playlists[item]
+                setPlaylist(pl.path!!, ContentUris.withAppendedId(
+                    @Suppress("deprecation") MediaStore.Audio.Playlists.getContentUri("external"), pl.id!!
+                ), true, listOf(song))
+            }
+            .setNegativeButton(android.R.string.cancel) { _, _ -> }
+            .show()
+    }
+
+    fun setPlaylist(playlist: File, uri: Uri, addToEnd: Boolean, songs: List<File>) {
+        setPlaylist(playlist, uri, addToEnd, ArrayList(songs.map { it.absolutePath }))
+    }
+
+    fun setPlaylist(playlist: File, uri: Uri, addToEnd: Boolean, songs: ArrayList<String>) {
+        val data = Bundle().apply {
+            putBoolean("AddToEnd", addToEnd)
+            putStringArrayList("Songs", songs)
+            putString("PlaylistPath", playlist.absolutePath)
+        }
+        if (ItemManipulator.needRequestWrite(this, uri)) {
+            pendingRequest = data
+            val pendingIntent = MediaStore.createWriteRequest(contentResolver, listOf(uri))
+            addToPlaylistIntentSender.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
+        } else {
+            doAddToPlaylist(RESULT_OK, data)
+        }
+    }
+
+    private fun doAddToPlaylist(resultCode: Int, data: Bundle) {
+        if (resultCode == RESULT_OK) {
+            val add = data.getBoolean("AddToEnd")
+            val path = File(data.getString("PlaylistPath")!!)
+            val songs = data.getStringArrayList("Songs")!!.map { File(it) }
+            CoroutineScope(Dispatchers.Default).launch {
+                try {
+                    // TODO add mode
+                    ItemManipulator.setPlaylistContent(this@MainActivity, path, songs)
+                } catch (e: Exception) {
+                    Log.e("MainActivity", Log.getStackTraceString(e))
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, R.string.edit_playlist_failed, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        } else {
+            Toast.makeText(this, R.string.edit_playlist_failed, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle, outPersistentState: PersistableBundle) {
+        super.onSaveInstanceState(outState, outPersistentState)
+        if (pendingRequest != null) {
+            outState.putBundle("AddToPlaylistPendingRequest", pendingRequest)
         }
     }
 
