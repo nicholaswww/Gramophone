@@ -33,4 +33,4 @@ includeBuild(file("media3").toPath().toRealPath().toAbsolutePath().toString()) {
         substitute(module("androidx.media3:media3-session")).using(project(":lib-session"))
     }
 }
-include(":libPhonograph", ":hificore", ":app", ":baselineprofile")
+include(":hificore", ":app", ":baselineprofile")

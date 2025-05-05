@@ -240,7 +240,6 @@ aboutLibraries {
 }
 
 dependencies {
-    implementation(project(":libPhonograph"))
     implementation(project(":hificore"))
     val media3Version = "1.6.1"
     implementation("androidx.activity:activity-ktx:1.10.1")

@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import android.util.Log
 import androidx.core.content.getSystemService
 import androidx.core.util.Consumer
+import org.akanework.gramophone.BuildConfig
 import java.io.File
 import java.io.IOException
 
@@ -209,6 +210,10 @@ class SdScanner(private val context: Context, var progressFrequencyMs: Int = 250
 		}
 
 		fun scanEverything(context: Context, progressFrequencyMs: Int = 250, listener: Consumer<SimpleProgress>? = null) {
+			if (BuildConfig.DEBUG) { // TODO
+				listener?.accept(SimpleProgress().apply { set(SimpleProgress.Step.DONE, "", 0) })
+				return
+			}
 			val scanner = SdScanner(context, progressFrequencyMs)
 			if (listener != null) {
 				scanner.progress.addListener { t ->

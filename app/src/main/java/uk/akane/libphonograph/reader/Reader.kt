@@ -10,15 +10,15 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
+import org.akanework.gramophone.logic.hasAudioPermission
+import org.akanework.gramophone.logic.hasImagePermission
+import org.akanework.gramophone.logic.hasImprovedMediaStore
+import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import uk.akane.libphonograph.Constants
 import uk.akane.libphonograph.getColumnIndexOrNull
 import uk.akane.libphonograph.getIntOrNullIfThrow
 import uk.akane.libphonograph.getLongOrNullIfThrow
 import uk.akane.libphonograph.getStringOrNullIfThrow
-import uk.akane.libphonograph.hasAudioPermission
-import uk.akane.libphonograph.hasImagePermission
-import uk.akane.libphonograph.hasImprovedMediaStore
-import uk.akane.libphonograph.hasScopedStorageWithMediaTypes
 import uk.akane.libphonograph.items.Album
 import uk.akane.libphonograph.items.Artist
 import uk.akane.libphonograph.items.Date
@@ -131,6 +131,7 @@ internal object Reader {
             false
         } else shouldUseEnhancedCoverReading != false
 
+        Thread.sleep(2000)
         var selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         if (shouldIncludeExtraFormat) {
             selection += listOf(

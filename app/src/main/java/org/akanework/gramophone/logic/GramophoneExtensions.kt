@@ -580,7 +580,7 @@ inline fun supportsNotificationPermission(): Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
 @Suppress("NOTHING_TO_INLINE")
-inline fun hasGenreInMediaStore(): Boolean =
+inline fun hasImprovedMediaStore(): Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
 @Suppress("NOTHING_TO_INLINE")

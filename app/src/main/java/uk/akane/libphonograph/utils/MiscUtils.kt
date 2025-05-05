@@ -3,12 +3,11 @@ package uk.akane.libphonograph.utils
 import android.net.Uri
 import android.util.Log
 import androidx.media3.common.MediaItem
-import java.io.File
 import uk.akane.libphonograph.ALLOWED_EXT
-import uk.akane.libphonograph.TAG
 import uk.akane.libphonograph.items.Album
 import uk.akane.libphonograph.items.FileNode
 import uk.akane.libphonograph.items.artistId
+import java.io.File
 
 object MiscUtils {
     internal data class FileNodeImpl(
@@ -82,7 +81,7 @@ object MiscUtils {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, Log.getStackTraceString(e))
+            Log.e("libPhonograph", Log.getStackTraceString(e))
         }
         // allow .jpg or .png files with any name, but only permit more exotic
         // formats if name contains either cover or albumart
@@ -97,7 +96,7 @@ object MiscUtils {
             .groupBy { it }.mapValues { it.value.size }
         if (foundAlbumArtists.size > 2
             || (foundAlbumArtists.size == 2 && !foundAlbumArtists.containsKey(null))) {
-            Log.w(TAG, "Odd, album artists: $foundAlbumArtists for one album exceed 1, " +
+            Log.w("libPhonograph", "Odd, album artists: $foundAlbumArtists for one album exceed 1, " +
                     "MediaStore usually doesn't do that")
             return null
         }

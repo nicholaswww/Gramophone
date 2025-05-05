@@ -83,6 +83,8 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             LSPass.setHiddenApiExemptions("")
         }
+        if (BuildConfig.DEBUG)
+            System.setProperty("kotlinx.coroutines.debug", "on")
     }
 
     val minSongLengthSecondsFlow = MutableSharedFlow<Long>(replay = 1)

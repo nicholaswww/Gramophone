@@ -127,7 +127,7 @@ class ViewPagerFragment : BaseFragment(true) {
                         .setTitle(R.string.did_you_know)
                         .setMessage(R.string.refresh_did_you_know)
                         .setPositiveButton(android.R.string.ok) { _, _ -> }
-                        .show()
+                        //.show() TODO
                     Toast.makeText(context, R.string.refreshing_wait, Toast.LENGTH_LONG).show()
                     CoroutineScope(Dispatchers.Default).launch {
                         SdScanner.scanEverything(context, 5000) { progress ->

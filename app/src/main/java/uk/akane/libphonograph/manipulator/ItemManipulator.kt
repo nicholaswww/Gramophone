@@ -14,13 +14,14 @@ import android.provider.MediaStore
 import android.util.Log
 import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.RequiresApi
-import uk.akane.libphonograph.TAG
+import org.akanework.gramophone.logic.hasScopedStorageV2
 import uk.akane.libphonograph.getStringOrNullIfThrow
-import uk.akane.libphonograph.hasScopedStorageV2
 import java.io.File
 import java.io.IOException
 
 object ItemManipulator {
+    private const val TAG = "ItemManipulator"
+
     fun deleteSong(context: Context, id: Long): DeleteRequest {
         // TODO delete .ttml / .lrc as well if present (using MediaStore.Files because they are subtitles)
         val uri = ContentUris.withAppendedId(

@@ -44,17 +44,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
@@ -63,6 +58,8 @@ import org.akanework.gramophone.logic.ui.DefaultItemHeightHelper
 import org.akanework.gramophone.logic.ui.ItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
+import org.akanework.gramophone.logic.utils.PauseManagingSharedFlow.Companion.sharePauseableIn
+import org.akanework.gramophone.logic.utils.repeatPausingWithLifecycle
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.components.CustomGridLayoutManager
 import org.akanework.gramophone.ui.components.GridPaddingDecoration
@@ -93,7 +90,6 @@ abstract class BaseAdapter<T>(
         get() = context as MainActivity
     internal inline val layoutInflater: LayoutInflater
         get() = fragment.layoutInflater
-    protected var scope: CoroutineScope? = null
     private val listHeight = context.resources.getDimensionPixelSize(R.dimen.list_height)
     private val largerListHeight =
         context.resources.getDimensionPixelSize(R.dimen.larger_list_height)
@@ -105,7 +101,7 @@ abstract class BaseAdapter<T>(
     override val itemHeightHelper by lazy {
         DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, { 1 }, this)
     }
-    protected var list: Pair<List<T>, List<T>>
+    protected var list = Pair<List<T>, List<T>>(emptyList(), emptyList())
     private var layoutManager: RecyclerView.LayoutManager? = null
     protected var recyclerView: MyRecyclerView? = null
         private set
@@ -181,13 +177,34 @@ abstract class BaseAdapter<T>(
                 }
             }
         }.toList()
-    }.shareIn(CoroutineScope(Dispatchers.Default), SharingStarted.WhileSubscribed(5000), replay = 1)
+    }.sharePauseableIn(CoroutineScope(Dispatchers.Default), SharingStarted.WhileSubscribed(), replay = 1) // TODO !!! 5000
     val sortTypes: Set<Sorter.Type>
         get() = if (canSort) sorter.getSupportedTypes() else setOf(Sorter.Type.None)
 
     init {
-        list = runBlocking { flow.first() }
-        onListUpdated()
+        repeatPausingWithLifecycle(fragment.viewLifecycleOwner, Dispatchers.Default) {
+            flow.collectLatest {
+                val old = list
+                if (old === it) {
+                    throw IllegalStateException("error, shouldn't ever see same list twice :/")
+                }
+                val diff = if ((old.second.isNotEmpty<T>() && it.second.isNotEmpty<T>())
+                    || allowDiffUtils
+                )
+                    DiffUtil.calculateDiff(SongDiffCallback(old.second, it.second))
+                else null
+                val sizeChanged = old.second.size != it.second.size
+                withContext(Dispatchers.Main + NonCancellable) {
+                    list = it
+                    if (diff != null)
+                        diff.dispatchUpdatesTo(this@BaseAdapter)
+                    else
+                        @SuppressLint("NotifyDataSetChanged") notifyDataSetChanged()
+                    if (sizeChanged) decorAdapter.updateSongCounter()
+                    onListUpdated()
+                }
+            }
+        }
         layoutType =
             if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType && !isSubFragment)
                 prefLayoutType
@@ -208,7 +225,6 @@ abstract class BaseAdapter<T>(
         val moreButton: MaterialButton = view.findViewById(R.id.more)
     }
 
-    @SuppressLint("NotifyDataSetChanged")
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
         this.recyclerView = recyclerView
@@ -218,31 +234,6 @@ abstract class BaseAdapter<T>(
                 applyLayoutManager()
             }
         }
-        if (scope != null)
-            throw IllegalStateException("scope != null in onAttachedToRecyclerView")
-        scope = CoroutineScope(Dispatchers.Default)
-        scope!!.launch {
-            flow.collectLatest {
-                // The replay cache may cause us seeing the same list more than one. Make sure to
-                // use === (reference equals) to avoid performance hit.
-                val old = list
-                if (old === it) return@collectLatest
-                val diff = if ((old.second.isNotEmpty<T>() && it.second.isNotEmpty<T>())
-                    || allowDiffUtils)
-                            DiffUtil.calculateDiff(SongDiffCallback(old.second, it.second))
-                else null
-                val sizeChanged = old.second.size != it.second.size
-                withContext(Dispatchers.Main + NonCancellable) {
-                    list = it
-                    if (diff != null)
-                        diff.dispatchUpdatesTo(this@BaseAdapter)
-                    else
-                        notifyDataSetChanged()
-                    if (sizeChanged) decorAdapter.updateSongCounter()
-                    onListUpdated()
-                }
-            }
-        }
     }
 
     override fun onDetachedFromRecyclerView(recyclerView: MyRecyclerView) {
@@ -250,8 +241,6 @@ abstract class BaseAdapter<T>(
         if (layoutType == LayoutType.GRID) {
             recyclerView.removeItemDecoration(gridPaddingDecoration)
         }
-        scope!!.cancel()
-        scope = null
         this.recyclerView = null
         if (ownsView) {
             recyclerView.layoutManager = null

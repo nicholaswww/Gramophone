@@ -24,7 +24,7 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.getBitrate
 import org.akanework.gramophone.logic.getFile
-import org.akanework.gramophone.logic.hasGenreInMediaStore
+import org.akanework.gramophone.logic.hasImprovedMediaStore
 import org.akanework.gramophone.logic.toLocaleString
 import org.akanework.gramophone.logic.toMediaStoreId
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
@@ -75,7 +75,7 @@ class DetailDialogFragment : BaseFragment(false) {
         }
         discNumberTextView.text = mediaMetadata.discNumber?.toLocaleString()
         trackNumberTextView.text = mediaMetadata.trackNumber?.toLocaleString()
-        if (hasGenreInMediaStore()) {
+        if (hasImprovedMediaStore()) {
             if (mediaMetadata.genre != null) {
                 genreTextView.text = mediaMetadata.genre
             }
