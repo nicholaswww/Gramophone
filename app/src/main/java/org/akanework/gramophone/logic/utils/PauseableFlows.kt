@@ -17,6 +17,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingCommand
@@ -69,7 +70,7 @@ object EmptyPauseManager : PauseManager {
     }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class) // TODO do we want to use a SharingStarted for this at all? we have no replay cache
 class CountingPauseManager(paused: SharingStarted) : PauseManager {
     private val flows = MutableStateFlow(listOf<PauseManager>())
     override val isPaused = paused.command(flows.flatMapLatest {
@@ -82,9 +83,6 @@ class CountingPauseManager(paused: SharingStarted) : PauseManager {
                 SharingCommand.STOP_AND_RESET_REPLAY_CACHE -> true
             }
         }.stateIn(CoroutineScope(Dispatchers.Default), Eagerly, true)
-    //override val isPaused = flows.flatMapLatest {
-    //    combine(it.map { it.isPaused }) { !it.contains(false) }
-    //}.stateIn(CoroutineScope(Dispatchers.Default), Eagerly, true)
 
     fun add(other: PauseManager) {
         flows.value += other
@@ -157,7 +155,7 @@ class PauseManagingStateFlow<T>(paused: SharingStarted) : StateFlow<T> {
         fun <T> Flow<T>.statePauseableIn(
             scope: CoroutineScope,
             started: SharingStarted,
-            paused: SharingStarted,
+            paused: SharingStarted = WhileSubscribed(),
             initialValue: T
         ): SharedFlow<T> {
             val wrapper = PauseManagingStateFlow<T>(paused)
@@ -169,27 +167,22 @@ class PauseManagingStateFlow<T>(paused: SharingStarted) : StateFlow<T> {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-suspend fun <T> repeatFlowWhenUnpaused(enforcePauseable: Boolean = false, block: suspend () -> T): Flow<T> {
+suspend fun <T> repeatFlowWhenUnpaused(block: suspend () -> T): Flow<T> {
     val pauseManager = currentCoroutineContext()[PauseManager]
-    return if (pauseManager != null) {
-        pauseManager.isPaused.flatMapLatest {
-            if (!it)
-                flowOf(block())
-            else emptyFlow()
-        }
-    } else {
-        if (enforcePauseable)
-            throw IllegalStateException("enforcePauseable is set to true, expected to find PauseManager")
-        flowOf(block())
+        ?: throw IllegalStateException("expected to find PauseManager")
+    return pauseManager.isPaused.flatMapLatest {
+        if (!it)
+            flowOf(block())
+        else emptyFlow()
     }
 }
 
-suspend fun repeatWhenUnpaused(enforcePauseable: Boolean = false, block: suspend () -> Unit) {
-    repeatFlowWhenUnpaused(enforcePauseable, block).collect()
+suspend fun repeatWhenUnpaused(block: suspend () -> Unit) {
+    repeatFlowWhenUnpaused(block).collect()
 }
 
-suspend fun <T> repeatUntilDoneWhenUnpaused(enforcePauseable: Boolean = false, block: suspend () -> T): T {
-    return repeatFlowWhenUnpaused(enforcePauseable, block).first()
+suspend fun <T> repeatUntilDoneWhenUnpaused(block: suspend () -> T): T {
+    return repeatFlowWhenUnpaused(block).first()
 }
 
 fun repeatPausingWithLifecycle(source: LifecycleOwner,
@@ -208,12 +201,12 @@ fun repeatPausingWithLifecycle(source: LifecycleOwner,
 
 // Downstream will still finish processing values, to avoid, wrap downstream in repeatUntilDoneWhenUnpaused
 @OptIn(ExperimentalCoroutinesApi::class)
-fun <T> Flow<T>.bufferAndBlockWhenPaused(capacity: Int = Channel.UNLIMITED, enforcePauseable: Boolean = false): Flow<T> = channelFlow {
+fun <T> Flow<T>.bufferAndBlockWhenPaused(capacity: Int = Channel.UNLIMITED): Flow<T> = channelFlow {
     coroutineScope {
         produce(capacity = capacity) {
             collect { item -> send(item) }
         }.consume {
-            repeatWhenUnpaused(enforcePauseable) {
+            repeatWhenUnpaused {
                 while (true) {
                     val item = receiveCatching()
                     if (item.isClosed) {
@@ -228,5 +221,29 @@ fun <T> Flow<T>.bufferAndBlockWhenPaused(capacity: Int = Channel.UNLIMITED, enfo
 }
 
 @Suppress("NOTHING_TO_INLINE")
-inline fun <T> Flow<T>.conflateAndBlockWhenPaused(enforcePauseable: Boolean = false) =
-    bufferAndBlockWhenPaused(Channel.CONFLATED, enforcePauseable)
+inline fun <T> Flow<T>.conflateAndBlockWhenPaused() = bufferAndBlockWhenPaused(Channel.CONFLATED)
+
+
+// === Replay cache management ===
+
+class ReplayCacheInvalidationManager(val invalidate: () -> Unit) : CoroutineContext.Element {
+    override val key: CoroutineContext.Key<*> get() = Key
+    companion object Key : CoroutineContext.Key<ReplayCacheInvalidationManager>
+}
+
+suspend fun requireReplayCacheInvalidationManager() =
+    currentCoroutineContext()[ReplayCacheInvalidationManager]
+        ?: throw IllegalStateException("Replay cache invalidation not available here")
+
+@OptIn(ExperimentalCoroutinesApi::class)
+fun <T> Flow<T>.provideReplayCacheInvalidationManager() = object : Flow<T> {
+    override suspend fun collect(collector: FlowCollector<T>) {
+        val sharedFlow = collector as? MutableSharedFlow<T>
+            ?: throw IllegalStateException("withReplayCacheInvalidation needs to be used _directly_ before shareIn")
+        if (sharedFlow is MutableStateFlow<T>)
+            throw IllegalStateException("withReplayCacheInvalidation does not support state flows")
+        withContext(ReplayCacheInvalidationManager(sharedFlow::resetReplayCache)) {
+            return@withContext this@provideReplayCacheInvalidationManager.collect(collector)
+        }
+    }
+}

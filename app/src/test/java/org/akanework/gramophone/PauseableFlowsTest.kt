@@ -25,7 +25,7 @@ class PauseableFlowsTest {
                 emit(i++)
                 println("flow: emit ${i-1} took ${System.currentTimeMillis() - start}")
             }
-        }.conflateAndBlockWhenPaused(true)
+        }.conflateAndBlockWhenPaused()
         runBlocking {
             val tpm = TestPauseManager(true)
             val job = launch(Dispatchers.IO.limitedParallelism(1) + tpm) {
