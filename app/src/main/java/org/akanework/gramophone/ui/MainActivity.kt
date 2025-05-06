@@ -56,7 +56,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -196,8 +195,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this@MainActivity, R.string.edit_playlist_failed, Toast.LENGTH_LONG).show()
             return
         }
-        // TODO debounce(50) sucks, cant we have up to date values with first()
-        val playlists = runBlocking { reader.playlistListFlow.debounce(50).first().filter { it.id != null } }
+        val playlists = runBlocking { reader.playlistListFlow.first().filter { it.id != null } }
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.add_to_playlist)
             .setIcon(R.drawable.ic_playlist_play)
@@ -262,8 +260,10 @@ class MainActivity : AppCompatActivity() {
             val songs = data.getStringArrayList("Songs")!!.map { File(it) }
             CoroutineScope(Dispatchers.Default).launch {
                 try {
-                    // TODO add mode
-                    ItemManipulator.setPlaylistContent(this@MainActivity, path, songs)
+                    if (add)
+                        ItemManipulator.addToPlaylist(this@MainActivity, path, songs)
+                    else
+                        ItemManipulator.setPlaylistContent(this@MainActivity, path, songs)
                 } catch (e: Exception) {
                     Log.e("MainActivity", Log.getStackTraceString(e))
                     withContext(Dispatchers.Main) {

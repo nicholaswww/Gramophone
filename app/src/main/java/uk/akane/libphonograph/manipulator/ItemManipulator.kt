@@ -84,6 +84,12 @@ object ItemManipulator {
         }
     }
 
+    fun addToPlaylist(context: Context, out: File, songs: List<File>) {
+        if (!out.exists())
+            throw IllegalArgumentException("tried to change playlist $out that doesn't exist")
+        setPlaylistContent(context, out, PlaylistSerializer.read(out) + songs)
+    }
+
     fun setPlaylistContent(context: Context, out: File, songs: List<File>) {
         if (!out.exists())
             throw IllegalArgumentException("tried to change playlist $out that doesn't exist")

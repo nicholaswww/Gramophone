@@ -20,6 +20,30 @@ object PlaylistSerializer {
         write(context, format, outFile, songs)
     }
 
+    @Throws(UnsupportedPlaylistFormatException::class)
+    fun read(outFile: File): List<File> {
+        val format = when (outFile.extension.lowercase()) {
+            "m3u", "m3u8" -> PlaylistFormat.M3u
+            // "xspf" -> PlaylistFormat.Xspf
+            // "wpl" -> PlaylistFormat.Wpl
+            // "pls" -> PlaylistFormat.Pls
+            else -> throw UnsupportedPlaylistFormatException(outFile.extension)
+        }
+        return read(format, outFile)
+    }
+
+    private fun read(format: PlaylistFormat, outFile: File): List<File> {
+        return when (format) {
+            PlaylistFormat.M3u -> {
+                val lines = outFile.readLines()
+                lines.filter { !it.startsWith('#') }.map { outFile.resolveSibling(it) }
+            }
+            PlaylistFormat.Xspf -> TODO()
+            PlaylistFormat.Wpl -> TODO()
+            PlaylistFormat.Pls -> TODO()
+        }
+    }
+
     private fun write(context: Context, format: PlaylistFormat, outFile: File, songs: List<File>) {
         when (format) {
             PlaylistFormat.M3u -> {

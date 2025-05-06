@@ -477,7 +477,7 @@ internal object Reader {
                     while (cursor.moveToNext()) {
                         val last = first
                         first = cursor.getLong(column2)
-                        while (last != null && first + 1 != last) {
+                        while (last != null && first + 1 < last) {
                             content.add(null)
                             first++
                         }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.provider.MediaStore
 import android.util.Log
 import androidx.media3.common.MediaItem
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -53,11 +54,12 @@ class FlowReader(
     private var awaitingRefresh = false
     var hadFirstRefresh = true
         private set
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(Dispatchers.IO + CoroutineName("FlowReader"))
     private val finishRefreshTrigger = MutableSharedFlow<Unit>(replay = 0)
     private val manualRefreshTrigger = MutableSharedFlow<Unit>(replay = 1)
     init {
-        manualRefreshTrigger.tryEmit(Unit)
+        if (!manualRefreshTrigger.tryEmit(Unit))
+            throw IllegalStateException()
     }
     // Start observing as soon as class gets instantiated. ContentObservers are cheap, and more
     // importantly, this allows us to skip the expensive Reader call if nothing changed while we
@@ -72,14 +74,14 @@ class FlowReader(
     // These expensive Reader calls are only done if we have someone (UI) observing the result AND
     // something changed. The PauseableFlows mechanism allows us to skip any unnecessary work.
     private val rawPlaylistFlow = rawPlaylistVersionFlow
-            .conflateAndBlockWhenPaused(true)
+            //.conflateAndBlockWhenPaused(true) TODO!
             .flatMapLatest {
                 manualRefreshTrigger.mapLatest { _ ->
                     if (context.hasAudioPermission())
                         Reader.fetchPlaylists(context).first
                     else emptyList()
                 }
-            }
+            }.sharePauseableIn(scope, WhileSubscribed(20000), WhileSubscribed(2000), replay = 1)
     private val readerFlow: Flow<ReaderResult> =
         shouldIncludeExtraFormatFlow.distinctUntilChanged().flatMapLatest { shouldIncludeExtraFormat ->
             shouldUseEnhancedCoverReadingFlow.distinctUntilChanged()
@@ -123,7 +125,7 @@ class FlowReader(
             finishRefreshTrigger.emit(Unit)
             awaitingRefresh = true
             hadFirstRefresh = true
-        }.sharePauseableIn(scope, WhileSubscribed(), replay = 1) // TODO 20000
+        }.sharePauseableIn(scope, WhileSubscribed(20000), WhileSubscribed(2000), replay = 1)
     val idMapFlow: Flow<Map<Long, MediaItem>> = readerFlow.map { it.idMap!! }
     val songListFlow: Flow<List<MediaItem>> = readerFlow.map { it.songList }
     private val recentlyAddedFlow = recentlyAddedFilterSecondFlow.distinctUntilChanged()
@@ -135,7 +137,7 @@ class FlowReader(
                 )
             else
                 null
-        }
+        }.sharePauseableIn(scope, WhileSubscribed(20000), WhileSubscribed(2000), replay = 1)
     private val mappedPlaylistsFlow = idMapFlow.combine(rawPlaylistFlow) { idMap, rawPlaylists ->
         rawPlaylists.map { it.toPlaylist(idMap) }
     }
@@ -146,7 +148,7 @@ class FlowReader(
     val dateListFlow: Flow<List<Date>> = readerFlow.map { it.dateList!! }
     val playlistListFlow = mappedPlaylistsFlow.combine(recentlyAddedFlow) { mappedPlaylists, recentlyAdded ->
         if (recentlyAdded != null) mappedPlaylists + recentlyAdded else mappedPlaylists
-    }.sharePauseableIn(scope, WhileSubscribed(), replay = 1) // TODO 20000
+    }
     val folderStructureFlow: Flow<FileNode> = readerFlow.map { it.folderStructure!! }
     val shallowFolderFlow: Flow<FileNode> = readerFlow.map { it.shallowFolder!! }
     val foldersFlow: Flow<Set<String>> = readerFlow.map { it.folders!! }

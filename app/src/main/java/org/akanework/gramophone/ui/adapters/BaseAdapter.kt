@@ -177,7 +177,8 @@ abstract class BaseAdapter<T>(
                 }
             }
         }.toList()
-    }.sharePauseableIn(CoroutineScope(Dispatchers.Default), SharingStarted.WhileSubscribed(), replay = 1) // TODO !!! 5000
+    }.sharePauseableIn(CoroutineScope(Dispatchers.Default), SharingStarted.WhileSubscribed(5000),
+        SharingStarted.WhileSubscribed(2000), replay = 1)
     val sortTypes: Set<Sorter.Type>
         get() = if (canSort) sorter.getSupportedTypes() else setOf(Sorter.Type.None)
 

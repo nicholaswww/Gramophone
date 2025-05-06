@@ -1,11 +1,11 @@
 package org.akanework.gramophone.logic.utils
 
-import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.Job
@@ -19,11 +19,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingCommand
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -39,7 +42,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
 
 interface PauseManager : CoroutineContext.Element {
-    val isPaused: Flow<Boolean>
+    val isPaused: StateFlow<Boolean>
 
     override val key: CoroutineContext.Key<*> get() = Key
     companion object Key : CoroutineContext.Key<PauseManager>
@@ -67,22 +70,34 @@ object EmptyPauseManager : PauseManager {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class CountingPauseManager : PauseManager {
-    private val flows = MutableStateFlow(listOf<Flow<Boolean>>())
-    override val isPaused = flows.mapLatest { it.find { !it.first() } == null } // will pause when 0 items
+class CountingPauseManager(paused: SharingStarted) : PauseManager {
+    private val flows = MutableStateFlow(listOf<PauseManager>())
+    override val isPaused = paused.command(flows.flatMapLatest {
+        combine(it.map { it.isPaused }) { it.size - it.count { it } }
+    }.stateIn(CoroutineScope(Dispatchers.Default), Eagerly, 0))
+        .mapLatest {
+            when (it) {
+                SharingCommand.START -> false
+                SharingCommand.STOP,
+                SharingCommand.STOP_AND_RESET_REPLAY_CACHE -> true
+            }
+        }.stateIn(CoroutineScope(Dispatchers.Default), Eagerly, true)
+    //override val isPaused = flows.flatMapLatest {
+    //    combine(it.map { it.isPaused }) { !it.contains(false) }
+    //}.stateIn(CoroutineScope(Dispatchers.Default), Eagerly, true)
 
     fun add(other: PauseManager) {
-        flows.value += other.isPaused
+        flows.value += other
     }
 
     fun remove(other: PauseManager) {
-        flows.value -= other.isPaused
+        flows.value -= other
     }
 }
 
 @OptIn(ExperimentalForInheritanceCoroutinesApi::class)
-class PauseManagingSharedFlow<T>() : SharedFlow<T> {
-    private val pauseManager = CountingPauseManager()
+class PauseManagingSharedFlow<T>(paused: SharingStarted) : SharedFlow<T> {
+    private val pauseManager = CountingPauseManager(paused)
     lateinit var sharedFlow: SharedFlow<T>
 
     override val replayCache: List<T>
@@ -91,13 +106,11 @@ class PauseManagingSharedFlow<T>() : SharedFlow<T> {
     override suspend fun collect(collector: FlowCollector<T>): Nothing {
         val pm = currentCoroutineContext()[PauseManager] ?: EmptyPauseManager
         try {
-            Log.w("Tag", java.lang.IllegalStateException("register"))
             pauseManager.add(pm)
             withContext(pauseManager) {
                 sharedFlow.collect(collector)
             }
         } finally {
-            Log.w("Tag", java.lang.IllegalStateException("remove"))
             pauseManager.remove(pm)
         }
     }
@@ -106,9 +119,10 @@ class PauseManagingSharedFlow<T>() : SharedFlow<T> {
         fun <T> Flow<T>.sharePauseableIn(
             scope: CoroutineScope,
             started: SharingStarted,
+            paused: SharingStarted,
             replay: Int = 0
         ): SharedFlow<T> {
-            val wrapper = PauseManagingSharedFlow<T>()
+            val wrapper = PauseManagingSharedFlow<T>(paused)
             wrapper.sharedFlow = shareIn(CoroutineScope(scope.coroutineContext + Job(scope.coroutineContext[Job])
                     + wrapper.pauseManager), started, replay)
             return wrapper
@@ -117,8 +131,8 @@ class PauseManagingSharedFlow<T>() : SharedFlow<T> {
 }
 
 @OptIn(ExperimentalForInheritanceCoroutinesApi::class)
-class PauseManagingStateFlow<T>() : StateFlow<T> {
-    private val pauseManager = CountingPauseManager()
+class PauseManagingStateFlow<T>(paused: SharingStarted) : StateFlow<T> {
+    private val pauseManager = CountingPauseManager(paused)
     lateinit var stateFlow: StateFlow<T>
 
     override val replayCache: List<T>
@@ -143,9 +157,10 @@ class PauseManagingStateFlow<T>() : StateFlow<T> {
         fun <T> Flow<T>.statePauseableIn(
             scope: CoroutineScope,
             started: SharingStarted,
+            paused: SharingStarted,
             initialValue: T
         ): SharedFlow<T> {
-            val wrapper = PauseManagingStateFlow<T>()
+            val wrapper = PauseManagingStateFlow<T>(paused)
             wrapper.stateFlow = stateIn(CoroutineScope(scope.coroutineContext + Job(scope.coroutineContext[Job])
                     + wrapper.pauseManager), started, initialValue)
             return wrapper
@@ -158,14 +173,8 @@ suspend fun <T> repeatFlowWhenUnpaused(enforcePauseable: Boolean = false, block:
     val pauseManager = currentCoroutineContext()[PauseManager]
     return if (pauseManager != null) {
         pauseManager.isPaused.flatMapLatest {
-            Log.e("hi", "hii ${pauseManager.isPaused.first()}")
-            if (!it) {
-                try {
-                    flowOf(block())
-                } finally {
-                    Log.e("hi", "byee ${pauseManager.isPaused.first()}")
-                }
-            }
+            if (!it)
+                flowOf(block())
             else emptyFlow()
         }
     } else {
