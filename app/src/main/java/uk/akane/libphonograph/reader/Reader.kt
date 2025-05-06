@@ -131,7 +131,6 @@ internal object Reader {
             false
         } else shouldUseEnhancedCoverReading != false
 
-        Thread.sleep(2000)
         var selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         if (shouldIncludeExtraFormat) {
             selection += listOf(
