@@ -117,7 +117,7 @@ class PauseManagingSharedFlow<T>(paused: SharingStarted) : SharedFlow<T> {
         fun <T> Flow<T>.sharePauseableIn(
             scope: CoroutineScope,
             started: SharingStarted,
-            paused: SharingStarted,
+            paused: SharingStarted = WhileSubscribed(),
             replay: Int = 0
         ): SharedFlow<T> {
             val wrapper = PauseManagingSharedFlow<T>(paused)
