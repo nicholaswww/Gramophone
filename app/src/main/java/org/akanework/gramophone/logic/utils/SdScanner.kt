@@ -227,7 +227,7 @@ class SdScanner(private val context: Context, var progressFrequencyMs: Int = 250
 					roots.add(volume.directory!!)
 				}
 			} else {
-				val volumes = context.getExternalFilesDirs(null).map { it.parentFile!!.parentFile!! }
+				val volumes = context.getExternalFilesDirs(null).map { it.parentFile!!.parentFile!!.parentFile!!.parentFile!! }
 				for (volume in volumes) {
 					if (!Environment.getExternalStorageState(volume)
 						.startsWith(Environment.MEDIA_MOUNTED)) continue

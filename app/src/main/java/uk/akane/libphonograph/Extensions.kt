@@ -43,7 +43,7 @@ abstract class ContentObserverCompat(handler: Handler?) : ContentObserver(handle
             onChange(selfChange, listOf(uri), flags)
     }
 
-    abstract override fun onChange(selfChange: Boolean, uris: Collection<Uri?>, flags: Int)
+    abstract override fun onChange(selfChange: Boolean, uris: Collection<Uri>, flags: Int)
     abstract override fun deliverSelfNotifications(): Boolean
 }
 
@@ -62,7 +62,7 @@ internal fun contentObserverVersioningFlow(
 ): Flow<Long> {
     return versioningCallbackFlow { nextVersion ->
         val listener = object : ContentObserverCompat(null) {
-            override fun onChange(selfChange: Boolean, uris: Collection<Uri?>, flags: Int) {
+            override fun onChange(selfChange: Boolean, uris: Collection<Uri>, flags: Int) {
                 // TODO can we use those uris and flags for incremental reload at least on newer
                 //  platform versions?
                 scope.launch {
