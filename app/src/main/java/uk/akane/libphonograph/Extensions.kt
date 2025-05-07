@@ -64,7 +64,7 @@ internal fun contentObserverVersioningFlow(
         val listener = object : ContentObserverCompat(null) {
             override fun onChange(selfChange: Boolean, uris: Collection<Uri>, flags: Int) {
                 // TODO can we use those uris and flags for incremental reload at least on newer
-                //  platform versions?
+                //  platform versions? completely since R+, Q has no flags, before we get meh deletion handling
                 scope.launch {
                     send(nextVersion())
                 }

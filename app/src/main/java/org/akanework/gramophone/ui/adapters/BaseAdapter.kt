@@ -58,8 +58,8 @@ import org.akanework.gramophone.logic.ui.DefaultItemHeightHelper
 import org.akanework.gramophone.logic.ui.ItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
-import org.akanework.gramophone.logic.utils.PauseManagingSharedFlow.Companion.sharePauseableIn
-import org.akanework.gramophone.logic.utils.repeatPausingWithLifecycle
+import org.akanework.gramophone.logic.utils.flows.PauseManagingSharedFlow.Companion.sharePauseableIn
+import org.akanework.gramophone.logic.utils.flows.repeatPausingWithLifecycle
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.components.CustomGridLayoutManager
 import org.akanework.gramophone.ui.components.GridPaddingDecoration

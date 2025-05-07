@@ -23,11 +23,11 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import org.akanework.gramophone.logic.hasAudioPermission
-import org.akanework.gramophone.logic.utils.PauseManagingSharedFlow.Companion.sharePauseableIn
-import org.akanework.gramophone.logic.utils.conflateAndBlockWhenPaused
-import org.akanework.gramophone.logic.utils.provideReplayCacheInvalidationManager
-import org.akanework.gramophone.logic.utils.repeatUntilDoneWhenUnpaused
-import org.akanework.gramophone.logic.utils.requireReplayCacheInvalidationManager
+import org.akanework.gramophone.logic.utils.flows.PauseManagingSharedFlow.Companion.sharePauseableIn
+import org.akanework.gramophone.logic.utils.flows.conflateAndBlockWhenPaused
+import org.akanework.gramophone.logic.utils.flows.provideReplayCacheInvalidationManager
+import org.akanework.gramophone.logic.utils.flows.repeatUntilDoneWhenUnpaused
+import org.akanework.gramophone.logic.utils.flows.requireReplayCacheInvalidationManager
 import uk.akane.libphonograph.contentObserverVersioningFlow
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
 import uk.akane.libphonograph.items.Album

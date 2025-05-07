@@ -1,4 +1,4 @@
-package org.akanework.gramophone.logic.utils
+package org.akanework.gramophone.logic.utils.flows
 
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -17,7 +17,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingCommand
@@ -222,28 +221,3 @@ fun <T> Flow<T>.bufferAndBlockWhenPaused(capacity: Int = Channel.UNLIMITED): Flo
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun <T> Flow<T>.conflateAndBlockWhenPaused() = bufferAndBlockWhenPaused(Channel.CONFLATED)
-
-
-// === Replay cache management ===
-
-class ReplayCacheInvalidationManager(val invalidate: () -> Unit) : CoroutineContext.Element {
-    override val key: CoroutineContext.Key<*> get() = Key
-    companion object Key : CoroutineContext.Key<ReplayCacheInvalidationManager>
-}
-
-suspend fun requireReplayCacheInvalidationManager() =
-    currentCoroutineContext()[ReplayCacheInvalidationManager]
-        ?: throw IllegalStateException("Replay cache invalidation not available here")
-
-@OptIn(ExperimentalCoroutinesApi::class)
-fun <T> Flow<T>.provideReplayCacheInvalidationManager() = object : Flow<T> {
-    override suspend fun collect(collector: FlowCollector<T>) {
-        val sharedFlow = collector as? MutableSharedFlow<T>
-            ?: throw IllegalStateException("withReplayCacheInvalidation needs to be used _directly_ before shareIn")
-        if (sharedFlow is MutableStateFlow<T>)
-            throw IllegalStateException("withReplayCacheInvalidation does not support state flows")
-        withContext(ReplayCacheInvalidationManager(sharedFlow::resetReplayCache)) {
-            return@withContext this@provideReplayCacheInvalidationManager.collect(collector)
-        }
-    }
-}

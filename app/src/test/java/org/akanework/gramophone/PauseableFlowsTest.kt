@@ -6,8 +6,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.akanework.gramophone.logic.utils.PauseManager
-import org.akanework.gramophone.logic.utils.conflateAndBlockWhenPaused
+import org.akanework.gramophone.logic.utils.flows.IncrementalCommand
+import org.akanework.gramophone.logic.utils.flows.PauseManager
+import org.akanework.gramophone.logic.utils.flows.conflateAndBlockWhenPaused
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -55,5 +56,13 @@ class PauseableFlowsTest {
 
     class TestPauseManager(initialValue: Boolean) : PauseManager {
         override val isPaused = MutableStateFlow<Boolean>(initialValue)
+    }
+
+    @Test
+    fun incrementalFlows() {
+        val source = flow {
+            emit(IncrementalCommand.Begin(listOf(1, 2, 3)))
+            emit(IncrementalCommand.Insert(1, 2, listOf(1, 999, 2, 3)))
+        }
     }
 }
