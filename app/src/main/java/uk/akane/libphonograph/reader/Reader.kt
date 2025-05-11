@@ -382,9 +382,9 @@ internal object Reader {
         val albumList = albumMap?.values?.onEach {
             if (it.albumArtistId != null || it.albumArtist != null)
                 throw IllegalStateException("code bug? failed: it.albumArtistId != null || it.albumArtist != null")
-            val artistFound = findBestAlbumArtist(it.songList, artistCacheMap!!)
+            val artistFound = findBestAlbumArtist(it.songList)
             it.albumArtist = artistFound?.first
-            it.albumArtistId = artistFound?.second
+            it.albumArtistId = artistFound?.second ?: artistCacheMap?.get(it.albumArtist)
             it.albumYear = it.songList.mapNotNull { it.mediaMetadata.releaseYear }.maxOrNull()
             (albumArtistMap?.getOrPut(it.albumArtistId) {
                 Artist(it.albumArtistId, it.albumArtist, mutableListOf(), mutableListOf())

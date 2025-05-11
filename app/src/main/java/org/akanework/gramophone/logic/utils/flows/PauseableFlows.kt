@@ -102,8 +102,8 @@ class PauseManagingSharedFlow<T>(paused: SharingStarted) : SharedFlow<T> {
 
     override suspend fun collect(collector: FlowCollector<T>): Nothing {
         val pm = currentCoroutineContext()[PauseManager] ?: EmptyPauseManager
+        pauseManager.add(pm)
         try {
-            pauseManager.add(pm)
             withContext(pauseManager) {
                 sharedFlow.collect(collector)
             }
@@ -137,8 +137,8 @@ class PauseManagingStateFlow<T>(paused: SharingStarted) : StateFlow<T> {
 
     override suspend fun collect(collector: FlowCollector<T>): Nothing {
         val pm = currentCoroutineContext()[PauseManager] ?: EmptyPauseManager
+        pauseManager.add(pm)
         try {
-            pauseManager.add(pm)
             withContext(pauseManager) {
                 stateFlow.collect(collector)
             }
