@@ -37,11 +37,21 @@ import kotlin.math.abs
 import kotlin.math.min
 
 sealed class IncrementalList<T>(val after: List<T>) {
-    class Begin<T>(after: List<T>) : IncrementalList<T>(after)
-    class Insert<T>(val pos: Int, val count: Int, after: List<T>) : IncrementalList<T>(after)
-    class Remove<T>(val pos: Int, val count: Int, after: List<T>) : IncrementalList<T>(after)
-    class Move<T>(val pos: Int, val count: Int, val outPos: Int, after: List<T>) : IncrementalList<T>(after)
-    class Update<T>(val pos: Int, val count: Int, after: List<T>) : IncrementalList<T>(after)
+    class Begin<T>(after: List<T>) : IncrementalList<T>(after) {
+        override fun toString() = "Begin()"
+    }
+    class Insert<T>(val pos: Int, val count: Int, after: List<T>) : IncrementalList<T>(after) {
+        override fun toString() = "Insert(pos=$pos, count=$count)"
+    }
+    class Remove<T>(val pos: Int, val count: Int, after: List<T>) : IncrementalList<T>(after) {
+        override fun toString() = "Remove(pos=$pos, count=$count)"
+    }
+    class Move<T>(val pos: Int, val count: Int, val outPos: Int, after: List<T>) : IncrementalList<T>(after) {
+        override fun toString() = "Move(pos=$pos, count=$count, outPos=$outPos)"
+    }
+    class Update<T>(val pos: Int, val count: Int, after: List<T>) : IncrementalList<T>(after) {
+        override fun toString() = "Update(pos=$pos, count=$count)"
+    }
 }
 
 sealed class IncrementalMap<T, R>(val after: Map<T, R>) {
@@ -80,7 +90,7 @@ inline fun <T, R> Flow<IncrementalList<T>>.flatMapIncremental(
                         totalStart += new[i].size
                     }
                     newFlat = new.flatMap { it }
-                    emit(IncrementalList.Insert(totalSize, totalStart, newFlat))
+                    emit(IncrementalList.Insert(totalStart, totalSize, newFlat))
                 }
             }
             command is IncrementalList.Move -> {
@@ -89,13 +99,8 @@ inline fun <T, R> Flow<IncrementalList<T>>.flatMapIncremental(
                 repeat(command.count) { _ ->
                     totalSize += new.removeAt(command.pos).size
                 }
-                val insertPos = if (command.outPos > command.pos) {
-                    command.outPos - command.count
-                } else {
-                    command.outPos
-                }
-                for (i in insertPos..<insertPos+command.count) {
-                    new.add(i, last!![i - insertPos + command.pos])
+                for (i in command.outPos..<command.outPos+command.count) {
+                    new.add(i, last!![i - command.outPos + command.pos])
                 }
                 if (totalSize > 0) {
                     var totalStart = 0
@@ -122,7 +127,7 @@ inline fun <T, R> Flow<IncrementalList<T>>.flatMapIncremental(
                         totalStart += new[i].size
                     }
                     newFlat = new.flatMap { it }
-                    emit(IncrementalList.Remove(totalSize, totalStart, newFlat))
+                    emit(IncrementalList.Remove(totalStart, totalSize, newFlat))
                 }
             }
             command is IncrementalList.Update -> {
@@ -199,13 +204,8 @@ inline fun <T, R> Flow<IncrementalList<T>>.mapIncremental(
                 repeat(command.count) { _ ->
                     new.removeAt(command.pos)
                 }
-                val insertPos = if (command.outPos > command.pos) {
-                    command.outPos - command.count
-                } else {
-                    command.outPos
-                }
-                for (i in insertPos..<insertPos+command.count) {
-                    new.add(i, last!![i - insertPos + command.pos])
+                for (i in command.outPos..<command.outPos+command.count) {
+                    new.add(i, last!![i - command.outPos + command.pos])
                 }
                 emit(IncrementalList.Move(command.pos, command.count, command.outPos, new))
             }
@@ -286,15 +286,9 @@ inline fun <T, R> Flow<IncrementalList<T>>.groupByIncremental(
                 repeat(it.count) { _ ->
                     keys.add(keyCache.removeAt(it.pos))
                 }
-                val insertPos = if (it.outPos > it.pos) {
-                    it.outPos - it.count
-                } else {
-                    it.outPos
+                for (i in it.outPos..<it.outPos+it.count) {
+                    keyCache.add(i, keys[i - it.outPos])
                 }
-                for (i in insertPos..<insertPos+it.count) {
-                    keyCache.add(i, keys[i - insertPos])
-                }
-                // TODO indexes probably are wrong
                 for (i in it.pos..<it.pos + it.count) {
                     val outPos = it.outPos - it.pos + i
                     val item = it.after[outPos]
@@ -877,8 +871,10 @@ val albumsFlow: SharedFlow<IncrementalList<Album2>> = rawAlbumsFlow
                         findBestCover(File(firstFolder))?.toUriCompat()
                 } else fallbackCover
             }
-        } else flowOf(if (albumId != null)
-            ContentUris.withAppendedId(Constants.baseAlbumCoverUri, albumId) else fallbackCover)
+        } else flowOf(
+            if (albumId != null)
+                ContentUris.withAppendedId(Constants.baseAlbumCoverUri, albumId) else fallbackCover
+        )
         val artistIdFlow = if (artist?.second != null) flowOf(artist.second) else if (artist != null)
             readerFlow.map { it.canonicalArtistIdMap[artist.first] }.distinctUntilChanged() else flowOf(null)
         albumArtFlow.combine(artistIdFlow) { cover, artistId ->
@@ -913,7 +909,7 @@ private val artistsWithoutSongsFlow = albumsForArtistFlow
     }
     .flattenIncremental()
 val artistFlow: SharedFlow<IncrementalList<Artist2>> = rawArtistFlow
-    .mapIncremental { artistId, songs -> // TODO missing artists that only have albums?
+    .mapIncremental { artistId, songs ->
         val songList = songs.after
         val title = songList.first().mediaMetadata.artist?.toString()
         val cover = songList.first().mediaMetadata.artworkUri

@@ -317,7 +317,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                         } catch (e: Exception) {
                             if (e is SecurityException || e.message == "Provider for this Uri is not supported."
                                 || e.message?.startsWith("Invalid URI: ") == true
-                            )
+                                || e.message?.contains("Missing file for") == true)
                                 Log.w(TAG, e.javaClass.name + ": " + e.message)
                             else
                                 Log.e(TAG, Log.getStackTraceString(e))
