@@ -1072,7 +1072,7 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
             isBg -> SpeakerEntity.Background
             else -> SpeakerEntity.Voice1
         }
-        // TOOD translations for ttml? does anyone actually do that? how could that work?
+        // TODO translations for ttml? does anyone actually do that? how could that work?
         LyricLine(text.toString(), it.time.first, it.time.last, theWords, speaker, false)
     }).also { splitBidirectionalWords(it) }
 }
