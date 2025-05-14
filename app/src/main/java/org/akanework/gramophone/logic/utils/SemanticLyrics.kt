@@ -543,7 +543,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
         while (out.firstOrNull()?.first?.isBlank() == true)
             out.removeAt(0)
         //while (out.lastOrNull()?.first?.isBlank() == true)
-        //    out.removeAt(out.lastIndex) TODO
+        //    out.removeAt(out.lastIndex) TODO this breaks unit tests, but blank lines are useless
         return UnsyncedLyrics(out.map { lyric ->
             if (defaultIsWalaokeM && lyric.second == null)
                 lyric.copy(second = SpeakerEntity.Male)
@@ -726,7 +726,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
     while (out.firstOrNull()?.text?.isBlank() == true)
         out.removeAt(0)
     //while (out.lastOrNull()?.text?.isBlank() == true)
-    //    out.removeAt(out.lastIndex) TODO
+    //    out.removeAt(out.lastIndex) TODO this breaks unit tests, but blank lines are useless
     return SyncedLyrics(out).also { splitBidirectionalWords(it) }
 }
 

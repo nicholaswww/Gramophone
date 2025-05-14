@@ -97,6 +97,7 @@ import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioQuality
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.SpatialFormat
 import org.akanework.gramophone.logic.utils.CalculationUtils
 import org.akanework.gramophone.logic.utils.ColorUtils
+import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.logic.utils.convertDurationToTimeStamp
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
@@ -356,13 +357,17 @@ class FullBottomSheet
             }
         }
 
-        bottomSheetFullQualityDetails.setOnClickListener {
-            MaterialAlertDialogBuilder(context)
-                .setTitle(R.string.audio_signal_chain)
-                .setMessage(currentFormat?.prettyToString(context)
-                    ?: context.getString(R.string.audio_not_initialized))
-                .setPositiveButton(android.R.string.ok) { _, _ -> }
-	            .show()
+        if (Flags.FORMAT_INFO_DIALOG) {
+            bottomSheetFullQualityDetails.setOnClickListener {
+                MaterialAlertDialogBuilder(context)
+                    .setTitle(R.string.audio_signal_chain)
+                    .setMessage(
+                        currentFormat?.prettyToString(context)
+                            ?: context.getString(R.string.audio_not_initialized)
+                    )
+                    .setPositiveButton(android.R.string.ok) { _, _ -> }
+                    .show()
+            }
         }
 
         bottomSheetFullSubtitle.setOnClickListener {
@@ -530,10 +535,10 @@ class FullBottomSheet
             if (activity.libraryViewModel.playlistList.value!![MediaStoreUtils.favPlaylistPosition]
                     .songList.contains(instance.currentMediaItem)) {
                 bottomSheetFavoriteButton.isChecked = true
-                // TODO
+                // TODO(ASAP) fav button
             } else {
                 bottomSheetFavoriteButton.isChecked = false
-                // TODO
+                // TODO(ASAP) fav button
             }
 
              */
@@ -989,7 +994,7 @@ class FullBottomSheet
             doOnLayout {
                 if (lastDisposable != null) {
                     //throw IllegalStateException("raced while loading cover in onMediaItemTransition?")
-                    lastDisposable?.dispose() // TODO avoid this race by only allowing one delayed listener
+                    lastDisposable?.dispose() // TODO(ASAP) avoid this race by only allowing one delayed listener
                 }
                 val file = mediaItem?.getFile()
                 lastDisposable = context.imageLoader.enqueue(
@@ -1047,9 +1052,9 @@ class FullBottomSheet
             if (activity.libraryViewModel.playlistList.value!![MediaStoreUtils.favPlaylistPosition]
                     .songList.contains(instance.currentMediaItem)
             ) {
-                // TODO
+                // TODO(ASAP) fav button
             } else {
-                // TODO
+                // TODO(ASAP) fav button
             }
 
              */
@@ -1185,7 +1190,7 @@ class FullBottomSheet
 
     private inner class PlaylistCardAdapter(
         private val activity: MainActivity
-    ) : MyRecyclerView.Adapter<PlaylistCardAdapter.ViewHolder>() {
+    ) : MyRecyclerView.Adapter<ViewHolder>() {
 
         var playlist: Pair<MutableList<Int>, MutableList<MediaItem>> = dumpPlaylist()
         override fun onCreateViewHolder(
@@ -1210,13 +1215,15 @@ class FullBottomSheet
             }
             holder.closeButton.setOnClickListener { v ->
                 ViewCompat.performHapticFeedback(v, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-                val instance = activity.getPlayer()
                 val pos = holder.bindingAdapterPosition
-                val idx = playlist.first.removeAt(pos)
-                playlist.first.replaceAllSupport { if (it > idx) it - 1 else it }
-                instance?.removeMediaItem(idx)
-                playlist.second.removeAt(idx)
-                notifyItemRemoved(pos)
+                if (pos != RecyclerView.NO_POSITION) { // if -1, user clicked remove twice on same item
+                    val instance = activity.getPlayer()
+                    val idx = playlist.first.removeAt(pos)
+                    playlist.first.replaceAllSupport { if (it > idx) it - 1 else it }
+                    instance?.removeMediaItem(idx)
+                    playlist.second.removeAt(idx)
+                    notifyItemRemoved(pos)
+                }
             }
             holder.itemView.setOnClickListener {
                 ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
@@ -1233,16 +1240,6 @@ class FullBottomSheet
         override fun getItemCount(): Int = if (playlist.first.size != playlist.second.size)
             throw IllegalStateException()
         else playlist.first.size
-
-        inner class ViewHolder(
-            view: View,
-        ) : RecyclerView.ViewHolder(view) {
-            val songName: TextView = view.findViewById(R.id.title)
-            val songArtist: TextView = view.findViewById(R.id.artist)
-            val songCover: ImageView = view.findViewById(R.id.cover)
-            val indicator: TextView = view.findViewById(R.id.indicator)
-            val closeButton: MaterialButton = view.findViewById(R.id.close)
-        }
 
         fun onRowMoved(from: Int, to: Int) {
             val mediaController = activity.getPlayer()
@@ -1283,6 +1280,16 @@ class FullBottomSheet
         }
     }
 
+    class ViewHolder(
+        view: View,
+    ) : RecyclerView.ViewHolder(view) {
+        val songName: TextView = view.findViewById(R.id.title)
+        val songArtist: TextView = view.findViewById(R.id.artist)
+        val songCover: ImageView = view.findViewById(R.id.cover)
+        val indicator: TextView = view.findViewById(R.id.indicator)
+        val closeButton: MaterialButton = view.findViewById(R.id.close)
+    }
+
     /*
     @Suppress("DEPRECATION")
     private fun insertIntoPlaylist(song: MediaItem) {
@@ -1318,7 +1325,7 @@ class FullBottomSheet
 
     private val positionRunnable = object : Runnable {
         override fun run() {
-            // TODO we may no longer need to poll duration after midi audio sink bugfix is released
+            // TODO we may no longer need to poll duration because midi audio sink bugfix is already released
             val position =
                 CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
             val duration = instance?.currentMediaItem?.mediaMetadata?.durationMs

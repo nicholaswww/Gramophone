@@ -23,7 +23,7 @@ object ItemManipulator {
     private const val TAG = "ItemManipulator"
 
     fun deleteSong(context: Context, id: Long): DeleteRequest {
-        // TODO delete .ttml / .lrc as well if present (using MediaStore.Files because they are subtitles)
+        // TODO(ASAP) delete .ttml / .lrc as well if present (using MediaStore.Files because they are subtitles)
         val uri = ContentUris.withAppendedId(
             MediaStore.Audio.Media.getContentUri("external"), id
         )

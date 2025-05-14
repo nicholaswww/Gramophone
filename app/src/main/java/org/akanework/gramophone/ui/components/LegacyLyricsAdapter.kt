@@ -206,7 +206,7 @@ class LegacyLyricsAdapter(
 
     override fun getItemCount(): Int = lyricList.size
 
-    inner class ViewHolder(
+    class ViewHolder(
         view: View
     ) : RecyclerView.ViewHolder(view) {
         val lyricTextView: TextView = view.findViewById(R.id.lyric)

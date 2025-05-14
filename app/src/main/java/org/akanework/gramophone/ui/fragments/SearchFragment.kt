@@ -18,8 +18,6 @@
 package org.akanework.gramophone.ui.fragments
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -51,7 +49,6 @@ import org.akanework.gramophone.ui.adapters.SongAdapter
  */
 class SearchFragment : BaseFragment(false) {
     // TODO this class leaks InsetSourceControl
-    private val handler = Handler(Looper.getMainLooper())
     private val filteredList: MutableList<MediaItem> = mutableListOf()
     private lateinit var editText: EditText
 

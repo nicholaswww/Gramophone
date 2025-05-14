@@ -225,7 +225,7 @@ android {
 }
 
 baselineProfile {
-    dexLayoutOptimization = true // TODO generate on every release using fastlane, or disable this
+    dexLayoutOptimization = true // TODO(ASAP) generate on every release using fastlane, or disable this
 }
 
 // https://stackoverflow.com/a/77745844

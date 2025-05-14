@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -48,10 +49,15 @@ interface PauseManager : CoroutineContext.Element {
     companion object Key : CoroutineContext.Key<PauseManager>
 }
 
-class LifecyclePauseManager(scope: CoroutineScope, source: LifecycleOwner, minimumState: Lifecycle.State)
-    : PauseManager {
-    override val isPaused = source.lifecycle.currentStateFlow.map { !it.isAtLeast(minimumState) }
-        .stateIn(scope, WhileSubscribed(), !source.lifecycle.currentState.isAtLeast(minimumState))
+class LifecyclePauseManager(
+    scope: CoroutineScope, source: LifecycleOwner, minimumState: Lifecycle.State,
+    bypassFlow: Flow<Boolean>
+) : PauseManager {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override val isPaused = bypassFlow.flatMapLatest {
+        if (it || true) flowOf(false) else
+        source.lifecycle.currentStateFlow.map { !it.isAtLeast(minimumState) } }
+            .stateIn(scope, WhileSubscribed(), !source.lifecycle.currentState.isAtLeast(minimumState))
 }
 
 object EmptyPauseManager : PauseManager {
@@ -186,13 +192,29 @@ suspend fun <T> repeatUntilDoneWhenUnpaused(block: suspend () -> T): T {
 
 fun repeatPausingWithLifecycle(source: LifecycleOwner,
                                context: CoroutineContext = EmptyCoroutineContext,
-                               minimumStateForCollect: Lifecycle.State = Lifecycle.State.CREATED,
+                               minimumStateForCollect: Lifecycle.State = Lifecycle.State.INITIALIZED,
                                minimumStateForUnpause: Lifecycle.State = Lifecycle.State.RESUMED,
+                               initialUnpauseUntilResumeTimeoutMs: ULong = 2000U,
                                block: suspend () -> Unit) {
-    source.lifecycleScope.launch {
-        source.repeatOnLifecycle(minimumStateForCollect) {
-            withContext(context + LifecyclePauseManager(this, source, minimumStateForUnpause)) {
+    val maxForceUnpausedTimestamp = System.currentTimeMillis() + initialUnpauseUntilResumeTimeoutMs.toLong()
+    val bypass = flow {
+        val timeLeft = maxForceUnpausedTimestamp - System.currentTimeMillis()
+        if (timeLeft > 0) {
+            emit(true)
+            delay(timeLeft)
+        }
+        emit(false)
+    }
+    source.lifecycleScope.launch(context) {
+        if (minimumStateForCollect == Lifecycle.State.INITIALIZED) {
+            withContext(context + LifecyclePauseManager(this, source, minimumStateForUnpause, bypass)) {
                 block()
+            }
+        } else {
+            source.repeatOnLifecycle(minimumStateForCollect) {
+                withContext(context + LifecyclePauseManager(this, source, minimumStateForUnpause, bypass)) {
+                    block()
+                }
             }
         }
     }

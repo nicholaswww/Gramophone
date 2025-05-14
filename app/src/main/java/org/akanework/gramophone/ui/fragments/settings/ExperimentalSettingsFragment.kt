@@ -30,6 +30,7 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
 import org.akanework.gramophone.ui.fragments.BaseSettingsActivity
 import java.io.File
@@ -50,6 +51,9 @@ class ExperimentalSettingsFragment : BasePreferenceFragment() {
         findPreference<Preference>("crash")!!.isVisible = BuildConfig.DEBUG
         if (BuildConfig.DEBUG)
             e = RuntimeException("skill issue")
+        if (!Flags.NEW_LYRIC_UI) {
+            findPreference<Preference>("lyric_ui")!!.isVisible = false
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,7 +83,10 @@ class ExperimentalSettingsFragment : BasePreferenceFragment() {
                 }
                 val f = File(selfLogDir.also { it.mkdirs() },
                     "GramophoneLog${System.currentTimeMillis()}.txt")
-                f.writeText(stdout)
+                f.writeText("SDK: ${Build.VERSION.SDK_INT}\nDevice: ${Build.BRAND} ${Build.DEVICE} " +
+                        "(${Build.MANUFACTURER} ${Build.PRODUCT} ${Build.MODEL})\nVersion: " +
+                        "${BuildConfig.MY_VERSION_NAME} ${BuildConfig.RELEASE_TYPE} (${context?.packageName})" +
+                        "\n$stdout")
                 withContext(Dispatchers.Main) {
                     val sendIntent = Intent().apply {
                         action = Intent.ACTION_SEND

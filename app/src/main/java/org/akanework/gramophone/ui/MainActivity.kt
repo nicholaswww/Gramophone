@@ -332,8 +332,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun onLibraryLoaded() {
-        if (!ready) reportFullyDrawn()
         doPlayFromIntent(intent)
+    }
+
+    fun maybeReportFullyDrawn() {
+        if (!ready) reportFullyDrawn()
     }
 
     /**

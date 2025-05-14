@@ -116,7 +116,6 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
             }.takeIf { !it.startsWith("UNKNOWN CODEC") }
         }
 
-        // TODO test stability
         @RequiresApi(Build.VERSION_CODES.O)
         fun getCodec(context: Context, callback: (BtCodecInfo?) -> Unit): Proxy? {
             val adapter = ContextCompat.getSystemService(context, BluetoothManager::class.java)?.adapter

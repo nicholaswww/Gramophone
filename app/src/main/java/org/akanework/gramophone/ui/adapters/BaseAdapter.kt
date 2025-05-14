@@ -40,6 +40,7 @@ import coil3.load
 import coil3.request.crossfade
 import coil3.request.error
 import com.google.android.material.button.MaterialButton
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -50,7 +51,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getStringStrict
@@ -68,7 +71,7 @@ import org.akanework.gramophone.ui.fragments.AdapterFragment
 import org.akanework.gramophone.ui.getAdapterType
 import uk.akane.libphonograph.items.Item
 
-abstract class BaseAdapter<T>(
+abstract class BaseAdapter<T : Any>(
     protected val fragment: Fragment,
     liveData: Flow<List<T>?>,
     sortHelper: Sorter.Helper<T>,
@@ -82,7 +85,7 @@ abstract class BaseAdapter<T>(
     private val allowDiffUtils: Boolean = false,
     private val canSort: Boolean = true,
     private val fallbackSpans: Int = 1
-) : AdapterFragment.BaseInterface<BaseAdapter<T>.ViewHolder>(), PopupTextProvider, ItemHeightHelper {
+) : AdapterFragment.BaseInterface<BaseAdapter.ViewHolder>(), PopupTextProvider, ItemHeightHelper {
 
     val context = fragment.requireContext()
     protected val liveDataAgent = MutableStateFlow(liveData)
@@ -97,11 +100,12 @@ abstract class BaseAdapter<T>(
     private var lockedInGridSize = false
     private val sorter = Sorter(sortHelper, naturalOrderHelper, rawOrderExposed)
     val decorAdapter by lazy { createDecorAdapter() }
-    override val concatAdapter by lazy { ConcatAdapter(decorAdapter, this) }
+    override val concatAdapter by lazy { ConcatAdapter(
+        ConcatAdapter.Config.Builder().setIsolateViewTypes(false).build(), decorAdapter, this) }
     override val itemHeightHelper by lazy {
         DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, { 1 }, this)
     }
-    protected var list = Pair<List<T>, List<T>>(emptyList(), emptyList())
+    protected var list: Pair<List<T>, List<T>>? = null
     private var layoutManager: RecyclerView.LayoutManager? = null
     protected var recyclerView: MyRecyclerView? = null
         private set
@@ -182,28 +186,49 @@ abstract class BaseAdapter<T>(
         get() = if (canSort) sorter.getSupportedTypes() else setOf(Sorter.Type.None)
 
     init {
+        var onListLoadedCompleter: CompletableDeferred<Pair<Pair<List<T>, List<T>>, Pair<DiffUtil.DiffResult?, Boolean>>>? =
+            CompletableDeferred()
+        val deferred = onListLoadedCompleter!!
+        val onListLoaded = { it: Pair<List<T>, List<T>>, diff: DiffUtil.DiffResult?, sizeChanged: Boolean ->
+            list = it
+            if (diff != null)
+                diff.dispatchUpdatesTo(this@BaseAdapter)
+            else
+                @SuppressLint("NotifyDataSetChanged") notifyDataSetChanged()
+            if (sizeChanged) decorAdapter.updateSongCounter()
+            onListUpdated()
+            recyclerView?.post { reportFullyDrawn() }
+        }
         repeatPausingWithLifecycle(fragment.viewLifecycleOwner, Dispatchers.Default) {
             flow.collectLatest {
                 val old = list
                 if (old === it) {
                     throw IllegalStateException("error, shouldn't ever see same list twice :/")
                 }
-                val diff = if ((old.second.isNotEmpty<T>() && it.second.isNotEmpty<T>())
+                val diff = if ((old?.second?.isNotEmpty() == true && it.second.isNotEmpty())
                     || allowDiffUtils
                 )
-                    DiffUtil.calculateDiff(SongDiffCallback(old.second, it.second))
+                    DiffUtil.calculateDiff(SongDiffCallback(old?.second ?: emptyList(), it.second))
                 else null
-                val sizeChanged = old.second.size != it.second.size
-                withContext(Dispatchers.Main + NonCancellable) {
-                    list = it
-                    if (diff != null)
-                        diff.dispatchUpdatesTo(this@BaseAdapter)
-                    else
-                        @SuppressLint("NotifyDataSetChanged") notifyDataSetChanged()
-                    if (sizeChanged) decorAdapter.updateSongCounter()
-                    onListUpdated()
+                val sizeChanged = (old?.second?.size ?: 0) != it.second.size
+                val deferred2 = onListLoadedCompleter ?: null // https://youtrack.jetbrains.com/issue/KT-77563
+                if (deferred2 != null) {
+                    deferred2.complete(it to (diff to sizeChanged))
+                    onListLoadedCompleter = null
+                } else {
+                    withContext(Dispatchers.Main + NonCancellable) {
+                        onListLoaded(it, diff, sizeChanged)
+                    }
                 }
             }
+        }
+        runBlocking {
+            withTimeoutOrNull(100) { // TODO(ASAP) timeout will stack! only allow blocks for
+                                     //  current/next displayed page / always for sub; never when displaying splash
+                val (it, other) = deferred.await()
+                onListLoaded(it, other.first, other.second)
+                Unit
+            } ?: run { onListLoadedCompleter = null } // TODO(ASAP) racy
         }
         layoutType =
             if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType && !isSubFragment)
@@ -214,7 +239,7 @@ abstract class BaseAdapter<T>(
 
     protected open val defaultCover: Int = R.drawable.ic_default_cover
 
-    inner class ViewHolder(
+    class ViewHolder(
         view: View,
     ) : RecyclerView.ViewHolder(view) {
         val songCover: ImageView = view.findViewById(R.id.cover)
@@ -232,6 +257,9 @@ abstract class BaseAdapter<T>(
             recyclerView.setHasFixedSize(true)
             if (recyclerView.layoutManager != layoutManager) {
                 applyLayoutManager()
+            }
+            if (list != null) {
+                recyclerView.post { reportFullyDrawn() }
             }
         }
     }
@@ -260,7 +288,7 @@ abstract class BaseAdapter<T>(
         recyclerView?.scrollToPosition(scrollPosition)
     }
 
-    override fun getItemCount(): Int = list.second.size
+    override fun getItemCount(): Int = list?.second?.size ?: 0
 
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -293,7 +321,7 @@ abstract class BaseAdapter<T>(
         holder: ViewHolder,
         position: Int
     ) {
-        val item = list.second[position]
+        val item = list!!.second[position]
         if (layoutType == LayoutType.GRID) {
             lockedInGridSize = true
             val newHeight = gridHeight!!
@@ -365,6 +393,8 @@ abstract class BaseAdapter<T>(
     }
 
     override fun onViewRecycled(holder: ViewHolder) {
+        holder.itemView.setOnClickListener(null)
+        holder.moreButton.setOnClickListener(null)
         (holder.nowPlaying.drawable as? NowPlayingDrawable?)?.level2Done = null
         holder.nowPlaying.setImageDrawable(null)
         holder.nowPlaying.visibility = View.GONE
@@ -383,6 +413,8 @@ abstract class BaseAdapter<T>(
 
     private fun trackCountOf(item: T): String {
         if (sorter.sortingHelper.canGetSize()) {
+            if (!sorter.sortingHelper.canGetArtist() /* see subTitleOf */)
+                return ""
             val s = sorter.sortingHelper.getSize(item)
             return context.resources.getQuantityString(
                 R.plurals.songs, s, s
@@ -438,7 +470,7 @@ abstract class BaseAdapter<T>(
         // if this crashes with IndexOutOfBoundsException, list access isn't guarded enough?
         // lib only ever gets popup text for what RecyclerView believes to be the first view
         return (if (position >= 1)
-            sorter.getFastScrollHintFor(list.second[position - 1], sortType.value)
+            sorter.getFastScrollHintFor(list!!.second[position - 1], sortType.value)
         else null) ?: "-"
     }
 

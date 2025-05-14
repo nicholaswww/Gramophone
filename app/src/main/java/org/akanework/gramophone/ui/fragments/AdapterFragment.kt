@@ -63,7 +63,7 @@ class AdapterFragment : BaseFragment(null) {
         }
         val rootView = inflater.inflate(R.layout.fragment_recyclerview, container, false)
         recyclerView = rootView.findViewById(R.id.recyclerview)
-        // TODO share recycled view pool across all RecyclerViews to reduce performance hit when swiping
+        recyclerView.setRecycledViewPool((requireParentFragment() as ViewPagerFragment).recycledViewPool)
         recyclerView.enableEdgeToEdgePaddingListener()
         adapter = createAdapter()
         recyclerView.adapter = adapter.concatAdapter
@@ -92,7 +92,8 @@ class AdapterFragment : BaseFragment(null) {
     }
 
     private fun createAdapter(): BaseInterface<*> {
-        return when (arguments?.getInt("ID", -1)) {
+        val id = arguments?.getInt("ID", -1)
+        return when (id) {
             R.id.songs -> SongAdapter(this, canSort = true, helper = null, ownsView = true)
             R.id.albums -> AlbumAdapter(this)
             R.id.artists -> ArtistAdapter(this)
@@ -103,6 +104,8 @@ class AdapterFragment : BaseFragment(null) {
             R.id.playlists -> PlaylistAdapter(this)
             -1, null -> throw IllegalArgumentException("unset ID value")
             else -> throw IllegalArgumentException("invalid ID value")
+        }.apply {
+            onFullyDrawnListener = { (requireParentFragment() as ViewPagerFragment).maybeReportFullyDrawn(id) }
         }
     }
 
@@ -110,6 +113,11 @@ class AdapterFragment : BaseFragment(null) {
         : MyRecyclerView.Adapter<T>(), PopupTextProvider {
         abstract val concatAdapter: ConcatAdapter
         abstract val itemHeightHelper: ItemHeightHelper?
+        var onFullyDrawnListener: (() -> Unit)? = null
+        protected fun reportFullyDrawn() {
+            onFullyDrawnListener?.invoke()
+            onFullyDrawnListener = null
+        }
     }
 
     interface RequestAdapter {

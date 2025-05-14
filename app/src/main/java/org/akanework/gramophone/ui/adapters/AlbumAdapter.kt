@@ -20,12 +20,12 @@ package org.akanework.gramophone.ui.adapters
 import android.net.Uri
 import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
-import java.util.GregorianCalendar
 import kotlinx.coroutines.flow.Flow
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.Album
+import java.util.GregorianCalendar
 
 class AlbumAdapter(
     fragment: Fragment,
@@ -54,7 +54,7 @@ class AlbumAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
         super.onBindViewHolder(holder, position, payloads)
         if (layoutType == LayoutType.GRID) {
-            val item = list.second[position]
+            val item = list!!.second[position]
             holder.itemView.setOnLongClickListener {
                 val popupMenu = PopupMenu(it.context, it)
                 onMenu(item, popupMenu)
@@ -62,6 +62,11 @@ class AlbumAdapter(
                 true
             }
         }
+    }
+
+    override fun onViewRecycled(holder: ViewHolder) {
+        holder.itemView.setOnLongClickListener(null)
+        super.onViewRecycled(holder)
     }
 
     override fun onClick(item: Album) {

@@ -91,7 +91,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
     private var askedForPermissionInSettings = false
     private val updateSliderRunnable = object : Runnable {
         override fun run() {
-            // TODO we may no longer need to poll duration after midi audio sink bugfix is released
+            // TODO we may no longer need to poll duration because midi audio sink bugfix is released
             val duration = player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
                 ?: player.mediaMetadata.durationMs
             if (duration != null) {

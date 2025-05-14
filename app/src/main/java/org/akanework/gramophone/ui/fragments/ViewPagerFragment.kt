@@ -31,6 +31,7 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.media3.common.util.UnstableApi
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
@@ -66,6 +67,9 @@ import org.akanework.gramophone.ui.fragments.settings.MainSettingsActivity
 class ViewPagerFragment : BaseFragment(true) {
     lateinit var appBarLayout: AppBarLayout
         private set
+    val recycledViewPool = RecyclerView.RecycledViewPool()
+    private lateinit var viewPager2: ViewPager2
+    private lateinit var adapter: ViewPager2Adapter
 
     @SuppressLint("StringFormatInvalid", "StringFormatMatches")
     override fun onCreateView(
@@ -76,7 +80,7 @@ class ViewPagerFragment : BaseFragment(true) {
         val rootView = inflater.inflate(R.layout.fragment_viewpager, container, false)
         val tabLayout = rootView.findViewById<TabLayout>(R.id.tab_layout)
         val topAppBar = rootView.findViewById<MaterialToolbar>(R.id.topAppBar)
-        val viewPager2 = rootView.findViewById<ViewPager2>(R.id.fragment_viewpager)
+        viewPager2 = rootView.findViewById<ViewPager2>(R.id.fragment_viewpager)
 
         appBarLayout = rootView.findViewById(R.id.appbarlayout)
         appBarLayout.enableEdgeToEdgePaddingListener()
@@ -127,7 +131,7 @@ class ViewPagerFragment : BaseFragment(true) {
                         .setTitle(R.string.did_you_know)
                         .setMessage(R.string.refresh_did_you_know)
                         .setPositiveButton(android.R.string.ok) { _, _ -> }
-                        //.show() TODO
+                        .show()
                     Toast.makeText(context, R.string.refreshing_wait, Toast.LENGTH_LONG).show()
                     CoroutineScope(Dispatchers.Default).launch {
                         SdScanner.scanEverything(context, 5000) { progress ->
@@ -142,9 +146,11 @@ class ViewPagerFragment : BaseFragment(true) {
                                 return@scanEverything
                             }
                             activity.updateLibrary {
+                                val view = view
+                                if (view == null) return@updateLibrary
                                 val snackBar =
                                     Snackbar.make(
-                                        requireView(),
+                                        view,
                                         getString(
                                             R.string.refreshed_songs,
                                             runBlocking { activity.reader.songListFlow.first().size },
@@ -218,9 +224,8 @@ class ViewPagerFragment : BaseFragment(true) {
 
         // Connect ViewPager2.
 
-        // TODO does 1 here cause lag when swiping?
         viewPager2.offscreenPageLimit = 1
-        val adapter =
+        adapter =
             ViewPager2Adapter(
                 childFragmentManager,
                 viewLifecycleOwner.lifecycle,
@@ -249,5 +254,10 @@ class ViewPagerFragment : BaseFragment(true) {
         }.attach()
 
         return rootView
+    }
+
+    fun maybeReportFullyDrawn(itemId: Int) {
+        if (adapter.getItemId(viewPager2.currentItem).toInt() == itemId)
+            mainActivity.maybeReportFullyDrawn()
     }
 }

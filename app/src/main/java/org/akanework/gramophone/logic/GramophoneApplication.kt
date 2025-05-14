@@ -129,24 +129,23 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             recentlyAddedFilterSecondFlow,
             MutableStateFlow(true), "gramophoneAlbumCover"
         )
-        // This is a separate thread to avoid disk read on main thread and improve startup time
-        CoroutineScope(Dispatchers.Default).launch {
-            val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
-            // Set application theme when launching.
-            when (prefs.getString("theme_mode", "0")) {
-                "0" -> {
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-                }
-
-                "1" -> {
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-                }
-
-                "2" -> {
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-                }
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
+        // Set application theme when launching.
+        when (prefs.getString("theme_mode", "0")) {
+            "0" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
             }
 
+            "1" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            }
+
+            "2" -> {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            }
+        }
+        // This is a separate thread to avoid disk read on main thread and improve startup time
+        CoroutineScope(Dispatchers.Default).launch {
             onSharedPreferenceChanged(prefs, null) // reload all values
             prefs.registerOnSharedPreferenceChangeListener(this@GramophoneApplication)
 
@@ -285,7 +284,8 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
 
     override fun uncaughtException(t: Thread, e: Throwable) {
         // TODO convert to notification that opens BugHandlerActivity on click, and let JVM
-        //  go through the normal exception process.
+        //  go through the normal exception process (to get stats from play). disadvantage: we can't
+        //  cheat the statistic that way
         val exceptionMessage = Log.getStackTraceString(e)
         val threadName = Thread.currentThread().name
         Log.e(TAG, "Error on thread $threadName:\n $exceptionMessage")

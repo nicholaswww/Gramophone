@@ -29,7 +29,7 @@ class BlacklistFolderAdapter(
             )
         )
 
-    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val checkBox: MaterialCheckBox = view.findViewById(R.id.checkbox)
         val folderLocation: TextView = view.findViewById(R.id.title)
     }

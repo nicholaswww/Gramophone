@@ -85,7 +85,7 @@ class SongAdapter(
     fallbackSpans = fallbackSpans
 ) {
 
-    fun getSongList() = list.second
+    fun getSongList() = list?.second ?: emptyList()
 
     fun getActivity() = mainActivity
 
@@ -148,7 +148,7 @@ class SongAdapter(
     override fun onListUpdated() {
         // TODO run this method on a different thread / in advance
         idToPosMap = hashMapOf()
-        list.second.forEachIndexed { i, item -> idToPosMap!![item.mediaId] = i }
+        list!!.second.forEachIndexed { i, item -> idToPosMap!![item.mediaId] = i }
     }
 
     override fun virtualTitleOf(item: MediaItem): String {

@@ -56,7 +56,6 @@ import androidx.media3.common.Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.common.util.Util
 import androidx.media3.common.util.Util.isBitmapFactorySupportedMimeType
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -227,7 +226,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     private val btReceiver = object : BroadcastReceiver() {
-        // TODO verify if stable
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action.equals("android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED") &&
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O /* before 8, only sbc was supported */
@@ -353,10 +351,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         player.exoPlayer.addAnalyticsListener(EventLogger())
         player.exoPlayer.addAnalyticsListener(afFormatTracker)
         player.exoPlayer.addAnalyticsListener(this)
-        player.exoPlayer.audioSessionId = Util.generateAudioSessionIdV21(this)
-        lastSessionId = player.exoPlayer.audioSessionId
         player.setShuffleOrder { CircularShuffleOrder(it, 0, 0, Random.nextLong()) }
-        broadcastAudioSession()
         lastPlayedManager = LastPlayedManager(this, player)
         lastPlayedManager.allowSavingState = false
 
@@ -505,6 +500,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lastPlayedManager.save()
         mediaSession!!.player.stop()
         broadcastAudioSessionClose()
+        handler.removeCallbacks(timer)
         controller!!.release()
         controller = null
         mediaSession!!.release()
@@ -564,10 +560,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onAudioSessionIdChanged(audioSessionId: Int) {
-        super<Player.Listener>.onAudioSessionIdChanged(audioSessionId)
-        broadcastAudioSessionClose()
-        lastSessionId = audioSessionId
-        broadcastAudioSession()
+        if (audioSessionId != lastSessionId) {
+            broadcastAudioSessionClose()
+            lastSessionId = audioSessionId
+            broadcastAudioSession()
+        }
     }
 
     private fun broadcastAudioSession() {
@@ -588,6 +585,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
                 putExtra(AudioEffect.EXTRA_AUDIO_SESSION, lastSessionId)
             })
+            lastSessionId = 0
         }
     }
 

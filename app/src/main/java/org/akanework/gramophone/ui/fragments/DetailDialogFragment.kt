@@ -46,7 +46,10 @@ class DetailDialogFragment : BaseFragment(false) {
         }
         val id = requireArguments().getString("Id")?.toMediaStoreId()
         val mediaItem = runBlocking { mainActivity.reader.idMapFlow.map { it[id] }.first() }
-            ?: return null.also { requireActivity().supportFragmentManager.popBackStack() }
+        if (mediaItem == null) {
+            parentFragmentManager.popBackStack()
+            return null
+        }
         val mediaMetadata = mediaItem.mediaMetadata
         val albumCoverImageView = rootView.findViewById<ImageView>(R.id.album_cover)
         val titleTextView = rootView.findViewById<TextView>(R.id.title)

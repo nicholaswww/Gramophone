@@ -182,7 +182,7 @@ class PlaylistAdapter(
     ) : BaseDecorAdapter<PlaylistAdapter>(playlistAdapter, R.plurals.items, false) {
 
         override fun onBindViewHolder(
-            holder: BaseDecorAdapter<PlaylistAdapter>.ViewHolder,
+            holder: ViewHolder,
             position: Int,
             payloads: List<Any?>
         ) {
@@ -202,6 +202,12 @@ class PlaylistAdapter(
                     }
                 }
             }
+        }
+
+        override fun onViewRecycled(holder: ViewHolder) {
+            holder.createPlaylist.visibility = View.GONE
+            holder.createPlaylist.setOnClickListener(null)
+            super.onViewRecycled(holder)
         }
     }
 

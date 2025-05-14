@@ -39,7 +39,7 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
     protected val adapter: T,
     private val pluralStr: Int,
     private val isSubFragment: Boolean
-) : MyRecyclerView.Adapter<BaseDecorAdapter<T>.ViewHolder>(), ItemHeightHelper {
+) : MyRecyclerView.Adapter<BaseDecorAdapter.ViewHolder>(), ItemHeightHelper {
 
     protected val context: Context = adapter.context
     private val dpHeight = context.resources.getDimensionPixelSize(R.dimen.decor_height)
@@ -196,6 +196,15 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
         }
     }
 
+    override fun onViewRecycled(holder: ViewHolder) {
+        holder.sortButton.setOnClickListener(null)
+        holder.playAll.setOnClickListener(null)
+        holder.shuffleAll.setOnClickListener(null)
+        holder.jumpUp.setOnClickListener(null)
+        holder.jumpDown.setOnClickListener(null)
+        super.onViewRecycled(holder)
+    }
+
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
         this.recyclerView = recyclerView
@@ -240,8 +249,9 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
     protected open fun onExtraMenuButtonPressed(menuItem: MenuItem): Boolean = false
 
     override fun getItemCount(): Int = 1
+    override fun getItemViewType(position: Int): Int = R.layout.general_decor
 
-    inner class ViewHolder(
+    class ViewHolder(
         view: View,
     ) : RecyclerView.ViewHolder(view) {
         val sortButton: MaterialButton = view.findViewById(R.id.sort)

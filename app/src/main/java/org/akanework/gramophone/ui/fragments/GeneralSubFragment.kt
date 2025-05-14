@@ -27,8 +27,10 @@ import androidx.media3.common.util.UnstableApi
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -37,6 +39,8 @@ import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.ui.MyRecyclerView
+import org.akanework.gramophone.logic.utils.flows.PauseManagingSharedFlow.Companion.sharePauseableIn
+import org.akanework.gramophone.logic.utils.flows.provideReplayCacheInvalidationManager
 import org.akanework.gramophone.ui.adapters.SongAdapter
 import org.akanework.gramophone.ui.adapters.Sorter
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
@@ -77,8 +81,7 @@ class GeneralSubFragment : BaseFragment(true) {
 
         when (itemType) {
             R.id.album -> {
-                val item = mainActivity.reader.albumListFlow.map { it.find { it.id == id }
-                    ?: null.also { requireActivity().supportFragmentManager.popBackStack() } }
+                val item = mainActivity.reader.albumListFlow.map { it.find { it.id == id } }
                 title = item.map { it?.title ?: requireContext().getString(R.string.unknown_album) }
                 itemList = item.map { it?.songList }
                 helper =
@@ -97,16 +100,14 @@ class GeneralSubFragment : BaseFragment(true) {
 
             R.id.genres -> {
                 // Genres
-                val item = mainActivity.reader.genreListFlow.map { it.find { it.id == id }
-                    ?: null.also { requireActivity().supportFragmentManager.popBackStack() } }
+                val item = mainActivity.reader.genreListFlow.map { it.find { it.id == id } }
                 title = item.map { it?.title ?: requireContext().getString(R.string.unknown_genre) }
                 itemList = item.map { it?.songList }
             }
 
             R.id.dates -> {
                 // Dates
-                val item = mainActivity.reader.dateListFlow.map { it.find { it.id == id }
-                    ?: null.also { requireActivity().supportFragmentManager.popBackStack() } }
+                val item = mainActivity.reader.dateListFlow.map { it.find { it.id == id } }
                 title = item.map { it?.title ?: requireContext().getString(R.string.unknown_year) }
                 itemList = item.map { it?.songList }
             }
@@ -120,8 +121,9 @@ class GeneralSubFragment : BaseFragment(true) {
 
             R.id.playlist -> {
                 // Playlists
-                val item = mainActivity.reader.playlistListFlow.map { it.find { it.id == id }
-                    ?: null.also { requireActivity().supportFragmentManager.popBackStack() } }
+                val item = mainActivity.reader.playlistListFlow.map { it.find { it.id == id } }
+                    .provideReplayCacheInvalidationManager()
+                    .sharePauseableIn(CoroutineScope(Dispatchers.Default), WhileSubscribed(), replay = 1)
                 title = item.map {
                     if (it is RecentlyAdded) {
                         requireContext().getString(R.string.recently_added)

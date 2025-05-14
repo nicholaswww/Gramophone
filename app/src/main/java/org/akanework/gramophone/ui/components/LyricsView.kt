@@ -11,6 +11,7 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.MyRecyclerView
+import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.convertForLegacy
@@ -48,7 +49,8 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
         val oldPaddingRight = newView?.paddingRight ?: recyclerView?.paddingRight ?: 0
         recyclerView = null
         newView = null
-        if (prefs.getBooleanStrict("lyric_parser", false) && prefs.getBooleanStrict("lyric_ui", false)) {
+        if (Flags.NEW_LYRIC_UI && prefs.getBooleanStrict("lyric_parser", false) &&
+            prefs.getBooleanStrict("lyric_ui", false)) {
             inflate(context, R.layout.lyric_view_v2, this)
             newView = findViewById(R.id.lyric_view)
             newView?.setPadding(oldPaddingLeft, oldPaddingTop, oldPaddingRight, oldPaddingBottom)

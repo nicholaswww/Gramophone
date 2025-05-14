@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import org.akanework.gramophone.logic.hasAudioPermission
+import org.akanework.gramophone.logic.utils.flows.Invalidation
 import org.akanework.gramophone.logic.utils.flows.PauseManagingSharedFlow.Companion.sharePauseableIn
 import org.akanework.gramophone.logic.utils.flows.conflateAndBlockWhenPaused
 import org.akanework.gramophone.logic.utils.flows.provideReplayCacheInvalidationManager
@@ -83,7 +84,7 @@ class FlowReader(
                     else emptyList()
                 }
             }
-            .provideReplayCacheInvalidationManager()
+            .provideReplayCacheInvalidationManager(copyDownstream = Invalidation.Optional)
             .sharePauseableIn(scope, WhileSubscribed(20000), WhileSubscribed(2000), replay = 1)
     private val readerFlow: Flow<ReaderResult> =
         shouldIncludeExtraFormatFlow.distinctUntilChanged().flatMapLatest { shouldIncludeExtraFormat ->
@@ -123,7 +124,7 @@ class FlowReader(
                 awaitingRefresh = true
                 hadFirstRefresh = true
             }
-            .provideReplayCacheInvalidationManager()
+            .provideReplayCacheInvalidationManager(copyDownstream = Invalidation.Optional)
             .sharePauseableIn(scope, WhileSubscribed(20000), WhileSubscribed(2000), replay = 1)
     val idMapFlow: Flow<Map<Long, MediaItem>> = readerFlow.map { it.idMap!! }
     val songListFlow: Flow<List<MediaItem>> = readerFlow.map { it.songList }
@@ -138,7 +139,7 @@ class FlowReader(
             else
                 null
         }
-        .provideReplayCacheInvalidationManager()
+        .provideReplayCacheInvalidationManager(copyDownstream = Invalidation.Optional)
         .sharePauseableIn(scope, WhileSubscribed(20000), WhileSubscribed(2000), replay = 1)
     private val mappedPlaylistsFlow = idMapFlow.combine(rawPlaylistFlow) { idMap, rawPlaylists ->
         rawPlaylists.map { it.toPlaylist(idMap) }

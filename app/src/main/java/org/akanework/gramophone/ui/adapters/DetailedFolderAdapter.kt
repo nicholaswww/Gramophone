@@ -60,14 +60,15 @@ class DetailedFolderAdapter(
     private val songAdapter: SongAdapter =
         SongAdapter(fragment, songList, false, null, false)
     override val concatAdapter: ConcatAdapter =
-        ConcatAdapter(this, folderPopAdapter, folderAdapter, songAdapter)
+        ConcatAdapter(ConcatAdapter.Config.Builder().setIsolateViewTypes(false).build(),
+            this, folderPopAdapter, folderAdapter, songAdapter)
     override val itemHeightHelper: ItemHeightHelper? = null
     private var root: FileNode? = null
     private var fileNodePath = ArrayList<String>()
     private var recyclerView: MyRecyclerView? = null
 
     init {
-        runBlocking { onChanged(liveData.first()) }
+        runBlocking { onChanged(liveData.first()) } // TODO(ASAP) stop blocking forever
     }
 
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
@@ -83,6 +84,7 @@ class DetailedFolderAdapter(
             }
         }
         recyclerView.layoutManager = LinearLayoutManager(recyclerView.context)
+        recyclerView.post { reportFullyDrawn() }
     }
 
     override fun onDetachedFromRecyclerView(recyclerView: MyRecyclerView) {
@@ -254,13 +256,11 @@ class DetailedFolderAdapter(
         }
     }
 
-    private class FolderPopAdapter(frag: DetailedFolderAdapter) : FolderCardAdapter(frag) {
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder =
-            super.onCreateViewHolder(parent, viewType).apply {
-                folderName.text = parent.context.getString(R.string.upper_folder)
-            }
+    private class FolderPopAdapter(private val frag: DetailedFolderAdapter) : FolderCardAdapter(frag) {
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.folderName.text = frag.mainActivity.getString(R.string.upper_folder)
+            holder.folderSubtitle.text = ""
             holder.itemView.setOnClickListener {
                 folderFragment.enter(null)
             }
@@ -283,13 +283,20 @@ class DetailedFolderAdapter(
 
     private abstract class FolderCardAdapter(val folderFragment: DetailedFolderAdapter) :
         MyRecyclerView.Adapter<FolderCardAdapter.ViewHolder>() {
+        override fun getItemViewType(position: Int): Int = R.layout.adapter_folder_card
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder =
             ViewHolder(
                 folderFragment.fragment.layoutInflater
                     .inflate(R.layout.adapter_folder_card, parent, false),
             )
 
-        inner class ViewHolder(
+        override fun onViewRecycled(holder: ViewHolder) {
+            holder.itemView.setOnClickListener(null)
+            super.onViewRecycled(holder)
+        }
+
+        class ViewHolder(
             view: View,
         ) : RecyclerView.ViewHolder(view) {
             val folderName: TextView = view.findViewById(R.id.title)

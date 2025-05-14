@@ -22,7 +22,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.ConcatAdapter
@@ -30,7 +29,6 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
-import kotlin.properties.Delegates
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -40,10 +38,10 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.ui.DefaultItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
-import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.adapters.AlbumAdapter
 import org.akanework.gramophone.ui.adapters.SongAdapter
 import org.akanework.gramophone.ui.components.GridPaddingDecoration
+import kotlin.properties.Delegates
 
 /**
  * ArtistSubFragment:
@@ -80,8 +78,7 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
         val item = mainActivity.reader.let {
             if (itemType == R.id.album_artist)
                 it.albumArtistListFlow else it.artistListFlow
-        }.map { it.find { it.id == id } ?:
-            null.also { requireActivity().supportFragmentManager.popBackStack() } }
+        }.map { it.find { it.id == id } }
         spans = if (requireContext().resources.configuration.orientation
             == Configuration.ORIENTATION_PORTRAIT
         ) 2 else 4
@@ -111,7 +108,8 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
         )
         recyclerView!!.enableEdgeToEdgePaddingListener()
         recyclerView!!.adapter =
-            ConcatAdapter(albumAdapter.concatAdapter, songAdapter.concatAdapter)
+            ConcatAdapter(ConcatAdapter.Config.Builder().setIsolateViewTypes(false).build(),
+                albumAdapter.concatAdapter, songAdapter.concatAdapter)
         recyclerView!!.addItemDecoration(gridPaddingDecoration)
         recyclerView!!.setAppBar(appBarLayout)
         recyclerView!!.fastScroll(this, ih)
