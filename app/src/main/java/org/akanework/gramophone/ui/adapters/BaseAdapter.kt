@@ -52,6 +52,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.zhanghai.android.fastscroll.PopupTextProvider
@@ -71,6 +73,7 @@ import org.akanework.gramophone.ui.fragments.AdapterFragment
 import org.akanework.gramophone.ui.getAdapterType
 import uk.akane.libphonograph.items.Item
 
+@OptIn(ExperimentalCoroutinesApi::class)
 abstract class BaseAdapter<T : Any>(
     protected val fragment: Fragment,
     liveData: Flow<List<T>?>,
@@ -186,9 +189,11 @@ abstract class BaseAdapter<T : Any>(
         get() = if (canSort) sorter.getSupportedTypes() else setOf(Sorter.Type.None)
 
     init {
-        var onListLoadedCompleter: CompletableDeferred<Pair<Pair<List<T>, List<T>>, Pair<DiffUtil.DiffResult?, Boolean>>>? =
-            CompletableDeferred()
-        val deferred = onListLoadedCompleter!!
+        val mayBlock = isSubFragment
+        val blockMutex = if (mayBlock) Mutex() else null
+        var onListLoadedCompleter = if (mayBlock)
+            CompletableDeferred<Pair<Pair<List<T>, List<T>>, Pair<DiffUtil.DiffResult?, Boolean>>>() else null
+        val deferred = if (mayBlock) onListLoadedCompleter else null
         val onListLoaded = { it: Pair<List<T>, List<T>>, diff: DiffUtil.DiffResult?, sizeChanged: Boolean ->
             list = it
             if (diff != null)
@@ -211,10 +216,18 @@ abstract class BaseAdapter<T : Any>(
                     DiffUtil.calculateDiff(SongDiffCallback(old?.second ?: emptyList(), it.second))
                 else null
                 val sizeChanged = (old?.second?.size ?: 0) != it.second.size
-                val deferred2 = onListLoadedCompleter ?: null // https://youtrack.jetbrains.com/issue/KT-77563
-                if (deferred2 != null) {
-                    deferred2.complete(it to (diff to sizeChanged))
-                    onListLoadedCompleter = null
+                if (blockMutex != null) {
+                    blockMutex.withLock {
+                        val deferred2 = onListLoadedCompleter
+                        if (deferred2 != null) {
+                            deferred2.complete(it to (diff to sizeChanged))
+                            onListLoadedCompleter = null
+                        } else {
+                            withContext(Dispatchers.Main + NonCancellable) {
+                                onListLoaded(it, diff, sizeChanged)
+                            }
+                        }
+                    }
                 } else {
                     withContext(Dispatchers.Main + NonCancellable) {
                         onListLoaded(it, diff, sizeChanged)
@@ -222,13 +235,22 @@ abstract class BaseAdapter<T : Any>(
                 }
             }
         }
-        runBlocking {
-            withTimeoutOrNull(100) { // TODO(ASAP) timeout will stack! only allow blocks for
-                                     //  current/next displayed page / always for sub; never when displaying splash
-                val (it, other) = deferred.await()
-                onListLoaded(it, other.first, other.second)
-                Unit
-            } ?: run { onListLoadedCompleter = null } // TODO(ASAP) racy
+        if (deferred != null) {
+            runBlocking {
+                try {
+                    withTimeoutOrNull(2000) {
+                        deferred.await()
+                    }
+                } finally {
+                    blockMutex!!.withLock {
+                        if (deferred.isCompleted) {
+                            val (it, other) = deferred.getCompleted()
+                            onListLoaded(it, other.first, other.second)
+                        }
+                        onListLoadedCompleter = null
+                    }
+                }
+            }
         }
         layoutType =
             if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType && !isSubFragment)
@@ -258,9 +280,9 @@ abstract class BaseAdapter<T : Any>(
             if (recyclerView.layoutManager != layoutManager) {
                 applyLayoutManager()
             }
-            if (list != null) {
-                recyclerView.post { reportFullyDrawn() }
-            }
+        }
+        if (list != null) {
+            recyclerView.post { reportFullyDrawn() }
         }
     }
 

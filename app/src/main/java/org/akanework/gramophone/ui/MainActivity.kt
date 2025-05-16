@@ -56,6 +56,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -100,6 +101,7 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private val reportFullyDrawnRunnable = Runnable { if (!ready) reportFullyDrawn() }
     private var ready = false
+    val readyFlow = MutableStateFlow(false)
     private var autoPlay = false
     lateinit var playerBottomSheet: PlayerBottomSheet
         private set
@@ -317,6 +319,9 @@ class MainActivity : AppCompatActivity() {
         handler.removeCallbacks(reportFullyDrawnRunnable)
         if (ready) throw IllegalStateException("ready is already true")
         ready = true
+        runBlocking {
+            readyFlow.emit(true)
+        }
         Choreographer.getInstance().postFrameCallback {
             handler.postAtFrontOfQueueAsync {
                 try {

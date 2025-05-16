@@ -224,7 +224,7 @@ class ViewPagerFragment : BaseFragment(true) {
 
         // Connect ViewPager2.
 
-        viewPager2.offscreenPageLimit = 1
+        viewPager2.offscreenPageLimit = 99999 // TODO is 99999 a good value?
         adapter =
             ViewPager2Adapter(
                 childFragmentManager,

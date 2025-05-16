@@ -29,7 +29,6 @@ import androidx.core.graphics.scale
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.doOnLayout
 import androidx.core.view.isInvisible
 import androidx.core.widget.TextViewCompat
 import androidx.media3.common.C
@@ -52,6 +51,7 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.request.error
+import coil3.size.Precision
 import coil3.size.Scale
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -218,6 +218,7 @@ class FullBottomSheet
     private var playlistNowPlaying: TextView? = null
     private var playlistNowPlayingCover: ImageView? = null
     private var lastDisposable: Disposable? = null
+    private var deferredImageLoader: (() -> Unit)? = null
 
     init {
         inflate(context, R.layout.full_player, this)
@@ -543,6 +544,23 @@ class FullBottomSheet
 
              */
         }
+        addOnLayoutChangeListener(
+            object : OnLayoutChangeListener {
+                override fun onLayoutChange(
+                    view: View,
+                    left: Int,
+                    top: Int,
+                    right: Int,
+                    bottom: Int,
+                    oldLeft: Int,
+                    oldTop: Int,
+                    oldRight: Int,
+                    oldBottom: Int
+                ) {
+                    deferredImageLoader?.invoke()
+                }
+            }
+        )
     }
 
     private fun updateTimer() {
@@ -991,10 +1009,9 @@ class FullBottomSheet
         if (instance?.mediaItemCount != 0) {
             lastDisposable?.dispose()
             lastDisposable = null
-            doOnLayout {
+            val loader = {
                 if (lastDisposable != null) {
-                    //throw IllegalStateException("raced while loading cover in onMediaItemTransition?")
-                    lastDisposable?.dispose() // TODO(ASAP) avoid this race by only allowing one delayed listener
+                    throw IllegalStateException("raced while loading cover in onMediaItemTransition?")
                 }
                 val file = mediaItem?.getFile()
                 lastDisposable = context.imageLoader.enqueue(
@@ -1004,6 +1021,7 @@ class FullBottomSheet
                             throw IllegalStateException("expected to have box of full cover after layout")
                         }
                         size(bottomSheetFullCover.width, bottomSheetFullCover.height)
+                        precision(Precision.INEXACT)
                         scale(Scale.FILL)
                         // do not react to onStart() which sets placeholder
                         target(onSuccess = {
@@ -1028,6 +1046,11 @@ class FullBottomSheet
                         allowHardware(false)
                     }.build()
                 )
+            }
+            if (isLaidOut && !isLayoutRequested) {
+                loader()
+            } else {
+                deferredImageLoader = loader
             }
             bottomSheetFullTitle.setTextAnimation(
                 mediaItem?.mediaMetadata?.title,

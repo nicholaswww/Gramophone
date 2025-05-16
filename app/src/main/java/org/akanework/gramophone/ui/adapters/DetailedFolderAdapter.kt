@@ -32,8 +32,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -56,9 +55,11 @@ class DetailedFolderAdapter(
     private val folderPopAdapter: FolderPopAdapter = FolderPopAdapter(this)
     private val folderAdapter: FolderListAdapter =
         FolderListAdapter(listOf(), mainActivity, this)
-    private val songList = MutableStateFlow(listOf<MediaItem>())
+    private val songList = MutableSharedFlow<List<MediaItem>>(1)
     private val songAdapter: SongAdapter =
-        SongAdapter(fragment, songList, false, null, false)
+        SongAdapter(fragment, songList, false, null, false).apply {
+            onFullyDrawnListener = { reportFullyDrawn() }
+        }
     override val concatAdapter: ConcatAdapter =
         ConcatAdapter(ConcatAdapter.Config.Builder().setIsolateViewTypes(false).build(),
             this, folderPopAdapter, folderAdapter, songAdapter)
@@ -66,10 +67,6 @@ class DetailedFolderAdapter(
     private var root: FileNode? = null
     private var fileNodePath = ArrayList<String>()
     private var recyclerView: MyRecyclerView? = null
-
-    init {
-        runBlocking { onChanged(liveData.first()) } // TODO(ASAP) stop blocking forever
-    }
 
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
@@ -84,7 +81,6 @@ class DetailedFolderAdapter(
             }
         }
         recyclerView.layoutManager = LinearLayoutManager(recyclerView.context)
-        recyclerView.post { reportFullyDrawn() }
     }
 
     override fun onDetachedFromRecyclerView(recyclerView: MyRecyclerView) {
@@ -135,7 +131,7 @@ class DetailedFolderAdapter(
         val doUpdate = { canDiff: Boolean ->
             folderPopAdapter.enabled = fileNodePath.isNotEmpty()
             folderAdapter.updateList(item?.folderList?.values ?: listOf(), canDiff)
-            songList.value = item?.songList ?: listOf()
+            runBlocking { songList.emit(item?.songList ?: listOf()) }
         }
         recyclerView.let {
             if (it == null || invertedDirection == null) {
