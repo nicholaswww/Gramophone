@@ -35,6 +35,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.os.StrictMode
+import android.os.ext.SdkExtensions
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup.MarginLayoutParams
@@ -582,6 +583,12 @@ inline fun supportsNotificationPermission(): Boolean =
 @Suppress("NOTHING_TO_INLINE")
 inline fun hasImprovedMediaStore(): Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun hasMarkIsFavouriteStatus(): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                    SdkExtensions.getExtensionVersion(Build.VERSION_CODES.R) >= 16)
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun hasScopedStorageV2(): Boolean =

@@ -2,12 +2,14 @@ package org.akanework.gramophone.ui.components
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.content.ContentUris
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.TransitionDrawable
+import android.provider.MediaStore
 import android.text.format.DateFormat
 import android.util.AttributeSet
 import android.view.Gravity
@@ -20,6 +22,7 @@ import android.view.WindowInsets
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.activity.result.IntentSenderRequest
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.TooltipCompat
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -32,7 +35,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isInvisible
 import androidx.core.widget.TextViewCompat
 import androidx.media3.common.C
+import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
@@ -85,6 +90,7 @@ import org.akanework.gramophone.logic.getLyricsLegacy
 import org.akanework.gramophone.logic.getTimer
 import org.akanework.gramophone.logic.playOrPause
 import org.akanework.gramophone.logic.replaceAllSupport
+import org.akanework.gramophone.logic.requireMediaStoreId
 import org.akanework.gramophone.logic.setTextAnimation
 import org.akanework.gramophone.logic.setTimer
 import org.akanework.gramophone.logic.startAnimation
@@ -105,6 +111,7 @@ import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
+import uk.akane.libphonograph.manipulator.ItemManipulator
 import java.util.LinkedList
 import kotlin.math.min
 
@@ -113,7 +120,7 @@ import kotlin.math.min
 class FullBottomSheet
     (context: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) :
     ConstraintLayout(context, attrs, defStyleAttr, defStyleRes), Player.Listener,
-    SharedPreferences.OnSharedPreferenceChangeListener {
+    SharedPreferences.OnSharedPreferenceChangeListener, MaterialButton.OnCheckedChangeListener {
     constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
             this(context, attrs, defStyleAttr, 0)
 
@@ -406,18 +413,7 @@ class FullBottomSheet
             }
         }
 
-        /*
-        bottomSheetFavoriteButton.addOnCheckedChangeListener { _, isChecked ->
-            /*
-            if (isChecked) {
-                instance.currentMediaItem?.let { insertIntoPlaylist(it) }
-            } else {
-                instance.currentMediaItem?.let { removeFromPlaylist(it) }
-            }
-             */
-        }
-
-         */
+        bottomSheetFavoriteButton.addOnCheckedChangeListener(this)
 
         bottomSheetPlaylistButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
@@ -532,17 +528,6 @@ class FullBottomSheet
                 Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
             )
             firstTime = false
-            /*
-            if (activity.libraryViewModel.playlistList.value!![MediaStoreUtils.favPlaylistPosition]
-                    .songList.contains(instance.currentMediaItem)) {
-                bottomSheetFavoriteButton.isChecked = true
-                // TODO(ASAP) fav button
-            } else {
-                bottomSheetFavoriteButton.isChecked = false
-                // TODO(ASAP) fav button
-            }
-
-             */
         }
         addOnLayoutChangeListener(
             object : OnLayoutChangeListener {
@@ -1071,21 +1056,11 @@ class FullBottomSheet
                     error(R.drawable.ic_default_cover)
                 }
             }
-
-            /*
-            if (activity.libraryViewModel.playlistList.value!![MediaStoreUtils.favPlaylistPosition]
-                    .songList.contains(instance.currentMediaItem)
-            ) {
-                // TODO(ASAP) fav button
-            } else {
-                // TODO(ASAP) fav button
-            }
-
-             */
         } else {
             lastDisposable?.dispose()
             lastDisposable = null
             playlistNowPlayingCover?.dispose()
+            deferredImageLoader = null
         }
         val position = CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
         val duration = instance?.currentMediaItem?.mediaMetadata?.durationMs
@@ -1098,6 +1073,25 @@ class FullBottomSheet
             bottomSheetFullPosition.text = position
         }
         bottomSheetFullLyricView.updateLyricPositionFromPlaybackPos()
+    }
+
+    override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+        bottomSheetFavoriteButton.removeOnCheckedChangeListener(this)
+        bottomSheetFavoriteButton.isChecked = (mediaMetadata.userRating as? HeartRating)?.isHeart == true
+        bottomSheetFavoriteButton.addOnCheckedChangeListener(this)
+    }
+
+    override fun onCheckedChanged(button: MaterialButton?, isChecked: Boolean) {
+        instance?.currentMediaItem?.let { song ->
+            val uri = ContentUris.withAppendedId(
+                MediaStore.Audio.Media.getContentUri("external"), song.requireMediaStoreId()
+            )
+            val sender = ItemManipulator.setFavorite(activity, setOf(uri), isChecked)
+            if (sender != null)
+                activity.intentSender.launch(
+                    IntentSenderRequest.Builder(sender).build()
+                )
+        }
     }
 
     override fun onPositionDiscontinuity(

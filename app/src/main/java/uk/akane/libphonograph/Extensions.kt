@@ -6,6 +6,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ProducerScope
@@ -63,6 +64,7 @@ internal fun contentObserverVersioningFlow(
     return versioningCallbackFlow { nextVersion ->
         val listener = object : ContentObserverCompat(null) {
             override fun onChange(selfChange: Boolean, uris: Collection<Uri>, flags: Int) {
+                Log.d("hi", "change $uris")
                 // TODO can we use those uris and flags for incremental reload at least on newer
                 //  platform versions? completely since R+, Q has no flags, before we get meh deletion handling
                 scope.launch {

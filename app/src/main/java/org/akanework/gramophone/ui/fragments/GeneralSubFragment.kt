@@ -43,6 +43,7 @@ import org.akanework.gramophone.logic.utils.flows.PauseManagingSharedFlow.Compan
 import org.akanework.gramophone.logic.utils.flows.provideReplayCacheInvalidationManager
 import org.akanework.gramophone.ui.adapters.SongAdapter
 import org.akanework.gramophone.ui.adapters.Sorter
+import uk.akane.libphonograph.dynamicitem.Favorite
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
 
 /**
@@ -121,12 +122,17 @@ class GeneralSubFragment : BaseFragment(true) {
 
             R.id.playlist -> {
                 // Playlists
-                val item = mainActivity.reader.playlistListFlow.map { it.find { it.id == id } }
+                val clazz = arguments?.getString("Class") ?: "null"
+                val item = mainActivity.reader.playlistListFlow.map {
+                    it.find { it.id == id && it.javaClass.name == clazz }
+                }
                     .provideReplayCacheInvalidationManager()
                     .sharePauseableIn(CoroutineScope(Dispatchers.Default), WhileSubscribed(), replay = 1)
                 title = item.map {
                     if (it is RecentlyAdded) {
                         requireContext().getString(R.string.recently_added)
+                    } else if (it is Favorite) {
+                        requireContext().getString(R.string.playlist_favourite)
                     } else {
                         it?.title ?: requireContext().getString(R.string.unknown_playlist)
                     }

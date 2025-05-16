@@ -376,7 +376,6 @@
 			android:insetRight="0dp"
 			android:insetBottom="0dp"
 			android:saveEnabled="false"
-			android:visibility="gone"
 			app:tooltipText="@string/playlist_favourite"
 			android:contentDescription="@string/playlist_favourite"
 			app:icon="@drawable/sl_check_fav"

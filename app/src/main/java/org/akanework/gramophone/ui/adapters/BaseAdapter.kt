@@ -459,7 +459,7 @@ abstract class BaseAdapter<T : Any>(
         } else "null"
     }
 
-    private fun coverOf(item: T): Uri? {
+    protected open fun coverOf(item: T): Uri? {
         return sorter.sortingHelper.getCover(item)
     }
 

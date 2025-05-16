@@ -30,6 +30,7 @@ import org.akanework.gramophone.logic.utils.flows.provideReplayCacheInvalidation
 import org.akanework.gramophone.logic.utils.flows.repeatUntilDoneWhenUnpaused
 import org.akanework.gramophone.logic.utils.flows.requireReplayCacheInvalidationManager
 import uk.akane.libphonograph.contentObserverVersioningFlow
+import uk.akane.libphonograph.dynamicitem.Favorite
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
 import uk.akane.libphonograph.items.Album
 import uk.akane.libphonograph.items.Artist
@@ -129,8 +130,8 @@ class FlowReader(
     val idMapFlow: Flow<Map<Long, MediaItem>> = readerFlow.map { it.idMap!! }
     val songListFlow: Flow<List<MediaItem>> = readerFlow.map { it.songList }
     private val recentlyAddedFlow = recentlyAddedFilterSecondFlow.distinctUntilChanged()
+        .onEach { requireReplayCacheInvalidationManager().invalidate() }
         .combine(songListFlow) { recentlyAddedFilterSecond, songList ->
-            requireReplayCacheInvalidationManager().invalidate()
             if (recentlyAddedFilterSecond != null)
                 RecentlyAdded(
                     (System.currentTimeMillis() / 1000L) - recentlyAddedFilterSecond,
@@ -138,6 +139,11 @@ class FlowReader(
                 )
             else
                 null
+        }
+        .provideReplayCacheInvalidationManager(copyDownstream = Invalidation.Optional)
+        .sharePauseableIn(scope, WhileSubscribed(20000), WhileSubscribed(2000), replay = 1)
+    private val favoriteFlow = songListFlow.map { songList ->
+            Favorite(songList)
         }
         .provideReplayCacheInvalidationManager(copyDownstream = Invalidation.Optional)
         .sharePauseableIn(scope, WhileSubscribed(20000), WhileSubscribed(2000), replay = 1)
@@ -149,8 +155,10 @@ class FlowReader(
     val artistListFlow: Flow<List<Artist>> = readerFlow.map { it.artistList!! }
     val genreListFlow: Flow<List<Genre>> = readerFlow.map { it.genreList!! }
     val dateListFlow: Flow<List<Date>> = readerFlow.map { it.dateList!! }
-    val playlistListFlow = mappedPlaylistsFlow.combine(recentlyAddedFlow) { mappedPlaylists, recentlyAdded ->
-        if (recentlyAdded != null) mappedPlaylists + recentlyAdded else mappedPlaylists
+    val playlistListFlow = combine(mappedPlaylistsFlow, recentlyAddedFlow, favoriteFlow)
+    { mappedPlaylists, recentlyAdded, favorite ->
+        val base = mappedPlaylists + favorite
+        if (recentlyAdded != null) base + recentlyAdded else base
     }
     val folderStructureFlow: Flow<FileNode> = readerFlow.map { it.folderStructure!! }
     val shallowFolderFlow: Flow<FileNode> = readerFlow.map { it.shallowFolder!! }

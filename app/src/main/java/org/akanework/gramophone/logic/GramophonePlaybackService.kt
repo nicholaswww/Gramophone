@@ -87,6 +87,8 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
@@ -172,6 +174,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var proxy: BtCodecInfo.Companion.Proxy? = null
     private var audioTrackInfoCounter = 0
     private var audioTrackReleaseCounter = 0
+    private val scope = CoroutineScope(Dispatchers.Default)
     private val lyricsFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
     private val bitrateFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
 
@@ -486,6 +489,17 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             }
             lastPlayedManager.allowSavingState = true
         }
+        scope.launch {
+            gramophoneApplication.reader.songListFlow.collect { list ->
+                withContext(Dispatchers.Main + NonCancellable) {
+                    val cmi = controller?.currentMediaItem?.mediaId
+                    if (cmi == null) return@withContext
+                    list.find { it.mediaId == cmi }?.let {
+                        controller!!.replaceMediaItem(controller!!.currentMediaItemIndex, it)
+                    }
+                }
+            }
+        }
     }
 
     // When destroying, we should release server side player
@@ -498,6 +512,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         unregisterReceiver(btReceiver)
         // Important: this must happen before sending stop() as that changes state ENDED -> IDLE
         lastPlayedManager.save()
+        scope.cancel()
         mediaSession!!.player.stop()
         broadcastAudioSessionClose()
         handler.removeCallbacks(timer)

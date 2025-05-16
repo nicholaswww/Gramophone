@@ -1,6 +1,7 @@
 package uk.akane.libphonograph.manipulator
 
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
@@ -15,6 +16,7 @@ import android.util.Log
 import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.RequiresApi
 import org.akanework.gramophone.logic.hasImprovedMediaStore
+import org.akanework.gramophone.logic.hasMarkIsFavouriteStatus
 import org.akanework.gramophone.logic.hasScopedStorageV2
 import uk.akane.libphonograph.getIntOrNullIfThrow
 import uk.akane.libphonograph.getLongOrNullIfThrow
@@ -25,7 +27,7 @@ import java.io.IOException
 object ItemManipulator {
     private const val TAG = "ItemManipulator"
 
-    fun deleteSong(context: Context, file: File, id: Long): DeleteRequest {
+    fun deleteSong(context: Context, file: File, id: Long): MediaStoreRequest {
         val uri = ContentUris.withAppendedId(
             MediaStore.Audio.Media.getContentUri("external"), id
         )
@@ -41,7 +43,7 @@ object ItemManipulator {
         return delete(context, uris)
     }
 
-    fun deletePlaylist(context: Context, id: Long): DeleteRequest {
+    fun deletePlaylist(context: Context, id: Long): MediaStoreRequest {
         val uri = ContentUris.withAppendedId(
             @Suppress("deprecation") MediaStore.Audio.Playlists.getContentUri("external"), id
         )
@@ -49,15 +51,15 @@ object ItemManipulator {
     }
 
     // requires requestLegacyExternalStorage for simplicity
-    fun delete(context: Context, uris: Set<Uri>): DeleteRequest {
+    fun delete(context: Context, uris: Set<Uri>): MediaStoreRequest {
         if (needRequestWrite(context, uris)) {
             val pendingIntent = MediaStore.createDeleteRequest(
                 context.contentResolver, uris.toList()
             )
-            return DeleteRequest(pendingIntent.intentSender)
+            return MediaStoreRequest(pendingIntent.intentSender)
         } else {
-            return DeleteRequest {
-                return@DeleteRequest try {
+            return MediaStoreRequest {
+                return@MediaStoreRequest try {
                     !uris.map {
                         context.contentResolver.delete(it, null, null) == 1
                     }.contains(false)
@@ -65,6 +67,29 @@ object ItemManipulator {
                     false
                 }
             }
+        }
+    }
+
+    fun setFavorite(context: Context, uris: Set<Uri>, favorite: Boolean): IntentSender? {
+        if (hasMarkIsFavouriteStatus()) {
+            MediaStore.markIsFavoriteStatus(
+                context.contentResolver, uris.toList(), favorite
+            )
+            return null
+        } else if (needRequestWrite(context, uris)) {
+            // This never actually asks the user for permission...
+            val pendingIntent = MediaStore.createFavoriteRequest(
+                context.contentResolver, uris.toList(), favorite
+            )
+            return pendingIntent.intentSender
+        } else {
+            val cv = ContentValues()
+            cv.put(MediaStore.MediaColumns.IS_FAVORITE, if (favorite) 1 else 0)
+            uris.forEach { uri ->
+                if (context.contentResolver.update(uri, cv, null, null) != 1)
+                    Log.w(TAG, "failed to favorite $uri")
+            }
+            return null
         }
     }
 
@@ -112,20 +137,6 @@ object ItemManipulator {
         return hasScopedStorageV2() && !checkIfFileAttributedToSelf(context, uri) &&
                 context.checkUriPermission(uri, Process.myPid(), Process.myUid(),
                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED
-    }
-
-    @RequiresApi(Build.VERSION_CODES.R)
-    private fun checkIfFileIsSubtitle(context: Context, uri: Uri): Boolean {
-        val cursor = context.contentResolver.query(uri,
-            arrayOf(MediaStore.Files.FileColumns.MEDIA_TYPE), null, null, null)
-        if (cursor == null) return false
-        cursor.use {
-            if (!cursor.moveToFirst()) return false
-            val column = cursor.getColumnIndex(MediaStore.Files.FileColumns.MEDIA_TYPE)
-            val type = cursor.getIntOrNullIfThrow(column)
-            Log.i("hi", "result=$type")
-            return type == MediaStore.Files.FileColumns.MEDIA_TYPE_SUBTITLE
-        }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -184,18 +195,18 @@ object ItemManipulator {
         }
     }
 
-    class DeleteRequest {
+    class MediaStoreRequest {
         val startSystemDialog: IntentSender?
-        val continueDelete: (suspend () -> Boolean)?
+        val continueAction: (suspend () -> Boolean)?
 
         constructor(startSystemDialog: IntentSender) {
             this.startSystemDialog = startSystemDialog
-            this.continueDelete = null
+            this.continueAction = null
         }
 
-        constructor(continueDelete: (suspend () -> Boolean)) {
+        constructor(continueAction: (suspend () -> Boolean)) {
             this.startSystemDialog = null
-            this.continueDelete = continueDelete
+            this.continueAction = continueAction
         }
     }
 }

@@ -18,9 +18,11 @@
 package org.akanework.gramophone.ui.adapters
 
 import android.app.Activity
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.DialogInterface
+import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
@@ -45,6 +47,7 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.AdapterFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
+import uk.akane.libphonograph.dynamicitem.Favorite
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
 import uk.akane.libphonograph.items.Playlist
 import uk.akane.libphonograph.manipulator.ItemManipulator
@@ -71,13 +74,29 @@ class PlaylistAdapter(
 
     override fun virtualTitleOf(item: Playlist): String {
         return context.getString(
-            if (item is RecentlyAdded)
-                R.string.recently_added else R.string.unknown_playlist
+            when (item) {
+                is RecentlyAdded -> R.string.recently_added
+                is Favorite -> R.string.playlist_favourite
+                else -> R.string.unknown_playlist
+            }
         )
+    }
+
+    override fun coverOf(item: Playlist): Uri? {
+        return if (item.id != null) super.coverOf(item) else
+            Uri.Builder()
+                .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+                .authority(context.packageName)
+                .path(when (item) {
+                    is RecentlyAdded -> R.drawable.ic_default_cover_playlist_recently
+                    is Favorite -> R.drawable.ic_default_cover_playlist_favorite
+                    else -> R.drawable.ic_default_cover_playlist
+                }.toString()).build()
     }
 
     override fun onClick(item: Playlist) {
         mainActivity.startFragment(GeneralSubFragment()) {
+            putString("Class", item.javaClass.name) // TODO kinda stupid
             putString("Id", item.id?.toString())
             putInt("Item", R.id.playlist)
         }
@@ -106,13 +125,13 @@ class PlaylistAdapter(
                         return@setOnMenuItemClickListener true
                     }
                     val res = ItemManipulator.deletePlaylist(context, item.id!!)
-                    if (res.continueDelete != null) {
+                    if (res.continueAction != null) {
                         AlertDialog.Builder(context)
                             .setTitle(R.string.delete)
                             .setMessage(context.getString(R.string.delete_really, item.title))
                             .setPositiveButton(R.string.yes) { _, _ ->
                                 CoroutineScope(Dispatchers.IO).launch {
-                                    res.continueDelete?.invoke()
+                                    res.continueAction.invoke()
                                 }
                             }
                             .setNegativeButton(R.string.no) { _, _ -> }

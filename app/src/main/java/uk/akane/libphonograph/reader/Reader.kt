@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import androidx.annotation.OptIn
+import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
@@ -80,6 +81,7 @@ internal object Reader {
                 add(MediaStore.Audio.Media.WRITER)
                 add(MediaStore.Audio.Media.DISC_NUMBER)
                 add(MediaStore.Audio.Media.AUTHOR)
+                add(MediaStore.Audio.Media.IS_FAVORITE)
             }
         }.toTypedArray()
 
@@ -199,6 +201,8 @@ internal object Reader {
                 it.getColumnIndexOrThrow(MediaStore.Audio.Media.WRITER) else null
             val authorColumn = if (hasImprovedMediaStore())
                 it.getColumnIndexOrThrow(MediaStore.Audio.Media.AUTHOR) else null
+            val favoriteColumn = if (hasImprovedMediaStore())
+                it.getColumnIndexOrThrow(MediaStore.Audio.Media.IS_FAVORITE) else null
             val durationColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val addDateColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             val modifiedDateColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
@@ -237,6 +241,9 @@ internal object Reader {
                 val writer = writerColumn?.let { col -> it.getStringOrNullIfThrow(col) }
                 val author = authorColumn?.let { col -> it.getStringOrNullIfThrow(col) }
                 val genre = genreColumn?.let { col -> it.getStringOrNullIfThrow(col) }
+                val favorite = favoriteColumn?.let { col -> it.getIntOrNullIfThrow(col) }.let {
+                    when (it) { 1 -> true; 0 -> false; else -> null }
+                }
                 val addDate = it.getLongOrNullIfThrow(addDateColumn)
                 val modifiedDate = it.getLongOrNullIfThrow(modifiedDateColumn)
                 val dateTakenParsed = if (hasImprovedMediaStore()) {
@@ -314,6 +321,7 @@ internal object Reader {
                             .setRecordingMonth(dateTakenMonth)
                             .setRecordingYear(dateTakenYear)
                             .setReleaseYear(year)
+                            .setUserRating(if (favorite != null) HeartRating(favorite) else HeartRating())
                             .setExtras(Bundle().apply {
                                 if (artistId != null) {
                                     putLong(EXTRA_ARTIST_ID, artistId)
