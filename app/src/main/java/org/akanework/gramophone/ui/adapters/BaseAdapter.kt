@@ -190,7 +190,7 @@ abstract class BaseAdapter<T : Any>(
 
     init {
         val mayBlock = isSubFragment
-        val blockMutex = if (mayBlock) Mutex() else null
+        var blockMutex = if (mayBlock) Mutex() else null
         var onListLoadedCompleter = if (mayBlock)
             CompletableDeferred<Pair<Pair<List<T>, List<T>>, Pair<DiffUtil.DiffResult?, Boolean>>>() else null
         val deferred = if (mayBlock) onListLoadedCompleter else null
@@ -216,8 +216,9 @@ abstract class BaseAdapter<T : Any>(
                     DiffUtil.calculateDiff(SongDiffCallback(old?.second ?: emptyList(), it.second))
                 else null
                 val sizeChanged = (old?.second?.size ?: 0) != it.second.size
-                if (blockMutex != null) {
-                    blockMutex.withLock {
+                val mutex = blockMutex
+                if (mutex != null) {
+                    mutex.withLock {
                         val deferred2 = onListLoadedCompleter
                         if (deferred2 != null) {
                             deferred2.complete(it to (diff to sizeChanged))
@@ -235,19 +236,20 @@ abstract class BaseAdapter<T : Any>(
                 }
             }
         }
-        if (deferred != null) {
+        if (mayBlock) {
             runBlocking {
                 try {
                     withTimeoutOrNull(2000) {
-                        deferred.await()
+                        deferred!!.await()
                     }
                 } finally {
                     blockMutex!!.withLock {
-                        if (deferred.isCompleted) {
+                        if (deferred!!.isCompleted) {
                             val (it, other) = deferred.getCompleted()
                             onListLoaded(it, other.first, other.second)
                         }
                         onListLoadedCompleter = null
+                        blockMutex = null
                     }
                 }
             }

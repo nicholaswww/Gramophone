@@ -203,14 +203,14 @@ class SongAdapter(
                 }
 
                 R.id.delete -> {
-                    val res = ItemManipulator.deleteSong(context, item.requireMediaStoreId())
+                    val res = ItemManipulator.deleteSong(context, item.getFile()!!, item.requireMediaStoreId())
                     if (res.continueDelete != null) {
                         AlertDialog.Builder(context)
                             .setTitle(R.string.delete)
                             .setMessage(context.getString(R.string.delete_really, item.mediaMetadata.title))
                             .setPositiveButton(R.string.yes) { _, _ ->
                                 CoroutineScope(Dispatchers.IO).launch {
-                                    res.continueDelete?.invoke()
+                                    res.continueDelete.invoke()
                                 }
                             }
                             .setNegativeButton(R.string.no) { _, _ -> }

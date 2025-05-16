@@ -558,6 +558,7 @@ class FullBottomSheet
                     oldBottom: Int
                 ) {
                     deferredImageLoader?.invoke()
+                    deferredImageLoader = null
                 }
             }
         )

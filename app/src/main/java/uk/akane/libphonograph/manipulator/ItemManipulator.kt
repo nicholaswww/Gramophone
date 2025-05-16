@@ -14,7 +14,10 @@ import android.provider.MediaStore
 import android.util.Log
 import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.RequiresApi
+import org.akanework.gramophone.logic.hasImprovedMediaStore
 import org.akanework.gramophone.logic.hasScopedStorageV2
+import uk.akane.libphonograph.getIntOrNullIfThrow
+import uk.akane.libphonograph.getLongOrNullIfThrow
 import uk.akane.libphonograph.getStringOrNullIfThrow
 import java.io.File
 import java.io.IOException
@@ -22,32 +25,42 @@ import java.io.IOException
 object ItemManipulator {
     private const val TAG = "ItemManipulator"
 
-    fun deleteSong(context: Context, id: Long): DeleteRequest {
-        // TODO(ASAP) delete .ttml / .lrc as well if present (using MediaStore.Files because they are subtitles)
+    fun deleteSong(context: Context, file: File, id: Long): DeleteRequest {
         val uri = ContentUris.withAppendedId(
             MediaStore.Audio.Media.getContentUri("external"), id
         )
-        return delete(context, uri)
+        val uris = mutableSetOf(uri)
+        // TODO maybe don't hardcode these extensions twice, here and in LrcUtils?
+        uris.addAll(setOf("ttml", "lrc", "srt").map {
+            file.resolveSibling("${file.nameWithoutExtension}.$it")
+        }.filter { it.exists() }.map {
+            // It doesn't really make sense to have >1 subtitle file so we don't need to batch the queries.
+            getIdForPath(context, it)
+        }.filter { it != null }
+            .map { ContentUris.withAppendedId(MediaStore.Files.getContentUri("external"), it!!) })
+        return delete(context, uris)
     }
 
     fun deletePlaylist(context: Context, id: Long): DeleteRequest {
         val uri = ContentUris.withAppendedId(
             @Suppress("deprecation") MediaStore.Audio.Playlists.getContentUri("external"), id
         )
-        return delete(context, uri)
+        return delete(context, setOf(uri))
     }
 
     // requires requestLegacyExternalStorage for simplicity
-    fun delete(context: Context, uri: Uri): DeleteRequest {
-        if (needRequestWrite(context, uri)) {
+    fun delete(context: Context, uris: Set<Uri>): DeleteRequest {
+        if (needRequestWrite(context, uris)) {
             val pendingIntent = MediaStore.createDeleteRequest(
-                context.contentResolver, listOf(uri)
+                context.contentResolver, uris.toList()
             )
             return DeleteRequest(pendingIntent.intentSender)
         } else {
             return DeleteRequest {
                 return@DeleteRequest try {
-                    context.contentResolver.delete(uri, null, null) == 1
+                    !uris.map {
+                        context.contentResolver.delete(it, null, null) == 1
+                    }.contains(false)
                 } catch (_: SecurityException) {
                     false
                 }
@@ -64,11 +77,55 @@ object ItemManipulator {
         return out
     }
 
+    private fun getIdForPath(context: Context, file: File): Long? {
+        val cursor = context.contentResolver.query(MediaStore.Files.getContentUri("external"),
+            if (hasImprovedMediaStore())
+                arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE)
+            else arrayOf(MediaStore.MediaColumns._ID),
+            "${MediaStore.Files.FileColumns.DATA} = ?", arrayOf(file.absolutePath), null)
+        if (cursor == null) return null
+        cursor.use {
+            if (!cursor.moveToFirst()) return null
+            if (hasImprovedMediaStore()) {
+                val typeColumn = cursor.getColumnIndex(MediaStore.Files.FileColumns.MEDIA_TYPE)
+                val type = cursor.getIntOrNullIfThrow(typeColumn)
+                if (type != MediaStore.Files.FileColumns.MEDIA_TYPE_SUBTITLE) {
+                    Log.e(TAG, "expected $file to be a subtitle")
+                    return null
+                }
+            }
+            val idColumn = cursor.getColumnIndex(MediaStore.MediaColumns._ID)
+            return cursor.getLongOrNullIfThrow(idColumn)
+        }
+    }
+
+    @ChecksSdkIntAtLeast(Build.VERSION_CODES.R)
+    fun needRequestWrite(context: Context, uris: Set<Uri>): Boolean {
+        for (uri in uris)
+            if (needRequestWrite(context, uri))
+                return true
+        return false
+    }
+
     @ChecksSdkIntAtLeast(Build.VERSION_CODES.R)
     fun needRequestWrite(context: Context, uri: Uri): Boolean {
         return hasScopedStorageV2() && !checkIfFileAttributedToSelf(context, uri) &&
                 context.checkUriPermission(uri, Process.myPid(), Process.myUid(),
                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun checkIfFileIsSubtitle(context: Context, uri: Uri): Boolean {
+        val cursor = context.contentResolver.query(uri,
+            arrayOf(MediaStore.Files.FileColumns.MEDIA_TYPE), null, null, null)
+        if (cursor == null) return false
+        cursor.use {
+            if (!cursor.moveToFirst()) return false
+            val column = cursor.getColumnIndex(MediaStore.Files.FileColumns.MEDIA_TYPE)
+            val type = cursor.getIntOrNullIfThrow(column)
+            Log.i("hi", "result=$type")
+            return type == MediaStore.Files.FileColumns.MEDIA_TYPE_SUBTITLE
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
