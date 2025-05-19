@@ -495,6 +495,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     val cmi = controller?.currentMediaItem?.mediaId
                     if (cmi == null) return@withContext
                     list.find { it.mediaId == cmi }?.let {
+                        // TODO(ASAP) need to update non current item too
                         controller!!.replaceMediaItem(controller!!.currentMediaItemIndex, it)
                     }
                 }

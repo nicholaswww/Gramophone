@@ -113,6 +113,7 @@
         android:layout_marginTop="8dp"
         android:importantForAccessibility="yes"
         android:visibility="gone"
+        android:valueTo="1"
         app:labelBehavior="gone"
         app:layout_constraintBottom_toTopOf="@id/progress_barrier"
         app:layout_constraintEnd_toEndOf="parent"

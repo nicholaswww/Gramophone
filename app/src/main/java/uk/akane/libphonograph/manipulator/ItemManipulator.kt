@@ -71,6 +71,7 @@ object ItemManipulator {
     }
 
     fun setFavorite(context: Context, uris: Set<Uri>, favorite: Boolean): IntentSender? {
+        // TODO(ASAP) Q- support
         if (hasMarkIsFavouriteStatus()) {
             MediaStore.markIsFavoriteStatus(
                 context.contentResolver, uris.toList(), favorite
