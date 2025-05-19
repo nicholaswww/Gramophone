@@ -329,7 +329,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     this, this::onAudioSinkInputFormatChanged,
                     afFormatTracker::setAudioSink
                 )
-                    .setEnableAudioFloatOutput(
+                    .setPcmEncodingRestrictionLifted(
                         prefs.getBooleanStrict("floatoutput", false)
                     )
                     .setEnableDecoderFallback(true)

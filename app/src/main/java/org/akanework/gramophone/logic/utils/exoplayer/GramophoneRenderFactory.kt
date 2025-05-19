@@ -57,11 +57,12 @@ class GramophoneRenderFactory(context: Context,
 
     override fun buildAudioSink(
         context: Context,
+        pcmEncodingRestrictionLifted: Boolean,
         enableFloatOutput: Boolean,
         enableAudioTrackPlaybackParams: Boolean
     ): AudioSink? {
         return MyForwardingAudioSink(
-            super.buildAudioSink(context, enableFloatOutput, enableAudioTrackPlaybackParams)!!)
+            super.buildAudioSink(context, pcmEncodingRestrictionLifted, enableFloatOutput, enableAudioTrackPlaybackParams)!!)
     }
 
     inner class MyForwardingAudioSink(sink: AudioSink) : ForwardingAudioSink(sink) {

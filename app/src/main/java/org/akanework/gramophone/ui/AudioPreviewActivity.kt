@@ -166,7 +166,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
         player = ExoPlayer.Builder(
             this,
             GramophoneRenderFactory(this, {}, {})
-                .setEnableAudioFloatOutput(
+                .setPcmEncodingRestrictionLifted(
                     prefs.getBooleanStrict("floatoutput", false)
                 )
                 .setEnableDecoderFallback(true)
