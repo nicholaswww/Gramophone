@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -44,14 +45,15 @@ class LyricWidgetProvider : AppWidgetProvider() {
             val views =
                 RemoteViews(context.packageName, R.layout.lyric_widget).apply {
                     setPendingIntentTemplate(R.id.list_view, seekPi)
-                    setRemoteAdapter( // TODO deprecated
-                        R.id.list_view,
-                        Intent(context, LyricWidgetService::class.java).apply<Intent> {
-                            this.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                            // Intents are compared using filterEquals() which ignores extras, so encode extras
-                            // in data to enforce comparison noticing the difference between different Intents.
-                            this.data = toUri(Intent.URI_INTENT_SCHEME).toUri()
-                        })
+                    if (Build.VERSION.SDK_INT < 36) // hack fix crashing issue due to AOSP bug
+                        setRemoteAdapter( // TODO deprecated
+                            R.id.list_view,
+                            Intent(context, LyricWidgetService::class.java).apply<Intent> {
+                                this.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                                // Intents are compared using filterEquals() which ignores extras, so encode extras
+                                // in data to enforce comparison noticing the difference between different Intents.
+                                this.data = toUri(Intent.URI_INTENT_SCHEME).toUri()
+                            })
                     setEmptyView(R.id.list_view, R.id.empty_view)
                 }
             // setting null first fixes outdated data related bugs but causes flicker. hence we
