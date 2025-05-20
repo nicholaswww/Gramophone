@@ -39,6 +39,14 @@ Deploy a new version to the Google Play
 
 Build release
 
+### android gitrel
+
+```sh
+[bundle exec] fastlane android gitrel
+```
+
+Build & push release to Git
+
 ### android preprel
 
 ```sh
