@@ -44,6 +44,24 @@ platform :android do
              task: ":app:assembleRelease")
   end
 
+  desc "Build & push release to Git"
+  lane :gitrel do
+    buildrel
+    vercode = android_get_version_code(gradle_file: "app/build.gradle.kts")
+    version = android_get_version_name(gradle_file: "app/build.gradle.kts")
+    changelog = File.read("metadata/android/en-US/changelogs/#{vercode}.txt")
+    set_github_release(
+      repository_name: "AkaneTan/Gramophone",
+      api_token: File.read("creds.txt"), # make sure it has no newline :D has to contain personal access token
+      name: "Gramophone #{version}",
+      tag_name: version, # must be version name for F-Droid
+      is_draft: true,
+      description: changelog,
+      commitish: "beta",
+      upload_assets: [lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]]
+    )
+   end
+
   desc "Prepare release"
   lane :preprel do
     ensure_git_ok
@@ -57,17 +75,7 @@ platform :android do
     git_add(path: "fastlane/metadata/android/en-US/changelogs/#{vercode}.txt")
     git_commit(path: ["app/build.gradle.kts", "fastlane/metadata/android/en-US/changelogs/#{vercode}.txt"], message: "Release #{version}")
     googleplay
-    buildrel
-    set_github_release(
-      repository_name: "AkaneTan/Gramophone",
-      api_token: File.read("creds.txt"), # make sure it has no newline :D has to contain personal access token
-      name: "Gramophone #{version}",
-      tag_name: version, # must be version name for F-Droid
-      is_draft: true,
-      description: changelog,
-      commitish: "beta",
-      upload_assets: [lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]]
-    )
+    gitrel
     println(message: "Created draft release: #{lane_context[SharedValues::SET_GITHUB_RELEASE_HTML_LINK]}")
   end
 end
