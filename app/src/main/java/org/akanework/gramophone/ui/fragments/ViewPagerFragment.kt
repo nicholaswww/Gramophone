@@ -257,7 +257,7 @@ class ViewPagerFragment : BaseFragment(true) {
     }
 
     fun maybeReportFullyDrawn(itemId: Int) {
-        if (adapter.getItemId(viewPager2.currentItem).toInt() == itemId)
+        if (view != null && adapter.getItemId(viewPager2.currentItem).toInt() == itemId)
             mainActivity.maybeReportFullyDrawn()
     }
 }

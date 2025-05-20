@@ -79,6 +79,11 @@ class AdapterFragment : BaseFragment(null) {
         return rootView
     }
 
+    override fun onDestroyView() {
+        adapter.onFullyDrawnListener = null
+        super.onDestroyView()
+    }
+
     fun startRequest(sender: IntentSender, data: Bundle) {
         pendingRequest = data
         intentSender.launch(IntentSenderRequest.Builder(sender).build())

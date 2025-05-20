@@ -73,6 +73,7 @@ import org.akanework.gramophone.logic.postAtFrontOfQueueAsync
 import org.akanework.gramophone.ui.adapters.PlaylistAdapter
 import org.akanework.gramophone.ui.components.PlayerBottomSheet
 import org.akanework.gramophone.ui.fragments.BaseFragment
+import org.akanework.gramophone.ui.fragments.ViewPagerFragment
 import uk.akane.libphonograph.manipulator.ItemManipulator
 import java.io.File
 
@@ -187,6 +188,10 @@ class MainActivity : AppCompatActivity() {
                 updateLibrary()
             } else onLibraryLoaded() // <-- when recreating activity due to rotation
         }
+        // ViewPagerFragment will call reportFullyDrawn itself, for every other fragment we'll handle it
+        // (this will happen on activity recreation with non-empty fragment backstack)
+        if (supportFragmentManager.findFragmentById(R.id.fragment_viewpager) !is ViewPagerFragment)
+            handler.post { maybeReportFullyDrawn() }
     }
 
     @kotlin.OptIn(FlowPreview::class)

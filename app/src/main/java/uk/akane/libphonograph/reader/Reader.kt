@@ -394,9 +394,11 @@ internal object Reader {
             it.albumArtist = artistFound?.first
             it.albumArtistId = artistFound?.second ?: artistCacheMap?.get(it.albumArtist)
             it.albumYear = it.songList.mapNotNull { it.mediaMetadata.releaseYear }.maxOrNull()
-            (albumArtistMap?.getOrPut(it.albumArtistId) {
+            val albumArtist = albumArtistMap?.getOrPut(it.albumArtistId) {
                 Artist(it.albumArtistId, it.albumArtist, mutableListOf(), mutableListOf())
-            }?.albumList as MutableList?)?.add(it)
+            }
+            (albumArtist?.albumList as MutableList?)?.add(it)
+            (albumArtist?.songList as MutableList?)?.addAll(it.songList)
             (artistMap?.get(it.albumArtistId)?.albumList as MutableList?)?.add(it)
             // coverCache == null if !useEnhancedCoverReading
             coverCache?.get(it.id)?.let { p ->

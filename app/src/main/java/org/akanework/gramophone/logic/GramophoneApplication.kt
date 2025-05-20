@@ -62,6 +62,7 @@ import okio.source
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.BugHandlerActivity
+import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.lsposed.hiddenapibypass.LSPass
 import uk.akane.libphonograph.Constants
@@ -119,6 +120,8 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                     .penaltyLog().build()
             )
         }
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
+        Flags.PLAYLIST_EDITING = prefs.getBooleanStrict("playlist_editing", false)
         reader = FlowReader(
             this,
             if (BuildConfig.DISABLE_MEDIA_STORE_FILTER) MutableStateFlow(0) else
@@ -129,7 +132,6 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             recentlyAddedFilterSecondFlow,
             MutableStateFlow(true), "gramophoneAlbumCover"
         )
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
         // Set application theme when launching.
         when (prefs.getString("theme_mode", "0")) {
             "0" -> {

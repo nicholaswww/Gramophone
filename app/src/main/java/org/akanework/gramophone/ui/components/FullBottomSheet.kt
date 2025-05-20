@@ -245,6 +245,8 @@ class FullBottomSheet
         bottomSheetLoopButton = findViewById(R.id.sheet_loop)
         bottomSheetTimerButton = findViewById(R.id.timer)
         bottomSheetFavoriteButton = findViewById(R.id.favor)
+        if (!Flags.FAVORITE_SONGS)
+            bottomSheetFavoriteButton.visibility = GONE
         bottomSheetPlaylistButton = findViewById(R.id.playlist)
         bottomSheetLyricButton = findViewById(R.id.lyrics)
         bottomSheetFullLyricView = findViewById(R.id.lyric_frame)

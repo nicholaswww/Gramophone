@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import org.akanework.gramophone.logic.hasAudioPermission
+import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.logic.utils.flows.Invalidation
 import org.akanework.gramophone.logic.utils.flows.PauseManagingSharedFlow.Companion.sharePauseableIn
 import org.akanework.gramophone.logic.utils.flows.conflateAndBlockWhenPaused
@@ -157,7 +158,7 @@ class FlowReader(
     val dateListFlow: Flow<List<Date>> = readerFlow.map { it.dateList!! }
     val playlistListFlow = combine(mappedPlaylistsFlow, recentlyAddedFlow, favoriteFlow)
     { mappedPlaylists, recentlyAdded, favorite ->
-        val base = mappedPlaylists + favorite
+        val base = if (Flags.FAVORITE_SONGS) mappedPlaylists + favorite else mappedPlaylists
         if (recentlyAdded != null) base + recentlyAdded else base
     }
     val folderStructureFlow: Flow<FileNode> = readerFlow.map { it.folderStructure!! }

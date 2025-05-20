@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.logic.requireMediaStoreId
+import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.MediaControllerViewModel
 import org.akanework.gramophone.ui.components.NowPlayingDrawable
@@ -167,6 +168,8 @@ class SongAdapter(
 
     override fun onMenu(item: MediaItem, popupMenu: PopupMenu) {
         popupMenu.inflate(R.menu.more_menu)
+        if (!Flags.PLAYLIST_EDITING!!)
+            popupMenu.menu.findItem(R.id.add_to_playlist).isVisible = false
 
         popupMenu.setOnMenuItemClickListener { it1 ->
             when (it1.itemId) {

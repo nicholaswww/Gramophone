@@ -97,6 +97,7 @@ import org.akanework.gramophone.logic.utils.AfFormatTracker
 import org.akanework.gramophone.logic.utils.AudioTrackInfo
 import org.akanework.gramophone.logic.utils.BtCodecInfo
 import org.akanework.gramophone.logic.utils.CircularShuffleOrder
+import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.logic.utils.LastPlayedManager
 import org.akanework.gramophone.logic.utils.LrcUtils.LrcParserOptions
 import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyrics
@@ -489,14 +490,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             }
             lastPlayedManager.allowSavingState = true
         }
-        scope.launch {
-            gramophoneApplication.reader.songListFlow.collect { list ->
-                withContext(Dispatchers.Main + NonCancellable) {
-                    val cmi = controller?.currentMediaItem?.mediaId
-                    if (cmi == null) return@withContext
-                    list.find { it.mediaId == cmi }?.let {
-                        // TODO(ASAP) need to update non current item too
-                        controller!!.replaceMediaItem(controller!!.currentMediaItemIndex, it)
+        if (Flags.FAVORITE_SONGS) {
+            scope.launch {
+                gramophoneApplication.reader.songListFlow.collect { list ->
+                    withContext(Dispatchers.Main + NonCancellable) {
+                        val cmi = controller?.currentMediaItem?.mediaId
+                        if (cmi == null) return@withContext
+                        list.find { it.mediaId == cmi }?.let {
+                            // TODO need to update non current item too
+                            controller!!.replaceMediaItem(controller!!.currentMediaItemIndex, it)
+                        }
                     }
                 }
             }
