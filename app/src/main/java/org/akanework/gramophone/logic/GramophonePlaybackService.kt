@@ -75,7 +75,6 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
-import androidx.media3.session.doUpdateNotification
 import androidx.preference.PreferenceManager
 import coil3.BitmapImage
 import coil3.imageLoader
@@ -972,7 +971,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         else null
         if (lastSentHighlightedLyric != highlightedLyric) {
             lastSentHighlightedLyric = highlightedLyric
-            doUpdateNotification(mediaSession!!)
+            manuallyUpdateMediaNotification(mediaSession!!)
         }
     }
 
