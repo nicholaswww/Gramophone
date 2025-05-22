@@ -309,7 +309,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                     val queryUri = if (uri.scheme == "file") {
                         fileUri = uri
                         null
-                    } else if (uri.scheme == "content" && uri.authority == MediaStore.AUTHORITY)
+                    } else if (uri.scheme == "content" && uri.host == MediaStore.AUTHORITY)
                         uri
                     else if (uri.scheme == "content")
                         try {
