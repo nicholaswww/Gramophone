@@ -437,12 +437,18 @@ abstract class BaseAdapter<T : Any>(
 
     private fun trackCountOf(item: T): String {
         if (sorter.sortingHelper.canGetSize()) {
-            if (!sorter.sortingHelper.canGetArtist() /* see subTitleOf */)
+            if (sorter.sortingHelper.canGetArtist() /* see subTitleOf */) {
+                val s = sorter.sortingHelper.getSize(item)
+                return context.resources.getQuantityString(
+                    R.plurals.songs, s, s
+                )
+            } else if (sorter.sortingHelper.canGetAlbumSize()) {
+                val s = sorter.sortingHelper.getAlbumSize(item)
+                return context.resources.getQuantityString(
+                    R.plurals.albums, s, s
+                )
+            } else
                 return ""
-            val s = sorter.sortingHelper.getSize(item)
-            return context.resources.getQuantityString(
-                R.plurals.songs, s, s
-            )
         }
         return "null"
     }

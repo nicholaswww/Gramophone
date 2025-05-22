@@ -18,9 +18,9 @@
 package org.akanework.gramophone.ui.adapters
 
 import android.net.Uri
-import java.io.File
 import org.akanework.gramophone.logic.comparators.SupportComparator
 import org.akanework.gramophone.logic.utils.CalculationUtils
+import java.io.File
 
 class Sorter<T>(
     val sortingHelper: Helper<T>,
@@ -44,6 +44,7 @@ class Sorter<T>(
         open fun getAlbumTitle(item: T): String? = throw UnsupportedOperationException()
         open fun getAlbumArtist(item: T): String? = throw UnsupportedOperationException()
         open fun getSize(item: T): Int = throw UnsupportedOperationException()
+        open fun getAlbumSize(item: T): Int = throw UnsupportedOperationException()
         open fun getAddDate(item: T): Long = throw UnsupportedOperationException()
         open fun getReleaseDate(item: T): Long = throw UnsupportedOperationException()
         open fun getModifiedDate(item: T): Long = throw UnsupportedOperationException()
@@ -62,6 +63,9 @@ class Sorter<T>(
 
         fun canGetSize(): Boolean = typesSupported.contains(Type.BySizeAscending)
                 || typesSupported.contains(Type.BySizeDescending)
+
+        fun canGetAlbumSize(): Boolean = typesSupported.contains(Type.ByAlbumSizeAscending)
+                || typesSupported.contains(Type.ByAlbumSizeDescending)
 
         fun canGetDiskAndTrack(): Boolean = typesSupported.contains(Type.ByDiscAndTrack)
 
@@ -88,6 +92,7 @@ class Sorter<T>(
         ByAlbumTitleDescending, ByAlbumTitleAscending,
         ByAlbumArtistDescending, ByAlbumArtistAscending,
         BySizeDescending, BySizeAscending,
+        ByAlbumSizeDescending, ByAlbumSizeAscending,
         NaturalOrder, ByAddDateDescending, ByAddDateAscending,
         ByReleaseDateDescending, ByReleaseDateAscending,
         ByModifiedDateDescending, ByModifiedDateAscending,
@@ -186,6 +191,18 @@ class Sorter<T>(
                 )
             }
 
+            Type.ByAlbumSizeDescending -> {
+                SupportComparator.createInversionComparator(
+                    compareBy { sortingHelper.getAlbumSize(it) }, true
+                )
+            }
+
+            Type.ByAlbumSizeAscending -> {
+                SupportComparator.createInversionComparator(
+                    compareBy { sortingHelper.getAlbumSize(it) }, false
+                )
+            }
+
             Type.ByAddDateDescending -> {
                 SupportComparator.createInversionComparator(
                     compareBy { sortingHelper.getAddDate(it) }, true
@@ -277,6 +294,10 @@ class Sorter<T>(
 
             Type.BySizeDescending, Type.BySizeAscending -> {
                 sortingHelper.getSize(item).toString()
+            }
+
+            Type.ByAlbumSizeAscending, Type.ByAlbumSizeDescending -> {
+                sortingHelper.getAlbumSize(item).toString()
             }
 
             Type.ByDiscAndTrack -> {
