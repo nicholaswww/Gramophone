@@ -61,7 +61,7 @@
         android:layout="@layout/preference_category_md"
         android:title="@string/settings_category_links">
 
-        <Preference
+        <org.akanework.gramophone.ui.components.NoAppFallbackPreference
             android:layout="@layout/preference_basic"
             android:summary="https://github.com/AkaneTan/Gramophone"
             android:title="@string/settings_repository"
@@ -69,9 +69,9 @@
             <intent
                 android:action="android.intent.action.VIEW"
                 android:data="https://github.com/AkaneTan/Gramophone" />
-        </Preference>
+        </org.akanework.gramophone.ui.components.NoAppFallbackPreference>
 
-        <Preference
+        <org.akanework.gramophone.ui.components.NoAppFallbackPreference
             android:layout="@layout/preference_basic"
             android:summary="@string/check_for_updates"
             android:title="Telegram"
@@ -79,7 +79,7 @@
             <intent
                 android:action="android.intent.action.VIEW"
                 android:data="https://t.me/FoedusProgramme" />
-        </Preference>
+        </org.akanework.gramophone.ui.components.NoAppFallbackPreference>
 
     </PreferenceCategory>
 
