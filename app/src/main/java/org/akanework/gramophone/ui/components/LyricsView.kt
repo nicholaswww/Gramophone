@@ -55,6 +55,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
             newView = findViewById(R.id.lyric_view)
             newView?.setPadding(oldPaddingLeft, oldPaddingTop, oldPaddingRight, oldPaddingBottom)
             newView?.instance = object : NewLyricsView.Callbacks {
+                // TODO https://github.com/androidx/media/issues/1578
                 @OptIn(UnstableApi::class)
                 override fun getCurrentPosition(): ULong =
                     GramophonePlaybackService.instanceForWidgetAndLyricsOnly
