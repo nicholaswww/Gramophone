@@ -8,6 +8,7 @@ plugins {
     val kotlinVersion = "2.0.21"
 	kotlin("android") version kotlinVersion apply false
     kotlin("plugin.parcelize") version kotlinVersion apply false
+    kotlin("plugin.compose") version kotlinVersion apply false
     id("com.mikepenz.aboutlibraries.plugin") version "11.2.1" apply false
 }
 
