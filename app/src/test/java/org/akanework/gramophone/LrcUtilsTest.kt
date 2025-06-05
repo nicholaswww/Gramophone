@@ -173,6 +173,17 @@ class LrcUtilsTest {
 		assertEquals("how are you?", lrcM[1].text)
 	}
 
+    @Test
+    fun testLongSyncTimestamp() {
+        val lrc = parseSynced("[101:56:78]One two three\n[1234:56:78]Four five six")
+        assertNotNull(lrc)
+        assertEquals(2, lrc!!.size)
+        assertEquals("One two three", lrc[0].text)
+        assertEquals(6116780uL, lrc[0].start)
+        assertEquals("Four five six", lrc[1].text)
+        assertEquals(74096780uL, lrc[1].start)
+    }
+
 	@Test
 	fun testOffsetMultiLineParser() {
 		val lrc = parseSynced("[offset:+3][00:00.004]hello\ngood morning\n[00:00.005]how are you?", multiline = true)
