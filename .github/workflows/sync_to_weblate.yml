@@ -29,8 +29,8 @@ jobs:
           REMOTE="origin"
 
           git checkout $REMOTE/$MAIN_BRANCH -- "${DIRECTORIES[@]}"
-          git add "${DIRECTORIES[@]}"
-          if ! git diff --quiet "${DIRECTORIES[@]}"; then
+          if ! git diff --quiet HEAD -- "${DIRECTORIES[@]}"; then
+            git add "${DIRECTORIES[@]}"
             git commit -m "Sync English directories from $MAIN_BRANCH"
             git push $REMOTE $WEBLATE_BRANCH
           fi
