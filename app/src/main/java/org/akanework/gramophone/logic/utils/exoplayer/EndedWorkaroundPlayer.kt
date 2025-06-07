@@ -70,25 +70,4 @@ class EndedWorkaroundPlayer(player: ExoPlayer) : ForwardingPlayer(player), Playe
     fun onShuffleOrderChanged(shuffleOrder: CircularShuffleOrder) {
         this.shuffleOrder = shuffleOrder
     }
-
-    override fun moveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int) {
-        super.moveMediaItems(fromIndex, toIndex, newIndex)
-        try {
-            shuffleOrder?.let {
-                exoPlayer.setShuffleOrder(
-                    it.cloneAndRemove(fromIndex, toIndex)
-                        .cloneAndInsert(newIndex, toIndex - fromIndex)
-                )
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, Log.getStackTraceString(e))
-            throw e
-        }
-    }
-
-    override fun moveMediaItem(currentIndex: Int, newIndex: Int) {
-        if (currentIndex != newIndex) {
-            moveMediaItems(currentIndex, currentIndex + 1, newIndex)
-        }
-    }
 }

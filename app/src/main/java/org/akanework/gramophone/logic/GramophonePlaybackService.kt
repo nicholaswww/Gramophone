@@ -695,7 +695,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     override fun onPlaybackResumption(
         mediaSession: MediaSession,
-        controller: MediaSession.ControllerInfo
+        controller: MediaSession.ControllerInfo,
+        isForPlayback: Boolean
     ): ListenableFuture<MediaItemsWithStartPosition> {
         val settable = SettableFuture.create<MediaItemsWithStartPosition>()
         lastPlayedManager.restore { items, factory ->
@@ -708,11 +709,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             } else if (items.mediaItems.isNotEmpty()) {
                 if (endedWorkaroundPlayer?.nextShuffleOrder != null)
                     throw IllegalStateException("shuffleFactory was found orphaned")
-                endedWorkaroundPlayer?.nextShuffleOrder = factory.toFactory()
-                // This call will only sometimes set the playlist on our controller (it won't if
-                // the system is just asking for the last played song for display purposes)
-                settable.set(items)
-                endedWorkaroundPlayer?.nextShuffleOrder = null
+                if (isForPlayback) {
+                    endedWorkaroundPlayer?.nextShuffleOrder = factory.toFactory()
+                    settable.set(items)
+                    if (endedWorkaroundPlayer?.nextShuffleOrder != null)
+                        throw IllegalStateException("shuffleFactory was not consumed during resumption")
+                } else {
+                    settable.set(items)
+                }
             } else {
                 settable.setException(
                     IndexOutOfBoundsException(

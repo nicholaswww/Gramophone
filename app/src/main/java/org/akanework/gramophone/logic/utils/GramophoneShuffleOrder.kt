@@ -160,6 +160,11 @@ class CircularShuffleOrder private constructor(
             .also { listener.onShuffleOrderChanged(it) }
     }
 
+    override fun cloneAndMove(indexFrom: Int, indexToExclusive: Int, newIndexFrom: Int): ShuffleOrder {
+        return cloneAndRemove(indexFrom, indexToExclusive)
+            .cloneAndInsert(newIndexFrom, indexToExclusive - indexFrom)
+    }
+
     override fun cloneAndClear(): ShuffleOrder {
         return cloneAndRemove(0, shuffled.size)
     }
