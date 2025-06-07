@@ -23,6 +23,7 @@ jobs:
 
       - name: Sync English directories from main branch
         run: |
+          echo a
           DIRECTORIES=("app/src/main/res/values" "fastlane/metadata/android/en-US")
           MAIN_BRANCH="beta"
           WEBLATE_BRANCH="weblate"
@@ -30,7 +31,9 @@ jobs:
 
           git checkout $REMOTE/$MAIN_BRANCH -- "${DIRECTORIES[@]}"
 
+          echo b
           if ! git diff --quiet "${DIRECTORIES[@]}"; then
+          echo c
             git add "${DIRECTORIES[@]}"
             git commit -m "Sync English directories from $MAIN_BRANCH"
             git push $REMOTE $WEBLATE_BRANCH
