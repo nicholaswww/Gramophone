@@ -34,6 +34,7 @@
                   <project path="$PROJECT_DIR$/media3/libraries/datasource_rtmp" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder_av1" />
+                  <project path="$PROJECT_DIR$/media3/libraries/decoder_dav1d" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder_ffmpeg" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder_flac" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder_iamf" />
@@ -103,6 +104,7 @@
             <option value="$PROJECT_DIR$/media3/libraries/datasource_rtmp" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder_av1" />
+            <option value="$PROJECT_DIR$/media3/libraries/decoder_dav1d" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder_ffmpeg" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder_flac" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder_iamf" />
