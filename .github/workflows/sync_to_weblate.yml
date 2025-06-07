@@ -1,0 +1,38 @@
+name: Sync English strings to Weblate branch
+
+on:
+  push:
+    branches:
+      - beta
+
+jobs:
+  sync-english:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout weblate branch
+        uses: actions/checkout@v4
+        with:
+          ref: weblate
+          fetch-depth: 0
+
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync English directories from main branch
+        run: |
+          DIRECTORIES=("app/src/main/res/values" "fastlane/metadata/android/en-US")
+          MAIN_BRANCH="beta"
+          WEBLATE_BRANCH="weblate"
+          REMOTE="origin"
+
+          git checkout $MAIN_BRANCH -- "${DIRECTORIES[@]}"
+
+          if ! git diff --quiet "${DIRECTORIES[@]}"; then
+            git add "${DIRECTORIES[@]}"
+            git commit -m "Sync English directories from $MAIN_BRANCH"
+            git push $REMOTE $WEBLATE_BRANCH
+          fi
+

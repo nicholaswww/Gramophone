@@ -252,6 +252,7 @@ aboutLibraries {
         excludeFields.set(listOf("generated"))
     }
     license {
+        // TODO https://github.com/mikepenz/AboutLibraries/issues/1190
         strictMode = com.mikepenz.aboutlibraries.plugin.StrictMode.FAIL
         allowedLicenses.addAll("Apache-2.0", "LGPL")
     }
