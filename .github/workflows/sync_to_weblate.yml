@@ -27,7 +27,7 @@ jobs:
           MAIN_BRANCH="beta"
           WEBLATE_BRANCH="weblate"
           REMOTE="origin"
-          MAIN_HASH=$(git rev-parse $MAIN_BRANCH)
+          MAIN_HASH=$(git rev-parse $REMOTE/$MAIN_BRANCH)
           git checkout $REMOTE/$MAIN_BRANCH -- "${DIRECTORIES[@]}"
           if ! git diff --quiet HEAD -- "${DIRECTORIES[@]}"; then
             git add "${DIRECTORIES[@]}"
