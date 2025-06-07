@@ -285,6 +285,11 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     }
 
     override fun uncaughtException(t: Thread, e: Throwable) {
+        /*if (e.javaClass.name.endsWith("ForegroundServiceDidNotStartInTimeException") &&
+            Build.BRAND == "samsung" &&
+            Build.VERSION.SDK_INT in Build.VERSION_CODES.S..Build.VERSION_CODES.S_V2) {
+            exitProcess(11)
+        } TODO only uncomment if we know its needed, see https://github.com/FoedusProgramme/Gramophone/issues/204#issuecomment-2952400651*/
         // TODO convert to notification that opens BugHandlerActivity on click, and let JVM
         //  go through the normal exception process (to get stats from play). disadvantage: we can't
         //  cheat the statistic that way

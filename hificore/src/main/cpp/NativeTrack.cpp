@@ -1537,7 +1537,7 @@ Java_org_nift4_gramophone_hificore_NativeTrack_obtainBufferInternal(JNIEnv *env,
         return nullptr;
     }
     if (temp.frameCount * frame_size != temp.mSize) {
-        ALOGE("obtainBuffer unexpected frame size frameCount(%d) frameSize(%d) size(%d)",
+        ALOGE("obtainBuffer unexpected frame size frameCount(%zu) frameSize(%d) size(%zu)",
               temp.frameCount, frame_size, temp.mSize);
         temp.frameCount = 0;
         temp.mSize = 0;
@@ -1594,6 +1594,7 @@ JNIEXPORT jboolean JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_hasStartedInternal(JNIEnv *env, jobject thiz,
                                                                   jlong ptr) {
     // TODO: implement hasStartedInternal()
+    return false;
 }
 
 extern "C"
@@ -1601,6 +1602,7 @@ JNIEXPORT jint JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_setSelectedDeviceInternal(JNIEnv *env, jobject thiz,
                                                                          jlong ptr, jint id) {
     // TODO: implement setSelectedDeviceInternal()
+    return 0;
 }
 
 extern "C"
@@ -1608,6 +1610,7 @@ JNIEXPORT jint JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_getSelectedDeviceInternal(JNIEnv *env, jobject thiz,
                                                                          jlong ptr) {
     // TODO: implement getSelectedDeviceInternal()
+    return 0;
 }
 
 extern "C"
@@ -1615,6 +1618,7 @@ JNIEXPORT jintArray JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_getRoutedDevicesInternal(JNIEnv *env, jobject thiz,
                                                                         jlong ptr) {
     // TODO: implement getRoutedDevicesInternal()
+    return 0;
 }
 
 extern "C"
@@ -1623,4 +1627,5 @@ Java_org_nift4_gramophone_hificore_NativeTrack_getBufferDurationInUsInternal(JNI
                                                                              jobject thiz,
                                                                              jlong ptr) {
     // TODO: implement getBufferDurationInUsInternal()
+    return 0;
 }

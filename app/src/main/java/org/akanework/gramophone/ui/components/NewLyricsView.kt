@@ -50,7 +50,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
     // TODO maybe reduce this to avoid really fast word skipping
     private val scaleInAnimTime
         get() = lyricAnimTime / 2f
-    private val isElegantTextHeight = false
+    private val isElegantTextHeight = false // TODO this was causing issues, but target 36 can't turn this off anymore... needs rework
     private var charScaling: Boolean
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context)

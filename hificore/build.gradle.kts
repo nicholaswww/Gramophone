@@ -14,6 +14,8 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags("")
+                // TODO remove this when NDK r28 is default in AGP.
+                arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
             }
         }
     }

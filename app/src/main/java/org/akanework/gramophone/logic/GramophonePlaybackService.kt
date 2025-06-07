@@ -279,40 +279,35 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
         customCommands =
             listOf(
-                CommandButton.Builder() // shuffle currently disabled, click will enable
+                CommandButton.Builder(CommandButton.ICON_SHUFFLE_OFF) // shuffle currently disabled, click will enable
                     .setDisplayName(getString(R.string.shuffle))
                     .setSessionCommand(
                         SessionCommand(PLAYBACK_SHUFFLE_ACTION_ON, Bundle.EMPTY)
                     )
-                    .setIconResId(R.drawable.ic_shuffle)
                     .build(),
-                CommandButton.Builder() // shuffle currently enabled, click will disable
+                CommandButton.Builder(CommandButton.ICON_SHUFFLE_ON) // shuffle currently enabled, click will disable
                     .setDisplayName(getString(R.string.shuffle))
                     .setSessionCommand(
                         SessionCommand(PLAYBACK_SHUFFLE_ACTION_OFF, Bundle.EMPTY)
                     )
-                    .setIconResId(R.drawable.ic_shuffle_on)
                     .build(),
-                CommandButton.Builder() // repeat currently disabled, click will repeat all
+                CommandButton.Builder(CommandButton.ICON_REPEAT_OFF) // repeat currently disabled, click will repeat all
                     .setDisplayName(getString(R.string.repeat_mode))
                     .setSessionCommand(
                         SessionCommand(PLAYBACK_REPEAT_ALL, Bundle.EMPTY)
                     )
-                    .setIconResId(R.drawable.ic_repeat)
                     .build(),
-                CommandButton.Builder() // repeat all currently enabled, click will repeat one
+                CommandButton.Builder(CommandButton.ICON_REPEAT_ALL) // repeat all currently enabled, click will repeat one
                     .setDisplayName(getString(R.string.repeat_mode))
                     .setSessionCommand(
                         SessionCommand(PLAYBACK_REPEAT_ONE, Bundle.EMPTY)
                     )
-                    .setIconResId(R.drawable.ic_repeat_on)
                     .build(),
-                CommandButton.Builder() // repeat one currently enabled, click will disable
+                CommandButton.Builder(CommandButton.ICON_REPEAT_ONE) // repeat one currently enabled, click will disable
                     .setDisplayName(getString(R.string.repeat_mode))
                     .setSessionCommand(
                         SessionCommand(PLAYBACK_REPEAT_OFF, Bundle.EMPTY)
                     )
-                    .setIconResId(R.drawable.ic_repeat_one_on)
                     .build(),
             )
         afFormatTracker = AfFormatTracker(this, playbackHandler, handler)

@@ -5,7 +5,7 @@ import com.android.build.gradle.tasks.PackageAndroidArtifact
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
 import java.util.Properties
 
-val aboutLibsVersion = "11.2.2" // keep in sync with plugin version
+val aboutLibsVersion = "12.2.1" // keep in sync with plugin version
 
 plugins {
     id("com.android.application")
@@ -69,11 +69,8 @@ android {
             pickFirsts += "lib/x86_64/libdlfunc.so"
         }
         resources {
-            excludes += "META-INF/*.version"
             // https://youtrack.jetbrains.com/issue/KT-48019/Bundle-Kotlin-Tooling-Metadata-into-apk-artifacts
             excludes += "kotlin-tooling-metadata.json"
-            // https://github.com/Kotlin/kotlinx.coroutines?tab=readme-ov-file#avoiding-including-the-debug-infrastructure-in-the-resulting-apk
-            excludes += "DebugProbesKt.bin"
         }
     }
 
@@ -122,7 +119,6 @@ android {
             "DISABLE_MEDIA_STORE_FILTER",
             "false"
         )
-        setProperty("archivesBaseName", "Gramophone-$versionName${versionNameSuffix ?: ""}")
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -226,8 +222,19 @@ android {
     testOptions.unitTests.isIncludeAndroidResources = true
 }
 
+base {
+    archivesName.set("Gramophone-${android.defaultConfig.versionName}${android.defaultConfig.versionNameSuffix ?: ""}")
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("release")) {
+        // https://github.com/Kotlin/kotlinx.coroutines?tab=readme-ov-file#avoiding-including-the-debug-infrastructure-in-the-resulting-apk
+        it.packaging.resources.excludes.addAll("META-INF/*.version", "DebugProbesKt.bin")
+    }
+}
+
 baselineProfile {
-    dexLayoutOptimization = true // TODO(ASAP) generate on every release using fastlane, or disable this
+    dexLayoutOptimization = true
 }
 
 // https://stackoverflow.com/a/77745844
@@ -236,9 +243,18 @@ tasks.withType<PackageAndroidArtifact> {
 }
 
 aboutLibraries {
-    configPath = "app/config"
-    // Remove the "generated" timestamp to allow for reproducible builds
-    excludeFields = arrayOf("generated")
+    collect {
+        configPath.file("config") // TODO(ASAP) libraries json ignored
+        filterVariants.add("release")
+    }
+    export {
+        // Remove the "generated" timestamp to allow for reproducible builds
+        excludeFields.set(listOf("generated"))
+    }
+    license {
+        strictMode = com.mikepenz.aboutlibraries.plugin.StrictMode.FAIL
+        allowedLicenses.addAll("Apache-2.0", "LGPL")
+    }
 }
 
 dependencies {
@@ -252,16 +268,16 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.activity:activity-compose:1.10.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.collection:collection-ktx:1.5.0")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.core:core-splashscreen:1.2.0-beta02")
     //implementation("androidx.datastore:datastore-preferences:1.1.0-rc01") TODO don't abuse shared prefs
-    implementation("androidx.fragment:fragment-ktx:1.8.7")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
-    implementation("androidx.mediarouter:mediarouter:1.7.0")
+    implementation("androidx.fragment:fragment-ktx:1.8.8")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
+    implementation("androidx.mediarouter:mediarouter:1.8.0")
     val media3Version = "1.7.1"
     implementation("androidx.media3:media3-common-ktx:$media3Version")
     implementation("androidx.media3:media3-exoplayer:$media3Version")
@@ -272,10 +288,10 @@ dependencies {
     //implementation("androidx.paging:paging-guava:3.2.1") TODO do we have guava? do we need this?
     implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("androidx.transition:transition-ktx:1.6.0") // <-- for predictive back TODO can we remove explicit dep now?
-    implementation("com.mikepenz:aboutlibraries:$aboutLibsVersion")
+    implementation("com.mikepenz:aboutlibraries-compose-m3:$aboutLibsVersion")
     implementation("com.google.android.material:material:1.12.0")
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
-    implementation("io.coil-kt.coil3:coil:3.0.4")
+    implementation("io.coil-kt.coil3:coil:3.2.0")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
     //noinspection GradleDependency newer versions need java.nio which is api 26+
     //implementation("com.github.albfernandez:juniversalchardet:2.0.3") TODO

@@ -1,11 +1,5 @@
 @file:Suppress("UnstableApiUsage")
 
-include(":hifitrack")
-
-
-include(":hificore")
-
-
 pluginManagement {
     repositories {
         google()

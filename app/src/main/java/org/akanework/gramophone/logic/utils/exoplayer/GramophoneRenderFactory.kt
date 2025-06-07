@@ -43,7 +43,7 @@ class GramophoneRenderFactory(context: Context,
         // empty
     }
 
-    override fun buildImageRenderers(out: java.util.ArrayList<Renderer>) {
+    override fun buildImageRenderers(context: Context, out: java.util.ArrayList<Renderer>) {
         // empty
     }
 
