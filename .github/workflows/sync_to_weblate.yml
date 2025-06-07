@@ -28,7 +28,7 @@ jobs:
           WEBLATE_BRANCH="weblate"
           REMOTE="origin"
 
-          git checkout $MAIN_BRANCH -- "${DIRECTORIES[@]}"
+          git checkout $REMOTE/$MAIN_BRANCH -- "${DIRECTORIES[@]}"
 
           if ! git diff --quiet "${DIRECTORIES[@]}"; then
             git add "${DIRECTORIES[@]}"
