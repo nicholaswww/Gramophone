@@ -65,6 +65,7 @@ import org.akanework.gramophone.logic.ui.BugHandlerActivity
 import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.lsposed.hiddenapibypass.LSPass
+import org.nift4.gramophone.hificore.UacManager
 import uk.akane.libphonograph.Constants
 import uk.akane.libphonograph.reader.FlowReader
 import uk.akane.libphonograph.utils.MiscUtils
@@ -95,6 +96,8 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     val recentlyAddedFilterSecondFlow = MutableStateFlow(1_209_600L)
     lateinit var reader: FlowReader
         private set
+    lateinit var uacManager: UacManager
+        private set
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -120,6 +123,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                     .penaltyLog().build()
             )
         }
+        uacManager = UacManager(this)
         val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
         Flags.PLAYLIST_EDITING = prefs.getBooleanStrict("playlist_editing", false)
         reader = FlowReader(
