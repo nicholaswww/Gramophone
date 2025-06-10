@@ -109,7 +109,6 @@ class CircularShuffleOrder private constructor(
                 throw IllegalStateException("next shuffle order size ${nextShuffleOrder.length} " +
                         "does not match requested ${shuffled.size + insertionCount}")
                     .also { Log.e(TAG, Log.getStackTraceString(it)) }
-            return nextShuffleOrder.also { listener.onShuffleOrderChanged(it) }
         }
         // the original list: [0, 1, 2] shuffled: [2, 0, 1] indexInShuffled: [1, 2, 0]
         // insertionIndex for adding after 1 would be 2, 2 is at index 0 in shuffled list, after 0
@@ -133,7 +132,6 @@ class CircularShuffleOrder private constructor(
         }
 
         return CircularShuffleOrder(listener, newShuffled, Random(random.nextLong()))
-            .also { listener.onShuffleOrderChanged(it) }
     }
 
     override fun cloneAndRemove(indexFrom: Int, indexToExclusive: Int): ShuffleOrder {
@@ -141,7 +139,6 @@ class CircularShuffleOrder private constructor(
         // short-circuit for performance and because this is allowed if nextShuffleOrder is set
         if (numberOfElementsToRemove == shuffled.size)
             return CircularShuffleOrder(listener, 0, 0, Random(random.nextLong()))
-                .also { listener.onShuffleOrderChanged(it) }
         if (listener.nextShuffleOrder != null)
             throw IllegalStateException("next shuffle order present but removing some items")
         val newShuffled = IntArray(shuffled.size - numberOfElementsToRemove)
@@ -157,7 +154,6 @@ class CircularShuffleOrder private constructor(
         }
 
         return CircularShuffleOrder(listener, newShuffled, Random(random.nextLong()))
-            .also { listener.onShuffleOrderChanged(it) }
     }
 
     override fun cloneAndMove(indexFrom: Int, indexToExclusive: Int, newIndexFrom: Int): ShuffleOrder {

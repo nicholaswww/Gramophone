@@ -94,7 +94,9 @@ class LastPlayedManager(
         val repeatMode = controller.repeatMode
         val shuffleModeEnabled = controller.shuffleModeEnabled
         val playbackParameters = controller.playbackParameters
-        val persistent = controller.shufflePersistent
+        val persistent = if (controller.shuffleModeEnabled)
+            CircularShuffleOrder.Persistent(controller.exoPlayer.shuffleOrder as CircularShuffleOrder)
+        else null
         val ended = controller.playbackState == Player.STATE_ENDED
         CoroutineScope(Dispatchers.Default).launch {
             if (BuildConfig.DEBUG) {

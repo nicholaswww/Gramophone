@@ -24,6 +24,7 @@ class EndedWorkaroundPlayer(player: ExoPlayer) : ForwardingPlayer(player), Playe
 
     val exoPlayer
         get() = wrappedPlayer as ExoPlayer
+    // TODO: can't we do this in a cleaner way?
     var nextShuffleOrder:
             ((firstIndex: Int, mediaItemCount: Int, EndedWorkaroundPlayer) -> CircularShuffleOrder)?
             = null
@@ -39,9 +40,6 @@ class EndedWorkaroundPlayer(player: ExoPlayer) : ForwardingPlayer(player), Playe
                 wrappedPlayer.removeListener(this)
             }
         }
-    val shufflePersistent: CircularShuffleOrder.Persistent?
-        get() = if (shuffleModeEnabled) shuffleOrder?.let { CircularShuffleOrder.Persistent(it) } else null
-    private var shuffleOrder: CircularShuffleOrder? = null
 
     override fun onPositionDiscontinuity(
         oldPosition: Player.PositionInfo,
@@ -57,17 +55,5 @@ class EndedWorkaroundPlayer(player: ExoPlayer) : ForwardingPlayer(player), Playe
     override fun getPlaybackState(): Int {
         if (isEnded) return STATE_ENDED
         return super.getPlaybackState()
-    }
-
-    fun setShuffleOrder(
-        shuffleOrderFactory: (EndedWorkaroundPlayer) -> CircularShuffleOrder
-    ) {
-        val shuffleOrder = shuffleOrderFactory(this)
-        exoPlayer.setShuffleOrder(shuffleOrder)
-        this.shuffleOrder = shuffleOrder
-    }
-
-    fun onShuffleOrderChanged(shuffleOrder: CircularShuffleOrder) {
-        this.shuffleOrder = shuffleOrder
     }
 }

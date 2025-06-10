@@ -349,7 +349,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         player.exoPlayer.addAnalyticsListener(EventLogger())
         player.exoPlayer.addAnalyticsListener(afFormatTracker)
         player.exoPlayer.addAnalyticsListener(this)
-        player.setShuffleOrder { CircularShuffleOrder(it, 0, 0, Random.nextLong()) }
+        player.exoPlayer.setShuffleOrder(CircularShuffleOrder(player, 0, 0, Random.nextLong()))
         lastPlayedManager = LastPlayedManager(this, player)
         lastPlayedManager.allowSavingState = false
 
@@ -460,20 +460,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         items.mediaItems, items.startIndex, items.startPositionMs
                     )
                 } catch (e: IllegalSeekPositionException) {
-                    // song was edited to be shorter and playback position doesn't exist anymore
-                    Log.e(
-                        TAG, "failed to restore with startPositionMs, trying without... "
-                                + Log.getStackTraceString(e)
-                    )
-                    try {
-                        mediaSession?.player?.setMediaItems(
-                            items.mediaItems, items.startIndex, C.TIME_UNSET
-                        )
-                    } catch (e: IllegalSeekPositionException) {
-                        // whatever...
-                        Log.e(TAG, "failed to restore: " + Log.getStackTraceString(e))
-                        endedWorkaroundPlayer?.nextShuffleOrder = null
-                    }
+                    // invalid data, whatever...
+                    Log.e(TAG, "failed to restore: " + Log.getStackTraceString(e))
+                    endedWorkaroundPlayer?.nextShuffleOrder = null
                 }
                 if (endedWorkaroundPlayer?.nextShuffleOrder != null)
                     throw IllegalStateException("shuffleFactory was not consumed during restore")
@@ -899,12 +888,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         ) {
             // when enabling shuffle, re-shuffle lists so that the first index is up to date
             Log.i(TAG, "re-shuffling playlist")
-            endedWorkaroundPlayer?.setShuffleOrder {
-                CircularShuffleOrder(
-                    it,
-                    controller!!.currentMediaItemIndex,
-                    controller!!.mediaItemCount,
-                    Random.nextLong()
+            endedWorkaroundPlayer?.let {
+                it.exoPlayer.setShuffleOrder(
+                    CircularShuffleOrder(
+                        it,
+                        controller!!.currentMediaItemIndex,
+                        controller!!.mediaItemCount,
+                        Random.nextLong()
+                    )
                 )
             }
         }
