@@ -109,6 +109,7 @@ class CircularShuffleOrder private constructor(
                 throw IllegalStateException("next shuffle order size ${nextShuffleOrder.length} " +
                         "does not match requested ${shuffled.size + insertionCount}")
                     .also { Log.e(TAG, Log.getStackTraceString(it)) }
+            return nextShuffleOrder
         }
         // the original list: [0, 1, 2] shuffled: [2, 0, 1] indexInShuffled: [1, 2, 0]
         // insertionIndex for adding after 1 would be 2, 2 is at index 0 in shuffled list, after 0
