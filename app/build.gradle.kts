@@ -243,6 +243,7 @@ tasks.withType<PackageAndroidArtifact> {
 }
 
 aboutLibraries {
+    offlineMode = true
     collect {
         configPath.file("config") // TODO(ASAP) libraries json ignored
         filterVariants.add("release")
