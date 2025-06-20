@@ -1352,7 +1352,7 @@ class FullBottomSheet
             if (duration != null && !isUserTracking) {
                 bottomSheetFullSeekBar.max = duration.toInt()
                 bottomSheetFullSeekBar.progress = instance?.currentPosition?.toInt() ?: 0
-                bottomSheetFullSlider.valueTo = duration.toFloat()
+                bottomSheetFullSlider.valueTo = duration.toFloat().coerceAtLeast(1f)
                 bottomSheetFullSlider.value =
                     min(instance?.currentPosition?.toFloat() ?: 0f, bottomSheetFullSlider.valueTo)
                 bottomSheetFullPosition.text = position
