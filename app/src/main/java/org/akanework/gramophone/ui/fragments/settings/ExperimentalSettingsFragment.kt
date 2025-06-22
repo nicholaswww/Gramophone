@@ -78,6 +78,7 @@ class ExperimentalSettingsFragment : BasePreferenceFragment() {
                     .command("logcat", "-dball")
                     .start()
                 val stdout = p.inputStream.readBytes().toString(Charset.defaultCharset())
+                val stderr = p.errorStream.readBytes().toString(Charset.defaultCharset())
                 runInterruptible {
                     p.waitFor()
                 }
@@ -86,7 +87,7 @@ class ExperimentalSettingsFragment : BasePreferenceFragment() {
                 f.writeText("SDK: ${Build.VERSION.SDK_INT}\nDevice: ${Build.BRAND} ${Build.DEVICE} " +
                         "(${Build.MANUFACTURER} ${Build.PRODUCT} ${Build.MODEL})\nVersion: " +
                         "${BuildConfig.MY_VERSION_NAME} ${BuildConfig.RELEASE_TYPE} (${context?.packageName})" +
-                        "\n$stdout")
+                        "\n$stdout\n$stderr")
                 withContext(Dispatchers.Main) {
                     val sendIntent = Intent().apply {
                         action = Intent.ACTION_SEND

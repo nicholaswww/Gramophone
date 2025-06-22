@@ -224,6 +224,7 @@ class BugHandlerActivity : AppCompatActivity() {
                     try {
                         withTimeout(1500) {
                             val stdout = p.inputStream.readBytes().toString(Charset.defaultCharset())
+                            val stderr = p.errorStream.readBytes().toString(Charset.defaultCharset())
                             runInterruptible {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                     p.waitFor(1, TimeUnit.SECONDS)
@@ -231,7 +232,7 @@ class BugHandlerActivity : AppCompatActivity() {
                                     p.waitFor()
                                 }
                             }
-                            f.writeText("$stdout\n\n\n==MAIL TEXT==\n\n\n$mailText")
+                            f.writeText("$stdout\n$stderr\n\n\n==MAIL TEXT==\n\n\n$mailText")
                         }
                     } catch (_: TimeoutCancellationException) {}
                     withContext(Dispatchers.Main) {
