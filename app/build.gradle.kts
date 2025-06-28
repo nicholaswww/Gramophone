@@ -2,10 +2,12 @@
 
 import com.android.build.api.dsl.ApplicationBuildType
 import com.android.build.gradle.tasks.PackageAndroidArtifact
+import org.gradle.kotlin.dsl.support.kotlinCompilerOptions
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
 import java.util.Properties
 
-val aboutLibsVersion = "12.2.1" // keep in sync with plugin version
+val aboutLibsVersion = "12.2.3" // keep in sync with plugin version
 
 plugins {
     id("com.android.application")
@@ -13,7 +15,7 @@ plugins {
     kotlin("android")
     kotlin("plugin.parcelize")
     kotlin("plugin.compose")
-    id("com.mikepenz.aboutlibraries.plugin")
+    id("com.mikepenz.aboutlibraries.plugin.android")
 }
 
 android {
@@ -78,13 +80,15 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
-    kotlinOptions {
-        jvmTarget = "21"
-        freeCompilerArgs = listOf(
-            "-Xno-param-assertions",
-            "-Xno-call-assertions",
-            "-Xno-receiver-assertions"
-        )
+    kotlin {
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_21
+            freeCompilerArgs = listOf(
+                "-Xno-param-assertions",
+                "-Xno-call-assertions",
+                "-Xno-receiver-assertions"
+            )
+        }
     }
 
     lint {
@@ -223,7 +227,7 @@ android {
 }
 
 base {
-    archivesName.set("Gramophone-${android.defaultConfig.versionName}${android.defaultConfig.versionNameSuffix ?: ""}")
+    archivesName = "Gramophone-${android.defaultConfig.versionName}${android.defaultConfig.versionNameSuffix ?: ""}"
 }
 
 androidComponents {
@@ -245,17 +249,19 @@ tasks.withType<PackageAndroidArtifact> {
 aboutLibraries {
     offlineMode = true
     collect {
-        configPath.file("config") // TODO(ASAP) libraries json ignored
+        configPath = file("config")
         filterVariants.add("release")
+    }
+    library {
+        requireLicense = true
     }
     export {
         // Remove the "generated" timestamp to allow for reproducible builds
-        excludeFields.set(listOf("generated"))
+        excludeFields = listOf("generated")
     }
     license {
-        // TODO https://github.com/mikepenz/AboutLibraries/issues/1190
         strictMode = com.mikepenz.aboutlibraries.plugin.StrictMode.FAIL
-        allowedLicenses.addAll("Apache-2.0", "LGPL")
+        allowedLicenses.addAll("Apache-2.0", "MIT", "BSD-2-Clause", "LGPL")
     }
 }
 
@@ -304,7 +310,7 @@ dependencies {
     // Note: JAudioTagger is not compatible with Android 5, we can't ship it in app
     debugImplementation("net.jthink:jaudiotagger:3.0.1") // <-- for "SD Exploder"
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("org.robolectric:robolectric:4.15.1")
     "userdebugImplementation"(kotlin("reflect")) // who thought String.invoke() is a good idea?????
     debugImplementation(kotlin("reflect"))
 }

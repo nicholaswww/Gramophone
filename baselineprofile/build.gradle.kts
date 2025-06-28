@@ -1,6 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 import com.android.build.api.dsl.ManagedVirtualDevice
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
 	id("com.android.test")
@@ -16,13 +17,15 @@ android {
 		sourceCompatibility = JavaVersion.VERSION_21
 		targetCompatibility = JavaVersion.VERSION_21
 	}
-	kotlinOptions {
-		jvmTarget = "21"
-		freeCompilerArgs = listOf(
-			"-Xno-param-assertions",
-			"-Xno-call-assertions",
-			"-Xno-receiver-assertions"
-		)
+	kotlin {
+		compilerOptions {
+			jvmTarget = JvmTarget.JVM_21
+			freeCompilerArgs = listOf(
+				"-Xno-param-assertions",
+				"-Xno-call-assertions",
+				"-Xno-receiver-assertions"
+			)
+		}
 	}
 
 	defaultConfig {
