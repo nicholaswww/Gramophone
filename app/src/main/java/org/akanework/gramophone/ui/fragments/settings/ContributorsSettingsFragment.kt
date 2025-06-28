@@ -65,9 +65,9 @@ class ContributorsSettingsActivity : AppCompatActivity() {
             MaterialTheme(
                 colorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     if (isSystemInDarkTheme())
-                        dynamicLightColorScheme(applicationContext)
-                    else
                         dynamicDarkColorScheme(applicationContext)
+                    else
+                        dynamicLightColorScheme(applicationContext)
                 } else {
                     if (isSystemInDarkTheme()) {
                         darkColorScheme()
