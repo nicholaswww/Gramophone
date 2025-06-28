@@ -160,7 +160,7 @@ class ContributorsSettingsActivity : AppCompatActivity() {
 
     @Composable
     fun ContributorsSettingsScreen(contentPaddingValues: PaddingValues) {
-        LazyColumn(contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp) + contentPaddingValues) {
+        LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp) + contentPaddingValues) {
             itemsIndexed(Contributors.LIST) { i, contributor ->
                 val top = if (i == 0) CornerSize(16.dp) else
                     CornerSize(8.dp)
