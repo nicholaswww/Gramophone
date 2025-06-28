@@ -170,7 +170,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 try {
                     val track = NativeTrack(
                         context, attributes, AudioManager.STREAM_MUSIC, sampleRate, encoding,
-                        channelMask, null, 0x1, sessionId, 1.0f, null, bitrate, durationUs, false, false,
+                        channelMask, null, 0x1, sessionId, 1.0f, null, bitrate, durationUs, hasVideo = false, smallBuf = false,
                         false, 0, 0, true, TransferMode.Sync, null, null, ENCAPSULATION_MODE_NONE, null
                     )
                     val port = AudioTrackHiddenApi.getMixPortForThread(track.getOutput(), track.getHalSampleRate())
@@ -671,7 +671,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
         if (proxy != null) {
-            proxy.play() // TODO how is dead object signaled here?
+            proxy.play()
         } else {
             val ret = try {
                 startInternal(ptr)
