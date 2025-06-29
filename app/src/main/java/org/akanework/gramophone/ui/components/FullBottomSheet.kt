@@ -153,7 +153,7 @@ class FullBottomSheet
         object : SeekBar.OnSeekBarChangeListener, Slider.OnSliderTouchListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    val dest = instance?.currentMediaItem?.mediaMetadata?.durationMs
+                    val dest = instance?.mediaMetadata?.durationMs
                     if (dest != null) {
                         bottomSheetFullPosition.text =
                             CalculationUtils.convertDurationToTimeStamp((progress.toLong()))
@@ -491,7 +491,7 @@ class FullBottomSheet
 
         bottomSheetFullSlider.addOnChangeListener { _, value, isUser ->
             if (isUser) {
-                val dest = instance?.currentMediaItem?.mediaMetadata?.durationMs
+                val dest = instance?.mediaMetadata?.durationMs
                 if (dest != null) {
                     bottomSheetFullPosition.text =
                         CalculationUtils.convertDurationToTimeStamp((value).toLong())
@@ -1048,7 +1048,7 @@ class FullBottomSheet
                 mediaItem?.mediaMetadata?.artist ?: context.getString(R.string.unknown_artist),
                 skipAnimation = firstTime
             )
-            bottomSheetFullDuration.text = mediaItem?.mediaMetadata?.durationMs
+            bottomSheetFullDuration.text = instance?.mediaMetadata?.durationMs
                 ?.let { CalculationUtils.convertDurationToTimeStamp(it) }
             if (playlistNowPlaying != null) {
                 playlistNowPlaying!!.text = mediaItem?.mediaMetadata?.title
@@ -1065,7 +1065,7 @@ class FullBottomSheet
             deferredImageLoader = null
         }
         val position = CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
-        val duration = instance?.currentMediaItem?.mediaMetadata?.durationMs
+        val duration = instance?.mediaMetadata?.durationMs
         if (duration != null && !isUserTracking) {
             bottomSheetFullSeekBar.max = duration.toInt()
             bottomSheetFullSeekBar.progress = instance?.currentPosition?.toInt() ?: 0
@@ -1348,7 +1348,7 @@ class FullBottomSheet
             // TODO we may no longer need to poll duration because midi audio sink bugfix is already released
             val position =
                 CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
-            val duration = instance?.currentMediaItem?.mediaMetadata?.durationMs
+            val duration = instance?.mediaMetadata?.durationMs
             if (duration != null && !isUserTracking) {
                 bottomSheetFullSeekBar.max = duration.toInt()
                 bottomSheetFullSeekBar.progress = instance?.currentPosition?.toInt() ?: 0
