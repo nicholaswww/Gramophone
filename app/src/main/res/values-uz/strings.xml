@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="home_menu_search">Qidirish</string>
     <string name="home_menu_settings">Sozlamalar</string>
@@ -147,9 +147,6 @@
     <string name="settings_category_misc">Boshqa</string>
     <string name="settings_preference_category_application">Ilova</string>
     <string name="dialog_edit_metadata">O\'zgartirish</string>
-    <string name="album_covers_enhance_desc">Yuqori sifatli qoʻshiq muqovalarini qoʻllab-quvvatlang va albom va qoʻshiq muqovasi farqlanishiga ruxsat bering (fotosuratlarga kirishni talab qiladi)</string>
-    <string name="deny_images">“Rasmlar va videolar” ruxsatini rad eting</string>
-    <string name="grant_images">“Rasmlar va videolar”ga ruxsat bering</string>
     <string name="crash_clipboard">Nosozliklar jurnali vaqtinchalik xotiraga nusxalandi</string>
     <string name="settings_trim_lyrics">Qo\'shiq matni atrofidagi bo\'shliqlarni olib tashlang</string>
     <string name="timer">Avtomatik ochirish</string>

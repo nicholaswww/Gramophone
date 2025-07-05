@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="dismiss">إلغاء</string>
     <string name="settings_blacklist">القائمة السّوداء</string>
@@ -163,7 +163,6 @@
     <string name="share">مشاركة</string>
     <string name="settings_lyrics_multiline_summary">تعامل مع كافة الأسطر الموجودة بين نقاط المزامنة كنص غنائي واحد</string>
     <string name="fgs_failed_title">فشل في استئناف تشغيل الموسيقى</string>
-    <string name="album_covers_enhance_desc">دعم أغلفة الأغاني عالية الجودة والسماح باختلاف الألبوم وغلاف الأغنية (يتطلب الوصول إلى الصور)</string>
     <string name="fgs_failed_text">انقر هنا لفتح التطبيق ومتابعة التشغيل في الخلفية</string>
     <string name="fgs_failed_channel">فشل استئناف التشغيل</string>
     <string name="settings_lyrics_multiline">قراءة كلمات متعددة الأسطر</string>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="equalizer_not_found">ไม่พบอีควอไลเซอร์</string>
     <string name="settings_version">เวอร์ชัน</string>
@@ -86,11 +86,9 @@
     <string name="open_in_gramophone">เปิดใน Gramophone</string>
     <string name="device_type_aux_line">สาย AUX</string>
     <string name="device_type_line_analog">สายแอนะล็อก</string>
-    <string name="device_type_line_digital">สายดิจิทัล</string>
     <string name="settings_lyrics_no_animation">ปิดแอนิเมชัน</string>
     <string name="oh_no">ไม่นะ!</string>
     <string name="send_email">ส่งอีเมล</string>
-    <string name="send_email_manually">ส่งข้อบกพร่องไปให้ nift4dev@gmail.com หน่อย</string>
     <string name="mix_port_flag_iec958_nonaudio">IEC 958 (ไม่มีเสียง)</string>
     <string name="mix_port_flag_sync">ซิงค์</string>
     <string name="mix_port_flag_tts">TTS</string>

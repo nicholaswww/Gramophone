@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="home_menu_search">Etsi</string>
     <string name="home_menu_settings">Asetukset</string>
@@ -81,7 +81,6 @@
     <string name="settings_category_misc">Sekalaiset</string>
     <string name="settings_category_filters">Suodattimet</string>
     <string name="delete_failed">Kappaleen poistaminen epäonnistui</string>
-    <string name="grant_images">Myönnä \"Valokuvat ja videot\" lupa</string>
     <string name="settings_category_basic_info">Perustiedot</string>
     <string name="crash_clipboard">Kaatumisloki kopioitu leikepöydälle</string>
     <string name="timer">Nukkumisajastin</string>
@@ -108,5 +107,4 @@
     <string name="settings_crash_application">Kaada ohjelma</string>
     <string name="settings_crash_application_summary">Kaatomaatti 3000</string>
     <string name="dialog_edit_metadata">Muokkaa</string>
-    <string name="deny_images">Kiellä \"Valokuvat ja videot\" lupa</string>
-</resources>
+    </resources>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="settings_contributors">Contributori</string>
     <string name="go_to_album">Vai a album</string>
@@ -155,7 +155,6 @@
     <string name="timer">Timer di riposo</string>
     <string name="fgs_failed_channel">Impossibile riprendere la riproduzione</string>
     <string name="fgs_failed_text">Fai click qui per aprire l\'app e continuare la riproduzione</string>
-    <string name="album_covers_enhance_desc">Supporto per copertine di alta qualità delle canzoni e possibilità di differenziare tra copertine di album e canzoni (richiede l\'accesso alle foto)</string>
     <string name="sort_by_release_date">Data di pubblicazione</string>
     <string name="timer_expiry">Timer riposo fermerà la musica a %s</string>
     <string name="separator_dot">•</string>

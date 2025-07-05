@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="sort_by_artist">Artista</string>
     <string name="settings_category_appearance">Apparentia</string>
@@ -153,7 +153,6 @@
     <string name="timer_expiry">Le temporisator de somno pausara le musica in %s</string>
     <string name="separator_dot">•</string>
     <string name="album_covers_enhance">Carga meliorate del copertura de album</string>
-    <string name="album_covers_enhance_desc">Supporta coperturas de cantos de alte qualitate e permitte haber coperturas de album e canto different (require accesso al photos)</string>
     <string name="settings_lyrics_multiline">Leger le parolas de canto multilinea</string>
     <string name="grant_audio">Concede le permission de \"Musica e audio\"</string>
     <string name="settings_lyrics_multiline_summary">Tractar tote le lineas inter le punctos de synchronisation como un sol parola de canto</string>

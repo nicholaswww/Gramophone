@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="dismiss">OK</string>
     <string name="settings_album_round_corner">Cantos arredondados do álbum</string>
@@ -156,7 +156,6 @@
     <string name="fgs_failed_text">Clique aqui para abrir o aplicativo e continuar a reprodução</string>
     <string name="album_covers_enhance">Carregamento aprimorado da capa do álbum</string>
     <string name="share">Compartilhar</string>
-    <string name="album_covers_enhance_desc">Suporta capas de músicas de alta qualidade e permite que a capa do álbum e da música seja diferente (requer acesso às fotos)</string>
     <string name="sort_by_release_date">Data de lançamento</string>
     <string name="timer_expiry">O temporizador de sono irá pausar a música em %s</string>
     <string name="settings_status_bar_lyrics_title">Letra da música na barra de status</string>

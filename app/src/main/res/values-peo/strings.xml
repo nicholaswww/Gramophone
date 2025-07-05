@@ -1,11 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="home_menu_settings">تنظیمات</string>
     <string name="category_albums">آلبوم ها</string>
     <string name="category_genres">ژانر ها</string>
     <string name="category_playlists">پلی‌لیست ها</string>
     <string name="unknown_artist">هنرمند ناشناس</string>
-    <string name="category_dates">زمان ها</string>
     <plurals name="songs">
         <item quantity="one">آهنگ</item>
         <item quantity="other">آهنگ ها</item>
@@ -34,25 +33,18 @@
     <string name="dialog_artist">هنرمند</string>
     <string name="settings_mediastore_filter">حداقل زمان آهنگ(ثانیه)</string>
     <string name="settings_repository">مخزن</string>
-    <string name="dialog_track_number">شماره ی آهنگ</string>
     <string name="unknown_album">آلبوم ناشناس</string>
     <string name="recently_added">به تازگی اضافه شده</string>
     <string name="natural_order">ترتیب عادی</string>
     <string name="grid">چینش</string>
     <string name="list">لیست</string>
-    <string name="layout">نوع نمایش</string>
     <string name="home_menu_equalizer">اکولایزر</string>
     <string name="equalizer_not_found">اکولایزر یافت نشد!</string>
     <string name="compact_list">لیست (فشرده)</string>
     <string name="home_menu_refresh">بازنشانی</string>
     <string name="category_songs">آهنگ ها</string>
-    <string name="home_menu_search">جست و جو</string>
     <string name="category_artists">خوانندگان</string>
     <string name="dark">تیره</string>
-    <plurals name="items">
-        <item quantity="one">آیتم</item>
-        <item quantity="other">آیتم ها</item>
-    </plurals>
     <string name="light">روشن</string>
     <string name="sort_by_album">آلبوم</string>
     <string name="follow_system">بر اساس سیستم</string>
@@ -81,7 +73,6 @@
     <string name="settings_lyrics_configuration">تنظیمات متن ترانه</string>
     <string name="settings_lyrics_configuration_summary">تنظیمات ظاهر متن ترانه</string>
     <string name="settings_lyrics_center">چینش مرکزی</string>
-    <string name="settings_lyrics_multiline_summary">برخورد کردن یکسان با همه ی خط های بین نقاط همگام شده</string>
     <string name="settings_play_on_launch_summary">پخش آهنگ در زمان اجرای برنامه</string>
     <string name="settings_blacklist_folder_summary">فیلتر کردن آهنگ ها از پوشه های مشخص</string>
     <string name="dialog_edit_metadata">ویرایش</string>
@@ -92,7 +83,6 @@
     <string name="dialog_lyrics">متن ترانه ها</string>
     <string name="settings_preference_category_application">برنامه</string>
     <string name="crash_clipboard">اطلاعات کرش را در کلیپبورد کپی کن</string>
-    <string name="album_covers_enhance">لود شدن کاور های بهبود شده ی آلبوم ها</string>
     <string name="current_playlist">پلی لیست کنونی</string>
     <string name="album_covers_enhance_desc">پشتیبانی از کاور های با کیفیت بالا و اجازه ی تفاوت قائل شدن میان کاور آلبوم و آهنگ(نیاز به دسترسی به عکس ها)</string>
     <string name="settings_trim_lyrics">پاک کردن فاصله ها در متن ترانه ها</string>
@@ -120,7 +110,6 @@
     <string name="settings_blacklist">لیست سیاه</string>
     <string name="settings_category_misc">متفرقه</string>
     <string name="settings_category_filters">فیلتر ها</string>
-    <string name="settings_category_full_player">پخش کننده ی کامل</string>
     <string name="album_cover">کاور آلبوم</string>
     <string name="delete_failed">پاک کردن آهنگ ها ناموفق بود</string>
     <string name="fgs_failed_channel">شکست ادامه ی پخش</string>

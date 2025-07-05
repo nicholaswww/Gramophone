@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="dismiss">Адхіліць</string>
     <string name="settings_category_behavior">Паводзіны</string>
@@ -158,7 +158,6 @@
     <string name="sort_by_release_date">Дата выхаду</string>
     <string name="album_covers_enhance">Палепшаная загрузка вокладак альбомаў</string>
     <string name="share">Абагуліць</string>
-    <string name="album_covers_enhance_desc">Падтрымка вокладак песень высокай якасці і магчымасць адрозніваць вокладкі альбомаў і песень (патрабуецца доступ да фатаграфій)</string>
     <string name="fgs_failed_channel">Не ўдалося аднавіць прайграванне</string>
     <string name="fgs_failed_title">Не ўдалося аднавіць прайграванне музыкі</string>
     <string name="fgs_failed_text">Націсніце тут, каб адкрыць праграму і працягнуць прайграванне</string>

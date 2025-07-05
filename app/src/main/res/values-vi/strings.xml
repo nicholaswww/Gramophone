@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="settings_category_behavior">Thao tác</string>
     <string name="go_to_album">Xem album</string>
@@ -82,7 +82,6 @@
     <string name="no_lyric_found">Không tìm thấy lời bài hát</string>
     <string name="dialog_disc_number">Số đĩa</string>
     <string name="unknown_title">Tên bài hát chưa biết</string>
-    <string name="dialog_mime">Định dạng</string>
     <string name="filesystem">Tệp hệ thống</string>
     <string name="dialog_duration">Thời lượng</string>
     <string name="settings_title_center">Căn tên bài hát ở giữa</string>
@@ -146,7 +145,6 @@
     <string name="fgs_failed_channel">Không thể phát tiếp</string>
     <string name="settings_crash_application">Ứng dụng gặp sự cố</string>
     <string name="settings_crash_application_summary">Crash-O-Matic 3000</string>
-    <string name="album_covers_enhance_desc">Hỗ trợ ảnh bài hát chất lượng cao và cho phép ảnh bài hát khác ảnh album (yêu cầu quyền truy cập ảnh)</string>
     <string name="share">Chia sẻ</string>
     <string name="album_covers_enhance">Tải ảnh album nâng cao</string>
     <string name="sort_by_release_date">Năm phát hành</string>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="dismiss">Avslå</string>
     <string name="settings_category_behavior">Adferd</string>
@@ -6,15 +6,12 @@
     <string name="category_dates">Datoer</string>
     <string name="unknown_album">Ukjent album</string>
     <string name="sort_by_size">Størrelse</string>
-    <string name="dialog_title">Navn</string>
     <string name="settings_repository">Pakkebrønn</string>
     <string name="sort_by_artist">Artist</string>
-    <string name="settings_mediastore_filter">MediaStore-filter</string>
     <string name="category_songs">Spor</string>
     <string name="settings_app_theme">Drakt</string>
     <string name="compact_list">Liste (kompakt)</string>
     <string name="dialog_album_artist">Albumsartist</string>
-    <string name="equalizer_not_found">Fant ikke tonekontroll.</string>
     <plurals name="items">
         <item quantity="one">%d element</item>
         <item quantity="other">%d elementer</item>
@@ -41,7 +38,6 @@
     <string name="settings_contributors">Bidragsytere</string>
     <string name="settings_category_appearance">Utseende</string>
     <string name="dialog_album">Album</string>
-    <string name="settings_default_progress_bar">Skru på forvalgt framdriftsindikator</string>
     <string name="details">Detaljer</string>
     <string name="home_menu_equalizer">Tonekontroll</string>
     <string name="dialog_path">Sti</string>
@@ -52,10 +48,8 @@
     <string name="refreshed_songs">Gjenoppfrisket %1$s spor</string>
     <string name="dark">Mørk</string>
     <string name="sort_by_name">Navn</string>
-    <string name="check_for_updates">Sjekk kanalen vår for oppdateringer.</string>
     <string name="shuffle">Omstokking</string>
     <string name="category_playlists">Spillelister</string>
-    <string name="follow_system">System</string>
     <string name="list">Liste</string>
     <string name="search">Søk</string>
     <string name="grid">Rutenett</string>
@@ -63,7 +57,6 @@
         <item quantity="one">%d spor</item>
         <item quantity="other">%d spor</item>
     </plurals>
-    <string name="settings_default_progress_bar_summary">Skru på gammeldags framdriftsindikator</string>
     <string name="recently_added">Nylig tillagt</string>
     <string name="dialog_genre">Sjanger</string>
     <string name="unknown_genre">Ukjent sjanger</string>

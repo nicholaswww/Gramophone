@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="category_artists">Előadók</string>
     <plurals name="albums">
@@ -285,7 +285,6 @@
     <string name="share">Megosztás</string>
     <string name="timer">Elalvás időzítő</string>
     <string name="current_playlist">Jelenlegi lejátszási lista</string>
-    <string name="album_covers_enhance_desc">Magas minőségű album borítók támogatása, és engedélyezi az album és szám borítók eltérését (fotó engedély szükséges)</string>
     <string name="tab_order">Fülek sorrendjének beállítása</string>
     <string name="tab_order_summary">Az applikáció az első fület mutatja elinduláskor. Az elválasztó után levő fülek elrejtésre kerülnek.</string>
     <string name="play_all">Mind lejátszása</string>

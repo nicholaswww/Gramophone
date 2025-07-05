@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="home_menu_search">搜索</string>
     <string name="home_menu_settings">设置</string>
@@ -181,7 +181,6 @@
     <string name="grant_audio"><![CDATA[请授予\“音乐和音频”\权限]]></string>
     <string name="delete">删除</string>
     <string name="yes">是</string>
-    <string name="no">否</string>
     <string name="sort_by_file_path">文件路径</string>
     <string name="sort_by_album_artist">专辑艺术家</string>
     <string name="delete_really">真的要删除\"%s\"吗？此操作无法撤回。</string>
@@ -205,7 +204,6 @@
     <string name="spk_channel_out_mono">单声道输出</string>
     <string name="spk_channel_out_quad">四声道输出</string>
     <string name="spk_channel_out_stereo">立体声输出</string>
-    <string name="spk_channel_out_surround">4.0环绕声</string>
     <string name="spk_channel_out_7point1_surround">7.1 环绕声</string>
     <string name="spk_channel_out_5point1">5.1 环绕声音频系统</string>
     <string name="spk_channel_out_6point1">6.1 环绕声音频系统</string>
@@ -267,7 +265,6 @@
     <string name="rename_failed_playlist">重命名播放列表失败</string>
     <string name="device_type_wired_headset">有线耳麦</string>
     <string name="device_type_wired_headphones">有线耳机</string>
-    <string name="device_type_unknown">未知设备</string>
     <string name="device_type_builtin_speaker">内置扬声器</string>
     <string name="device_type_usb_headset">USB 耳麦</string>
     <string name="device_type_aux_line">AUX 线</string>

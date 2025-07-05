@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="sort_by_add_date">मिति थप्नुहोस्</string>
     <string name="settings_about_gramophone">आवेदन बारे</string>
@@ -30,22 +30,17 @@
     <string name="settings_content_based_color">सामग्री आधारित रंगहरू</string>
     <string name="settings_default_progress_bar">पूर्वनिर्धारित प्रगति पट्टी</string>
     <string name="layout">प्रदर्शन</string>
-    <string name="settings_default_progress_bar_summary">स्लाइडर शैलीबद्ध प्रगति पट्टी सक्षम गर्नुहोस्</string>
     <string name="home_menu_equalizer">इक्वेलाइजर</string>
     <string name="equalizer_not_found">इक्वेलाइजर फेला परेन!</string>
     <string name="settings_title_center">केन्द्रित शीर्षक</string>
     <string name="dialog_disc_number">डिस्क नम्बर</string>
     <string name="dialog_duration">अवधि</string>
-    <string name="settings_appearance_summary">अनुप्रयोगको उपस्थिति कन्फिगर गर्नुहोस्</string>
-    <string name="settings_behavior_summary">अनुप्रयोगको व्यवहार कन्फिगर गर्नुहोस्</string>
     <string name="settings_album_round_corner">एल्बम गोल कुना</string>
-    <string name="settings_player_options">अडियो विकल्प</string>
     <string name="settings_customization">अनुकूलन</string>
     <string name="settings_album_round_corner_summary">पूर्ण प्लेयरमा राउन्ड कुना सक्षम गर्नुहोस्</string>
     <string name="settings_audio">अडियो</string>
     <string name="settings_title_bold">बोल्ड शीर्षक</string>
     <string name="settings_color_accuracy">रंग शुद्धता</string>
-    <string name="settings_experimental_settings_summary">परीक्षण सुविधाहरू कन्फिगर गर्नुहोस्</string>
     <string name="settings_lyrics_center">केन्द्र पङ्क्तिबद्धता</string>
     <string name="settings_blacklist">कालोसूची</string>
     <string name="settings_blacklist_folder">कालोसूची फोल्डरहरू</string>
@@ -60,10 +55,8 @@
         <item quantity="one">%dगीत</item>
         <item quantity="other">%dगीतहरू</item>
     </plurals>
-    <string name="settings_content_based_color_summary">तल्लो पानाको लागि एल्बम कला आधारित रङ योजना उत्पादन सक्षम गर्नुहोस्</string>
     <string name="category_dates">मितिहरू</string>
     <string name="home_menu_settings">सेटिङहरू</string>
-    <string name="home_menu_search">खोज</string>
     <string name="unknown_artist">अज्ञात कलाकार</string>
     <string name="category_songs">गीतहरू</string>
     <string name="home_menu_refresh">रिफ्रेश</string>

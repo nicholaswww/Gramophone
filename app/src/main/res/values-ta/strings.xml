@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="go_to_artist">கலைஞரிடம் செல்லுங்கள்</string>
     <string name="details">விவரங்கள்</string>
@@ -147,7 +147,6 @@
     <string name="dialog_lyrics">பாடல்</string>
     <string name="delete_failed">பாடல் நீக்குவது தோல்வியடைந்தது</string>
     <string name="album_covers_enhance">மேம்படுத்தப்பட்ட ஆல்பம் கவர் ஏற்றுதல்</string>
-    <string name="album_covers_enhance_desc">உயர் தரமான பாடல் அட்டைகளை ஆதரிக்கவும், ஆல்பம் மற்றும் பாடல் அட்டையை வேறுபடுத்த அனுமதிக்கவும் (புகைப்படங்கள் அணுகல் தேவை)</string>
     <string name="deny_images"><![CDATA[தயவுசெய்து \"புகைப்படங்கள் மற்றும் வீடியோக்களை மறுக்கவும்\" அனுமதியை]]></string>
     <string name="grant_images"><![CDATA[தயவுசெய்து \"புகைப்படங்கள் மற்றும் வீடியோக்களை வழங்கவும்\" அனுமதி]]></string>
     <string name="grant_audio"><![CDATA[தயவுசெய்து \"இசை மற்றும் ஆடியோ\" இசைவு வழங்கவும்]]></string>

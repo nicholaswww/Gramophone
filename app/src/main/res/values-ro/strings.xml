@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="category_artists">Artiști</string>
     <plurals name="albums">
@@ -153,7 +153,6 @@
     <string name="share">Partajează</string>
     <string name="settings_lyrics_multiline">Citește versuri pe mai multe rânduri</string>
     <string name="settings_lyrics_multiline_summary">Consideră toate rândurile între punctele de sincronizare ca un singur vers</string>
-    <string name="album_covers_enhance_desc">Suportă coperți de album la calitate înaltă și permite coperții de album și piesă să difere (necesită acces la galerie)</string>
     <string name="timer">Cronometru de somn</string>
     <string name="deny_images">Vă rugăm refuzați permisiunea \"Imagini &amp; Clipuri video\"</string>
     <string name="settings_trim_lyrics">Elimină spațiul din jurul versurilor</string>
@@ -198,9 +197,7 @@
     <string name="delete_really">Chiar vrei să ștergi \"%s\"? Această acțiune nu poate fi refăcută.</string>
     <string name="sort_by_file_path">Calea fișierului</string>
     <string name="spk_channel_out_mono">Mono</string>
-    <string name="spk_channel_out_stereo">Stereo</string>
     <string name="spk_channel_out_quad">Quad</string>
-    <string name="spk_channel_out_surround">Surround (4.0)</string>
     <string name="spk_channel_out_5point1point2">5.1.2</string>
     <string name="spk_channel_out_5point1point4">5.1.4</string>
     <string name="spk_channel_out_7point1point2">7.1.2</string>
@@ -218,7 +215,6 @@
     <string name="sort_by_album_artist">Albumul artistului</string>
     <string name="settings_contributors_click">%s (apăsa pentru mai mult)</string>
     <string name="spk_channel_out_7point1_surround">Surround (7.1)</string>
-    <string name="spk_channel_out_5point1">5.1</string>
     <string name="spk_channel_out_low_frequency">Frecvență joasă</string>
     <string name="spk_channel_out_back_left">Înapoi stânga</string>
     <string name="spk_channel_out_back_center">Înapoi centru</string>

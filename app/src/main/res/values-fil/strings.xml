@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <resources>
     <string name="refreshed_songs">Na-refresh ang %1$s na mga kanta</string>
     <string name="search">I-hanap</string>
@@ -28,10 +28,6 @@
     <string name="category_genres">Mga dyanra</string>
     <string name="category_playlists">Mga playlist</string>
     <string name="unknown_artist">Hindi kilalang artista</string>
-    <plurals name="artists">
-        <item quantity="one">%d na artista</item>
-        <item quantity="other">%d na artista</item>
-    </plurals>
     <plurals name="items">
         <item quantity="one">%d aytem</item>
         <item quantity="other">%d na mga aytem</item>
@@ -84,15 +80,7 @@
     <string name="unknown_genre">Hindi kilalang dyanra</string>
     <string name="home_menu_settings">Mga setting</string>
     <string name="category_songs">Mga kanta</string>
-    <plurals name="songs">
-        <item quantity="one">%d na kanta</item>
-        <item quantity="other">%d na kanta</item>
-    </plurals>
     <string name="home_menu_refresh">I-refresh</string>
-    <plurals name="albums">
-        <item quantity="one">%d na album</item>
-        <item quantity="other">%d na album</item>
-    </plurals>
     <string name="category_dates">Mga petsa</string>
     <string name="dialog_album_artist">Artista ng album</string>
     <string name="dialog_track_number">Numero ng track</string>
