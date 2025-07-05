@@ -4,6 +4,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import sys
+import os
 
 WEBLATE_URL = "https://hosted.weblate.org"
 PROJECT_SLUG = "gramophone"
