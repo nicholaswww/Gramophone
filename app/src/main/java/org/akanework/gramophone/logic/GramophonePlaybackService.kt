@@ -92,6 +92,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.MeiZuLyricsMediaNotificationProvider
+import org.akanework.gramophone.logic.ui.isManualNotificationUpdate
 import org.akanework.gramophone.logic.utils.AfFormatTracker
 import org.akanework.gramophone.logic.utils.AudioTrackInfo
 import org.akanework.gramophone.logic.utils.BtCodecInfo
@@ -961,7 +962,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         else null
         if (lastSentHighlightedLyric != highlightedLyric) {
             lastSentHighlightedLyric = highlightedLyric
-            manuallyUpdateMediaNotification(mediaSession!!)
+            mediaSession?.let {
+                if (Looper.myLooper() != it.player.applicationLooper)
+                    throw UnsupportedOperationException("wrong looper for triggerNotificationUpdate")
+                isManualNotificationUpdate = true
+                triggerNotificationUpdate()
+                isManualNotificationUpdate = false
+            }
         }
     }
 

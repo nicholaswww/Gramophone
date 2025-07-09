@@ -102,14 +102,16 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        // disk read and write on first launch, but unavoidable as threads would race setDefaultNightMode
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
         if (BuildConfig.DEBUG) {
             // Use StrictMode to find anti-pattern issues
             StrictMode.setThreadPolicy(
                 ThreadPolicy.Builder()
                     .detectAll()
                     .let {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                            it.permitExplicitGc() // oh the irony, StrictMode itself calls this
+                        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                            it.permitExplicitGc() // platform bug, now fixed
                         } else it
                     }
                     .permitDiskReads() // permit disk reads due to media3 setMetadata() TODO extra player thread
@@ -124,7 +126,6 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             )
         }
         uacManager = UacManager(this)
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
         Flags.PLAYLIST_EDITING = prefs.getBooleanStrict("playlist_editing", false)
         reader = FlowReader(
             this,
