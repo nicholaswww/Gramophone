@@ -125,10 +125,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     companion object {
         private const val TAG = "GramoPlaybackService"
-        private const val NOTIFY_CHANNEL_ID = "serviceFgsError"
-        private const val NOTIFY_ID = 1
+        const val NOTIFY_CHANNEL_ID = "serviceFgsError"
+        const val NOTIFY_ID = 1
         private const val PENDING_INTENT_SESSION_ID = 0
-        private const val PENDING_INTENT_NOTIFY_ID = 1
+        const val PENDING_INTENT_NOTIFY_ID = 1
         const val PENDING_INTENT_WIDGET_ID = 2
         private const val PLAYBACK_SHUFFLE_ACTION_ON = "shuffle_on"
         private const val PLAYBACK_SHUFFLE_ACTION_OFF = "shuffle_off"
@@ -691,10 +691,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         "null MediaItemsWithStartPosition, see former logs for root cause"
                     ).also { Log.e(TAG, Log.getStackTraceString(it)) }
                 )
-            } else if (items.mediaItems.isNotEmpty()) {
+            } else {
                 if (endedWorkaroundPlayer?.nextShuffleOrder != null)
                     throw IllegalStateException("shuffleFactory was found orphaned")
-                if (isForPlayback) {
+                if (isForPlayback && items.mediaItems.isNotEmpty()) {
                     endedWorkaroundPlayer?.nextShuffleOrder = factory.toFactory()
                     settable.set(items)
                     if (endedWorkaroundPlayer?.nextShuffleOrder != null)
@@ -702,12 +702,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 } else {
                     settable.set(items)
                 }
-            } else {
-                settable.setException(
-                    IndexOutOfBoundsException(
-                        "LastPlayedManager restored empty MediaItemsWithStartPosition"
-                    )
-                )
             }
         }
         return settable
