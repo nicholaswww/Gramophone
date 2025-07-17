@@ -32,7 +32,7 @@ class MediaButtonReceiver : MediaButtonReceiver() {
 	}
 
 	override fun shouldStartForegroundService(context: Context, intent: Intent): Boolean {
-		val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+		val prefs = context.getSharedPreferences("LastPlayedManager", 0)
 		return !prefs.getString("last_played_grp", null).isNullOrEmpty()
 	}
 
