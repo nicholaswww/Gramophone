@@ -38,6 +38,10 @@ Beta versions and sneak peeks are available in the [telegram channel](https://t.
 ## Building
 To build this app, you will need the latest beta version of [Android Studio](https://developer.android.com/studio) and a fast network.
 
+### Submodules
+
+Gramophone includes certain dependencies such as media3 as git submodule. Make sure you download git submodules by running `git submodule update --init --recursive` before trying to build Gramophone.
+
 ### Set up package type
 Gramophone has a package type that indicates the source of the application package. Package type string is extracted from an external file named `package.properties`.
 
