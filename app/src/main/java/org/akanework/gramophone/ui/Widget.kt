@@ -45,7 +45,6 @@ class LyricWidgetProvider : AppWidgetProvider() {
             val views =
                 RemoteViews(context.packageName, R.layout.lyric_widget).apply {
                     setPendingIntentTemplate(R.id.list_view, seekPi)
-                    if (Build.VERSION.SDK_INT < 36) // hack fix crashing issue due to AOSP bug
                         setRemoteAdapter( // TODO deprecated
                             R.id.list_view,
                             Intent(context, LyricWidgetService::class.java).apply<Intent> {
@@ -53,12 +52,14 @@ class LyricWidgetProvider : AppWidgetProvider() {
                                 // Intents are compared using filterEquals() which ignores extras, so encode extras
                                 // in data to enforce comparison noticing the difference between different Intents.
                                 this.data = toUri(Intent.URI_INTENT_SCHEME).toUri()
-                            })
+                            }
+                        )
                     setEmptyView(R.id.list_view, R.id.empty_view)
                 }
             // setting null first fixes outdated data related bugs but causes flicker. hence we
             // sparingly update the entire adapter.
-            appWidgetManager.updateAppWidget(appWidgetId, null)
+            if (Build.VERSION.SDK_INT < 36)
+                appWidgetManager.updateAppWidget(appWidgetId, null)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }
