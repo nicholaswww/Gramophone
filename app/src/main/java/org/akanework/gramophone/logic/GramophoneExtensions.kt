@@ -75,7 +75,6 @@ import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_AUDIO_FORMAT
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_LYRICS
-import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_LYRICS_LEGACY
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_GET_SESSION
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_QUERY_TIMER
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.SERVICE_SET_TIMER
@@ -83,7 +82,6 @@ import org.akanework.gramophone.logic.utils.AfFormatInfo
 import org.akanework.gramophone.logic.utils.AudioFormatDetector
 import org.akanework.gramophone.logic.utils.AudioTrackInfo
 import org.akanework.gramophone.logic.utils.BtCodecInfo
-import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.ui.MainActivity
 import org.jetbrains.annotations.Contract
@@ -276,22 +274,12 @@ inline fun <reified T> MutableList<T>.replaceAllSupport(skipFirst: Int = 0, oper
 }
 
 @Suppress("UNCHECKED_CAST")
-fun MediaController.getLyricsLegacy(): MutableList<MediaStoreUtils.Lyric>? =
-    sendCustomCommand(
-        SessionCommand(SERVICE_GET_LYRICS_LEGACY, Bundle.EMPTY),
-        Bundle.EMPTY
-    ).get().extras.let {
-        (BundleCompat.getParcelableArray(it, "lyrics", MediaStoreUtils.Lyric::class.java)
-                as Array<MediaStoreUtils.Lyric>?)?.toMutableList()
-    }
-
-@Suppress("UNCHECKED_CAST")
 fun MediaController.getLyrics(): SemanticLyrics? =
     sendCustomCommand(
         SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
         Bundle.EMPTY
     ).get().extras.let {
-        BundleCompat.getParcelable<SemanticLyrics>(it, "lyrics", SemanticLyrics::class.java)
+        BundleCompat.getParcelable(it, "lyrics", SemanticLyrics::class.java)
     }
 
 @OptIn(UnstableApi::class)

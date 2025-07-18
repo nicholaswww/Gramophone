@@ -13,7 +13,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaButtonReceiver
-import androidx.preference.PreferenceManager
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.NOTIFY_CHANNEL_ID
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.NOTIFY_ID

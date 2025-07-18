@@ -177,9 +177,7 @@ object MediaRoutes {
                             || it.cleanUpProductName().contentEquals(name) }
                 if (devicesByAddressAndName.size == 1)
                     return devicesByAddressAndName[0]
-                else if (devicesByAddressAndName.isEmpty())
-                    null
-                else devicesByAddressAndName
+                else devicesByAddressAndName.ifEmpty { null }
             } else null
         } else null) ?: devicesByType.filter { it.productName.contentEquals(name)
                 || it.cleanUpProductName().contentEquals(name) }
@@ -192,13 +190,15 @@ object MediaRoutes {
                 if (!((Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
                             theDevice.audioProfiles == device.audioProfiles) &&
                             (Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
-                                    (theDevice.encapsulationModes == device.encapsulationModes &&
-                                            theDevice.encapsulationMetadataTypes == device.encapsulationMetadataTypes)) &&
-                            theDevice.channelCounts == device.channelCounts &&
-                            theDevice.encodings == device.encodings &&
-                            theDevice.sampleRates == device.sampleRates &&
-                            theDevice.channelMasks == device.channelMasks &&
-                            theDevice.channelIndexMasks == device.channelIndexMasks &&
+                                    (theDevice.encapsulationModes.contentEquals(device.encapsulationModes) &&
+		                                    theDevice.encapsulationMetadataTypes.contentEquals(
+			                                    device.encapsulationMetadataTypes
+		                                    ))) &&
+			                theDevice.channelCounts.contentEquals(device.channelCounts) &&
+			                theDevice.encodings.contentEquals(device.encodings) &&
+			                theDevice.sampleRates.contentEquals(device.sampleRates) &&
+			                theDevice.channelMasks.contentEquals(device.channelMasks) &&
+			                theDevice.channelIndexMasks.contentEquals(device.channelIndexMasks) &&
                             theDevice.type == device.type)
                 ) {
                     Log.e(TAG, "Weird, got more than one AudioDeviceInfo with same name but not " +

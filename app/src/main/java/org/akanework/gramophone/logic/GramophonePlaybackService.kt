@@ -101,9 +101,7 @@ import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.logic.utils.LastPlayedManager
 import org.akanework.gramophone.logic.utils.LrcUtils.LrcParserOptions
 import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyrics
-import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyricsLegacy
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFile
-import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFileLegacy
 import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
@@ -139,7 +137,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         const val SERVICE_QUERY_TIMER = "query_timer"
         const val SERVICE_GET_AUDIO_FORMAT = "get_audio_format"
         const val SERVICE_GET_LYRICS = "get_lyrics"
-        const val SERVICE_GET_LYRICS_LEGACY = "get_lyrics_legacy"
         const val SERVICE_GET_SESSION = "get_session"
         const val SERVICE_TIMER_CHANGED = "changed_timer"
         var instanceForWidgetAndLyricsOnly: GramophonePlaybackService? = null
@@ -156,8 +153,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         private set
     val syncedLyrics
         get() = lyrics as? SemanticLyrics.SyncedLyrics
-    var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
-        private set
     private lateinit var customCommands: List<CommandButton>
     private lateinit var handler: Handler
     private lateinit var playbackHandler: Handler
@@ -542,7 +537,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         availableSessionCommands.add(SessionCommand(SERVICE_GET_SESSION, Bundle.EMPTY))
         availableSessionCommands.add(SessionCommand(SERVICE_QUERY_TIMER, Bundle.EMPTY))
         availableSessionCommands.add(SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY))
-        availableSessionCommands.add(SessionCommand(SERVICE_GET_LYRICS_LEGACY, Bundle.EMPTY))
         availableSessionCommands.add(SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY))
 
         handler.post {
@@ -645,12 +639,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     }
                 }
 
-                SERVICE_GET_LYRICS_LEGACY -> {
-                    SessionResult(SessionResult.RESULT_SUCCESS).also {
-                        it.extras.putParcelableArray("lyrics", lyricsLegacy?.toTypedArray())
-                    }
-                }
-
                 SERVICE_GET_SESSION -> {
                     SessionResult(SessionResult.RESULT_SUCCESS).also {
                         it.extras.putInt("session", lastSessionId)
@@ -735,60 +723,30 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             // round-trip to make sure the current callback is completed
             val trim = prefs.getBoolean("trim_lyrics", true)
             val multiLine = prefs.getBoolean("lyric_multiline", false)
-            val newParser = prefs.getBoolean("lyric_parser", false)
             val options = LrcParserOptions(
                 trim = trim, multiLine = multiLine,
                 errorText = getString(R.string.failed_to_parse_lyric)
             )
-            if (newParser) {
-                var lrc = loadAndParseLyricsFile(mediaItem?.getFile(), options)
-                if (lrc == null) {
-                    loop@ for (i in tracks.groups) {
-                        for (j in 0 until i.length) {
-                            if (!i.isTrackSelected(j)) continue
-                            // note: wav files can have null metadata
-                            val trackMetadata = i.getTrackFormat(j).metadata ?: continue
-                            lrc = extractAndParseLyrics(trackMetadata, options) ?: continue
-                            break@loop
-                        }
+            var lrc = loadAndParseLyricsFile(mediaItem?.getFile(), options)
+            if (lrc == null) {
+                loop@ for (i in tracks.groups) {
+                    for (j in 0 until i.length) {
+                        if (!i.isTrackSelected(j)) continue
+                        // note: wav files can have null metadata
+                        val trackMetadata = i.getTrackFormat(j).metadata ?: continue
+                        lrc = extractAndParseLyrics(trackMetadata, options) ?: continue
+                        break@loop
                     }
                 }
-                withContext(Dispatchers.Main) {
-                    mediaSession?.let {
-                        lyrics = lrc
-                        lyricsLegacy = null
-                        it.broadcastCustomCommand(
-                            SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
-                            Bundle.EMPTY
-                        )
-                        scheduleSendingLyrics(true)
-                    }
-                }
-            } else {
-                var lrc = loadAndParseLyricsFileLegacy(mediaItem?.getFile(), options)
-                if (lrc == null) {
-                    loop@ for (i in tracks.groups) {
-                        for (j in 0 until i.length) {
-                            if (!i.isTrackSelected(j)) continue
-                            // note: wav files can have null metadata
-                            val trackMetadata = i.getTrackFormat(j).metadata ?: continue
-                            lrc = extractAndParseLyricsLegacy(trackMetadata, options) ?: continue
-                            // add empty element at the beginning
-                            lrc.add(0, MediaStoreUtils.Lyric())
-                            break@loop
-                        }
-                    }
-                }
-                withContext(Dispatchers.Main) {
-                    mediaSession?.let {
-                        lyrics = null
-                        lyricsLegacy = lrc
-                        it.broadcastCustomCommand(
-                            SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
-                            Bundle.EMPTY
-                        )
-                        scheduleSendingLyrics(true)
-                    }
+            }
+            withContext(Dispatchers.Main) {
+                mediaSession?.let {
+                    lyrics = lrc
+                    it.broadcastCustomCommand(
+                        SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
+                        Bundle.EMPTY
+                    )
+                    scheduleSendingLyrics(true)
                 }
             }
         }
@@ -864,7 +822,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             )
         }
         lyrics = null
-        lyricsLegacy = null
         scheduleSendingLyrics(true)
         lastPlayedManager.save()
     }
@@ -929,17 +886,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val hnw = !LyricWidgetProvider.hasWidget(this)
         if (controller?.isPlaying != true || (!isStatusBarLyricsEnabled && hnw)) return
         val cPos = (controller?.contentPosition ?: 0).toULong()
-        val nextUpdate = if (syncedLyrics != null) {
-            syncedLyrics?.text?.flatMap {
-                if (hnw && it.start <= cPos) listOf() else if (hnw) listOf(it.start) else
-                    (it.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
-                        .let { i -> if (it.start > cPos) i + it.start else i }
-            }?.minOrNull()
-        } else if (lyricsLegacy != null) {
-            lyricsLegacy?.find {
-                (it.timeStamp ?: -2) > cPos.toLong()
-            }?.timeStamp?.toULong()
-        } else null
+        val nextUpdate = syncedLyrics?.text?.flatMap {
+            if (hnw && it.start <= cPos) listOf() else if (hnw) listOf(it.start) else
+                (it.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
+                    .let { i -> if (it.start > cPos) i + it.start else i }
+        }?.minOrNull()
         nextUpdate?.let { handler.postDelayed(sendLyrics, (it - cPos).toLong()) }
     }
 
@@ -951,7 +902,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val isStatusBarLyricsEnabled = prefs.getBooleanStrict("status_bar_lyrics", false)
         val highlightedLyric = if (isStatusBarLyricsEnabled && controller?.playWhenReady == true)
             getCurrentLyricIndex(false)?.let {
-                syncedLyrics?.text?.get(it)?.text ?: lyricsLegacy?.get(it)?.content
+                syncedLyrics?.text?.get(it)?.text
             }
         else null
         if (lastSentHighlightedLyric != highlightedLyric) {
@@ -967,17 +918,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     fun getCurrentLyricIndex(withTranslation: Boolean) =
-        if (syncedLyrics != null) {
-            syncedLyrics?.text?.mapIndexed { i, it -> i to it }?.filter {
-                it.second.start <= (controller?.currentPosition ?: 0).toULong()
-                        && (!it.second.isTranslated || withTranslation)
-            }?.maxByOrNull { it.second.start }?.first
-        } else if (lyricsLegacy != null) {
-            lyricsLegacy?.indexOfLast {
-                (it.timeStamp ?: Long.MAX_VALUE) <= (controller?.currentPosition ?: 0)
-                        && (!it.isTranslation || withTranslation)
-            }?.let { if (it == -1) null else it }
-        } else null
+        syncedLyrics?.text?.mapIndexed { i, it -> i to it }?.filter {
+            it.second.start <= (controller?.currentPosition ?: 0).toULong()
+                    && (!it.second.isTranslated || withTranslation)
+        }?.maxByOrNull { it.second.start }?.first
 
     override fun onForegroundServiceStartNotAllowedException() {
         Log.w(TAG, "Failed to resume playback :/")

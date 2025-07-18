@@ -35,7 +35,6 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
     private var defaultTextColorD = 0
     private var highlightTextColorD = 0
     private var lyrics: SemanticLyrics? = null
-    private var lyricsLegacy: MutableList<MediaStoreUtils.Lyric>? = null
 
     init {
         createView()
@@ -49,8 +48,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
         val oldPaddingRight = newView?.paddingRight ?: recyclerView?.paddingRight ?: 0
         recyclerView = null
         newView = null
-        if (Flags.NEW_LYRIC_UI && prefs.getBooleanStrict("lyric_parser", false) &&
-            prefs.getBooleanStrict("lyric_ui", false)) {
+        if (Flags.NEW_LYRIC_UI && prefs.getBooleanStrict("lyric_ui", false)) {
             inflate(context, R.layout.lyric_view_v2, this)
             newView = findViewById(R.id.lyric_view)
             newView?.setPadding(oldPaddingLeft, oldPaddingTop, oldPaddingRight, oldPaddingBottom)
@@ -80,10 +78,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
                 it.updateTextColor(defaultTextColor, highlightTextColor)
             }
             recyclerView!!.addItemDecoration(LyricPaddingDecoration(context))
-            if (lyrics != null)
-                adapter?.updateLyrics(lyrics.convertForLegacy())
-            else
-                adapter?.updateLyrics(lyricsLegacy)
+            adapter?.updateLyrics(lyrics.convertForLegacy())
         }
     }
 
@@ -104,7 +99,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
         else if (key == "lyric_center" || key == "lyric_bold" || key == "lyric_no_animation" ||
             key == "lyric_char_scaling" || key == "translation_auto_word")
             newView?.onPrefsChanged(key)
-        else if (key == "lyric_ui" || key == "lyric_parser")
+        else if (key == "lyric_ui")
             createView()
     }
 
@@ -115,16 +110,8 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
 
     fun updateLyrics(parsedLyrics: SemanticLyrics?) {
         lyrics = parsedLyrics
-        lyricsLegacy = null
         adapter?.updateLyrics(lyrics.convertForLegacy())
         newView?.updateLyrics(lyrics)
-    }
-
-    fun updateLyricsLegacy(parsedLyrics: MutableList<MediaStoreUtils.Lyric>?) {
-        lyrics = null
-        lyricsLegacy = parsedLyrics
-        adapter?.updateLyrics(lyricsLegacy)
-        newView?.updateLyrics(null)
     }
 
     override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {

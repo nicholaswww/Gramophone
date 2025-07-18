@@ -144,7 +144,7 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
     }
 
     override fun getCount(): Int {
-        return service?.lyrics?.unsyncedText?.size ?: service?.lyricsLegacy?.size ?: 0
+        return service?.lyrics?.unsyncedText?.size ?: 0
     }
 
     private val themeContext = ContextThemeWrapper(context, R.style.Theme_Gramophone)
@@ -160,16 +160,13 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
         }
         val item = service?.syncedLyrics?.text?.getOrNull(position)
         val itemUnsynced = if (item == null) service?.lyrics?.unsyncedText?.getOrNull(position) else null
-        val itemLegacy = service?.lyricsLegacy?.getOrNull(position)
-        if (item == null && itemUnsynced == null && itemLegacy == null) return null
-        val isTranslation = (item?.isTranslated ?: itemLegacy?.isTranslation) == true
+        if (item == null && itemUnsynced == null) return null
+        val isTranslation = item?.isTranslated == true
         val isBackground = (item?.speaker ?: itemUnsynced?.second)?.isBackground == true
         val isVoice2 = (item?.speaker ?: itemUnsynced?.second)?.isVoice2 == true
         val isGroup = (item?.speaker ?: itemUnsynced?.second)?.isGroup == true
-        val startTs = item?.start?.toLong() ?: itemLegacy?.timeStamp ?: -1L
-        val endTs = item?.end?.toLong()
-            ?: service?.lyricsLegacy?.find { (it.timeStamp ?: -1L) > (itemLegacy!!.timeStamp ?: -1L) }?.timeStamp?.minus(1)
-            ?: Long.MAX_VALUE
+        val startTs = item?.start?.toLong() ?: -1L
+        val endTs = item?.end?.toLong() ?: Long.MAX_VALUE
         val isActive = startTs == -1L || cPos != null && cPos >= startTs && cPos <= endTs
         return RemoteViews(
             context.packageName, when {
@@ -187,7 +184,7 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
                 else -> R.layout.lyric_widget_text_left
             }
         ).apply {
-            val sb = SpannableString(item?.text ?: itemUnsynced?.first ?: itemLegacy!!.content)
+            val sb = SpannableString(item?.text ?: itemUnsynced!!.first)
             if (isActive) {
                 val hlChar = item?.words?.findLast { it.timeRange.start <= cPos!!.toULong() }
                     ?.charRange?.last?.plus(1) ?: sb.length
@@ -201,7 +198,6 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
                     })
                 })
         }
-        return null
     }
 
     override fun getLoadingView(): RemoteViews? {
@@ -214,12 +210,10 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
     override fun getItemId(position: Int): Long {
         val item = service?.syncedLyrics?.text?.getOrNull(position)
         val itemUnsynced = if (item == null) service?.lyrics?.unsyncedText?.getOrNull(position) else null
-        val itemLegacy = service?.lyricsLegacy?.getOrNull(position)
-        if (item == null && itemUnsynced == null && itemLegacy == null) return 0L
-        return ((item?.text ?: itemUnsynced?.first ?: itemLegacy!!.content).hashCode()).toLong()
+        if (item == null && itemUnsynced == null) return 0L
+        return ((item?.text ?: itemUnsynced!!.first).hashCode()).toLong()
             .shl(32) or
-                (item?.start?.hashCode() ?: itemLegacy?.timeStamp?.hashCode()
-                ?: -1L).toLong()
+                (item?.start?.hashCode() ?: -1L).toLong()
     }
 
     override fun hasStableIds(): Boolean {

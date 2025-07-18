@@ -86,7 +86,6 @@ import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.logic.getIntStrict
 import org.akanework.gramophone.logic.getLyrics
-import org.akanework.gramophone.logic.getLyricsLegacy
 import org.akanework.gramophone.logic.getTimer
 import org.akanework.gramophone.logic.playOrPause
 import org.akanework.gramophone.logic.replaceAllSupport
@@ -297,13 +296,8 @@ class FullBottomSheet
                 GramophonePlaybackService.SERVICE_TIMER_CHANGED -> updateTimer()
 
                 GramophonePlaybackService.SERVICE_GET_LYRICS -> {
-                    if (prefs.getBoolean("lyric_parser", false)) {
-                        val parsedLyrics = instance?.getLyrics()
-                        bottomSheetFullLyricView.updateLyrics(parsedLyrics)
-                    } else {
-                        val parsedLyrics = instance?.getLyricsLegacy()
-                        bottomSheetFullLyricView.updateLyricsLegacy(parsedLyrics)
-                    }
+                    val parsedLyrics = instance?.getLyrics()
+                    bottomSheetFullLyricView.updateLyrics(parsedLyrics)
                 }
 
                 GramophonePlaybackService.SERVICE_GET_AUDIO_FORMAT -> {
