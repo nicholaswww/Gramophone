@@ -52,7 +52,7 @@ internal fun versioningCallbackFlow(
     @BuilderInference block: suspend ProducerScope<Long>.(() -> Long) -> Unit
 ): Flow<Long> {
     val versionTracker = AtomicLong()
-    return callbackFlow<Long> { block(versionTracker::incrementAndGet) }
+    return callbackFlow { block(versionTracker::incrementAndGet) }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -74,8 +74,9 @@ internal fun contentObserverVersioningFlow(
                 return true
             }
         }
-        // TODO is content observer reliable if process gets frozen? or are we forced to re-register
-        //  and reload everything when regaining active state? (can we use MediaStore version/generation instead?)
+        // Notifications may get delayed while we are frozen, but they do not get lost. Though, if
+        // too many of them pile up, we will get killed for eating too much space with our async
+        // binder transactions and we will have to restart in a new process later.
         context.contentResolver.registerContentObserver(uri, notifyForDescendants, listener)
         send(nextVersion())
         awaitClose {
