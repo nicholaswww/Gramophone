@@ -11,6 +11,12 @@ import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.logic.hasAudioPermission
 import org.akanework.gramophone.logic.hasImagePermission
 import org.akanework.gramophone.logic.hasImprovedMediaStore
@@ -42,6 +48,7 @@ import uk.akane.libphonograph.utils.MiscUtils.handleShallowMediaItem
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
+import kotlin.math.min
 
 internal object Reader {
     // not actually defined in API, but CTS tested
@@ -106,7 +113,7 @@ internal object Reader {
      * without much hassle.
      */
     @OptIn(UnstableApi::class)
-    fun readFromMediaStore(
+    suspend fun readFromMediaStore(
         context: Context,
         minSongLengthSeconds: Long = 0,
         blackListSet: Set<String> = setOf(),
@@ -412,6 +419,20 @@ internal object Reader {
                 }
             }
         }?.toList<Album>()
+        if (!albumList.isNullOrEmpty()) {
+            supervisorScope {
+                for (i in 0..(albumList.size / 100)) {
+                    launch {
+                        for (j in (i * 100)..<min(i * 100 + 100, albumList.size)) {
+                            (albumList[j].songList as MutableList).sortBy {
+                                (it.mediaMetadata.discNumber ?: 0) * 1000 +
+                                        (it.mediaMetadata.trackNumber ?: 0)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         val artistList = artistMap?.values?.toList()
         val albumArtistList = albumArtistMap?.values?.toList()
         val genreList = genreMap?.values?.toList()

@@ -178,9 +178,7 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
                 controller?.repeatMode = REPEAT_MODE_OFF
                 controller?.shuffleModeEnabled = false
                 list.takeIf { it.isNotEmpty() }?.also { albums ->
-                    controller?.setMediaItems(albums.flatMap { it.songList.sortedBy { song ->
-                        (song.mediaMetadata.discNumber ?: 0) * 1000 +
-                                (song.mediaMetadata.trackNumber ?: 0) } })
+                    controller?.setMediaItems(albums.flatMap { it.songList })
                     controller?.prepare()
                     controller?.play()
                 } ?: controller?.setMediaItems(listOf())
@@ -202,10 +200,7 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
                 controller?.repeatMode = REPEAT_MODE_OFF
                 controller?.shuffleModeEnabled = false
                 list.takeIf { it.isNotEmpty() }?.also { albums ->
-	                controller?.setMediaItems(albums.shuffled()
-                        .flatMap { it.songList.sortedBy { song ->
-                            (song.mediaMetadata.discNumber ?: 0) * 1000 +
-                                    (song.mediaMetadata.trackNumber ?: 0) } })
+	                controller?.setMediaItems(albums.shuffled().flatMap { it.songList })
                     controller?.prepare()
                     controller?.play()
                 } ?: controller?.setMediaItems(listOf())
