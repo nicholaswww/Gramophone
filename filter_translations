@@ -127,7 +127,7 @@ def manage_fastlane_files(files_path: Path, editings: list) -> None:
         return
 
     if sys.argv[1] != os.getcwd():
-        if files_path.exists():
+        if Path(files_path).exists():
             shutil.rmtree(files_path)
         shutil.copytree(source_files_path, files_path)
 
