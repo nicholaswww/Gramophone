@@ -107,7 +107,7 @@ class PlaylistAdapter(
         popupMenu.inflate(R.menu.more_menu)
         val canEdit = Flags.PLAYLIST_EDITING!! && item.id != null
         popupMenu.menu.iterator().forEach {
-            it.isVisible = it.itemId == R.id.play_next
+            it.isVisible = it.itemId == R.id.play_next || it.itemId == R.id.add_to_queue
                     || (canEdit && (it.itemId == R.id.rename || it.itemId == R.id.delete))
         }
         popupMenu.setOnMenuItemClickListener { it1 ->
@@ -116,6 +116,13 @@ class PlaylistAdapter(
                     val mediaController = mainActivity.getPlayer()
                     mediaController?.addMediaItems(
                         mediaController.currentMediaItemIndex + 1,
+                        item.songList,
+                    )
+                }
+
+                R.id.add_to_queue -> {
+                    val mediaController = mainActivity.getPlayer()
+                    mediaController?.addMediaItems(
                         item.songList,
                     )
                 }

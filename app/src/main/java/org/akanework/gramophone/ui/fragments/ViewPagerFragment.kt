@@ -54,6 +54,7 @@ import org.akanework.gramophone.logic.updateMargin
 import org.akanework.gramophone.logic.utils.SdScanner
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.adapters.ViewPager2Adapter
+import org.akanework.gramophone.ui.components.PlayerBottomSheet
 import org.akanework.gramophone.ui.fragments.settings.MainSettingsActivity
 
 /**
@@ -123,6 +124,13 @@ class ViewPagerFragment : BaseFragment(true) {
                     }
                 }
 
+                R.id.quick_refresh -> {
+                    val playerLayout = activity.playerBottomSheet
+                    activity.updateLibrary {
+                        showRefreshDoneSnackBar(playerLayout, runBlocking { activity.reader.songListFlow.first().size })
+                    }
+                }
+
                 R.id.refresh -> {
                     val context = requireContext()
                     val playerLayout = activity.playerBottomSheet
@@ -146,58 +154,7 @@ class ViewPagerFragment : BaseFragment(true) {
                                 return@scanEverything
                             }
                             activity.updateLibrary {
-                                val view = view
-                                if (view == null) return@updateLibrary
-                                val snackBar =
-                                    Snackbar.make(
-                                        view,
-                                        getString(
-                                            R.string.refreshed_songs,
-                                            runBlocking { activity.reader.songListFlow.first().size },
-                                        ),
-                                        Snackbar.LENGTH_LONG,
-                                    )
-                                snackBar.setAction(R.string.dismiss) {
-                                    snackBar.dismiss()
-                                }
-
-                                /*
-                                 * Let's override snack bar's color here so it would
-                                 * adapt dark mode.
-                                 */
-                                snackBar.setBackgroundTint(
-                                    MaterialColors.getColor(
-                                        snackBar.view,
-                                        com.google.android.material.R.attr.colorSurface,
-                                    ),
-                                )
-                                snackBar.setActionTextColor(
-                                    MaterialColors.getColor(
-                                        snackBar.view,
-                                        com.google.android.material.R.attr.colorPrimary,
-                                    ),
-                                )
-                                snackBar.setTextColor(
-                                    MaterialColors.getColor(
-                                        snackBar.view,
-                                        com.google.android.material.R.attr.colorOnSurface,
-                                    ),
-                                )
-
-                                // Set an anchor for snack bar.
-                                if (playerLayout.visible && playerLayout.actuallyVisible)
-                                    snackBar.anchorView = playerLayout
-                                else if (needsManualSnackBarInset()) {
-                                    // snack bar only implements proper insets handling for Q+
-                                    snackBar.view.updateMargin {
-                                        val i = ViewCompat.getRootWindowInsets(activity.window.decorView)
-                                        if (i != null) {
-                                            bottom += i.clone()
-                                                .getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-                                        }
-                                    }
-                                }
-                                snackBar.show()
+                                showRefreshDoneSnackBar(playerLayout, runBlocking { activity.reader.songListFlow.first().size })
                             }
                         }
                     }
@@ -259,5 +216,61 @@ class ViewPagerFragment : BaseFragment(true) {
     fun maybeReportFullyDrawn(itemId: Int) {
         if (view != null && adapter.getItemId(viewPager2.currentItem).toInt() == itemId)
             mainActivity.maybeReportFullyDrawn()
+    }
+
+    private fun showRefreshDoneSnackBar(playerLayout: PlayerBottomSheet, count: Int) {
+        val view = view
+        if (view == null) return
+        val snackBar =
+            Snackbar.make(
+                view,
+                getString(
+                    R.string.refreshed_songs,
+                    count,
+                ),
+                Snackbar.LENGTH_LONG,
+            )
+        snackBar.setAction(R.string.dismiss) {
+            snackBar.dismiss()
+        }
+
+        /*
+		 * Let's override snack bar's color here so it would
+		 * adapt dark mode.
+		 */
+        snackBar.setBackgroundTint(
+            MaterialColors.getColor(
+                snackBar.view,
+                com.google.android.material.R.attr.colorSurface,
+            ),
+        )
+        snackBar.setActionTextColor(
+            MaterialColors.getColor(
+                snackBar.view,
+                com.google.android.material.R.attr.colorPrimary,
+            ),
+        )
+        snackBar.setTextColor(
+            MaterialColors.getColor(
+                snackBar.view,
+                com.google.android.material.R.attr.colorOnSurface,
+            ),
+        )
+
+        // Set an anchor for snack bar.
+        if (playerLayout.visible && playerLayout.actuallyVisible)
+            snackBar.anchorView = playerLayout
+        else if (needsManualSnackBarInset()) {
+            val activity = requireActivity() as MainActivity
+            // snack bar only implements proper insets handling for Q+
+            snackBar.view.updateMargin {
+                val i = ViewCompat.getRootWindowInsets(activity.window.decorView)
+                if (i != null) {
+                    bottom += i.clone()
+                        .getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+                }
+            }
+        }
+        snackBar.show()
     }
 }
