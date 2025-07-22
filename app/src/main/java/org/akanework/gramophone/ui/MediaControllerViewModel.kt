@@ -121,6 +121,8 @@ class MediaControllerViewModel(application: Application) : AndroidViewModel(appl
         controllerFuture = null
     }
 
+    // TODO reconsider whether onStop is a good place, as getting stopped is quite easy and
+    //  predictive back makes it obvious that we are reconnecting
     override fun onStop(owner: LifecycleOwner) {
         if (controllerFuture?.isDone == true) {
             if (controllerFuture?.isCancelled == false) {

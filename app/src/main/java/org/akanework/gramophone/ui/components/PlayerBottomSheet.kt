@@ -17,7 +17,11 @@
 
 package org.akanework.gramophone.ui.components
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
@@ -37,6 +41,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnLayout
 import androidx.core.view.doOnNextLayout
 import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.findFragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.media3.common.MediaItem
@@ -52,6 +58,7 @@ import coil3.size.Scale
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.motion.MaterialBottomContainerBackHelper
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.clone
@@ -77,6 +84,8 @@ class PlayerBottomSheet private constructor(
 
     private var lastDisposable: Disposable? = null
     private var standardBottomSheetBehavior: MyBottomSheetBehavior<FrameLayout>? = null
+    @SuppressLint("RestrictedApi")
+    private var lyricsBackHelper: MaterialBottomContainerBackHelper? = null
     private var bottomSheetBackCallback: OnBackPressedCallback? = null
     val fullPlayer: FullBottomSheet
     private val previewPlayer: View
@@ -100,6 +109,8 @@ class PlayerBottomSheet private constructor(
         set(value) {
             if (field != value) {
                 field = value
+                // TODO: this should be animated with predictive back once we switch to a better
+                //  back stack.
                 standardBottomSheetBehavior?.state =
                     if ((instance?.mediaItemCount ?: 0) > 0 && value) {
                         if (standardBottomSheetBehavior?.state
@@ -218,11 +229,13 @@ class PlayerBottomSheet private constructor(
             fullPlayer.minimize = {
                 standardBottomSheetBehavior!!.state = BottomSheetBehavior.STATE_COLLAPSED
             }
+            @SuppressLint("RestrictedApi")
+            lyricsBackHelper = MaterialBottomContainerBackHelper(fullPlayer.bottomSheetFullLyricView)
             bottomSheetBackCallback = object : OnBackPressedCallback(enabled = false) {
                 override fun handleOnBackStarted(backEvent: BackEventCompat) {
                     if (fullPlayer.bottomSheetFullLyricView.isVisible) {
-                        fullPlayer.bottomSheetFullLyricView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
-                        fullPlayer.bottomSheetLyricButton.isChecked = false
+                        @SuppressLint("RestrictedApi")
+                        lyricsBackHelper!!.startBackProgress(backEvent)
                     } else {
                         standardBottomSheetBehavior!!.startBackProgress(backEvent)
                     }
@@ -230,7 +243,8 @@ class PlayerBottomSheet private constructor(
 
                 override fun handleOnBackProgressed(backEvent: BackEventCompat) {
                     if (fullPlayer.bottomSheetFullLyricView.isVisible) {
-                        // TODO
+                        @SuppressLint("RestrictedApi")
+                        lyricsBackHelper!!.updateBackProgress(backEvent)
                     } else {
                         standardBottomSheetBehavior!!.updateBackProgress(backEvent)
                     }
@@ -238,8 +252,19 @@ class PlayerBottomSheet private constructor(
 
                 override fun handleOnBackPressed() {
                     if (fullPlayer.bottomSheetFullLyricView.isVisible) {
-                        fullPlayer.bottomSheetFullLyricView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
-                        fullPlayer.bottomSheetLyricButton.isChecked = false
+                        @SuppressLint("RestrictedApi")
+                        val backEvent = lyricsBackHelper!!.onHandleBackInvoked()
+                        if (backEvent == null || backEvent.progress == 0f
+                            || Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                            fullPlayer.bottomSheetFullLyricView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
+                            return
+                        }
+                        @SuppressLint("RestrictedApi")
+                        lyricsBackHelper!!.finishBackProgressNotPersistent(backEvent, object : AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: Animator) {
+                                fullPlayer.bottomSheetFullLyricView.visibility = View.INVISIBLE
+                            }
+                        })
                     } else {
                         standardBottomSheetBehavior!!.handleBackInvoked()
                     }
@@ -247,8 +272,8 @@ class PlayerBottomSheet private constructor(
 
                 override fun handleOnBackCancelled() {
                     if (fullPlayer.bottomSheetFullLyricView.isVisible) {
-                        fullPlayer.bottomSheetFullLyricView.fadInAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
-                        fullPlayer.bottomSheetLyricButton.isChecked = false
+                        @SuppressLint("RestrictedApi")
+                        lyricsBackHelper!!.cancelBackProgress()
                     } else {
                         standardBottomSheetBehavior!!.cancelBackProgress()
                     }
