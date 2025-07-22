@@ -53,6 +53,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED
+import androidx.media3.common.Rating
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
@@ -415,7 +416,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 )
                 .build()
         controller = MediaController.Builder(this, mediaSession!!.token).buildAsync().get()
-        onShuffleModeEnabledChanged(controller!!.shuffleModeEnabled) // refresh custom commands
         controller!!.addListener(this)
         registerReceiver(
             headSetReceiver,
@@ -485,6 +485,27 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
     }
 
+    override fun onSetRating(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        mediaId: String,
+        rating: Rating
+    ): ListenableFuture<SessionResult> {
+        // TODO: implement setting rating.
+        return super.onSetRating(session, controller, mediaId, rating)
+    }
+
+    override fun onSetRating(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        rating: Rating
+    ): ListenableFuture<SessionResult> {
+        val mediaItemId = this.controller?.currentMediaItem?.mediaId
+        if (mediaItemId == null)
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_INVALID_STATE))
+        return onSetRating(session, controller, mediaItemId, rating)
+    }
+
     // When destroying, we should release server side player
     // alongside with the mediaSession.
     override fun onDestroy() {
@@ -520,6 +541,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     // Configure commands available to the controller in onConnect()
     override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo)
             : MediaSession.ConnectionResult {
+        val builder = MediaSession.ConnectionResult.AcceptedResultBuilder(session)
         val availableSessionCommands =
             MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
         if (session.isMediaNotificationController(controller)
@@ -532,6 +554,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 // Add custom command to available session commands.
                 commandButton.sessionCommand?.let { availableSessionCommands.add(it) }
             }
+            builder.setCustomLayout(ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
         }
         availableSessionCommands.add(SessionCommand(SERVICE_SET_TIMER, Bundle.EMPTY))
         availableSessionCommands.add(SessionCommand(SERVICE_GET_SESSION, Bundle.EMPTY))
@@ -550,10 +573,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 Bundle.EMPTY
             )
         }
-
-        return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
-            .setAvailableSessionCommands(availableSessionCommands.build())
-            .build()
+        return builder.setAvailableSessionCommands(availableSessionCommands.build()).build()
     }
 
     override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -855,7 +875,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
         super.onShuffleModeEnabledChanged(shuffleModeEnabled)
-        mediaSession!!.setCustomLayout(ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
+        refreshMediaButtonCustomLayout()
         if (needsMissingOnDestroyCallWorkarounds()) {
             handler.post { lastPlayedManager.save() }
         }
@@ -863,9 +883,19 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     override fun onRepeatModeChanged(repeatMode: Int) {
         super<Player.Listener>.onRepeatModeChanged(repeatMode)
-        mediaSession!!.setCustomLayout(ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
+        refreshMediaButtonCustomLayout()
         if (needsMissingOnDestroyCallWorkarounds()) {
             handler.post { lastPlayedManager.save() }
+        }
+    }
+
+    private fun refreshMediaButtonCustomLayout() {
+        mediaSession!!.connectedControllers.forEach {
+            if (mediaSession!!.isMediaNotificationController(it)
+                || mediaSession!!.isAutoCompanionController(it)
+                || mediaSession!!.isAutomotiveController(it)) {
+                mediaSession!!.setCustomLayout(it, ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
+            }
         }
     }
 
