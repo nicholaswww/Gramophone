@@ -47,6 +47,10 @@ class AlbumAdapter(
     fallbackSpans = fallbackSpans
 ) {
 
+    fun getAlbumList() = list?.second ?: emptyList()
+
+    fun getActivity() = mainActivity
+
     override fun virtualTitleOf(item: Album): String {
         return context.getString(R.string.unknown_album)
     }

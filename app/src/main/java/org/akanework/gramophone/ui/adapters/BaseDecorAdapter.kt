@@ -59,9 +59,9 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val count = adapter.itemCount
         holder.playAll.visibility =
-            if (adapter is SongAdapter) View.VISIBLE else View.GONE
+            if (adapter is SongAdapter || adapter is AlbumAdapter) View.VISIBLE else View.GONE
         holder.shuffleAll.visibility =
-            if (adapter is SongAdapter) View.VISIBLE else View.GONE
+            if (adapter is SongAdapter || adapter is AlbumAdapter) View.VISIBLE else View.GONE
         holder.counter.text = context.resources.getQuantityString(pluralStr, count, count)
         holder.sortButton.visibility =
             if (adapter.sortType.value != Sorter.Type.None || adapter.ownsView) View.VISIBLE else View.GONE
@@ -166,21 +166,46 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
                 mediaController?.apply {
                     shuffleModeEnabled = false
                     repeatMode = REPEAT_MODE_OFF
-                    setMediaItems(songList, 0, C.TIME_UNSET)
+                    setMediaItems(songList)
                     if (songList.isNotEmpty()) {
                         prepare()
                         play()
                     }
                 }
+            } else if (adapter is AlbumAdapter) {
+                val list = adapter.getAlbumList()
+                val controller = adapter.getActivity().getPlayer()
+                controller?.repeatMode = REPEAT_MODE_OFF
+                controller?.shuffleModeEnabled = false
+                list.takeIf { it.isNotEmpty() }?.also { albums ->
+                    controller?.setMediaItems(albums.flatMap { it.songList.sortedBy { song ->
+                        (song.mediaMetadata.discNumber ?: 0) * 1000 +
+                                (song.mediaMetadata.trackNumber ?: 0) } })
+                    controller?.prepare()
+                    controller?.play()
+                } ?: controller?.setMediaItems(listOf())
             }
         }
         holder.shuffleAll.setOnClickListener {
             if (adapter is SongAdapter) {
-                val list = adapter.getSongList()
+                val songList = adapter.getSongList()
                 val controller = adapter.getActivity().getPlayer()
                 controller?.shuffleModeEnabled = true
-                list.takeIf { it.isNotEmpty() }?.also {
-                    controller?.setMediaItems(it)
+                controller?.setMediaItems(songList)
+                if (songList.isNotEmpty()) {
+                    controller?.prepare()
+                    controller?.play()
+                }
+            } else if (adapter is AlbumAdapter) {
+                val list = adapter.getAlbumList()
+                val controller = adapter.getActivity().getPlayer()
+                controller?.repeatMode = REPEAT_MODE_OFF
+                controller?.shuffleModeEnabled = false
+                list.takeIf { it.isNotEmpty() }?.also { albums ->
+	                controller?.setMediaItems(albums.shuffled()
+                        .flatMap { it.songList.sortedBy { song ->
+                            (song.mediaMetadata.discNumber ?: 0) * 1000 +
+                                    (song.mediaMetadata.trackNumber ?: 0) } })
                     controller?.prepare()
                     controller?.play()
                 } ?: controller?.setMediaItems(listOf())
