@@ -34,6 +34,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.preference.PreferenceManager
 import com.google.android.material.button.MaterialButton
@@ -185,7 +186,13 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                     .setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                     .build(), true
-            ).build()
+            )
+            .setHandleAudioBecomingNoisy(true)
+            .setTrackSelector(DefaultTrackSelector(this).apply {
+                setParameters(buildUponParameters()
+                    .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true))
+            })
+            .build()
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 runnableRunning = isPlaying

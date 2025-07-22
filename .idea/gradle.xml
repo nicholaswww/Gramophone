@@ -29,7 +29,6 @@
                   <project path="$PROJECT_DIR$/media3/libraries/database" />
                   <project path="$PROJECT_DIR$/media3/libraries/datasource" />
                   <project path="$PROJECT_DIR$/media3/libraries/datasource_cronet" />
-                  <project path="$PROJECT_DIR$/media3/libraries/datasource_httpengine" />
                   <project path="$PROJECT_DIR$/media3/libraries/datasource_okhttp" />
                   <project path="$PROJECT_DIR$/media3/libraries/datasource_rtmp" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder" />
@@ -98,7 +97,6 @@
             <option value="$PROJECT_DIR$/media3/libraries/database" />
             <option value="$PROJECT_DIR$/media3/libraries/datasource" />
             <option value="$PROJECT_DIR$/media3/libraries/datasource_cronet" />
-            <option value="$PROJECT_DIR$/media3/libraries/datasource_httpengine" />
             <option value="$PROJECT_DIR$/media3/libraries/datasource_okhttp" />
             <option value="$PROJECT_DIR$/media3/libraries/datasource_rtmp" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder" />

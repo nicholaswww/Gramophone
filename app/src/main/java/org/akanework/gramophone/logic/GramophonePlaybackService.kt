@@ -64,6 +64,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.source.MediaLoadData
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.CacheBitmapLoader
@@ -208,14 +209,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             )
         }
 
-    private val headSetReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action.equals(AudioManager.ACTION_AUDIO_BECOMING_NOISY)) {
-                controller?.pause()
-            }
-        }
-    }
-
     private val seekReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val to =
@@ -340,6 +333,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                         .build(), true
                 )
+                .setHandleAudioBecomingNoisy(true)
+                .setTrackSelector(DefaultTrackSelector(this).apply {
+                    setParameters(buildUponParameters()
+                        .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true))
+                })
                 .setPlaybackLooper(internalPlaybackThread.looper)
                 .build()
         )
@@ -417,10 +415,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 .build()
         controller = MediaController.Builder(this, mediaSession!!.token).buildAsync().get()
         controller!!.addListener(this)
-        registerReceiver(
-            headSetReceiver,
-            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-        )
         ContextCompat.registerReceiver(
             this,
             seekReceiver,
@@ -511,7 +505,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onDestroy() {
         Log.i(TAG, "onDestroy()")
         instanceForWidgetAndLyricsOnly = null
-        unregisterReceiver(headSetReceiver)
         unregisterReceiver(seekReceiver)
         unregisterReceiver(btReceiver)
         // Important: this must happen before sending stop() as that changes state ENDED -> IDLE
