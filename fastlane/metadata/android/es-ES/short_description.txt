@@ -1,1 +1,0 @@
-Un reproductor de música local simple con un diseño minimalista
