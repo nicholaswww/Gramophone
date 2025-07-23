@@ -143,7 +143,7 @@ def manage_fastlane_files(files_path: Path, editings: list[str]) -> None:
         return
 
     print(f"  Deleting files in {files_path}")
-    for file in files + "title.txt":
+    for file in files + ["title.txt"]:
         file_path = files_path.joinpath(file)
         if file_path.exists():
             os.remove(file_path)
