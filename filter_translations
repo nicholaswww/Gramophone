@@ -131,11 +131,12 @@ def manage_fastlane_files(files_path: Path, editings: list[str]) -> None:
         if Path(files_path).exists():
             shutil.rmtree(files_path)
         shutil.copytree(source_files_path, files_path)
-    with open(Path(files_path).joinpath('title.txt'), 'w') as title_file:
-        title_file.write('Gramophone')
+    if not source_files_path.joinpath('title.txt').exists():
+        with open(Path(files_path).joinpath('title.txt'), 'w') as title_file:
+            title_file.write('Gramophone')
 
     files = ["short_description.txt", "full_description.txt"]
-    needs_edit = any(file.split(":")[0] in files for file in editings)
+    needs_edit = any(file.split(":")[0] in files + ["title.txt"] for file in editings)
     all_exist = all(source_files_path.joinpath(f).exists() for f in files)
     delete_files = not all_exist or needs_edit
     if not delete_files:
