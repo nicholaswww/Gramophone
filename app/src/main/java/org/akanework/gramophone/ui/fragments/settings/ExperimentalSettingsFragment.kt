@@ -51,9 +51,6 @@ class ExperimentalSettingsFragment : BasePreferenceFragment() {
         findPreference<Preference>("crash")!!.isVisible = BuildConfig.DEBUG
         if (BuildConfig.DEBUG)
             e = RuntimeException("skill issue")
-        if (!Flags.NEW_LYRIC_UI) {
-            findPreference<Preference>("lyric_ui")!!.isVisible = false
-        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -318,6 +318,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw IllegalArgumentException("contentId cannot be negative (did you mean to use null?)")
         if (contentId == 0 && syncId == null)
             throw IllegalArgumentException("CONTENT_ID_NONE with no syncId (did you mean to use null?)")
+        if (!AudioTrackHiddenApi.canLoadLib())
+            throw IllegalStateException("this device is banned from native-enhanced features")
         audioManager = context.getSystemService<AudioManager>()!!
         try {
             System.loadLibrary("hificore")
