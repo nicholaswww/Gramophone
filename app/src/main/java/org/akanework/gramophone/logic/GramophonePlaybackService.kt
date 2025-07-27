@@ -46,6 +46,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.DeviceInfo
 import androidx.media3.common.Format
 import androidx.media3.common.IllegalSeekPositionException
 import androidx.media3.common.MediaItem
@@ -307,7 +308,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 Bundle.EMPTY
             )
         }
-        val player = EndedWorkaroundPlayer(
+        val player = EndedWorkaroundPlayer(this,
             ExoPlayer.Builder(
                 this,
                 GramophoneRenderFactory(
@@ -412,6 +413,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                     )
                 )
+                .setSystemUiPlaybackResumptionOptIn(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                 .build()
         controller = MediaController.Builder(this, mediaSession!!.token).buildAsync().get()
         controller!!.addListener(this)
@@ -513,6 +515,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaSession!!.player.stop()
         broadcastAudioSessionClose()
         handler.removeCallbacks(timer)
+        mediaSession!!.setOptOutOfMediaButtonPlaybackResumption(controller!!.currentTimeline.isEmpty)
         controller!!.release()
         controller = null
         mediaSession!!.release()
@@ -823,6 +826,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     override fun onPlayerError(eventTime: AnalyticsListener.EventTime, error: PlaybackException) {
         // TODO
+    }
+
+    override fun onDeviceInfoChanged(deviceInfo: DeviceInfo) {
+        if (deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE) {
+            handler.postDelayed({
+                setShowNotificationForEmptyPlayer(SHOW_NOTIFICATION_FOR_EMPTY_PLAYER_NEVER)
+            }, 2000) // TODO lol
+        } else {
+            setShowNotificationForEmptyPlayer(SHOW_NOTIFICATION_FOR_EMPTY_PLAYER_AFTER_STOP_OR_ERROR)
+        }
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
