@@ -55,6 +55,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED
 import androidx.media3.common.Rating
+import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
@@ -248,6 +249,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             MeiZuLyricsMediaNotificationProvider(this) { lastSentHighlightedLyric }
         )
         setForegroundServiceTimeoutMs(120000)
+        setShowNotificationForEmptyPlayer(SHOW_NOTIFICATION_FOR_EMPTY_PLAYER_AFTER_STOP_OR_ERROR)
         if (mayThrowForegroundServiceStartNotAllowed()
             || mayThrowForegroundServiceStartNotAllowedMiui()
         ) {
@@ -308,7 +310,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 Bundle.EMPTY
             )
         }
-        val player = EndedWorkaroundPlayer(this,
+        val player = EndedWorkaroundPlayer(
             ExoPlayer.Builder(
                 this,
                 GramophoneRenderFactory(
@@ -550,7 +552,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 // Add custom command to available session commands.
                 commandButton.sessionCommand?.let { availableSessionCommands.add(it) }
             }
-            builder.setCustomLayout(ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
+            if (this.controller?.currentTimeline?.isEmpty == false) {
+                builder.setMediaButtonPreferences(
+                    ImmutableList.of(
+                        getRepeatCommand(),
+                        getShufflingCommand()
+                    )
+                )
+            }
         }
         availableSessionCommands.add(SessionCommand(SERVICE_SET_TIMER, Bundle.EMPTY))
         availableSessionCommands.add(SessionCommand(SERVICE_GET_SESSION, Bundle.EMPTY))
@@ -880,7 +889,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-        super.onShuffleModeEnabledChanged(shuffleModeEnabled)
         refreshMediaButtonCustomLayout()
         if (needsMissingOnDestroyCallWorkarounds()) {
             handler.post { lastPlayedManager.save() }
@@ -888,19 +896,26 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onRepeatModeChanged(repeatMode: Int) {
-        super<Player.Listener>.onRepeatModeChanged(repeatMode)
         refreshMediaButtonCustomLayout()
         if (needsMissingOnDestroyCallWorkarounds()) {
             handler.post { lastPlayedManager.save() }
         }
     }
 
+    override fun onTimelineChanged(timeline: Timeline, reason: @Player.TimelineChangeReason Int) {
+        if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
+            refreshMediaButtonCustomLayout()
+        }
+    }
+
     private fun refreshMediaButtonCustomLayout() {
+        val isEmpty = controller?.currentTimeline?.isEmpty != false
         mediaSession!!.connectedControllers.forEach {
             if (mediaSession!!.isMediaNotificationController(it)
                 || mediaSession!!.isAutoCompanionController(it)
                 || mediaSession!!.isAutomotiveController(it)) {
-                mediaSession!!.setCustomLayout(it, ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
+                mediaSession!!.setMediaButtonPreferences(it, if (isEmpty) emptyList() else
+                    ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
             }
         }
     }

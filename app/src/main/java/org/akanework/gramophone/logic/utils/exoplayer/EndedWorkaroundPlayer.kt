@@ -7,6 +7,7 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.DeviceInfo
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.ForwardingSimpleBasePlayer
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
@@ -22,19 +23,18 @@ import org.akanework.gramophone.logic.utils.CircularShuffleOrder
  * to restore STATE_ENDED as well and fake it for media3 until it indeed wraps around playlist.
  */
 @OptIn(UnstableApi::class)
-class EndedWorkaroundPlayer(private val context: Context, player: ExoPlayer) : ForwardingPlayer(player), Player.Listener {
+class EndedWorkaroundPlayer(exoPlayer: ExoPlayer) : ForwardingSimpleBasePlayer(exoPlayer), Player.Listener {
 
     companion object {
         private const val TAG = "EndedWorkaroundPlayer"
     }
 
     private val remoteDeviceInfo = DeviceInfo.Builder(DeviceInfo.PLAYBACK_TYPE_REMOTE).build()
-    private var wasEmpty = true
-    val exoPlayer
-        get() = wrappedPlayer as ExoPlayer
     init {
-        exoPlayer.addListener(this)
+        player.addListener(this)
     }
+    val exoPlayer
+        get() = player as ExoPlayer
     // TODO: can't we do this in a cleaner way?
     var nextShuffleOrder:
             ((firstIndex: Int, mediaItemCount: Int, EndedWorkaroundPlayer) -> CircularShuffleOrder)?
@@ -56,27 +56,16 @@ class EndedWorkaroundPlayer(private val context: Context, player: ExoPlayer) : F
             isEnded = false
         }
         super.onPositionDiscontinuity(oldPosition, newPosition, reason)
+        mediaMetadata
     }
 
-    override fun onTimelineChanged(timeline: Timeline, reason: @Player.TimelineChangeReason Int) {
-        if (timeline.isEmpty != wasEmpty) {
-            val wasEmpty = wasEmpty
-            ContextCompat.getMainExecutor(context).execute {
-                listeners.forEach {
-                    it.value.onDeviceInfoChanged(if (!wasEmpty) remoteDeviceInfo else exoPlayer.deviceInfo)
-                }
-            }
-            this.wasEmpty = timeline.isEmpty
+    override fun getState(): State {
+        if (isEnded) {
+            return super.state.buildUpon().setPlaybackState(STATE_ENDED).build()
         }
-    }
-
-    override fun getPlaybackState(): Int {
-        if (isEnded) return STATE_ENDED
-        return super.getPlaybackState()
-    }
-
-    override fun getDeviceInfo(): DeviceInfo {
-        if (exoPlayer.currentTimeline.isEmpty) return remoteDeviceInfo
-        return super.getDeviceInfo()
+        if (player.currentTimeline.isEmpty) {
+            return super.state.buildUpon().setDeviceInfo(remoteDeviceInfo).build()
+        }
+        return super.getState()
     }
 }
