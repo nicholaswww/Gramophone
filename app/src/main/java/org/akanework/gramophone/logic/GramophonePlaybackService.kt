@@ -56,6 +56,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED
 import androidx.media3.common.Rating
 import androidx.media3.common.Timeline
+import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
@@ -339,7 +340,17 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 .setHandleAudioBecomingNoisy(true)
                 .setTrackSelector(DefaultTrackSelector(this).apply {
                     setParameters(buildUponParameters()
-                        .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true))
+                        .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true)
+                        .setAudioOffloadPreferences(
+                            TrackSelectionParameters.AudioOffloadPreferences.Builder()
+                                .apply {
+                                    val config = prefs.getStringStrict("offload", "0")?.toIntOrNull()
+                                    if (config != null && config > 0 && Flags.OFFLOAD) {
+                                        setAudioOffloadMode(TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED)
+                                        setIsGaplessSupportRequired(config == 2)
+                                    }
+                                }
+                                .build()))
                 })
                 .setPlaybackLooper(internalPlaybackThread.looper)
                 .build()
