@@ -1,6 +1,8 @@
 package org.nift4.gramophone.hificore
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioTrack
 import android.os.Build
 import android.os.IBinder
@@ -214,6 +216,8 @@ object AudioTrackHiddenApi {
     }
 
     private fun getMixPortMetadata(id: Int, io: Int): IntArray? {
+        if (!libLoaded)
+            return null
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
             return null // need listAudioPorts or getAudioPort
         return try {
@@ -345,8 +349,6 @@ object AudioTrackHiddenApi {
     }
 
     fun getMixPortForThread(oid: Int?): MixPort? {
-        if (!libLoaded)
-            return null
         if (oid == null)
             return null
         val ports = listAudioPorts()
@@ -356,20 +358,25 @@ object AudioTrackHiddenApi {
                     if (port.javaClass.canonicalName != "android.media.AudioMixPort") continue
                     val ioHandle = port.javaClass.getMethod("ioHandle").invoke(port) as Int
                     if (ioHandle != oid) continue
-                    val id = port.javaClass.getMethod("id").invoke(port) as Int
-                    val name = port.javaClass.getMethod("name").invoke(port) as String?
-                    val mixPortData = getMixPortMetadata(id, ioHandle)
-                    // flags exposed to app process since below commit which first appeared in T release.
-                    // https://cs.android.com/android/_/android/platform/frameworks/av/+/99809024b36b243ad162c780c1191bb503a8df47
-                    return MixPort(id, ioHandle, name, flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-                        mixPortData?.get(3) else null, channelMask = mixPortData?.get(2),
-                        format = mixPortData?.get(1)?.toUInt(), sampleRate = mixPortData?.get(0)?.toUInt(),
-                        hwModule = mixPortData?.get(4), fast = mixPortData?.let { it[5] == 0 }) // TODO fast is wrong?
+                    return getMixPort(port)
                 } catch (t: Throwable) {
                     Log.e(TAG, Log.getStackTraceString(t))
                 }
             }
         return null
+    }
+
+    private fun getMixPort(port: Any): MixPort {
+        val ioHandle = port.javaClass.getMethod("ioHandle").invoke(port) as Int
+        val id = port.javaClass.getMethod("id").invoke(port) as Int
+        val name = port.javaClass.getMethod("name").invoke(port) as String?
+        val mixPortData = getMixPortMetadata(id, ioHandle)
+        // flags exposed to app process since below commit which first appeared in T release.
+        // https://cs.android.com/android/_/android/platform/frameworks/av/+/99809024b36b243ad162c780c1191bb503a8df47
+        return MixPort(id, ioHandle, name, flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            mixPortData?.get(3) else null, channelMask = mixPortData?.get(2),
+            format = mixPortData?.get(1)?.toUInt(), sampleRate = mixPortData?.get(0)?.toUInt(),
+            hwModule = mixPortData?.get(4), fast = mixPortData?.let { it[5] == 0 }) // TODO fast is wrong on recent Android versions (fine on O)?
     }
 
     private val idRegex = Regex(".*id\\((.*)\\) .*")
