@@ -30,6 +30,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -46,6 +47,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getBooleanStrict
+import org.akanework.gramophone.logic.getStringStrict
 import org.akanework.gramophone.logic.hasAudioPermission
 import org.akanework.gramophone.logic.hasScopedStorageV1
 import org.akanework.gramophone.logic.hasScopedStorageV2
@@ -53,6 +55,7 @@ import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import org.akanework.gramophone.logic.playOrPause
 import org.akanework.gramophone.logic.startAnimation
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
+import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneExtractorsFactory
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFactory
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
@@ -163,7 +166,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
             it.transitionEnabled = true
             it.animate = false
         }
-
+        // TODO de-dupe
         player = ExoPlayer.Builder(
             this,
             GramophoneRenderFactory(this, {}, {})
@@ -190,7 +193,17 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
             .setHandleAudioBecomingNoisy(true)
             .setTrackSelector(DefaultTrackSelector(this).apply {
                 setParameters(buildUponParameters()
-                    .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true))
+                    .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true)
+                    .setAudioOffloadPreferences(
+                        TrackSelectionParameters.AudioOffloadPreferences.Builder()
+                            .apply {
+                                val config = prefs.getStringStrict("offload", "0")?.toIntOrNull()
+                                if (config != null && config > 0 && Flags.OFFLOAD) {
+                                    setAudioOffloadMode(TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED)
+                                    setIsGaplessSupportRequired(config == 2)
+                                }
+                            }
+                            .build()))
             })
             .build()
         player.addListener(object : Player.Listener {
