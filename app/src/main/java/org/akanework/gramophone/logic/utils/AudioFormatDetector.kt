@@ -347,6 +347,13 @@ object AudioFormatDetector {
                 } else {
                     append("(some data is not available)\n")
                 }
+                if (halFormat?.isBluetoothOffload != null) {
+                    if (halFormat.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                        append("A2DP offload: ${halFormat.isBluetoothOffload}\n")
+                    } else {
+                        append("LE Audio offload: ${halFormat.isBluetoothOffload}\n")
+                    }
+                }
                 if (halFormat?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
                     if (btCodecInfo != null)
                         prettyPrintBtCodecInfo(context, btCodecInfo)

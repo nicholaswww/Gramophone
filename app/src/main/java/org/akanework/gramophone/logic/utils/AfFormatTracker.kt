@@ -1,6 +1,7 @@
 package org.akanework.gramophone.logic.utils
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioRouting
 import android.media.AudioTrack
 import android.os.Build
@@ -22,7 +23,8 @@ data class AfFormatInfo(
     val mixPortName: String?, val mixPortFlags: Int?, val mixPortHwModule: Int?,
     val mixPortFast: Boolean?, val ioHandle: Int?, val sampleRateHz: UInt?,
     val audioFormat: String?, val channelCount: Int?, val channelMask: Int?,
-    val grantedFlags: Int?, val policyPortId: Int?, val afTrackFlags: Int?
+    val grantedFlags: Int?, val policyPortId: Int?, val afTrackFlags: Int?,
+    val isBluetoothOffload: Boolean?
 ) : Parcelable
 
 @Parcelize
@@ -148,6 +150,7 @@ class AfFormatTracker(
             val halSampleRate = AudioTrackHiddenApi.getHalSampleRate(audioTrack)
             val grantedFlags = AudioTrackHiddenApi.getGrantedFlags(audioTrack)
             val mixPort = AudioTrackHiddenApi.getMixPortForThread(ioHandle)
+            val primaryHw = AudioTrackHiddenApi.getPrimaryMixPort()?.hwModule
             val latency = try {
                 // this call writes to mAfLatency and mLatency fields, hence call dump after this
                 AudioTrack::class.java.getMethod("getLatency").invoke(audioTrack) as Int
@@ -156,6 +159,11 @@ class AfFormatTracker(
                 null
             }
             val dump = AudioTrackHiddenApi.dump(audioTrack)
+            val isBluetoothOffload = if (deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+                || deviceType == AudioDeviceInfo.TYPE_BLE_SPEAKER
+                || deviceType == AudioDeviceInfo.TYPE_BLE_BROADCAST) {
+                mixPort?.hwModule?.let { it == primaryHw }
+            } else null
             AfFormatInfo(
                 deviceProductName, deviceId, deviceType,
                 audioTrack.audioSessionId,
@@ -164,7 +172,7 @@ class AfFormatTracker(
                 audioFormatToString(AudioTrackHiddenApi.getHalFormat(audioTrack) ?: mixPort?.format),
                 AudioTrackHiddenApi.getHalChannelCount(audioTrack),
                 mixPort?.channelMask, grantedFlags, AudioTrackHiddenApi.getPortIdFromDump(dump),
-                AudioTrackHiddenApi.findAfTrackFlags(dump, latency, audioTrack, grantedFlags)
+                AudioTrackHiddenApi.findAfTrackFlags(dump, latency, audioTrack, grantedFlags), isBluetoothOffload
             )
         }.let {
             if (LOG_EVENTS)

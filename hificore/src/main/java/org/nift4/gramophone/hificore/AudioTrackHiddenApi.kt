@@ -366,6 +366,23 @@ object AudioTrackHiddenApi {
         return null
     }
 
+    fun getPrimaryMixPort(): MixPort? {
+        val ports = listAudioPorts()
+        if (ports != null)
+            for (port in ports.first) {
+                try {
+                    if (port.javaClass.canonicalName != "android.media.AudioMixPort") continue
+                    val mixPort = getMixPort(port)
+                    // TODO: support android below T where flags is null
+                    if (mixPort.flags != null && (mixPort.flags and 2 /* AUDIO_OUTPUT_FLAG_PRIMARY */) != 0)
+                        return mixPort
+                } catch (t: Throwable) {
+                    Log.e(TAG, Log.getStackTraceString(t))
+                }
+            }
+        return null
+    }
+
     private fun getMixPort(port: Any): MixPort {
         val ioHandle = port.javaClass.getMethod("ioHandle").invoke(port) as Int
         val id = port.javaClass.getMethod("id").invoke(port) as Int
