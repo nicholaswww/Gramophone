@@ -12,7 +12,7 @@ object AudioTrackHiddenApi {
     private const val TRACE_TAG = "GpNativeTrace"
     private var libLoaded = false
 
-    data class MixPort(val id: Int?, val name: String?, val flags: Int?, val channelMask: Int?, val format: Int?)
+    data class MixPort(val id: Int, val ioHandle: Int, val name: String?, val flags: Int?, val channelMask: Int?, val format: UInt?, val sampleRate: UInt?, val hwModule: Int?, val fast: Boolean?)
     init {
         if (canLoadLib()) {
             try {
@@ -213,20 +213,15 @@ object AudioTrackHiddenApi {
         }
     }
 
-    private fun getMixPortMetadata(id: Int, sr: Int): Pair<Int?, Pair<Int, Int>>? {
+    private fun getMixPortMetadata(id: Int, io: Int): IntArray? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
             return null // need listAudioPorts or getAudioPort
         return try {
             Log.d(TRACE_TAG, "calling native findAfFlagsForPortInternal")
-            val result = findAfFlagsForPortInternal(id, sr)
+            val result = findAfFlagsForPortInternal(id, io)
                 .also { Log.d(TRACE_TAG, "native findAfFlagsForPortInternal is done: $it") }
             if (result == null) return null // something went wrong. native layer logged reason to logcat
-            // flags exposed to app process since below commit which first appeared in T release.
-            // https://cs.android.com/android/_/android/platform/frameworks/av/+/99809024b36b243ad162c780c1191bb503a8df47
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) result[2] else null
-            val channelMask = result[1]
-            val format = result[0]
-            return flags to (channelMask to format)
+            return result
         } catch (e: Throwable) {
             Log.e(TAG, Log.getStackTraceString(e))
             null
@@ -349,10 +344,10 @@ object AudioTrackHiddenApi {
         return false
     }
 
-    fun getMixPortForThread(oid: Int?, halSampleRate: UInt?): MixPort? {
+    fun getMixPortForThread(oid: Int?): MixPort? {
         if (!libLoaded)
             return null
-        if (oid == null || halSampleRate == null || !(halSampleRate >= 8000U && halSampleRate <= 1600000U))
+        if (oid == null)
             return null
         val ports = listAudioPorts()
         if (ports != null)
@@ -363,9 +358,13 @@ object AudioTrackHiddenApi {
                     if (ioHandle != oid) continue
                     val id = port.javaClass.getMethod("id").invoke(port) as Int
                     val name = port.javaClass.getMethod("name").invoke(port) as String?
-                    val mixPortData = getMixPortMetadata(id, halSampleRate.toInt())
-                    return MixPort(id, name, flags = mixPortData?.first,
-                        channelMask = mixPortData?.second?.first, format = mixPortData?.second?.second)
+                    val mixPortData = getMixPortMetadata(id, ioHandle)
+                    // flags exposed to app process since below commit which first appeared in T release.
+                    // https://cs.android.com/android/_/android/platform/frameworks/av/+/99809024b36b243ad162c780c1191bb503a8df47
+                    return MixPort(id, ioHandle, name, flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                        mixPortData?.get(3) else null, channelMask = mixPortData?.get(2),
+                        format = mixPortData?.get(1)?.toUInt(), sampleRate = mixPortData?.get(0)?.toUInt(),
+                        hwModule = mixPortData?.get(4), fast = mixPortData?.let { it[5] == 0 }) // TODO fast is wrong?
                 } catch (t: Throwable) {
                     Log.e(TAG, Log.getStackTraceString(t))
                 }
@@ -428,7 +427,7 @@ object AudioTrackHiddenApi {
         // https://cs.android.com/android/_/android/platform/frameworks/av/+/d114b624ea2ec5c51779b74132a60b4a46f6cdba
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P)
             return null
-        var dt = dump.trim().split('\n').map { it.trim() }
+        val dt = dump.trim().split('\n').map { it.trim() }
         if (dt.size < 7) {
             Log.e(
                 TAG,
@@ -473,7 +472,7 @@ object AudioTrackHiddenApi {
         // use AudioTrack.getLatency() on N+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
             return null
-        var dt = dump.trim().split('\n').map { it.trim() }
+        val dt = dump.trim().split('\n').map { it.trim() }
         if (dt.size < 5) {
             Log.e(
                 TAG,
@@ -515,7 +514,7 @@ object AudioTrackHiddenApi {
     fun getFrameCountFromDump(dump: String?): Long? {
         if (dump == null)
             return null
-        var dt = dump.trim().split('\n').map { it.trim() }
+        val dt = dump.trim().split('\n').map { it.trim() }
         if (dt.size < 3) {
             Log.e(
                 TAG,
@@ -557,7 +556,7 @@ object AudioTrackHiddenApi {
     fun getStateFromDump(dump: String?): Int? {
         if (dump == null)
             return null
-        var dt = dump.trim().split('\n').map { it.trim() }
+        val dt = dump.trim().split('\n').map { it.trim() }
         if (dt.size < 5) {
             Log.e(
                 TAG,

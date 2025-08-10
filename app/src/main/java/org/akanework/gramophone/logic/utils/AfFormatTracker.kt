@@ -10,7 +10,6 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.analytics.AnalyticsListener
-import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import kotlinx.parcelize.Parcelize
@@ -19,8 +18,9 @@ import org.nift4.gramophone.hificore.AudioTrackHiddenApi
 @Parcelize
 data class AfFormatInfo(
     val routedDeviceName: String?, val routedDeviceId: Int?,
-    val routedDeviceType: Int?, val mixPortId: Int?, val mixPortName: String?,
-    val mixPortFlags: Int?, val ioHandle: Int?, val sampleRateHz: UInt?,
+    val routedDeviceType: Int?, val audioSessionId: Int, val mixPortId: Int?,
+    val mixPortName: String?, val mixPortFlags: Int?, val mixPortHwModule: Int?,
+    val mixPortFast: Boolean?, val ioHandle: Int?, val sampleRateHz: UInt?,
     val audioFormat: String?, val channelCount: Int?, val channelMask: Int?,
     val grantedFlags: Int?, val policyPortId: Int?, val afTrackFlags: Int?
 ) : Parcelable
@@ -57,17 +57,13 @@ class AfFormatTracker(
     var formatChangedCallback: ((AfFormatInfo?) -> Unit)? = null
 
     private val routingChangedListener = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        object : AudioRouting.OnRoutingChangedListener {
-            override fun onRoutingChanged(router: AudioRouting) {
-                this@AfFormatTracker.onRoutingChanged(router as AudioTrack)
-            }
+        AudioRouting.OnRoutingChangedListener {
+            router -> this@AfFormatTracker.onRoutingChanged(router as AudioTrack)
         } as Any
     } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         @Suppress("deprecation")
-        object : AudioTrack.OnRoutingChangedListener {
-            override fun onRoutingChanged(router: AudioTrack) {
-                this@AfFormatTracker.onRoutingChanged(router)
-            }
+        AudioTrack.OnRoutingChangedListener {
+            router -> this@AfFormatTracker.onRoutingChanged(router)
         } as Any
     } else null
 
@@ -93,7 +89,7 @@ class AfFormatTracker(
 
     override fun onAudioTrackInitialized(
         eventTime: AnalyticsListener.EventTime,
-        audioTrackConfig: AudioSink.AudioTrackConfig
+        audioTrackConfig: AudioTrackConfig
     ) {
         format = null
         playbackHandler.post {
@@ -151,7 +147,7 @@ class AfFormatTracker(
             val ioHandle = AudioTrackHiddenApi.getOutput(audioTrack)
             val halSampleRate = AudioTrackHiddenApi.getHalSampleRate(audioTrack)
             val grantedFlags = AudioTrackHiddenApi.getGrantedFlags(audioTrack)
-            val mixPort = AudioTrackHiddenApi.getMixPortForThread(ioHandle, halSampleRate)
+            val mixPort = AudioTrackHiddenApi.getMixPortForThread(ioHandle)
             val latency = try {
                 // this call writes to mAfLatency and mLatency fields, hence call dump after this
                 AudioTrack::class.java.getMethod("getLatency").invoke(audioTrack) as Int
@@ -162,9 +158,10 @@ class AfFormatTracker(
             val dump = AudioTrackHiddenApi.dump(audioTrack)
             AfFormatInfo(
                 deviceProductName, deviceId, deviceType,
-                mixPort?.id, mixPort?.name, mixPort?.flags,
-                ioHandle, halSampleRate,
-                audioFormatToString(AudioTrackHiddenApi.getHalFormat(audioTrack)),
+                audioTrack.audioSessionId,
+                mixPort?.id, mixPort?.name, mixPort?.flags, mixPort?.hwModule, mixPort?.fast,
+                ioHandle, halSampleRate ?: mixPort?.sampleRate,
+                audioFormatToString(AudioTrackHiddenApi.getHalFormat(audioTrack) ?: mixPort?.format),
                 AudioTrackHiddenApi.getHalChannelCount(audioTrack),
                 mixPort?.channelMask, grantedFlags, AudioTrackHiddenApi.getPortIdFromDump(dump),
                 AudioTrackHiddenApi.findAfTrackFlags(dump, latency, audioTrack, grantedFlags)

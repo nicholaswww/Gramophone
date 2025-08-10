@@ -56,12 +56,11 @@ class EndedWorkaroundPlayer(exoPlayer: ExoPlayer) : ForwardingSimpleBasePlayer(e
             isEnded = false
         }
         super.onPositionDiscontinuity(oldPosition, newPosition, reason)
-        mediaMetadata
     }
 
     override fun getState(): State {
         if (isEnded) {
-            return super.state.buildUpon().setPlaybackState(STATE_ENDED).build()
+            return super.state.buildUpon().setPlaybackState(STATE_ENDED).setIsLoading(false).build()
         }
         if (player.currentTimeline.isEmpty) {
             return super.state.buildUpon().setDeviceInfo(remoteDeviceInfo).build()

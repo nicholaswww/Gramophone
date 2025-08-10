@@ -328,7 +328,7 @@ object AudioFormatDetector {
                 append("== Audio track format ==\n")
                 prettyPrintAudioTrackInfo(context, audioTrackInfo)
                 if (halFormat != null) {
-                    append("Track ID: ${halFormat.policyPortId}\n")
+                    append("Policy port/track ID: ${halFormat.policyPortId} (session: ${halFormat.audioSessionId})\n")
                     append("Granted flags: ${mixPortFlagsToString(context, halFormat.grantedFlags)}\n")
                     append("Server flags: ${mixPortFlagsToString(context, halFormat.afTrackFlags)}\n")
                 } else
@@ -432,7 +432,9 @@ object AudioFormatDetector {
 
         private fun StringBuilder.prettyPrintAfFormatInfo(context: Context, format: AfFormatInfo) {
             append("Mix port: ${format.mixPortName} (ID: ${format.mixPortId})\n")
-            append("Mix port flags: ${mixPortFlagsToString(context, format.mixPortFlags)}\n")
+            append("Mix port flags: ${mixPortFlagsToString(context, format.mixPortFlags)}")
+            append(" (fast: ${format.mixPortFast})\n")
+            append("Mix port device hw module ID: ${format.mixPortHwModule}\n")
             append("I/O handle: ${format.ioHandle}\n")
             append("Sample rate: ${format.sampleRateHz} Hz\n")
             append(

@@ -46,6 +46,7 @@ import coil3.decode.ImageSource
 import coil3.fetch.Fetcher
 import coil3.fetch.ImageFetchResult
 import coil3.fetch.SourceFetchResult
+import coil3.key.Keyer
 import coil3.request.NullRequestDataException
 import coil3.size.pxOrElse
 import coil3.toCoilUri
@@ -189,6 +190,13 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
         return ImageLoader.Builder(context)
             .diskCache(null)
             .components {
+                add(Keyer<Pair<*, *>> { data, options ->
+                    val uri = data.second
+                    if (uri !is android.net.Uri?) return@Keyer null
+                    val file = data.first
+                    if (file !is File?) return@Keyer null
+                    return@Keyer uri?.toString() ?: file?.toString()
+                })
                 add(Fetcher.Factory { data, options, _ ->
                     if (data !is Pair<*, *>) return@Factory null
                     val uri = data.second
