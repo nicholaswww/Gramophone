@@ -328,7 +328,6 @@ Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_findAfFlagsForPortInterna
             free(buffer);
             return nullptr;
         }
-        sleep(5);
 #undef BUFFER_SIZE
         out[5] = (int32_t) (*((uint32_t *) maxPos)); // port.ext.mix.latency_class
         /*
