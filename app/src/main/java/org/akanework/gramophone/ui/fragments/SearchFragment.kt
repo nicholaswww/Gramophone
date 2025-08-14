@@ -47,7 +47,7 @@ import org.akanework.gramophone.ui.adapters.SongAdapter
  *
  * @author AkaneTan
  */
-class SearchFragment : BaseFragment(false) {
+class SearchFragment : BaseFragment(true) {
     // TODO this class leaks InsetSourceControl
     private val filteredList: MutableList<MediaItem> = mutableListOf()
     private lateinit var editText: EditText
