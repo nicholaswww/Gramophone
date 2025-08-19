@@ -803,19 +803,19 @@ private class TtmlTimeTracker(private val parser: XmlPullParser, private val isA
                 return ((hours * 3600000 + minutes * 60000 + (seconds + frameSecs +
                         subFrameSecs) * 1000).toLong() + offset + (audioOffset ?: 0L)) * multiplier
             }
-            val offsetMatch = offsetTimeRegex.matchEntire(input)
-            if (offsetMatch != null) {
-                var time = offsetMatch.groupValues[1].toDouble()
-                when (offsetMatch.groupValues[2]) {
-                    "h" -> time *= 3600000.0
-                    "m" -> time *= 60000.0
-                    "s" -> time *= 1000.0
-                    "ms" -> {}
-                    "f" -> time /= effectiveFrameRate / 1000.0
-                    "t" -> time /= tickRate / 1000.0
-                }
-                return (time.toLong() + offset + (audioOffset ?: 0L)) * multiplier
+        }
+        val offsetMatch = offsetTimeRegex.matchEntire(input)
+        if (offsetMatch != null) {
+            var time = offsetMatch.groupValues[1].toDouble()
+            when (offsetMatch.groupValues[2]) {
+                "h" -> time *= 3600000.0
+                "m" -> time *= 60000.0
+                "s" -> time *= 1000.0
+                "ms" -> {}
+                "f" -> time /= effectiveFrameRate / 1000.0
+                "t" -> time /= tickRate / 1000.0
             }
+            return (time.toLong() + offset + (audioOffset ?: 0L)) * multiplier
         }
         throw XmlPullParserException("can't understand this TTML timestamp: $input")
     }
