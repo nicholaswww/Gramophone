@@ -381,7 +381,6 @@
     <string name="device_type_usb_headset">USB гарнитура</string>
     <string name="spk_channel_out_front_wide_left">Передняя широкая левая</string>
     <string name="device_type_aux_line">линия AUX</string>
-    <string name="settings_trim_lyrics_summary">Пробелы перед или после первой буквы в лирической строке могут иметь художественную ценность. Если вы не согласны, вы можете включить этот переключатель, чтобы удалить эти пробелы автоматически.</string>
     <string name="settings_lyrics_no_animation">Отключить анимации</string>
     <string name="gramophone_crashed_explainer2">Граммофон сломался :(\n\nПожалуйста, отправьте мне отчёт о ошибке, чтобы проблемы, как например, что привело к этой аварии могли быть исправлены!\n\nЭта ситуация уникальна как и музыка, без вашей помощи эта ошибка, скорее всего, <b>НЕ</b> будет исправлена!</string>
     <string name="send_email_manually">Пожалуйста отправьте лог файл по адресу nift4dev@gmail.com - не могу найти почтовую программу</string>

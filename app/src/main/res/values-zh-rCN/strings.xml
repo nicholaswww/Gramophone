@@ -239,7 +239,6 @@
     <string name="email_clipboard">已复制邮件地址以及文本到剪贴板</string>
     <string name="audio_signal_chain">音频信号链</string>
     <string name="delete_failed_playlist">删除播放列表失败</string>
-    <string name="settings_trim_lyrics_summary">歌词行首字母之前或之后的空格可能具有艺术价值。如果你不这么觉得，可以打开此开关以自动删除这些空格。</string>
     <string name="failed_to_parse_lyric">歌词解析失败</string>
     <string name="audio_not_initialized">音频播放系统尚未初始化。试着播放些什么吧！</string>
     <string name="package_type_explainer">留声机的安装包可以被任何人创建，因为留声机是开源的。为了帮助记忆每个安装包来自哪里，留声机提供了软件包类型。\n\n最常见的版本是 Release ，由 F-Droid、Google Play、GitHub 或 IzzyOnDroid 分发。\nCI（持续集成） 包类型指的是 GitHub 上每次提交时进行的自动构建。这些构建可能不稳定。\n对于其他软件包类型，这个名字会合理地提示软件包的来源。</string>

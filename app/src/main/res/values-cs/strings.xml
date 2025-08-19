@@ -147,7 +147,6 @@
     <string name="settings_trim_lyrics">Odstranit mezery kolem textu skladeb</string>
     <string name="more">Více</string>
     <string name="skip_next">Přeskočit</string>
-    <string name="settings_trim_lyrics_summary">Mezery před nebo za prvním písmenem v textovém řádku mohou mít uměleckou hodnotu. Pokud s tím nesouhlasíte, můžete zapnout tento přepínač, který tyto mezery automaticky odstraní.</string>
     <string name="dialog_bitrate">Bitrate</string>
     <string name="bitrate_format">%1$d kbps</string>
     <string name="bitrate_unknown">Neznámý bitrate</string>

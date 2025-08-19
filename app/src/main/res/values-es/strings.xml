@@ -233,7 +233,6 @@
     <string name="device_type_ble_speaker">Altavoz Bluetooth LE</string>
     <string name="device_type_ble_broadcast">Transmisión Bluetooth LE</string>
     <string name="device_type_line_digital">Entrada digital</string>
-    <string name="settings_trim_lyrics_summary">Espacios antes o después del primer caracter en las líneas de las letras pueden tener importancia artística. Si no estás de acuerdo, puede encender esta opción para eliminar esos espacios automáticamente.</string>
     <string name="spk_channel_out_quad">Cuadrafónico</string>
     <string name="spk_channel_out_surround">Sonido Surround (4.0)</string>
     <string name="spk_channel_out_7point1_surround">Sonido Surround (7.1)</string>

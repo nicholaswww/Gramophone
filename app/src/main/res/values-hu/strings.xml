@@ -358,7 +358,6 @@
     <string name="spk_encoding_dsd">Direct Stream Digital</string>
     <string name="mix_port_flag_primary">Elsődleges kimenet</string>
     <string name="spk_encoding_flac">FLAC</string>
-    <string name="settings_trim_lyrics_summary">Az első betűk mellett levő extra szóközök művészi jelentéssel bírhatnak. Ha nem ért ezzel egyet, akkor ezzel a kapcsolóval kiveheti ezeket a szóközöket.</string>
     <string name="bitrate_format">%1$d kbps</string>
     <string name="spk_encoding_aac_adts_scalable">AAC Skálázható ADTS-ben</string>
     <string name="what_were_you_doing">Mit csinált éppen amikor a Gramophone összeomlott? Kérem adjon meg minél több részletet, hogy minél nagyobb eséllyel tudjam kiküszöbölni a hibát.\n\nVegye figyelembe, hogy a preferált nyelv az Angol, de ha más nyelven küldi be akkor gépi fordításra kerül az üzenet.</string>

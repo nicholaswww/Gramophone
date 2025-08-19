@@ -251,7 +251,6 @@
     <string name="spk_channel_out_top_back_center">Oben Hinten Center</string>
     <string name="spk_channel_out_front_wide_left">Vorne Wide Links</string>
     <string name="spk_channel_out_bottom_front_right">Unten Vorne Rechts</string>
-    <string name="settings_trim_lyrics_summary">Leerzeichen vor oder nach dem ersten Buchstaben eines Verses könnten künstlerische Bedeutung haben. Wenn du anderer Meinung bist, kannst du diese Einstellung aktivieren, um diese Leerzeichen automatisch zu entfernen.</string>
     <string name="bitrate_format">%1$dkbps</string>
     <string name="dialog_bitrate">Bitrate</string>
     <string name="bitrate_unknown">Unbekannte Bitrate</string>

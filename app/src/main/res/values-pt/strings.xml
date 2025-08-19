@@ -254,7 +254,6 @@
     <string name="device_type_dock_analog">Dock Analógico</string>
     <string name="device_type_aux_line">Entrada auxiliar</string>
     <string name="open_in_gramophone">Abrir no Gramophone</string>
-    <string name="settings_trim_lyrics_summary">Os espaços antes ou depois da primeira letra numa linha da letra podem ter valor artístico. Se discorda, pode ativar esta opção para remover estes espaços automaticamente.</string>
     <string name="gramophone_crashed_explainer2">O Gramophone crashou :(\n\nEnvie-me um relatório de erro para que problemas como o que levou a este crash possam ser corrigidos!\n\nCada situação é tão única quanto música e, sem a sua ajuda, é provável que este bug <b>NÃO</b> seja corrigido!</string>
     <string name="crash_report">Relatório de crash</string>
     <string name="email_clipboard">E-mail e texto copiados para a área de transferência</string>

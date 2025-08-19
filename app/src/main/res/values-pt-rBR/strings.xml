@@ -265,7 +265,6 @@
     <string name="device_type_line_analog">Linha analógica</string>
     <string name="device_type_line_digital">Linha digital</string>
     <string name="device_type_ble_speaker">Auto-falante Bluetooth LE</string>
-    <string name="settings_trim_lyrics_summary">Os espaços antes ou depois da primeira letra em uma linha da letra podem ter valor artístico. Se você discorda, você pode ativar essa opção para remover esses espaços automaticamente.</string>
     <string name="settings_lyrics_no_animation">Remover animações</string>
     <string name="crash_report">Relatório de crash</string>
     <string name="email_clipboard">E-mail e texto copiados para a área de transferência</string>

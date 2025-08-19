@@ -193,7 +193,6 @@
     <string name="open_in_gramophone">Buka di Gramophone</string>
     <string name="device_type_usb_device">Perangkat USB</string>
     <string name="device_type_ble_headset">Headset Bluetooth LE</string>
-    <string name="settings_trim_lyrics_summary">Spasi sebelum atau sesudah huruf pertama pada sebuah baris lirik mungkin memiliki nilai artistik. Jika Anda tidak setuju, Anda dapat mengaktifkan tombol ini untuk menghapus spasi-spasi ini secara otomatis.</string>
     <string name="spk_channel_out_mono">Mono</string>
     <string name="device_type_hdmi">HDMI</string>
     <string name="device_type_usb_accessory">Aksesoris USB</string>
