@@ -312,7 +312,7 @@ object AudioFormatDetector {
     data class AudioFormats(
         val downstreamFormat: Format?, val audioSinkInputFormat: Format?,
         val audioTrackInfo: AudioTrackInfo?, val halFormat: AfFormatInfo?,
-        val bitrate: Long?, val btCodecInfo: BtCodecInfo?
+        val btCodecInfo: BtCodecInfo?
     ) {
         fun prettyToString(context: Context): String? {
             if (downstreamFormat == null || audioSinkInputFormat == null || audioTrackInfo == null)
@@ -320,10 +320,10 @@ object AudioFormatDetector {
             // TODO localization and handle nulls in data nicely
             return StringBuilder().apply {
                 append("== Downstream format ==\n")
-                prettyPrintFormat(context, downstreamFormat, bitrate)
+                prettyPrintFormat(context, downstreamFormat)
                 append("\n")
                 append("== Audio sink input format ==\n")
-                prettyPrintFormat(context, audioSinkInputFormat, null)
+                prettyPrintFormat(context, audioSinkInputFormat)
                 append("\n")
                 append("== Audio track format ==\n")
                 prettyPrintAudioTrackInfo(context, audioTrackInfo)
@@ -363,7 +363,7 @@ object AudioFormatDetector {
             }.toString()
         }
 
-        private fun StringBuilder.prettyPrintFormat(context: Context, format: Format, bitrate: Long?) {
+        private fun StringBuilder.prettyPrintFormat(context: Context, format: Format) {
             append("Sample rate: ")
             if (format.sampleRate != Format.NO_VALUE) {
                 append(format.sampleRate)
@@ -395,32 +395,26 @@ object AudioFormatDetector {
                 append("Not applicable to this format\n")
             }
 
-            append("Bitrate: ")
-            if (format.bitrate != Format.NO_VALUE || bitrate != null) {
-                append("~")
-                append((format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() ?: bitrate!!) / 1000)
-                append("kbps\n")
-            } else {
-                append("Unknown\n")
+            if (format.sampleMimeType != "audio/raw") {
+                append("Bitrate: ")
+                if (format.bitrate != Format.NO_VALUE) {
+                    append("~")
+                    append(format.bitrate.toLong() / 1000)
+                    append("kbps\n")
+                } else {
+                    append("Unknown\n")
+                }
             }
 
             if (format.sampleMimeType != null) {
                 append("MIME type: ")
-                if (format.sampleMimeType != null) {
-                    append(format.sampleMimeType)
-                } else {
-                    append("Not applicable")
-                }
+                append(format.sampleMimeType)
                 append("\n")
             }
 
             if (format.containerMimeType != null) {
                 append("Container MIME type: ")
-                if (format.containerMimeType != null) {
-                    append(format.containerMimeType)
-                } else {
-                    append("Not applicable")
-                }
+                append(format.containerMimeType)
                 append("\n")
             }
         }
@@ -473,7 +467,7 @@ object AudioFormatDetector {
         if (f == null) return null
         val format = f.downstreamFormat
         if (format == null) return null
-        val bitrate = format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() ?: f.bitrate
+        val bitrate = format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong()
         val sampleRate = format.sampleRate.takeIf { it != Format.NO_VALUE }
         val bitDepth = try {
             Util.getByteDepth(format.pcmEncoding) * 8

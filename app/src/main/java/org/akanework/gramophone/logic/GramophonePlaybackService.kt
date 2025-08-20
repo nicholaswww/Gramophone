@@ -171,13 +171,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var audioSinkInputFormat: Format? = null
     private var audioTrackInfo: AudioTrackInfo? = null
     private var btInfo: BtCodecInfo? = null
-    private var bitrate: Long? = null
     private var proxy: BtCodecInfo.Companion.Proxy? = null
     private var audioTrackInfoCounter = 0
     private var audioTrackReleaseCounter = 0
     private val scope = CoroutineScope(Dispatchers.Default)
     private val lyricsFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
-    private val bitrateFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
 
     private fun getRepeatCommand() =
         when (controller!!.repeatMode) {
@@ -662,7 +660,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         it.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
                         it.extras.putParcelable("track_format", audioTrackInfo)
                         it.extras.putParcelable("hal_format", afFormatTracker.format)
-                        bitrate?.let { value -> it.extras.putLong("bitrate", value) }
                         if (afFormatTracker.format?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
                             it.extras.putParcelable("bt", btInfo)
                         }
@@ -859,14 +856,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-        bitrate = null
-        bitrateFetcher.launch {
-            bitrate = mediaItem?.getBitrate() // TODO subtract cover size
-            this@GramophonePlaybackService.mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
-        }
         lyrics = null
         scheduleSendingLyrics(true)
         lastPlayedManager.save()
