@@ -19,7 +19,7 @@ import java.nio.ByteBuffer;
 @OptIn(markerClass = UnstableApi.class)
 public class AlacDecodeUtils
 {
-	private static int RICE_THRESHOLD = 8;
+	private static final int RICE_THRESHOLD = 8;
 
 	public static void alac_set_info(AlacFile alac, ByteBuffer inputbuffer)
 	{
@@ -41,11 +41,11 @@ public class AlacDecodeUtils
 	/* supports reading 1 to 16 bits, in big endian format */
 	static int readbits_16(AlacFile alac, int bits ) 
 	{
-		int result  = 0;
-		int new_accumulator = 0;
-		int part1 = 0;
-		int part2 = 0;
-		int part3 =0;
+		int result;
+		int new_accumulator;
+		int part1;
+		int part2;
+		int part3;
 		
 		part1 = (alac.input_buffer[alac.ibIdx] & 0xff);
 		part2 = (alac.input_buffer[alac.ibIdx + 1] & 0xff);
@@ -95,9 +95,9 @@ public class AlacDecodeUtils
 	/* reads a single bit */
 	static int readbit(AlacFile alac) 
 	{
-		int result = 0;
-		int new_accumulator = 0;
-		int part1 = 0;
+		int result;
+		int new_accumulator;
+		int part1;
 		
 		part1 = (alac.input_buffer[alac.ibIdx] & 0xff);
 
@@ -123,11 +123,9 @@ public class AlacDecodeUtils
 		alac.ibIdx += (new_accumulator >> 3);
 
 		alac.input_buffer_bitaccumulator = (new_accumulator & 7);
-		if (alac.input_buffer_bitaccumulator < 0)
-			alac.input_buffer_bitaccumulator *= -1;
 	}
 
-	static LeadingZeros count_leading_zeros_extra(int curbyte, int output, LeadingZeros lz)
+	static void count_leading_zeros_extra(int curbyte, int output, LeadingZeros lz)
 	{
 
         if ((curbyte & 0xf0)==0)
@@ -141,46 +139,44 @@ public class AlacDecodeUtils
 		{
 			lz.output = output;
 			lz.curbyte = curbyte;
-			return lz;
+			return;
 		}
 		if ((curbyte & 0x4) != 0)
 		{
 			lz.output = output + 1;
 			lz.curbyte = curbyte;
-			return lz;
+			return;
 		}
 		if ((curbyte & 0x2) != 0)
 		{
 			lz.output = output + 2;
 			lz.curbyte = curbyte;
-			return lz;
+			return;
 		}
 		if ((curbyte & 0x1) != 0)
 		{
 			lz.output = output + 3;
 			lz.curbyte = curbyte;
-			return lz;
+			return;
 		}
 
 		/* shouldn't get here: */
 
 		lz.output = output + 4;
 		lz.curbyte = curbyte;
-		return lz;
 
 	}
 	static int count_leading_zeros(int input, LeadingZeros lz)
 	{
 		int output  = 0;
-		int curbyte  = 0;
+		int curbyte;
 
         curbyte = input >> 24;
 		if (curbyte != 0)
 		{
 			count_leading_zeros_extra(curbyte, output, lz);
 			output = lz.output;
-			curbyte = lz.curbyte;
-			return output;
+            return output;
 		}
 		output += 8;
 
@@ -189,9 +185,8 @@ public class AlacDecodeUtils
 		{
 			count_leading_zeros_extra(curbyte, output, lz);
 			output = lz.output;
-			curbyte = lz.curbyte;
 
-			return output;
+            return output;
 		}
 		output += 8;
 
@@ -200,9 +195,8 @@ public class AlacDecodeUtils
 		{
 			count_leading_zeros_extra(curbyte, output, lz);
 			output = lz.output;
-			curbyte = lz.curbyte;
 
-			return output;
+            return output;
 		}
 		output += 8;
 
@@ -211,9 +205,8 @@ public class AlacDecodeUtils
 		{
 			count_leading_zeros_extra(curbyte, output, lz);
 			output = lz.output;
-			curbyte = lz.curbyte;
 
-			return output;
+            return output;
 		}
 		output += 8;
 
@@ -233,7 +226,7 @@ public class AlacDecodeUtils
 		if (x > RICE_THRESHOLD)
 		{
 			// read the number from the bit stream (raw value)
-			int value  = 0;
+			int value;
 
 			value = readbits(alac, readSampleSize);
 
@@ -268,9 +261,9 @@ public class AlacDecodeUtils
 
 		while(outputCount < outputSize)
 		{
-			int decodedValue  = 0;
-			int finalValue  = 0;
-			int k   = 0;
+			int decodedValue;
+			int finalValue;
+			int k;
 
 			k = 31 - rice_kmodifier - count_leading_zeros((history >> 9) + 3, alac.lz);
 
@@ -300,7 +293,7 @@ public class AlacDecodeUtils
 			// special case, for compressed blocks of 0
 			if ((history < 128) && (outputCount + 1 < outputSize))
 			{
-				int blockSize  = 0;
+				int blockSize;
 
 				signModifier = 1;
 
@@ -312,7 +305,7 @@ public class AlacDecodeUtils
 				// got blockSize 0s
 				if (blockSize > 0)
 				{
-					int countSize  = 0;
+					int countSize;
 					countSize = blockSize;
 					for (int j = 0; j < countSize; j++)
 					{
@@ -333,9 +326,9 @@ public class AlacDecodeUtils
 
 	static int[] predictor_decompress_fir_adapt(int[] error_buffer, int output_size , int readsamplesize , int[] predictor_coef_table, int predictor_coef_num , int predictor_quantitization )
 	{
-		int buffer_out_idx  = 0;
+		int buffer_out_idx;
 		int[] buffer_out;
-		int bitsmove  = 0;
+		int bitsmove;
 
 		/* first sample always copies */
 		buffer_out = error_buffer;
@@ -344,7 +337,7 @@ public class AlacDecodeUtils
 		{
 			if (output_size <= 1)
 				return(buffer_out);
-			int sizeToCopy  = 0;
+			int sizeToCopy;
 			sizeToCopy = (output_size-1) * 4;
             System.arraycopy(error_buffer, 1, buffer_out, 1, sizeToCopy);
 			return(buffer_out);
@@ -360,8 +353,8 @@ public class AlacDecodeUtils
 
 			for (int i = 0; i < (output_size - 1); i++)
 			{
-				int prev_value  = 0;
-				int error_value  = 0;
+				int prev_value;
+				int error_value;
 
 				prev_value = buffer_out[i];
 				error_value = error_buffer[i+1];
@@ -377,7 +370,7 @@ public class AlacDecodeUtils
 		{
 			for (int i = 0; i < predictor_coef_num; i++)
 			{
-				int val  = 0;
+				int val;
 
 				val = buffer_out[i] + error_buffer[i+1];
 
@@ -421,7 +414,7 @@ public class AlacDecodeUtils
 					while (predictor_num >= 0 && error_val > 0)
 					{
 						int val  = buffer_out[buffer_out_idx] - buffer_out[buffer_out_idx + predictor_coef_num - predictor_num];
-						int sign  = ((val < 0) ? (-1) : ((val > 0) ? (1) : (0)));
+						int sign  = Integer.compare(val, 0);
 
 						predictor_coef_table[predictor_num] -= sign;
 
@@ -439,7 +432,7 @@ public class AlacDecodeUtils
 					while (predictor_num >= 0 && error_val < 0)
 					{
 						int val  = buffer_out[buffer_out_idx] - buffer_out[buffer_out_idx + predictor_coef_num - predictor_num];
-						int sign  = - ((val < 0) ? (-1) : ((val > 0) ? (1) : (0)));
+						int sign  = - Integer.compare(val, 0);
 
 						predictor_coef_table[predictor_num] -= sign;
 
@@ -469,10 +462,10 @@ public class AlacDecodeUtils
 		{
 			for (int i = 0; i < numsamples; i++)
 			{
-				int difference  = 0;
-				int midright  = 0;
-				int left  = 0;
-				int right  = 0;
+				int difference;
+				int midright;
+				int left;
+				int right;
 
 				midright = buffer_a[i];
 				difference = buffer_b[i];
@@ -492,8 +485,8 @@ public class AlacDecodeUtils
 		/* otherwise basic interlacing took place */
 		for (int i = 0; i < numsamples; i++)
 		{
-			int left  = 0;
-			int right  = 0;
+			int left;
+			int right;
 
 			left = buffer_a[i];
 			right = buffer_b[i];
@@ -516,10 +509,10 @@ public class AlacDecodeUtils
 		{
 			for (int i = 0; i < numsamples; i++)
 			{
-				int difference  = 0;
-				int midright  = 0;
-				int left  = 0;
-				int right  = 0;
+				int difference;
+				int midright;
+				int left;
+				int right;
 
 				midright = buffer_a[i];
 				difference = buffer_b[i];
@@ -548,8 +541,8 @@ public class AlacDecodeUtils
 		/* otherwise basic interlacing took place */
 		for (int i = 0; i < numsamples; i++)
 		{
-			int left  = 0;
-			int right  = 0;
+			int left;
+			int right;
 
 			left = buffer_a[i];
 			right = buffer_b[i];
@@ -598,7 +591,7 @@ public class AlacDecodeUtils
 			int uncompressed_bytes ;
 			int ricemodifier ;
 	
-			int tempPred  = 0;
+			int tempPred;
 
 			/* 2^result = something to do with output waiting.
 			 * perhaps matters if we read > 1 frame in a pass?
@@ -673,7 +666,7 @@ public class AlacDecodeUtils
 				}
 				else
 				{
-					System.err.println("FIXME: unhandled predicition type: " +prediction_type);
+					throw new UnsupportedOperationException("FIXME: unhandled predicition type: " +prediction_type);
 					
 					/* i think the only other prediction type (or perhaps this is just a
 					 * boolean?) runs adaptive fir twice.. like:
@@ -688,7 +681,7 @@ public class AlacDecodeUtils
 			{ // not compressed, easy case
 				if (alac.setinfo_sample_size <= 16)
 				{
-					int bitsmove  = 0;
+					int bitsmove;
 					for (int i = 0; i < outputsamples; i++)
 					{
 						int audiobits  = readbits(alac, alac.setinfo_sample_size);
@@ -749,7 +742,7 @@ public class AlacDecodeUtils
 
 					if (uncompressed_bytes != 0)
 					{
-						int mask  = 0;
+						int mask;
 						sample = sample << (uncompressed_bytes * 8);
 						mask = ~(0xFFFFFFFF << (uncompressed_bytes * 8));
 						sample = sample | (alac.uncompressed_bytes_buffer_a[i] & mask);
@@ -771,7 +764,7 @@ public class AlacDecodeUtils
 			}
 			case 20:
 			case 32:
-				System.err.println("FIXME: unimplemented sample size " + alac.setinfo_sample_size);
+				throw new UnsupportedOperationException("FIXME: unimplemented sample size " + alac.setinfo_sample_size);
 			default:
 
 			}
@@ -824,12 +817,12 @@ public class AlacDecodeUtils
 				int prediction_quantitization_b ;
 				int ricemodifier_b ;
 
-				int tempPred  = 0;
+				int tempPred;
 
 				interlacing_shift = readbits(alac, 8);
 				interlacing_leftweight = readbits(alac, 8);
 
-				/******** channel 1 ***********/
+				/* ******* channel 1 ***********/
 				prediction_type_a = readbits(alac, 4);
 				prediction_quantitization_a = readbits(alac, 4);
 
@@ -849,7 +842,7 @@ public class AlacDecodeUtils
 					predictor_coef_table_a[i] = tempPred;
 				}
 
-				/******** channel 2 *********/
+				/* ******* channel 2 *********/
 				prediction_type_b = readbits(alac, 4);
 				prediction_quantitization_b = readbits(alac, 4);
 
@@ -869,7 +862,7 @@ public class AlacDecodeUtils
 					predictor_coef_table_b[i] = tempPred;
 				}
 
-				/*********************/
+				/* ********************/
 				if (uncompressed_bytes != 0)
 				{ // see mono case
 					for (int i = 0; i < outputsamples; i++)
@@ -891,7 +884,7 @@ public class AlacDecodeUtils
 				}
 				else
 				{ // see mono case
-					System.err.println("FIXME: unhandled predicition type: " + prediction_type_a);
+					throw new UnsupportedOperationException("FIXME: unhandled predicition type: " + prediction_type_a);
 				}
 
 				/* channel 2 */
@@ -903,7 +896,7 @@ public class AlacDecodeUtils
 				}
 				else
 				{
-					System.err.println("FIXME: unhandled predicition type: " + prediction_type_b);
+					throw new UnsupportedOperationException("FIXME: unhandled predicition type: " + prediction_type_b);
 				}
 			}
 			else
@@ -974,7 +967,7 @@ public class AlacDecodeUtils
 			}
 			case 20:
 			case 32:
-				System.err.println("FIXME: unimplemented sample size " + alac.setinfo_sample_size);
+				throw new UnsupportedOperationException("FIXME: unimplemented sample size " + alac.setinfo_sample_size);
 
 			default:
 
