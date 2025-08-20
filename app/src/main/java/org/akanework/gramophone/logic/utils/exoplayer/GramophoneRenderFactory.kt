@@ -8,12 +8,14 @@ import androidx.media3.common.Format
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.video.VideoRendererEventListener
+import org.nift4.alacdecoder.AlacRenderer
 
 @OptIn(UnstableApi::class)
 class GramophoneRenderFactory(context: Context,
@@ -28,6 +30,29 @@ class GramophoneRenderFactory(context: Context,
         out: ArrayList<Renderer>
     ) {
         // empty
+    }
+
+    override fun buildAudioRenderers(
+        context: Context,
+        extensionRendererMode: @ExtensionRendererMode Int,
+        mediaCodecSelector: MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        audioSink: AudioSink,
+        eventHandler: Handler,
+        eventListener: AudioRendererEventListener,
+        out: java.util.ArrayList<Renderer>
+    ) {
+        super.buildAudioRenderers(
+            context,
+            extensionRendererMode,
+            mediaCodecSelector,
+            enableDecoderFallback,
+            audioSink,
+            eventHandler,
+            eventListener,
+            out
+        )
+        out.add(AlacRenderer(eventHandler, eventListener, audioSink))
     }
 
     override fun buildVideoRenderers(

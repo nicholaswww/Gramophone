@@ -10,7 +10,7 @@
 */
 package com.beatofthedrum.alacdecoder;
 
-class AlacFile
+public class AlacFile
 {
 
 	byte input_buffer[];
@@ -20,7 +20,7 @@ class AlacFile
 
 	int samplesize = 0;
 	int numchannels = 0;
-	int bytespersample = 0;
+	public int bytespersample = 0;
 
     LeadingZeros lz = new LeadingZeros();
 
@@ -40,23 +40,18 @@ class AlacFile
 
 	/* stuff from setinfo */
 	int setinfo_max_samples_per_frame = 0; // 0x1000 = 4096
-	/* max samples per frame? */
-	
-	int setinfo_7a = 0; // 0x00
+	int current_version = 0; // 0x00
 	int setinfo_sample_size = 0; // 0x10
 	int setinfo_rice_historymult = 0; // 0x28
 	int setinfo_rice_initialhistory = 0; // 0x0a
 	int setinfo_rice_kmodifier = 0; // 0x0e
-	int setinfo_7f = 0; // 0x02
-	int setinfo_80 = 0; // 0x00ff
-	int setinfo_82 = 0; // 0x000020e7
-	/* max sample size?? */
-	int setinfo_86 = 0; // 0x00069fe4
-	/* bit rate (avarge)?? */
-	int setinfo_8a_rate = 0; // 0x0000ac44
+	int max_run = 0; // 0x00ff
+	int max_frame_bytes = 0; // 0x000020e7
+	int average_bit_rate = 0; // 0x00069fe4
+	int sample_rate = 0; // 0x0000ac44
 	/* end setinfo stuff */
 
-    public int[] predictor_coef_table = new int[1024];
-    public int[] predictor_coef_table_a = new int[1024];
-    public int[] predictor_coef_table_b = new int[1024];
+    int[] predictor_coef_table = new int[1024];
+    int[] predictor_coef_table_a = new int[1024];
+    int[] predictor_coef_table_b = new int[1024];
 }

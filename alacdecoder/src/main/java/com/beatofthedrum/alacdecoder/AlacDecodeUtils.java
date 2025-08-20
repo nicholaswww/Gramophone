@@ -10,43 +10,30 @@
 */
 package com.beatofthedrum.alacdecoder;
 
-class AlacDecodeUtils
+import androidx.annotation.OptIn;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.common.util.Util;
+
+import java.nio.ByteBuffer;
+
+@OptIn(markerClass = UnstableApi.class)
+public class AlacDecodeUtils
 {
+	private static int RICE_THRESHOLD = 8;
 
-	public static void alac_set_info(AlacFile alac, int[] inputbuffer)
+	public static void alac_set_info(AlacFile alac, ByteBuffer inputbuffer)
 	{
-	  int ptrIndex  = 0;
-	  ptrIndex += 4; // size
-	  ptrIndex += 4; // frma
-	  ptrIndex += 4; // alac
-	  ptrIndex += 4; // size
-	  ptrIndex += 4; // alac
-
-	  ptrIndex += 4; // 0 ?
-
-	  alac.setinfo_max_samples_per_frame = ((inputbuffer[ptrIndex] << 24) + (inputbuffer[ptrIndex+1] << 16) + (inputbuffer[ptrIndex+2] << 8) + inputbuffer[ptrIndex+3]); // buffer size / 2 ?
-	  ptrIndex += 4;
-	  alac.setinfo_7a = inputbuffer[ptrIndex];
-	  ptrIndex += 1;
-	  alac.setinfo_sample_size = inputbuffer[ptrIndex];
-	  ptrIndex += 1;
-	  alac.setinfo_rice_historymult = (inputbuffer[ptrIndex] & 0xff);
-	  ptrIndex += 1;
-	  alac.setinfo_rice_initialhistory =  (inputbuffer[ptrIndex] & 0xff);
-	  ptrIndex += 1;
-	  alac.setinfo_rice_kmodifier = (inputbuffer[ptrIndex] & 0xff);
-	  ptrIndex += 1;
-	  alac.setinfo_7f = inputbuffer[ptrIndex];
-	  ptrIndex += 1;
-	  alac.setinfo_80 = (inputbuffer[ptrIndex] << 8) + inputbuffer[ptrIndex+1];
-	  ptrIndex += 2;
-	  alac.setinfo_82 = ((inputbuffer[ptrIndex] << 24) + (inputbuffer[ptrIndex+1] << 16) + (inputbuffer[ptrIndex+2] << 8) + inputbuffer[ptrIndex+3]);
-	  ptrIndex += 4;
-	  alac.setinfo_86 = ((inputbuffer[ptrIndex] << 24) + (inputbuffer[ptrIndex+1] << 16) + (inputbuffer[ptrIndex+2] << 8) + inputbuffer[ptrIndex+3]);
-	  ptrIndex += 4;
-	  alac.setinfo_8a_rate = ((inputbuffer[ptrIndex] << 24) + (inputbuffer[ptrIndex+1] << 16) + (inputbuffer[ptrIndex+2] << 8) + inputbuffer[ptrIndex+3]);
-	  ptrIndex += 4;
-
+	  alac.setinfo_max_samples_per_frame = inputbuffer.getInt(); // buffer size / 2 ?
+	  alac.current_version = inputbuffer.get();
+	  alac.setinfo_sample_size = inputbuffer.get();
+	  alac.setinfo_rice_historymult = inputbuffer.get();
+	  alac.setinfo_rice_initialhistory =  inputbuffer.get();
+	  alac.setinfo_rice_kmodifier = inputbuffer.get();
+	  // alac.channel_count = inputbuffer.get();
+	  alac.max_run = inputbuffer.getShort();
+	  alac.max_frame_bytes = inputbuffer.getInt();
+	  alac.average_bit_rate = inputbuffer.getInt();
+	  alac.sample_rate = inputbuffer.getInt();
 	}
 
 	/* stream reading */
@@ -238,12 +225,12 @@ class AlacDecodeUtils
 		int x  = 0; // decoded value
 
 		// read x, number of 1s before 0 represent the rice value.
-		while (x <= Defines.RICE_THRESHOLD && readbit(alac) != 0)
+		while (x <= RICE_THRESHOLD && readbit(alac) != 0)
 		{
 			x++;
 		}
 
-		if (x > Defines.RICE_THRESHOLD)
+		if (x > RICE_THRESHOLD)
 		{
 			// read the number from the bit stream (raw value)
 			int value  = 0;
@@ -471,7 +458,7 @@ class AlacDecodeUtils
 	}
 
 	
-	public static void deinterlace_16(int[] buffer_a, int[] buffer_b, int[] buffer_out, int numchannels , int numsamples , int interlacing_shift , int interlacing_leftweight )
+	public static void deinterlace_16(int[] buffer_a, int[] buffer_b, ByteBuffer buffer_out, int numchannels , int numsamples , int interlacing_shift , int interlacing_leftweight )
 	{
 
 		if (numsamples <= 0)
@@ -495,8 +482,8 @@ class AlacDecodeUtils
 
 				/* output is always little endian */
 
-				buffer_out[i *numchannels] = left;
-				buffer_out[i *numchannels + 1] = right;
+				buffer_out.putShort(i * numchannels * 2, (short) left);
+				buffer_out.putShort(((i * numchannels) + 1) * 2, (short) right);
 			}
 
 			return;
@@ -513,13 +500,13 @@ class AlacDecodeUtils
 
 			/* output is always little endian */
 
-			buffer_out[i *numchannels] = left;
-			buffer_out[i *numchannels + 1] = right;
+			buffer_out.putShort(i * numchannels * 2, (short) left);
+			buffer_out.putShort(((i * numchannels) + 1) * 2, (short) right);
 		}
 	}
 
 
-	public static void deinterlace_24(int[] buffer_a, int[] buffer_b, int uncompressed_bytes , int[] uncompressed_bytes_buffer_a, int[] uncompressed_bytes_buffer_b, int[] buffer_out, int numchannels , int numsamples , int interlacing_shift , int interlacing_leftweight )	
+	public static void deinterlace_24(int[] buffer_a, int[] buffer_b, int uncompressed_bytes , int[] uncompressed_bytes_buffer_a, int[] uncompressed_bytes_buffer_b, ByteBuffer buffer_out, int numchannels , int numsamples , int interlacing_shift , int interlacing_leftweight )
 	{
 		if (numsamples <= 0)
 			return;
@@ -550,13 +537,9 @@ class AlacDecodeUtils
 					right = right | (uncompressed_bytes_buffer_b[i] & mask);
 				}
 
-				buffer_out[i * numchannels * 3] = (left & 0xFF);
-				buffer_out[i * numchannels * 3 + 1] = ((left >> 8) & 0xFF);
-				buffer_out[i * numchannels * 3 + 2] = ((left >> 16) & 0xFF);
-
-				buffer_out[i * numchannels * 3 + 3] = (right & 0xFF);
-				buffer_out[i * numchannels * 3 + 4] = ((right >> 8) & 0xFF);
-				buffer_out[i * numchannels * 3 + 5] = ((right >> 16) & 0xFF);
+				buffer_out.position(i * numchannels * 3);
+				Util.putInt24(buffer_out, left);
+				Util.putInt24(buffer_out, right);
 			}
 
 			return;
@@ -581,22 +564,19 @@ class AlacDecodeUtils
 				right = right | (uncompressed_bytes_buffer_b[i] & mask);
 			}
 
-			buffer_out[i * numchannels * 3] = (left & 0xFF);
-			buffer_out[i * numchannels * 3 + 1] = ((left >> 8) & 0xFF);
-			buffer_out[i * numchannels * 3 + 2] = ((left >> 16) & 0xFF);
-
-			buffer_out[i * numchannels * 3 + 3] = (right & 0xFF);
-			buffer_out[i * numchannels * 3 + 4] = ((right >> 8) & 0xFF);
-			buffer_out[i * numchannels * 3 + 5] = ((right >> 16) & 0xFF);
+			buffer_out.position(i * numchannels * 3);
+			Util.putInt24(buffer_out, left);
+			Util.putInt24(buffer_out, right);
 
 		}
 
 	}
 
 
-	public static int decode_frame(AlacFile alac, byte[] inbuffer, int[] outbuffer, int outputsize )
+	public static int decode_frame(AlacFile alac, byte[] inbuffer, ByteBuffer outbuffer)
 	{
 		int channels ;
+		int outputsize;
 		int outputsamples  = alac.setinfo_max_samples_per_frame;
 
 		/* setup the stream */
@@ -748,16 +728,16 @@ class AlacDecodeUtils
 
 				for (int i = 0; i < outputsamples; i++)
 				{
-					int sample  = alac.outputsamples_buffer_a[i];
-					outbuffer[i * alac.numchannels] = sample;
+					short sample  = (short) alac.outputsamples_buffer_a[i];
+					outbuffer.putShort(i * alac.numchannels * 2, sample);
 									
 					/*
 					** We have to handle the case where the data is actually mono, but the stsd atom says it has 2 channels
 					** in this case we create a stereo file where one of the channels is silent. If mono and 1 channel this value 
 					** will be overwritten in the next iteration
 					*/
-					
-					outbuffer[(i * alac.numchannels) + 1] = 0;
+
+					outbuffer.putInt(((i * alac.numchannels) + 1) * 2, 0);
 				}
 				break;
 			}
@@ -775,19 +755,16 @@ class AlacDecodeUtils
 						sample = sample | (alac.uncompressed_bytes_buffer_a[i] & mask);
 					}
 
-					outbuffer[i * alac.numchannels * 3] = ((sample) & 0xFF);
-					outbuffer[i * alac.numchannels * 3 + 1] = ((sample >> 8) & 0xFF);
-					outbuffer[i * alac.numchannels * 3 + 2] = ((sample >> 16) & 0xFF);
+					outbuffer.position(i * alac.numchannels * 3);
+					Util.putInt24(outbuffer, sample);
 					
 					/*
 					** We have to handle the case where the data is actually mono, but the stsd atom says it has 2 channels
 					** in this case we create a stereo file where one of the channels is silent. If mono and 1 channel this value 
 					** will be overwritten in the next iteration
 					*/
-					
-					outbuffer[i * alac.numchannels * 3 + 3] = 0;
-					outbuffer[i * alac.numchannels * 3 + 4] = 0;
-					outbuffer[i * alac.numchannels * 3 + 5] = 0;
+
+					Util.putInt24(outbuffer, 0);
 					
 				}
 				break;
