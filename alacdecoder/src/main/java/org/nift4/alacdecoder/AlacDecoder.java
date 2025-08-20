@@ -27,7 +27,8 @@ public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoder
         super(new DecoderInputBuffer[numInputBuffers], new SimpleDecoderOutputBuffer[numOutputBuffers]);
         setInitialInputBufferSize(initialInputBufferSize);
         this.inputFormat = inputFormat;
-        this.file = AlacDecodeUtils.create_alac(inputFormat.initializationData.get(0)[5], inputFormat.channelCount);
+        this.file = AlacDecodeUtils.create_alac(
+                Util.getByteDepth(inputFormat.pcmEncoding) * 8, inputFormat.channelCount);
         AlacDecodeUtils.alac_set_info(file, ByteBuffer.wrap(inputFormat.initializationData.get(0)));
     }
 
