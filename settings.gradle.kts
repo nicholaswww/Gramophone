@@ -1,5 +1,8 @@
 @file:Suppress("UnstableApiUsage")
 
+include(":alacdecoder")
+
+
 pluginManagement {
     repositories {
         google()
