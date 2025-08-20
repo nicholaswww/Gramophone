@@ -65,7 +65,7 @@ public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoder
     protected AlacDecoderException decode(@NonNull DecoderInputBuffer inputBuffer,
                                           @NonNull SimpleDecoderOutputBuffer outputBuffer,
                                           boolean reset) {
-        outputBuffer.init(inputBuffer.timeUs, 4096 * inputFormat.channelCount * file.bytespersample);
+        outputBuffer.init(inputBuffer.timeUs, 4096 * file.bytespersample);
         if (!Util.castNonNull(inputBuffer.data).hasArray())
             return new AlacDecoderException("input has no array");
         if (inputBuffer.hasSupplementalData())
