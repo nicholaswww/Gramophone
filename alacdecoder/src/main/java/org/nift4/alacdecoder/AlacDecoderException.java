@@ -15,8 +15,4 @@ public class AlacDecoderException extends DecoderException {
     public AlacDecoderException(@Nullable Throwable cause) {
         super(cause);
     }
-
-    public AlacDecoderException(String message, @Nullable Throwable cause) {
-        super(message, cause);
-    }
 }
