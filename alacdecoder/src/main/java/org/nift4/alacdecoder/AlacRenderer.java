@@ -1,7 +1,6 @@
 package org.nift4.alacdecoder;
 
 import android.os.Handler;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
@@ -30,10 +29,8 @@ public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
             return C.FORMAT_UNSUPPORTED_DRM;
         }
         int bitDepth = format.initializationData.get(0)[5];
-        if (bitDepth != 16 && bitDepth != 24) {
-            return C.FORMAT_UNSUPPORTED_SUBTYPE;
-        }
-        int pcmEncoding = bitDepth == 24 ? C.ENCODING_PCM_24BIT : C.ENCODING_PCM_16BIT;
+        // should we support ENCODING_PCM_20BIT in media3 instead?
+        int pcmEncoding = bitDepth == 20 ? C.ENCODING_PCM_24BIT : Util.getPcmEncoding(bitDepth);
         if (!sinkSupportsFormat(
                 Util.getPcmFormat(pcmEncoding, format.channelCount, format.sampleRate))) {
             return C.FORMAT_UNSUPPORTED_SUBTYPE;
@@ -44,7 +41,11 @@ public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
     @NonNull
     @Override
     protected AlacDecoder createDecoder(@NonNull Format format, CryptoConfig cryptoConfig) {
-        return new AlacDecoder(format, 16, 16);
+        try {
+            return new AlacDecoder(format, 16, 16);
+        } catch (AlacDecoderException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @NonNull
@@ -52,8 +53,8 @@ public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
     protected Format getOutputFormat(@NonNull AlacDecoder decoder) {
         Format format = decoder.getInputFormat();
         int bitDepth = format.initializationData.get(0)[5];
-        return Util.getPcmFormat(bitDepth == 24 ? C.ENCODING_PCM_24BIT : C.ENCODING_PCM_16BIT,
-                format.channelCount, format.sampleRate);
+        int pcmEncoding = bitDepth == 20 ? C.ENCODING_PCM_24BIT : Util.getPcmEncoding(bitDepth);
+        return Util.getPcmFormat(pcmEncoding, format.channelCount, format.sampleRate);
     }
 
     @NonNull

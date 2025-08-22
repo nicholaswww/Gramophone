@@ -22,7 +22,7 @@ public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoder
     private final Format inputFormat;
     private final AlacFile file;
 
-    public AlacDecoder(Format inputFormat, int numInputBuffers, int numOutputBuffers) {
+    public AlacDecoder(Format inputFormat, int numInputBuffers, int numOutputBuffers) throws AlacDecoderException {
         super(new DecoderInputBuffer[numInputBuffers], new SimpleDecoderOutputBuffer[numOutputBuffers]);
         this.inputFormat = inputFormat;
         this.file = AlacDecodeUtils.create_alac(
@@ -71,9 +71,15 @@ public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoder
             return new AlacDecoderException("input has no array");
         if (inputBuffer.hasSupplementalData())
             return new AlacDecoderException("input has extra data, why?");
-        int limit = AlacDecodeUtils.decode_frame(file, inputBuffer, outputBuffer);
-        Util.castNonNull(outputBuffer.data).position(0);
-        outputBuffer.data.limit(limit);
-        return null;
+        try {
+            int limit = AlacDecodeUtils.decode_frame(file, inputBuffer, outputBuffer);
+            Util.castNonNull(outputBuffer.data).position(0);
+            outputBuffer.data.limit(limit);
+            return null;
+        } catch (AlacDecoderException e) {
+            return e;
+        } finally {
+            file.input_buffer = null;
+        }
     }
 }

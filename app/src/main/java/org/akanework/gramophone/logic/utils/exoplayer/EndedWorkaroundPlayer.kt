@@ -60,7 +60,12 @@ class EndedWorkaroundPlayer(exoPlayer: ExoPlayer) : ForwardingSimpleBasePlayer(e
 
     override fun getState(): State {
         if (isEnded) {
-            return super.state.buildUpon().setPlaybackState(STATE_ENDED).setIsLoading(false).build()
+            val superState = super.state
+            if (superState.playerError != null) {
+                isEnded = false
+                return superState
+            }
+            return superState.buildUpon().setPlaybackState(STATE_ENDED).setIsLoading(false).build()
         }
         if (player.currentTimeline.isEmpty) {
             return super.state.buildUpon().setDeviceInfo(remoteDeviceInfo).build()
