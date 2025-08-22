@@ -14,11 +14,12 @@ public class AlacFile
 {
 
 	public byte[] input_buffer;
+	public int[] channel_map;
 	int ibIdx = 0;
 	int input_buffer_bitaccumulator = 0; /* used so we can do arbitary
 						bit reads */
 
-	int numchannels = 0;
+	public int numchannels = 0;
 	public int bytespersample = 0;
 
     LeadingZeros lz = new LeadingZeros();

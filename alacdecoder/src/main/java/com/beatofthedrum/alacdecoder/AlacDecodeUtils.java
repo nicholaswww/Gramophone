@@ -355,7 +355,7 @@ public class AlacDecodeUtils
 				return;
 			int sizeToCopy;
 			sizeToCopy = (output_size-1) * 4;
-            System.arraycopy(error_buffer, 1, buffer_out, 1, sizeToCopy);
+			System.arraycopy(error_buffer, 1, buffer_out, 1, sizeToCopy);
 			return;
 		}
 
@@ -466,7 +466,7 @@ public class AlacDecodeUtils
 	}
 
 	
-	public static void deinterlace_16(int[] buffer_a, int[] buffer_b, ByteBuffer buffer_out, int numchannels , int numsamples , int interlacing_shift , int interlacing_leftweight )
+	public static void deinterlace_16(int[] buffer_a, int[] buffer_b, ByteBuffer buffer_out, int numchannels, int channel_index_a, int channel_index_b, int numsamples, int interlacing_shift , int interlacing_leftweight )
 	{
 
 		if (numsamples <= 0)
@@ -490,8 +490,8 @@ public class AlacDecodeUtils
 
 				/* output is always little endian */
 
-				buffer_out.putShort(i * numchannels * 2, (short) left);
-				buffer_out.putShort(((i * numchannels) + 1) * 2, (short) right);
+				buffer_out.putShort((i * numchannels + channel_index_a) * 2, (short) left);
+				buffer_out.putShort((i * numchannels + channel_index_b) * 2, (short) right);
 			}
 
 			return;
@@ -508,13 +508,13 @@ public class AlacDecodeUtils
 
 			/* output is always little endian */
 
-			buffer_out.putShort(i * numchannels * 2, (short) left);
-			buffer_out.putShort(((i * numchannels) + 1) * 2, (short) right);
+			buffer_out.putShort((i * numchannels + channel_index_a) * 2, (short) left);
+			buffer_out.putShort((i * numchannels + channel_index_b) * 2, (short) right);
 		}
 	}
 
 
-	public static void deinterlace_24(int[] buffer_a, int[] buffer_b, int uncompressed_bytes , int[] uncompressed_bytes_buffer_a, int[] uncompressed_bytes_buffer_b, ByteBuffer buffer_out, int numchannels , int numsamples , int interlacing_shift , int interlacing_leftweight )
+	public static void deinterlace_24(int[] buffer_a, int[] buffer_b, int uncompressed_bytes , int[] uncompressed_bytes_buffer_a, int[] uncompressed_bytes_buffer_b, ByteBuffer buffer_out, int numchannels , int channel_index_a, int channel_index_b, int numsamples , int interlacing_shift , int interlacing_leftweight )
 	{
 		if (numsamples <= 0)
 			return;
@@ -545,8 +545,9 @@ public class AlacDecodeUtils
 					right = right | (uncompressed_bytes_buffer_b[i] & mask);
 				}
 
-				buffer_out.position(i * numchannels * 3);
+				buffer_out.position((i * numchannels + channel_index_a) * 3);
 				Util.putInt24(buffer_out, left);
+				buffer_out.position((i * numchannels + channel_index_b) * 3);
 				Util.putInt24(buffer_out, right);
 			}
 
@@ -572,8 +573,9 @@ public class AlacDecodeUtils
 				right = right | (uncompressed_bytes_buffer_b[i] & mask);
 			}
 
-			buffer_out.position(i * numchannels * 3);
+			buffer_out.position((i * numchannels + channel_index_a) * 3);
 			Util.putInt24(buffer_out, left);
+			buffer_out.position((i * numchannels + channel_index_b) * 3);
 			Util.putInt24(buffer_out, right);
 
 		}
@@ -581,7 +583,7 @@ public class AlacDecodeUtils
 	}
 
 
-	public static void deinterlace_32(int[] buffer_a, int[] buffer_b, int uncompressed_bytes , int[] uncompressed_bytes_buffer_a, int[] uncompressed_bytes_buffer_b, ByteBuffer buffer_out, int numchannels , int numsamples , int interlacing_shift , int interlacing_leftweight )
+	public static void deinterlace_32(int[] buffer_a, int[] buffer_b, int uncompressed_bytes , int[] uncompressed_bytes_buffer_a, int[] uncompressed_bytes_buffer_b, ByteBuffer buffer_out, int numchannels , int channel_index_a, int channel_index_b, int numsamples , int interlacing_shift , int interlacing_leftweight )
 	{
 		if (numsamples <= 0)
 			return;
@@ -612,8 +614,8 @@ public class AlacDecodeUtils
 					right = right | (uncompressed_bytes_buffer_b[i] & mask);
 				}
 
-				buffer_out.putInt(i * numchannels * 4, left);
-				buffer_out.putInt((i * numchannels + 1) * 4, right);
+				buffer_out.putInt((i * numchannels + channel_index_a) * 4, left);
+				buffer_out.putInt((i * numchannels + channel_index_b) * 4, right);
 			}
 
 			return;
@@ -638,8 +640,8 @@ public class AlacDecodeUtils
 				right = right | (uncompressed_bytes_buffer_b[i] & mask);
 			}
 
-			buffer_out.putInt(i * numchannels * 3, left);
-			buffer_out.putInt(i * numchannels * 3 + 4, right);
+			buffer_out.putInt((i * numchannels + channel_index_a) * 4, left);
+			buffer_out.putInt((i * numchannels + channel_index_b) * 4, right);
 		}
 
 	}
@@ -672,6 +674,7 @@ public class AlacDecodeUtils
 				int ricemodifier;
 
 				int tempPred;
+				int channel_index_a = alac.channel_map[channel_index];
 
 				readbits(alac, 4); // useless channel tag
 
@@ -771,13 +774,12 @@ public class AlacDecodeUtils
 					uncompressed_bytes = 0; // always 0 for uncompressed
 				}
 
-				// TODO: respect channel_index for surround.
 				switch (alac.setinfo_sample_size) {
 					case 16: {
 
 						for (int i = 0; i < outputsamples; i++) {
 							short sample = (short) alac.outputsamples_buffer[channel_index][i];
-							outbuffer.putShort(i * alac.numchannels * 2, sample);
+							outbuffer.putShort((i * alac.numchannels + channel_index_a) * 2, sample);
 						}
 						break;
 					}
@@ -793,7 +795,7 @@ public class AlacDecodeUtils
 								sample = sample | (alac.uncompressed_bytes_buffer_a[i] & mask);
 							}
 
-							outbuffer.position(i * alac.numchannels * 3);
+							outbuffer.position((i * alac.numchannels + channel_index_a) * 3);
 							Util.putInt24(outbuffer, sample);
 
 						}
@@ -810,7 +812,7 @@ public class AlacDecodeUtils
 								sample = sample | (alac.uncompressed_bytes_buffer_a[i] & mask);
 							}
 
-							outbuffer.putInt(i * alac.numchannels * 4, sample);
+							outbuffer.putInt((i * alac.numchannels + channel_index_a) * 4, sample);
 
 						}
 						break;
@@ -827,6 +829,8 @@ public class AlacDecodeUtils
 
 				int interlacing_shift;
 				int interlacing_leftweight;
+				int channel_index_a = alac.channel_map[channel_index];
+				int channel_index_b = alac.channel_map[channel_index + 1];
 
 				readbits(alac, 4); // useless channel tag
 
@@ -971,7 +975,7 @@ public class AlacDecodeUtils
 							audiobits_b = (x ^ m) - m;        // sign extend 24 bits
 
 							alac.outputsamples_buffer[channel_index][i] = audiobits_a;
-							alac.outputsamples_buffer[channel_index][i] = audiobits_b;
+							alac.outputsamples_buffer[channel_index + 1][i] = audiobits_b;
 						}
 					}
 					uncompressed_bytes = 0; // always 0 for uncompressed
@@ -979,19 +983,18 @@ public class AlacDecodeUtils
 					interlacing_leftweight = 0;
 				}
 
-				// TODO: respect channel_index for surround.
 				switch (alac.setinfo_sample_size) {
 					case 16: {
-						deinterlace_16(alac.outputsamples_buffer[channel_index], alac.outputsamples_buffer[channel_index + 1], outbuffer, alac.numchannels, outputsamples, interlacing_shift, interlacing_leftweight);
+						deinterlace_16(alac.outputsamples_buffer[channel_index], alac.outputsamples_buffer[channel_index + 1], outbuffer, alac.numchannels, channel_index_a, channel_index_b, outputsamples, interlacing_shift, interlacing_leftweight);
 						break;
 					}
 					case 20: // output 20-bit input as 24-bit output
 					case 24: {
-						deinterlace_24(alac.outputsamples_buffer[channel_index], alac.outputsamples_buffer[channel_index + 1], uncompressed_bytes, alac.uncompressed_bytes_buffer_a, alac.uncompressed_bytes_buffer_b, outbuffer, alac.numchannels, outputsamples, interlacing_shift, interlacing_leftweight);
+						deinterlace_24(alac.outputsamples_buffer[channel_index], alac.outputsamples_buffer[channel_index + 1], uncompressed_bytes, alac.uncompressed_bytes_buffer_a, alac.uncompressed_bytes_buffer_b, outbuffer, alac.numchannels, channel_index_a, channel_index_b, outputsamples, interlacing_shift, interlacing_leftweight);
 						break;
 					}
 					case 32: {
-						deinterlace_32(alac.outputsamples_buffer[channel_index], alac.outputsamples_buffer[channel_index + 1], uncompressed_bytes, alac.uncompressed_bytes_buffer_a, alac.uncompressed_bytes_buffer_b, outbuffer, alac.numchannels, outputsamples, interlacing_shift, interlacing_leftweight);
+						deinterlace_32(alac.outputsamples_buffer[channel_index], alac.outputsamples_buffer[channel_index + 1], uncompressed_bytes, alac.uncompressed_bytes_buffer_a, alac.uncompressed_bytes_buffer_b, outbuffer, alac.numchannels, channel_index_a, channel_index_b, outputsamples, interlacing_shift, interlacing_leftweight);
 						break;
 					}
 				}

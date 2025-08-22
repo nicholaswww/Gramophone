@@ -27,6 +27,7 @@ public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoder
         this.inputFormat = inputFormat;
         this.file = AlacDecodeUtils.create_alac(
                 Util.getByteDepth(inputFormat.pcmEncoding) * 8, inputFormat.channelCount);
+        this.file.channel_map = getChannelMapping();
         AlacDecodeUtils.alac_set_info(file, ByteBuffer.wrap(inputFormat.initializationData.get(0)));
         int mp4MaxSize = inputFormat.maxInputSize != Format.NO_VALUE ? inputFormat.maxInputSize
                 : ALAC_MAX_PACKET_SIZE;
@@ -81,5 +82,19 @@ public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoder
         } finally {
             file.input_buffer = null;
         }
+    }
+
+    private int[] getChannelMapping() {
+        return switch (file.numchannels) {
+            case 1 -> new int[] { 0 };
+            case 2 -> new int[] { 0, 1 };
+            case 3 -> new int[] { 2, 0, 1 };
+            case 4 -> new int[] { 2, 0, 1, 3 }; // must be CHANNEL_OUT_QUAD_SURROUND (non-canonical)!
+            case 5 -> new int[] { 2, 0, 1, 3, 4 };
+            case 6 -> new int[] { 2, 0, 1, 4, 5, 3 };
+            case 7 -> new int[] { 2, 0, 1, 4, 5, 6, 3 };
+            case 8 -> new int[] { 2, 6, 7, 0, 1, 4, 5, 3 };
+            default -> throw new UnsupportedOperationException("invalid channel mask " + file.numchannels);
+        };
     }
 }

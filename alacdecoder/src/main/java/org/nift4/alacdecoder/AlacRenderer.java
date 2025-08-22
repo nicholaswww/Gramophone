@@ -1,6 +1,7 @@
 package org.nift4.alacdecoder;
 
 import android.os.Handler;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
@@ -42,6 +43,10 @@ public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
     @Override
     protected AlacDecoder createDecoder(@NonNull Format format, CryptoConfig cryptoConfig) {
         try {
+            if (format.channelCount == 4) {
+                Log.w("AlacDecoder", "FIXME: File will play back with wrong channel " +
+                        "mask. Fix is blocked by https://github.com/androidx/media/issues/1471");
+            }
             return new AlacDecoder(format, 16, 16);
         } catch (AlacDecoderException e) {
             throw new RuntimeException(e);
