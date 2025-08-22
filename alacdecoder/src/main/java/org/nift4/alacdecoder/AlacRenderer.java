@@ -17,8 +17,6 @@ import androidx.media3.exoplayer.audio.DecoderAudioRenderer;
 
 @OptIn(markerClass = UnstableApi.class)
 public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
-    private static final int ALAC_MAX_PACKET_SIZE = 16384;
-
     public AlacRenderer(Handler eventHandler, AudioRendererEventListener eventListener, AudioSink audioSink) {
         super(eventHandler, eventListener, audioSink);
     }
@@ -46,8 +44,7 @@ public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
     @NonNull
     @Override
     protected AlacDecoder createDecoder(@NonNull Format format, CryptoConfig cryptoConfig) {
-        return new AlacDecoder(format, 16, 16,
-                format.maxInputSize != Format.NO_VALUE ? format.maxInputSize : ALAC_MAX_PACKET_SIZE);
+        return new AlacDecoder(format, 16, 16);
     }
 
     @NonNull

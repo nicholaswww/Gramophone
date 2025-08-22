@@ -38,7 +38,7 @@ public class AlacFile
 
 
 	/* stuff from setinfo */
-	int setinfo_max_samples_per_frame = 0; // 0x1000 = 4096
+	public int setinfo_max_samples_per_frame = 0; // 0x1000 = 4096
 	int current_version = 0; // 0x00
 	int setinfo_sample_size = 0; // 0x10
 	int setinfo_rice_historymult = 0; // 0x28

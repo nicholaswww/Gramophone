@@ -1,7 +1,5 @@
 package org.nift4.alacdecoder;
 
-import android.util.Log;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
@@ -19,17 +17,21 @@ import java.nio.ByteBuffer;
 
 @OptIn(markerClass = UnstableApi.class)
 public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoderOutputBuffer, AlacDecoderException> {
+    private static final int ALAC_MAX_PACKET_SIZE = 16384;
+
     private final Format inputFormat;
     private final AlacFile file;
 
-    public AlacDecoder(Format inputFormat, int numInputBuffers, int numOutputBuffers,
-                       int initialInputBufferSize) {
+    public AlacDecoder(Format inputFormat, int numInputBuffers, int numOutputBuffers) {
         super(new DecoderInputBuffer[numInputBuffers], new SimpleDecoderOutputBuffer[numOutputBuffers]);
-        setInitialInputBufferSize(initialInputBufferSize);
         this.inputFormat = inputFormat;
         this.file = AlacDecodeUtils.create_alac(
                 Util.getByteDepth(inputFormat.pcmEncoding) * 8, inputFormat.channelCount);
         AlacDecodeUtils.alac_set_info(file, ByteBuffer.wrap(inputFormat.initializationData.get(0)));
+        int mp4MaxSize = inputFormat.maxInputSize != Format.NO_VALUE ? inputFormat.maxInputSize
+                : ALAC_MAX_PACKET_SIZE;
+        setInitialInputBufferSize(Math.min(
+                file.bytespersample * file.setinfo_max_samples_per_frame, mp4MaxSize));
     }
 
     public Format getInputFormat() {
