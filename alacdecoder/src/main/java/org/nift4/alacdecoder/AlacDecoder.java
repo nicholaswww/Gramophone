@@ -65,12 +65,11 @@ public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoder
     protected AlacDecoderException decode(@NonNull DecoderInputBuffer inputBuffer,
                                           @NonNull SimpleDecoderOutputBuffer outputBuffer,
                                           boolean reset) {
-        outputBuffer.init(inputBuffer.timeUs, 4096 * file.bytespersample);
         if (!Util.castNonNull(inputBuffer.data).hasArray())
             return new AlacDecoderException("input has no array");
         if (inputBuffer.hasSupplementalData())
             return new AlacDecoderException("input has extra data, why?");
-        int limit = AlacDecodeUtils.decode_frame(file, inputBuffer.data.array(), outputBuffer.data);
+        int limit = AlacDecodeUtils.decode_frame(file, inputBuffer, outputBuffer);
         Util.castNonNull(outputBuffer.data).position(0);
         outputBuffer.data.limit(limit);
         return null;

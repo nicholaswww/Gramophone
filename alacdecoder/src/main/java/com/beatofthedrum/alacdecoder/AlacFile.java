@@ -18,14 +18,13 @@ public class AlacFile
 	int input_buffer_bitaccumulator = 0; /* used so we can do arbitary
 						bit reads */
 
-	int samplesize = 0;
 	int numchannels = 0;
 	public int bytespersample = 0;
 
     LeadingZeros lz = new LeadingZeros();
 
 
-    private int buffer_size = 16384;
+    private final int buffer_size = 16384;
     /* buffers */
 	int predicterror_buffer_a[] = new int[buffer_size];
 	int predicterror_buffer_b[] = new int[buffer_size];

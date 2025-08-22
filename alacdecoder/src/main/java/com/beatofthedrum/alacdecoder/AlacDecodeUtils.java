@@ -13,6 +13,8 @@ package com.beatofthedrum.alacdecoder;
 import androidx.annotation.OptIn;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
+import androidx.media3.decoder.DecoderInputBuffer;
+import androidx.media3.decoder.SimpleDecoderOutputBuffer;
 
 import java.nio.ByteBuffer;
 
@@ -566,14 +568,14 @@ public class AlacDecodeUtils
 	}
 
 
-	public static int decode_frame(AlacFile alac, byte[] inbuffer, ByteBuffer outbuffer)
+	public static int decode_frame(AlacFile alac, DecoderInputBuffer decinbuffer, SimpleDecoderOutputBuffer decoutbuffer)
 	{
 		int channels ;
 		int outputsize;
 		int outputsamples  = alac.setinfo_max_samples_per_frame;
 
-		/* setup the stream */
-		alac.input_buffer = inbuffer;
+        /* setup the stream */
+		alac.input_buffer = Util.castNonNull(decinbuffer.data).array();
 		alac.input_buffer_bitaccumulator = 0;
 		alac.ibIdx = 0;
 
@@ -613,6 +615,9 @@ public class AlacDecodeUtils
 				outputsamples = readbits(alac, 32);
 				outputsize = outputsamples * alac.bytespersample;
 			}
+
+			decoutbuffer.init(decinbuffer.timeUs, outputsize);
+			ByteBuffer outbuffer = decoutbuffer.data;
 
 			readsamplesize = alac.setinfo_sample_size - (uncompressed_bytes * 8);
 
@@ -801,6 +806,9 @@ public class AlacDecodeUtils
 				outputsize = outputsamples * alac.bytespersample;
 			}
 
+			decoutbuffer.init(decinbuffer.timeUs, outputsize);
+			ByteBuffer outbuffer = decoutbuffer.data;
+
 			readsamplesize = alac.setinfo_sample_size - (uncompressed_bytes * 8) + 1;
 
 			if (isnotcompressed == 0)
@@ -980,7 +988,6 @@ public class AlacDecodeUtils
 	{
 		AlacFile newfile = new AlacFile();
 
-		newfile.samplesize = samplesize;
 		newfile.numchannels = numchannels;
 		newfile.bytespersample = (samplesize / 8) * numchannels;
 
