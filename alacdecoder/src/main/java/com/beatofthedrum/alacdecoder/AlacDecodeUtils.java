@@ -863,7 +863,7 @@ public class AlacDecodeUtils
 			{
 				/* now read the number of samples,
 				 * as a 32bit integer */
-				outputsamples = readbits(alac, 32);	
+				outputsamples = readbits(alac, 32);
 				outputsize = outputsamples * alac.bytespersample;
 			}
 
@@ -899,7 +899,7 @@ public class AlacDecodeUtils
 				predictor_coef_num_a = readbits(alac, 5);
 
 				/* read the predictor table */
-				
+
 				for (int i = 0; i < predictor_coef_num_a; i++)
 				{
 					tempPred = readbits(alac,16);
@@ -969,7 +969,7 @@ public class AlacDecodeUtils
 				if (alac.setinfo_sample_size <= 16)
 				{
 					int bitsmove ;
-					
+
 					for (int i = 0; i < outputsamples; i++)
 					{
 						int audiobits_a ;
@@ -977,7 +977,7 @@ public class AlacDecodeUtils
 
 						audiobits_a = readbits(alac, alac.setinfo_sample_size);
 						audiobits_b = readbits(alac, alac.setinfo_sample_size);
-						
+
 						bitsmove = 32 - alac.setinfo_sample_size;
 
 						audiobits_a = ((audiobits_a << bitsmove) >> bitsmove);
@@ -1037,12 +1037,35 @@ public class AlacDecodeUtils
 				break;
 			}
 			}
-		} else if (channels == 4 || channels == 6 || channels == 7) {
-			// all of these aren't even needed for decoding, can't we just ignore them?
-			throw new UnsupportedOperationException("FIXME: tag " + channels + " not yet supported, patch welcome");
+		} else if (channels == 4) {
+			int size = readbits(alac, 4);
+			if (size == 15)
+				size += readbits(alac, 8) - 1;
+			alac.ibIdx += size / 8;
+			alac.input_buffer_bitaccumulator += size % 8;
+			if (alac.input_buffer_bitaccumulator >= 8) {
+				alac.ibIdx++;
+				alac.input_buffer_bitaccumulator -= 8;
+			}
+		} else if (channels == 6) {
+			readbits(alac, 4);
+			boolean align = readbit(alac) != 0;
+			int size = readbits(alac, 8);
+			if (size == 255)
+				size += readbits(alac, 8);
+			if (align && alac.input_buffer_bitaccumulator > 0) {
+				alac.input_buffer_bitaccumulator = 0;
+				alac.ibIdx++;
+			}
+			alac.ibIdx += size / 8;
+			alac.input_buffer_bitaccumulator += size % 8;
+			if (alac.input_buffer_bitaccumulator >= 8) {
+				alac.ibIdx++;
+				alac.input_buffer_bitaccumulator -= 8;
+			}
 		} else if (channels == 2 || channels == 5) {
 			throw new AlacDecoderException("refalac does not support tag " + channels + ", is this file corrupt? or is there a new version of ALAC?");
-		} else {
+		} else if (channels != 7) { // 7 = ID_END, stream ending
 			throw new AlacDecoderException("undefined tag " + channels + ", is this file corrupt? or is there a new version of ALAC?");
 		}
 		if (alac.input_buffer_bitaccumulator > 0) {
