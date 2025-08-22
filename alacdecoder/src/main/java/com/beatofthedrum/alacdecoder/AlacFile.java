@@ -26,8 +26,7 @@ public class AlacFile
 
     final int buffer_size = 16384;
     /* buffers */
-	int[] outputsamples_buffer_a = new int[buffer_size];
-	int[] outputsamples_buffer_b = null;
+	int[][] outputsamples_buffer;
 
 	int[] uncompressed_bytes_buffer_a = null;
 	int[] uncompressed_bytes_buffer_b = null;
