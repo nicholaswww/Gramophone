@@ -11,6 +11,7 @@
 package com.beatofthedrum.alacdecoder;
 
 import androidx.annotation.OptIn;
+import androidx.media3.common.util.Log;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
 import androidx.media3.decoder.DecoderInputBuffer;
@@ -60,12 +61,16 @@ public class AlacDecodeUtils
 		int result;
 		int new_accumulator;
 		int part1;
-		int part2;
-		int part3;
+		int part2 = 0;
+		int part3 = 0;
 		
 		part1 = (alac.input_buffer[alac.ibIdx] & 0xff);
-		part2 = (alac.input_buffer[alac.ibIdx + 1] & 0xff);
-		part3 = (alac.input_buffer[alac.ibIdx + 2] & 0xff);		
+		if (alac.input_buffer_bitaccumulator + bits > 8) {
+			part2 = (alac.input_buffer[alac.ibIdx + 1] & 0xff);
+		}
+		if (alac.input_buffer_bitaccumulator + bits > 16) {
+			part3 = (alac.input_buffer[alac.ibIdx + 2] & 0xff);
+		}
 		
 		result = ((part1 << 16) | (part2 << 8) | part3);
 
@@ -535,7 +540,7 @@ public class AlacDecodeUtils
 				right = midright - ((difference * interlacing_leftweight) >> interlacing_shift);
 				left = right + difference;
 
-				if (uncompressed_bytes != 0)
+				if (uncompressed_bytes != 0 && uncompressed_bytes_buffer_a != null)
 				{
 					int mask = ~(0xFFFFFFFF << (uncompressed_bytes * 8));
 					left <<= (uncompressed_bytes * 8);
@@ -563,7 +568,7 @@ public class AlacDecodeUtils
 			left = buffer_a[i];
 			right = buffer_b[i];
 
-			if (uncompressed_bytes != 0)
+			if (uncompressed_bytes != 0 && uncompressed_bytes_buffer_a != null)
 			{
 				int mask = ~(0xFFFFFFFF << (uncompressed_bytes * 8));
 				left <<= (uncompressed_bytes * 8);
@@ -648,9 +653,7 @@ public class AlacDecodeUtils
 
 
 	public static int decode_frame(AlacFile alac, DecoderInputBuffer decinbuffer, SimpleDecoderOutputBuffer decoutbuffer) throws AlacDecoderException {
-		int frame_type ;
-		int outputsize;
-		int outputsamples  = alac.setinfo_max_samples_per_frame;
+		int outputsize = 0;
 		int channel_index = 0;
 
         /* setup the stream */
@@ -658,11 +661,23 @@ public class AlacDecodeUtils
 		alac.input_buffer_bitaccumulator = 0;
 		alac.ibIdx = 0;
 
-
 		while (true) {
+			int frame_type;
+			int outputsamples  = alac.setinfo_max_samples_per_frame;
+			int newoutputsize;
+			if (alac.input_buffer_bitaccumulator > 5) {
+				if (alac.ibIdx + 1 >= alac.input_buffer.length)
+					break;
+			} else {
+				if (alac.ibIdx >= alac.input_buffer.length)
+					break;
+			}
 			frame_type = readbits(alac, 3);
-
-			outputsize = outputsamples * alac.bytespersample;
+			if (frame_type == 0 && channel_index >= alac.channel_map.length &&
+					alac.ibIdx + 1 >= alac.input_buffer.length) {
+				// this file is missing an end frame and just has it zeroed out.
+				break;
+			}
 
 			if (frame_type == 0 || frame_type == 3) // 1 channel
 			{
@@ -690,10 +705,18 @@ public class AlacDecodeUtils
 					/* now read the number of samples,
 					 * as a 32bit integer */
 					outputsamples = readbits(alac, 32);
-					outputsize = outputsamples * alac.bytespersample;
+                }
+				newoutputsize = outputsamples * alac.bytespersample;
+				if (newoutputsize > outputsize) {
+					outputsize = newoutputsize;
 				}
 
-				decoutbuffer.init(decinbuffer.timeUs, outputsize);
+				if (decoutbuffer.data == null) {
+					decoutbuffer.init(decinbuffer.timeUs, outputsize);
+				} else if (outputsize > decoutbuffer.data.limit()) {
+					Log.w("AlacDecoder", "had to grow buffer, shouldn't happen");
+					decoutbuffer.grow(outputsize);
+				}
 				ByteBuffer outbuffer = Util.castNonNull(decoutbuffer.data);
 
 				readsamplesize = alac.setinfo_sample_size - (uncompressed_bytes * 8);
@@ -846,10 +869,18 @@ public class AlacDecodeUtils
 					/* now read the number of samples,
 					 * as a 32bit integer */
 					outputsamples = readbits(alac, 32);
-					outputsize = outputsamples * alac.bytespersample;
+				}
+				newoutputsize = outputsamples * alac.bytespersample;
+				if (newoutputsize > outputsize) {
+					outputsize = newoutputsize;
 				}
 
-				decoutbuffer.init(decinbuffer.timeUs, outputsize);
+				if (decoutbuffer.data == null) {
+					decoutbuffer.init(decinbuffer.timeUs, outputsize);
+				} else if (outputsize > decoutbuffer.data.limit()) {
+					Log.w("AlacDecoder", "had to grow buffer, shouldn't happen");
+					decoutbuffer.grow(outputsize);
+				}
 				ByteBuffer outbuffer = Util.castNonNull(decoutbuffer.data);
 
 				readsamplesize = alac.setinfo_sample_size - (uncompressed_bytes * 8) + 1;
@@ -1003,12 +1034,7 @@ public class AlacDecodeUtils
 				int size = readbits(alac, 4);
 				if (size == 15)
 					size += readbits(alac, 8) - 1;
-				alac.ibIdx += size / 8;
-				alac.input_buffer_bitaccumulator += size % 8;
-				if (alac.input_buffer_bitaccumulator >= 8) {
-					alac.ibIdx++;
-					alac.input_buffer_bitaccumulator -= 8;
-				}
+				alac.ibIdx += size;
 			} else if (frame_type == 6) {
 				readbits(alac, 4);
 				boolean align = readbit(alac) != 0;
@@ -1019,12 +1045,7 @@ public class AlacDecodeUtils
 					alac.input_buffer_bitaccumulator = 0;
 					alac.ibIdx++;
 				}
-				alac.ibIdx += size / 8;
-				alac.input_buffer_bitaccumulator += size % 8;
-				if (alac.input_buffer_bitaccumulator >= 8) {
-					alac.ibIdx++;
-					alac.input_buffer_bitaccumulator -= 8;
-				}
+				alac.ibIdx += size;
 			} else if (frame_type == 2 || frame_type == 5) {
 				throw new AlacDecoderException("refalac does not support tag " + frame_type + ", is this file corrupt? or is there a new version of ALAC?");
 			} else if (frame_type == 7) {
