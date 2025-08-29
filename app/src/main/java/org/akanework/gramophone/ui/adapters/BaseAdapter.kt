@@ -458,6 +458,9 @@ abstract class BaseAdapter<T : Any>(
             } else
                 return ""
         }
+        if (sorter.sortingHelper.canGetAlbumTitle()) {
+            return sorter.sortingHelper.getAlbumTitle(item) ?: "null"
+        }
         return "null"
     }
 
