@@ -434,8 +434,9 @@ object AudioFormatDetector {
         private fun StringBuilder.prettyPrintAfFormatInfo(context: Context, format: AfFormatInfo) {
             append("Mix port: ${format.mixPortName} (ID: ${format.mixPortId})\n")
             append("Mix port flags: ${mixPortFlagsToString(context, format.mixPortFlags)}")
-            append(" (fast: ${format.mixPortFast})\n")
-            append("Mix port device hw module ID: ${format.mixPortHwModule}\n")
+            if (format.mixPortFast != null)
+                append(" (fast: ${format.mixPortFast})")
+            append("\nMix port hw module ID: ${format.mixPortHwModule}\n")
             append("I/O handle: ${format.ioHandle}\n")
             append("Sample rate: ${format.sampleRateHz} Hz\n")
             append(

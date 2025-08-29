@@ -297,7 +297,7 @@ Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_findAfFlagsForPortInterna
                 pos -= sizeof(unsigned int) / sizeof(uint8_t);
                 if (buffer < pos && *((unsigned int *) pos) == io) {
                     if (i-- == 1) {
-                        gIoHandle2Offset = buffer < pos ? pos - buffer : 0;
+						gIoHandle2Offset = buffer < pos ? pos - buffer : 0;
                     } else
                         break;
                 }
@@ -320,16 +320,23 @@ Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_findAfFlagsForPortInterna
             free(buffer);
             return nullptr;
         }
-        uint8_t *maxPos = buffer + gIoHandle2Offset + sizeof(uint32_t) / sizeof(uint8_t);
-        if (maxPos >= buffer + BUFFER_SIZE) {
-            ALOGE("maxPos(%p) >= buffer(%p) + BUFFER_SIZE(%d) (id(%d) io(%d))",
-                  maxPos, buffer, BUFFER_SIZE, id, io);
-            gIoHandleOffset = 0;
-            free(buffer);
-            return nullptr;
-        }
+	    uint8_t *maxPos;
+	    if (android_get_device_api_level() < 33) {
+		    maxPos = buffer + gIoHandle2Offset + sizeof(uint32_t) / sizeof(uint8_t);
+	    } else {
+			maxPos = pos;
+		}
+	    if (maxPos >= buffer + BUFFER_SIZE) {
+		    ALOGE("maxPos(%p) >= buffer(%p) + BUFFER_SIZE(%d) (id(%d) io(%d))",
+		          maxPos, buffer, BUFFER_SIZE, id, io);
+		    gIoHandleOffset = 0;
+		    free(buffer);
+		    return nullptr;
+	    }
 #undef BUFFER_SIZE
-        out[5] = (int32_t) (*((uint32_t *) maxPos)); // port.ext.mix.latency_class
+	    if (android_get_device_api_level() < 33) {
+		    out[5] = (int32_t) (*((uint32_t *) maxPos)); // port.ext.mix.latency_class
+	    }
         /*
          * unsigned int             sample_rate;       <--- we want to go here
          * audio_channel_mask_t     channel_mask;

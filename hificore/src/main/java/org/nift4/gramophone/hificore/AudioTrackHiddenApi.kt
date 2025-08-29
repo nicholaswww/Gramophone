@@ -393,7 +393,8 @@ object AudioTrackHiddenApi {
         return MixPort(id, ioHandle, name, flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
             mixPortData?.get(3) else null, channelMask = mixPortData?.get(2),
             format = mixPortData?.get(1)?.toUInt(), sampleRate = mixPortData?.get(0)?.toUInt(),
-            hwModule = mixPortData?.get(4), fast = mixPortData?.let { it[5] == 0 }) // TODO fast is wrong on recent Android versions (fine on O)?
+            hwModule = mixPortData?.get(4), fast = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+                mixPortData?.let { it[5] == 0 } else null)
     }
 
     private val idRegex = Regex(".*id\\((.*)\\) .*")
