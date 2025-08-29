@@ -26,7 +26,6 @@
     <string name="settings_app_name">Nombre de la aplicación</string>
     <string name="settings_content_based_color">Habilitar colores basados en el contenido</string>
     <string name="dialog_track_number">Número de pista</string>
-    <string name="folders">Carpetas</string>
     <plurals name="artists">
         <item quantity="one">%d Artista</item>
         <item quantity="many">%d Artistas</item>

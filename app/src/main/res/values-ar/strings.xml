@@ -50,7 +50,6 @@
     <string name="settings_title_bold_summary">تغميق اسم الأغنية في المُشَغِّل الكامل</string>
     <string name="unknown_title">اسمٌ غير معروف</string>
     <string name="dialog_track_number">رقم الأغنية</string>
-    <string name="folders">المُجَلَّدات</string>
     <plurals name="artists">
         <item quantity="zero">لا فنّانين</item>
         <item quantity="one">فنّانٌ واحد (%d)</item>

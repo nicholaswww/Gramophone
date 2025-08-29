@@ -136,7 +136,6 @@
     <string name="dialog_genre">Žánr</string>
     <string name="dialog_year">Rok</string>
     <string name="recently_added">Nedávno přidané</string>
-    <string name="folders">Složky</string>
     <string name="now_playing">Nyní se přehrává</string>
     <string name="settings_customization_summary">Správa vlastních nastavení</string>
     <string name="sort_by_modified_date">Datum modifikace</string>

@@ -49,7 +49,6 @@
     <string name="natural_order">Natürliche Sortierung</string>
     <string name="light">Hell</string>
     <string name="dialog_track_number">Titelnummer</string>
-    <string name="folders">Ordner</string>
     <plurals name="artists">
         <item quantity="one">%d Interpret</item>
         <item quantity="other">%d Interpreten</item>

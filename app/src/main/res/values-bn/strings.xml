@@ -42,7 +42,6 @@
     <string name="natural_order">স্বাভাবিক ক্রম</string>
     <string name="light">আলো</string>
     <string name="dialog_track_number">গানের নম্বর</string>
-    <string name="folders">ফোল্ডারগুলো</string>
     <string name="unknown_playlist">অজানা প্লেলিস্ট</string>
     <string name="dialog_year">সাল</string>
     <string name="home_menu_settings">সেটিংস</string>
@@ -203,4 +202,7 @@
     <string name="timer_expiry">স্লিপ টাইমারটি %s-এ মিউজিককে সাময়িকভাবে বন্ধ করবে</string>
     <string name="open_in_gramophone">গ্রামোফোনে খুলুন</string>
     <string name="playlist_name">প্লেলিস্ট এর নাম</string>
+    <string name="rename">নাম পরিবর্তন</string>
+    <string name="rename_failed_playlist">প্লেলিস্টের নাম পরিবর্তন ব্যর্থ হয়েছে</string>
+    <string name="rename_playlist">প্লেলিস্টের নাম পরিবর্তন</string>
 </resources>

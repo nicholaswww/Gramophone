@@ -129,7 +129,6 @@
     <string name="follow_system">După sistem</string>
     <string name="settings_player_ui_summary">Interfață player completă, versuri</string>
     <string name="settings_category_full_player">Player complet</string>
-    <string name="folders">Dosare</string>
     <string name="settings_blacklist_folder_summary">Filtrează piesele din anumite dosare</string>
     <string name="category_playlists">Liste de redare</string>
     <string name="sort_by_name">Nume</string>

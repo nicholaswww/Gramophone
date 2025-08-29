@@ -40,7 +40,6 @@
     <string name="dialog_title">عنوان</string>
     <string name="settings_version">نسخه</string>
     <string name="dialog_album_artist">هنرمند آلبوم</string>
-    <string name="folders">پوشه‌ها</string>
     <string name="settings_mediastore_filter">کمینۀ طول آهنگ (ثانیه)</string>
     <string name="dialog_path">مسیر</string>
     <string name="recently_added">به تازگی افزوده شده</string>
