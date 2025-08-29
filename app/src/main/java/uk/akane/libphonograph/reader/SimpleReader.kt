@@ -34,7 +34,7 @@ object SimpleReader {
             result.artistList!!,
             result.genreList!!,
             result.dateList!!,
-            playlists.map { it.toPlaylist(result.idMap) }.let {
+            playlists.map { it.toPlaylist(result.idMap, result.pathMap) }.let {
                 if (recentlyAddedFilterSecond != null)
                     it + RecentlyAdded(
                         (System.currentTimeMillis() / 1000L) - recentlyAddedFilterSecond,

@@ -38,6 +38,7 @@ import uk.akane.libphonograph.items.EXTRA_MODIFIED_DATE
 import uk.akane.libphonograph.items.FileNode
 import uk.akane.libphonograph.items.Genre
 import uk.akane.libphonograph.items.RawPlaylist
+import uk.akane.libphonograph.manipulator.PlaylistSerializer
 import uk.akane.libphonograph.putIfAbsentSupport
 import uk.akane.libphonograph.toUriCompat
 import uk.akane.libphonograph.utils.MiscUtils
@@ -169,6 +170,7 @@ internal object Reader {
         val genreMap = if (shouldLoadGenres) hashMapOf<String?, Genre>() else null
         val dateMap = if (shouldLoadDates) hashMapOf<Int?, Date>() else null
         val idMap = if (shouldLoadIdMap) hashMapOf<Long, MediaItem>() else null
+        val pathMap = if (shouldLoadIdMap) hashMapOf<String, MediaItem>() else null
         val cursor = context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             projection,
@@ -224,7 +226,7 @@ internal object Reader {
                         duration < minSongLengthSeconds * 1000) || (fldPath == null
                         || blackListSet.contains(fldPath))
                 // We need to add blacklisted songs to idMap as they can be referenced by playlist
-                if (skip && idMap == null) continue
+                if (skip && idMap == null && pathMap == null) continue
                 val id = it.getLongOrNullIfThrow(idColumn)!!
                 val title = it.getStringOrNullIfThrow(titleColumn)!!
                 val artist: String?
@@ -349,6 +351,8 @@ internal object Reader {
                     ).build()
                 // Build our metadata maps/lists.
                 idMap?.put(id, song)
+                if (path != null)
+                    pathMap?.put(path, song)
                 // Now that the song can be found by playlists, do NOT register other metadata.
                 if (skip) continue
                 songs.add(song)
@@ -448,6 +452,7 @@ internal object Reader {
             genreList,
             dateList,
             idMap,
+            pathMap,
             root,
             shallowRoot,
             folders
@@ -485,7 +490,7 @@ internal object Reader {
             while (it.moveToNext()) {
                 val playlistId = it.getLong(playlistIdColumn)
                 val playlistName = it.getString(playlistNameColumn)?.ifEmpty { null }
-                val playlistPath = it.getString(playlistPathColumn)?.ifEmpty { null }
+                val playlistPath = it.getString(playlistPathColumn)?.ifEmpty { null }?.let { p -> File(p) }
                 val playlistDateAdded = it.getLongOrNullIfThrow(playlistDateAddedColumn)
                 val playlistDateModified = it.getLongOrNullIfThrow(playlistDateModifiedColumn)
                 val content = mutableListOf<Long?>()
@@ -515,8 +520,16 @@ internal object Reader {
                         content.add(cursor.getLong(column))
                     }
                 }
-                playlists.add(RawPlaylist(playlistId, playlistName, playlistPath?.let { File(it) },
-                    playlistDateAdded, playlistDateModified, content))
+                val paths = try {
+                    playlistPath?.let { p -> PlaylistSerializer.read(p).map { if (it.isFile) it else null } }
+                } catch (_: PlaylistSerializer.UnsupportedPlaylistFormatException) {
+                    null
+                }
+                if (paths != null && content.size > paths.size) {
+                    throw IllegalStateException("playlist $playlistName failed to parse: $content, $paths")
+                }
+                playlists.add(RawPlaylist(playlistId, playlistName, playlistPath,
+                    playlistDateAdded, playlistDateModified, content, paths))
             }
         }
         return Pair(playlists, foundPlaylistContent)

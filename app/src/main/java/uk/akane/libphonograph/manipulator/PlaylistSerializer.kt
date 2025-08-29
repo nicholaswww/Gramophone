@@ -2,6 +2,7 @@ package uk.akane.libphonograph.manipulator
 
 import android.content.Context
 import android.media.MediaScannerConnection
+import android.net.Uri
 import android.util.Log
 import java.io.File
 
@@ -36,7 +37,8 @@ object PlaylistSerializer {
         return when (format) {
             PlaylistFormat.M3u -> {
                 val lines = outFile.readLines()
-                lines.filter { !it.startsWith('#') }.map { outFile.resolveSibling(it) }
+                lines.filter { !it.startsWith('#') }.map { Uri.decode(it) }
+                    .map { outFile.resolveSibling(it) }
             }
             PlaylistFormat.Xspf -> TODO()
             PlaylistFormat.Wpl -> TODO()

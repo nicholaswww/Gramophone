@@ -12,6 +12,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.media3.common.Player
+import androidx.media3.session.MediaBrowser
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
@@ -23,16 +24,16 @@ import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.utils.LifecycleCallbackListImpl
 
 class MediaControllerViewModel(application: Application) : AndroidViewModel(application),
-    DefaultLifecycleObserver, MediaController.Listener {
+    DefaultLifecycleObserver, MediaBrowser.Listener {
 
     private val context: GramophoneApplication
         get() = getApplication()
     private var controllerLifecycle: LifecycleHost? = null
-    private var controllerFuture: ListenableFuture<MediaController>? = null
+    private var controllerFuture: ListenableFuture<MediaBrowser>? = null
     private val customCommandListenersImpl = LifecycleCallbackListImpl<
                 (MediaController, SessionCommand, Bundle) -> ListenableFuture<SessionResult>>()
     private val connectionListenersImpl =
-        LifecycleCallbackListImpl<LifecycleCallbackListImpl.Disposable.(MediaController, Lifecycle) -> Unit>()
+        LifecycleCallbackListImpl<LifecycleCallbackListImpl.Disposable.(MediaBrowser, Lifecycle) -> Unit>()
     val customCommandListeners
         get() = customCommandListenersImpl.toBaseInterface()
     val connectionListeners
@@ -44,7 +45,7 @@ class MediaControllerViewModel(application: Application) : AndroidViewModel(appl
         val lc = LifecycleHost()
         controllerLifecycle = lc
         controllerFuture =
-            MediaController
+            MediaBrowser
                 .Builder(context, sessionToken)
                 .setListener(this)
                 .buildAsync()
@@ -84,7 +85,7 @@ class MediaControllerViewModel(application: Application) : AndroidViewModel(appl
 
     fun addControllerCallback(
         lifecycle: Lifecycle?,
-        callback: LifecycleCallbackListImpl.Disposable.(MediaController, Lifecycle) -> Unit
+        callback: LifecycleCallbackListImpl.Disposable.(MediaBrowser, Lifecycle) -> Unit
     ) {
         // TODO migrate this to kt flows or LiveData?
         val instance = get()
@@ -108,7 +109,7 @@ class MediaControllerViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    fun get(): MediaController? {
+    fun get(): MediaBrowser? {
         if (controllerFuture?.isDone == true && controllerFuture?.isCancelled == false) {
             return controllerFuture!!.get()
         }
