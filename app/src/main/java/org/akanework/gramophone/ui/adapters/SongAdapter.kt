@@ -62,10 +62,11 @@ class SongAdapter(
     canSort: Boolean,
     helper: Sorter.NaturalOrderHelper<MediaItem>?,
     ownsView: Boolean,
-    isSubFragment: Boolean = false,
+    isSubFragment: Int? = null,
     allowDiffUtils: Boolean = false,
-    rawOrderExposed: Boolean = !isSubFragment,
-    fallbackSpans: Int = 1
+    rawOrderExposed: Boolean = isSubFragment == null,
+    fallbackSpans: Int = 1,
+    val folder: Boolean = false
 ) : BaseAdapter<MediaItem>
     (
     fragment,
@@ -74,7 +75,8 @@ class SongAdapter(
     naturalOrderHelper = if (canSort) helper else null,
     initialSortType = if (canSort)
         (if (helper != null) Sorter.Type.NaturalOrder else
-            (if (rawOrderExposed) Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending))
+            (if (folder) Sorter.Type.ByFilePathAscending else
+                if (rawOrderExposed) Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending))
     else Sorter.Type.None,
     canSort = canSort,
     pluralStr = R.plurals.songs,
@@ -154,6 +156,10 @@ class SongAdapter(
 
     override fun virtualTitleOf(item: MediaItem): String {
         return "null"
+    }
+
+    override fun titleOf(item: MediaItem): String? {
+        return if (folder) item.getFile()?.name else super.titleOf(item)
     }
 
     override fun onClick(item: MediaItem) {

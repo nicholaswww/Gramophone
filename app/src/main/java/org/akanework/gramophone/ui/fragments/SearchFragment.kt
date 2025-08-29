@@ -67,7 +67,7 @@ class SearchFragment : BaseFragment(true) {
         val songAdapter =
             SongAdapter(
                 this, songList,
-                true, null, false, isSubFragment = true,
+                true, null, false, isSubFragment = R.id.search,
                 allowDiffUtils = true, rawOrderExposed = true
             )
         val returnButton = rootView.findViewById<Button>(R.id.return_button)

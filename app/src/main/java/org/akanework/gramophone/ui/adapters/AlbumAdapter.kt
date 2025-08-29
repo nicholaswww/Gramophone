@@ -31,7 +31,7 @@ class AlbumAdapter(
     fragment: Fragment,
     liveData: Flow<List<Album>?> = (fragment.requireActivity() as MainActivity).reader.albumListFlow,
     ownsView: Boolean = true,
-    isSubFragment: Boolean = false,
+    isSubFragment: Int? = null,
     fallbackSpans: Int = 1
 ) : BaseAdapter<Album>
     (

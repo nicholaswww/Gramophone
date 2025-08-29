@@ -160,7 +160,7 @@ class GeneralSubFragment : BaseFragment(true) {
                 canSort = true,
                 helper,
                 ownsView = true,
-                isSubFragment = true
+                isSubFragment = itemType
             )
 
         recyclerView.enableEdgeToEdgePaddingListener()

@@ -289,7 +289,7 @@ class Sorter<T>(
             }
 
             Type.ByFilePathDescending, Type.ByFilePathAscending -> {
-                null // can probably not do anything better
+                sortingHelper.getFile(item).name.firstOrNull()?.toString()
             }
 
             Type.BySizeDescending, Type.BySizeAscending -> {

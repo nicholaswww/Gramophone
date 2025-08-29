@@ -27,6 +27,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.widget.PopupMenu
+import androidx.core.view.doOnLayout
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
@@ -83,7 +84,7 @@ abstract class BaseAdapter<T : Any>(
     private val pluralStr: Int,
     val ownsView: Boolean,
     defaultLayoutType: LayoutType,
-    private val isSubFragment: Boolean = false,
+    val isSubFragment: Int? = null,
     rawOrderExposed: Boolean = false,
     private val allowDiffUtils: Boolean = false,
     private val canSort: Boolean = true,
@@ -116,12 +117,12 @@ abstract class BaseAdapter<T : Any>(
     private var prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
     @Suppress("LeakingThis")
-    private var prefSortType: Sorter.Type = Sorter.Type.valueOf(
+    private var prefSortType: Sorter.Type = if (canSort) Sorter.Type.valueOf(
         prefs.getStringStrict(
             "S" + getAdapterType(this).toString(),
             Sorter.Type.None.toString()
         )!!
-    )
+    ) else Sorter.Type.None
 
     private var gridPaddingDecoration = GridPaddingDecoration(context)
 
@@ -163,14 +164,17 @@ abstract class BaseAdapter<T : Any>(
         }
     val sortType: MutableStateFlow<Sorter.Type> = MutableStateFlow(
         if (prefSortType != Sorter.Type.None && prefSortType != initialSortType
-            && sortTypes.contains(prefSortType) && !isSubFragment
+            && sortTypes.contains(prefSortType)
         )
             prefSortType
         else
             initialSortType
     )
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val flow = liveDataAgent.flatMapLatest { it }.combine(sortType) { it, st ->
+    private val flow = liveDataAgent.flatMapLatest { it }
+        .sharePauseableIn(CoroutineScope(Dispatchers.Default),
+            SharingStarted.WhileSubscribed(), replay = 0)
+        .combine(sortType) { it, st ->
         val l = it ?: emptyList()
         l to ArrayList(l).apply {
             val cmp = sorter.getComparator(st)
@@ -189,7 +193,7 @@ abstract class BaseAdapter<T : Any>(
         get() = if (canSort) sorter.getSupportedTypes() else setOf(Sorter.Type.None)
 
     init {
-        val mayBlock = isSubFragment
+        val mayBlock = isSubFragment != null
         var blockMutex = if (mayBlock) Mutex() else null
         var onListLoadedCompleter = if (mayBlock)
             CompletableDeferred<Pair<Pair<List<T>, List<T>>, Pair<DiffUtil.DiffResult?, Boolean>>>() else null
@@ -202,7 +206,9 @@ abstract class BaseAdapter<T : Any>(
                 @SuppressLint("NotifyDataSetChanged") notifyDataSetChanged()
             if (sizeChanged) decorAdapter.updateSongCounter()
             onListUpdated()
-            recyclerView?.post { reportFullyDrawn() }
+            recyclerView?.doOnLayout {
+                recyclerView?.postOnAnimation { reportFullyDrawn() }
+            }
         }
         repeatPausingWithLifecycle(fragment.viewLifecycleOwner, Dispatchers.Default) {
             flow.collectLatest {
@@ -255,7 +261,7 @@ abstract class BaseAdapter<T : Any>(
             }
         }
         layoutType =
-            if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType && !isSubFragment)
+            if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType)
                 prefLayoutType
             else
                 defaultLayoutType
@@ -284,7 +290,9 @@ abstract class BaseAdapter<T : Any>(
             }
         }
         if (list != null) {
-            recyclerView.post { reportFullyDrawn() }
+            recyclerView.doOnLayout {
+                recyclerView.postOnAnimation { reportFullyDrawn() }
+            }
         }
     }
 
@@ -329,7 +337,7 @@ abstract class BaseAdapter<T : Any>(
     protected open fun onListUpdated() {}
 
     protected open fun createDecorAdapter(): BaseDecorAdapter<out BaseAdapter<T>> {
-        return BaseDecorAdapter(this, pluralStr, isSubFragment)
+        return BaseDecorAdapter(this, pluralStr, isSubFragment != null)
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -430,7 +438,7 @@ abstract class BaseAdapter<T : Any>(
         return sorter.sortingHelper.getId(item)
     }
 
-    private fun titleOf(item: T): String? {
+    protected open fun titleOf(item: T): String? {
         return if (sorter.sortingHelper.canGetTitle())
             sorter.sortingHelper.getTitle(item) else "null"
     }

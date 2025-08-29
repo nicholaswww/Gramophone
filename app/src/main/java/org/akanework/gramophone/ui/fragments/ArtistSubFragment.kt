@@ -83,14 +83,15 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
             == Configuration.ORIENTATION_PORTRAIT
         ) 2 else 4
         albumAdapter = AlbumAdapter(
-            this, item.map { it?.albumList }, ownsView = false, isSubFragment = true,
+            this, item.map { it?.albumList }, ownsView = false,
+            isSubFragment = itemType,
             fallbackSpans = spans
         )
         albumAdapter.decorAdapter.jumpDownPos = { albumAdapter.concatAdapter.itemCount }
         songAdapter = SongAdapter(
             this,
             item.map { it?.songList }, canSort = true, helper = null, ownsView = false,
-            isSubFragment = true, fallbackSpans = spans / 2 // one song takes 2 spans
+            isSubFragment = itemType, fallbackSpans = spans / 2 // one song takes 2 spans
         )
         songAdapter.decorAdapter.jumpUpPos = { 0 }
         recyclerView!!.layoutManager = GridLayoutManager(context, spans).apply {

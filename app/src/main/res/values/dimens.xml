@@ -27,4 +27,5 @@
     <dimen name="lyric_widget_nn">20sp</dimen>
     <dimen name="lyric_widget_tl">15sp</dimen>
 	<dimen name="lyric_widget_tb">12sp</dimen>
+	<dimen name="folder_card_height">75dp</dimen>
 </resources>

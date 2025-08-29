@@ -1,5 +1,6 @@
 package org.akanework.gramophone.ui
 
+import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.adapters.AlbumAdapter
 import org.akanework.gramophone.ui.adapters.ArtistAdapter
 import org.akanework.gramophone.ui.adapters.BaseAdapter
@@ -9,29 +10,63 @@ import org.akanework.gramophone.ui.adapters.PlaylistAdapter
 import org.akanework.gramophone.ui.adapters.SongAdapter
 
 fun getAdapterType(adapter: BaseAdapter<*>) =
-    when (adapter) {
-        is AlbumAdapter -> {
+    when {
+        adapter is AlbumAdapter && adapter.isSubFragment == null -> {
             0
         }
 
-        is ArtistAdapter -> {
+        adapter is ArtistAdapter -> {
             1
         }
 
-        is DateAdapter -> {
+        adapter is DateAdapter -> {
             2
         }
 
-        is GenreAdapter -> {
+        adapter is GenreAdapter -> {
             3
         }
 
-        is PlaylistAdapter -> {
+        adapter is PlaylistAdapter -> {
             4
         }
 
-        is SongAdapter -> {
+        adapter is SongAdapter && !adapter.folder && adapter.isSubFragment == null -> {
             5
+        }
+
+        adapter is SongAdapter && adapter.folder -> {
+            6
+        }
+
+        adapter is SongAdapter && adapter.isSubFragment == R.id.search -> {
+            7
+        }
+
+        adapter is SongAdapter && adapter.isSubFragment == R.id.playlist -> {
+            8
+        }
+
+        adapter is SongAdapter && adapter.isSubFragment == R.id.genre -> {
+            9
+        }
+
+        adapter is SongAdapter && adapter.isSubFragment == R.id.date -> {
+            10
+        }
+
+        adapter is SongAdapter && (adapter.isSubFragment == R.id.artist
+                || adapter.isSubFragment == R.id.album_artist) -> {
+            11
+        }
+
+        adapter is SongAdapter && adapter.isSubFragment == R.id.album -> {
+            12
+        }
+
+        adapter is AlbumAdapter && (adapter.isSubFragment == R.id.artist
+                || adapter.isSubFragment == R.id.album_artist) -> {
+            13
         }
 
         else -> {

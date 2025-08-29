@@ -23,9 +23,11 @@ import android.view.ViewGroup
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.TextView
+import androidx.core.view.doOnLayout
 import androidx.fragment.app.Fragment
 import androidx.media3.common.MediaItem
 import androidx.recyclerview.widget.ConcatAdapter
+import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -38,11 +40,16 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.comparators.AlphaNumericComparator
+import org.akanework.gramophone.logic.comparators.SupportComparator
+import org.akanework.gramophone.logic.ui.DefaultItemHeightHelper
 import org.akanework.gramophone.logic.ui.ItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.AdapterFragment
 import uk.akane.libphonograph.items.FileNode
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.atomics.AtomicInt
 
 class DetailedFolderAdapter(
     private val fragment: Fragment,
@@ -57,13 +64,18 @@ class DetailedFolderAdapter(
         FolderListAdapter(listOf(), mainActivity, this)
     private val songList = MutableSharedFlow<List<MediaItem>>(1)
     private val songAdapter: SongAdapter =
-        SongAdapter(fragment, songList, false, null, false).apply {
+        SongAdapter(fragment, songList, true, null, false, folder = true).apply {
             onFullyDrawnListener = { reportFullyDrawn() }
+            decorAdapter.jumpUpPos = { 0 }
         }
     override val concatAdapter: ConcatAdapter =
         ConcatAdapter(ConcatAdapter.Config.Builder().setIsolateViewTypes(false).build(),
-            this, folderPopAdapter, folderAdapter, songAdapter)
-    override val itemHeightHelper: ItemHeightHelper? = null
+            this, folderPopAdapter, folderAdapter, songAdapter.concatAdapter)
+    override val itemHeightHelper by lazy {
+        DefaultItemHeightHelper.concatItemHeightHelper(folderPopAdapter, { 1 },
+            DefaultItemHeightHelper.concatItemHeightHelper(folderAdapter,
+                { folderAdapter.itemCount }, songAdapter))
+    }
     private var root: FileNode? = null
     private var fileNodePath = ArrayList<String>()
     private var recyclerView: MyRecyclerView? = null
@@ -145,13 +157,28 @@ class DetailedFolderAdapter(
             animation.setAnimationListener(object : Animation.AnimationListener {
                 override fun onAnimationStart(animation: Animation) {}
                 override fun onAnimationEnd(animation: Animation) {
-                    doUpdate(false)
-                    it.startAnimation(
-                        AnimationUtils.loadAnimation(
-                            it.context,
-                            if (invertedDirection) R.anim.slide_in_left else R.anim.slide_in_right
+                    it.alpha = 0f
+                    it.itemAnimator = null
+                    val i = AtomicInteger(2)
+                    if (songAdapter.onFullyDrawnListener != null)
+                        throw IllegalStateException("unexpected onFullyDrawnListener")
+                    val next = {
+                        it.alpha = 1f
+                        it.itemAnimator = DefaultItemAnimator()
+                        it.startAnimation(
+                            AnimationUtils.loadAnimation(
+                                it.context,
+                                if (invertedDirection) R.anim.slide_in_left else R.anim.slide_in_right
+                            )
                         )
-                    )
+                    }
+                    songAdapter.onFullyDrawnListener = {
+                        if (i.decrementAndGet() == 0) next()
+                    }
+                    folderAdapter.onFullyDrawnListener = {
+                        if (i.decrementAndGet() == 0) next()
+                    }
+                    doUpdate(false)
                 }
 
                 override fun onAnimationRepeat(animation: Animation) {}
@@ -170,8 +197,8 @@ class DetailedFolderAdapter(
             return folderAdapter.getPopupText(view, newPos)
         }
         newPos -= folderAdapter.itemCount
-        if (newPos < songAdapter.itemCount) {
-            return songAdapter.getPopupText(view, newPos + 1)
+        if (newPos < songAdapter.concatAdapter.itemCount) {
+            return songAdapter.getPopupText(view, newPos)
         }
         throw IllegalStateException()
     }
@@ -217,17 +244,22 @@ class DetailedFolderAdapter(
         @SuppressLint("NotifyDataSetChanged")
         fun updateList(newCollection: Collection<FileNode>, canDiff: Boolean) {
             val newList = newCollection.toMutableList()
-            if (canDiff) {
-                CoroutineScope(Dispatchers.Default).launch {
-                    val diffResult = DiffUtil.calculateDiff(DiffCallback(folderList, newList))
-                    withContext(Dispatchers.Main) {
-                        folderList = newList
+            CoroutineScope(Dispatchers.Default).launch {
+                val diffResult = if (canDiff) DiffUtil.calculateDiff(
+                    DiffCallback(folderList, newList)) else null
+                withContext(Dispatchers.Main) {
+                    folderList = newList.sortedWith(
+                        SupportComparator.createAlphanumericComparator(cnv = {
+                            it.folderName
+                        }))
+                    if (diffResult != null)
                         diffResult.dispatchUpdatesTo(this@FolderListAdapter)
+                    else
+                        notifyDataSetChanged()
+                    folderFragment.recyclerView?.doOnLayout {
+                        folderFragment.recyclerView?.postOnAnimation { reportFullyDrawn() }
                     }
                 }
-            } else {
-                folderList = newList
-                notifyDataSetChanged()
             }
         }
 
@@ -249,6 +281,12 @@ class DetailedFolderAdapter(
                 newItemPosition: Int,
             ) = oldList[oldItemPosition] == newList[newItemPosition]
 
+        }
+
+        var onFullyDrawnListener: (() -> Unit)? = null
+        private fun reportFullyDrawn() {
+            onFullyDrawnListener?.invoke()
+            onFullyDrawnListener = null
         }
     }
 
@@ -278,7 +316,7 @@ class DetailedFolderAdapter(
     }
 
     private abstract class FolderCardAdapter(val folderFragment: DetailedFolderAdapter) :
-        MyRecyclerView.Adapter<FolderCardAdapter.ViewHolder>() {
+        MyRecyclerView.Adapter<FolderCardAdapter.ViewHolder>(), ItemHeightHelper {
         override fun getItemViewType(position: Int): Int = R.layout.adapter_folder_card
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder =
@@ -290,6 +328,12 @@ class DetailedFolderAdapter(
         override fun onViewRecycled(holder: ViewHolder) {
             holder.itemView.setOnClickListener(null)
             super.onViewRecycled(holder)
+        }
+
+        override fun getItemHeightFromZeroTo(to: Int): Int {
+            return to * folderFragment.mainActivity.resources.getDimensionPixelSize(
+                R.dimen.folder_card_height
+            )
         }
 
         class ViewHolder(

@@ -222,9 +222,20 @@ internal object Reader {
                 val pathFile = path?.let { it1 -> File(it1) }
                 val parent = pathFile?.parentFile
                 val fldPath = parent?.absolutePath
+                var isBlacklisted = false
+                if (blackListSet.isNotEmpty()) {
+                    var f = pathFile
+                    while (f != null) {
+                        if (blackListSet.contains(f.absolutePath)) {
+                            isBlacklisted = true
+                            break
+                        }
+                        f = f.parentFile
+                    }
+                }
                 val skip = (duration != null && duration != 0L &&
                         duration < minSongLengthSeconds * 1000) || (fldPath == null
-                        || blackListSet.contains(fldPath))
+                        || isBlacklisted)
                 // We need to add blacklisted songs to idMap as they can be referenced by playlist
                 if (skip && idMap == null && pathMap == null) continue
                 val id = it.getLongOrNullIfThrow(idColumn)!!
