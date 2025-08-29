@@ -32,6 +32,7 @@ import androidx.core.graphics.scale
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
 import androidx.core.view.isInvisible
 import androidx.core.widget.TextViewCompat
 import androidx.media3.common.C
@@ -523,26 +524,17 @@ class FullBottomSheet
                 instance?.currentMediaItem,
                 Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
             )
+            onMediaMetadataChanged(instance?.mediaMetadata ?: MediaMetadata.EMPTY)
             firstTime = false
         }
-        addOnLayoutChangeListener(
-            object : OnLayoutChangeListener {
-                override fun onLayoutChange(
-                    view: View,
-                    left: Int,
-                    top: Int,
-                    right: Int,
-                    bottom: Int,
-                    oldLeft: Int,
-                    oldTop: Int,
-                    oldRight: Int,
-                    oldBottom: Int
-                ) {
+        addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            postOnAnimation {
+                if (isLaidOut && !isLayoutRequested) {
                     deferredImageLoader?.invoke()
                     deferredImageLoader = null
                 }
             }
-        )
+        }
     }
 
     private fun updateTimer() {
@@ -1042,8 +1034,6 @@ class FullBottomSheet
                 mediaItem?.mediaMetadata?.artist ?: context.getString(R.string.unknown_artist),
                 skipAnimation = firstTime
             )
-            bottomSheetFullDuration.text = instance?.mediaMetadata?.durationMs
-                ?.let { CalculationUtils.convertDurationToTimeStamp(it) }
             if (playlistNowPlaying != null) {
                 playlistNowPlaying!!.text = mediaItem?.mediaMetadata?.title
                 playlistNowPlayingCover!!.load(mediaItem?.mediaMetadata?.artworkUri) {
@@ -1058,23 +1048,33 @@ class FullBottomSheet
             playlistNowPlayingCover?.dispose()
             deferredImageLoader = null
         }
-        val position = CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
-        val duration = instance?.mediaMetadata?.durationMs
-        if (duration != null && !isUserTracking) {
-            bottomSheetFullSeekBar.max = duration.toInt()
-            bottomSheetFullSeekBar.progress = instance?.currentPosition?.toInt() ?: 0
-            bottomSheetFullSlider.valueTo = duration.toFloat().coerceAtLeast(1f)
-            bottomSheetFullSlider.value =
-                min(instance?.currentPosition?.toFloat() ?: 0f, bottomSheetFullSlider.valueTo)
-            bottomSheetFullPosition.text = position
-        }
-        bottomSheetFullLyricView.updateLyricPositionFromPlaybackPos()
     }
 
     override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-        bottomSheetFavoriteButton.removeOnCheckedChangeListener(this)
-        bottomSheetFavoriteButton.isChecked = (mediaMetadata.userRating as? HeartRating)?.isHeart == true
-        bottomSheetFavoriteButton.addOnCheckedChangeListener(this)
+        val isHeart = (mediaMetadata.userRating as? HeartRating)?.isHeart == true
+        if (bottomSheetFavoriteButton.isChecked != isHeart) {
+            bottomSheetFavoriteButton.removeOnCheckedChangeListener(this)
+            bottomSheetFavoriteButton.isChecked =
+                (mediaMetadata.userRating as? HeartRating)?.isHeart == true
+            bottomSheetFavoriteButton.addOnCheckedChangeListener(this)
+        }
+        val duration = instance?.mediaMetadata?.durationMs
+        if ((duration?.toInt() ?: 0) != bottomSheetFullSeekBar.max) {
+            bottomSheetFullDuration.setTextAnimation(duration?.let {
+                CalculationUtils.convertDurationToTimeStamp(it)
+            })
+            val position =
+                CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
+            if (duration != null && !isUserTracking) {
+                bottomSheetFullSeekBar.max = duration.toInt()
+                bottomSheetFullSeekBar.progress = instance?.currentPosition?.toInt() ?: 0
+                bottomSheetFullSlider.valueTo = duration.toFloat().coerceAtLeast(1f)
+                bottomSheetFullSlider.value =
+                    min(instance?.currentPosition?.toFloat() ?: 0f, bottomSheetFullSlider.valueTo)
+                bottomSheetFullPosition.text = position
+            }
+            bottomSheetFullLyricView.updateLyricPositionFromPlaybackPos()
+        }
     }
 
     override fun onCheckedChanged(button: MaterialButton?, isChecked: Boolean) {
@@ -1339,14 +1339,10 @@ class FullBottomSheet
 
     private val positionRunnable = object : Runnable {
         override fun run() {
-            // TODO we may no longer need to poll duration because midi audio sink bugfix is already released
             val position =
                 CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
-            val duration = instance?.mediaMetadata?.durationMs
-            if (duration != null && !isUserTracking) {
-                bottomSheetFullSeekBar.max = duration.toInt()
+            if (!isUserTracking) {
                 bottomSheetFullSeekBar.progress = instance?.currentPosition?.toInt() ?: 0
-                bottomSheetFullSlider.valueTo = duration.toFloat().coerceAtLeast(1f)
                 bottomSheetFullSlider.value =
                     min(instance?.currentPosition?.toFloat() ?: 0f, bottomSheetFullSlider.valueTo)
                 bottomSheetFullPosition.text = position
