@@ -90,6 +90,29 @@ typedef struct {
 } __attribute__((packed)) audio_attributes_v28;
 }
 
+struct audio_playback_rate {
+	float mSpeed;
+	float mPitch;
+	int32_t  mStretchMode;
+	int32_t mFallbackMode;
+};
+
+struct alignas(8) ExtendedTimestamp {
+	ExtendedTimestamp() {
+		memset(mPosition, 0, sizeof(mPosition));
+		for (int i = 0; i < 5; ++i) {
+			mTimeNs[i] = -1;
+		}
+		memset(mTimebaseOffset, 0, sizeof(mTimebaseOffset));
+		mFlushed = 0;
+	}
+
+	int64_t mPosition[5];
+	int64_t mTimeNs[5];
+	int64_t mTimebaseOffset[2];
+	int64_t mFlushed;
+}
+
 typedef void (*legacy_callback_t)(int event, void* user, void *info);
 namespace android {
     // NOLINTBEGIN

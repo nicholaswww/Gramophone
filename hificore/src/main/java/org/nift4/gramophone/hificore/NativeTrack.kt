@@ -21,12 +21,12 @@ import androidx.core.content.getSystemService
 import java.nio.ByteBuffer
 
 /*
- * Exposes most of the API surface of AudioTrack.cpp, with some minor exceptions:
+ * Exposes most of the API surface of AudioTrack.cpp, with one minor exceptions:
  * - setCallerName/getCallerName because I want to avoid offset hardcoding, and it's only used for metrics
- * - Extended timestamps, due to complexity
  * All native method calls are wrapped to avoid Throwables from being thrown - only Exceptions will be thrown by
  * this class or its methods. However, you should always be prepared to handle such an exception, as everything can
  * fail.
+ * TODO: tone down the magic numbers a bit.
  */
 @Suppress("unused")
 class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int, sampleRate: Int,
@@ -53,10 +53,26 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         data class DirectPlaybackSupport(val normalOffload: Boolean, val gaplessOffload: Boolean,
                                          val directBitstream: Boolean) {
             companion object {
-                val NONE = DirectPlaybackSupport(false, false, false)
-                val OFFLOAD = DirectPlaybackSupport(true, false, false)
-                val GAPLESS_OFFLOAD = DirectPlaybackSupport(false, true, false)
-                val DIRECT = DirectPlaybackSupport(false, false, true)
+                val NONE = DirectPlaybackSupport(
+	                normalOffload = false,
+	                gaplessOffload = false,
+	                directBitstream = false
+                )
+                val OFFLOAD = DirectPlaybackSupport(
+	                normalOffload = true,
+	                gaplessOffload = false,
+	                directBitstream = false
+                )
+                val GAPLESS_OFFLOAD = DirectPlaybackSupport(
+	                normalOffload = false,
+	                gaplessOffload = true,
+	                directBitstream = false
+                )
+                val DIRECT = DirectPlaybackSupport(
+	                normalOffload = false,
+	                gaplessOffload = false,
+	                directBitstream = true
+                )
             }
             val offload
                 get() = normalOffload || gaplessOffload
@@ -140,8 +156,18 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 try {
                     val track = NativeTrack(
                         context, attributes, AudioManager.STREAM_MUSIC, sampleRate, encoding,
-                        channelMask, null, 0x11, sessionId, 1.0f, null, bitrate, durationUs, false, false,
-                        false, 0, 0, true, TransferMode.Sync, null, null, ENCAPSULATION_MODE_NONE, null
+                        channelMask, null, 0x11, sessionId, 1.0f, null, bitrate, durationUs,
+	                    hasVideo = false,
+	                    smallBuf = false,
+	                    isStreaming = false,
+	                    offloadBufferSize = 0,
+	                    notificationFrames = 0,
+	                    doNotReconnect = true,
+	                    transferMode = TransferMode.Sync,
+	                    contentId = null,
+	                    syncId = null,
+	                    encapsulationMode = ENCAPSULATION_MODE_NONE,
+	                    sharedMem = null
                     )
                     val port = AudioTrackHiddenApi.getMixPortForThread(track.getOutput())
                     if (port == null) {
@@ -358,7 +384,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         else sessionId
         val usage = attributes.usage
         val contentType = attributes.contentType
-        val hasOutputFlagDeepBufferSet = false // TODO
+        val hasOutputFlagDeepBufferSet = (trackFlags and 0x8) != 0
         val attrFlags = attributes.flags or
                 (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S_V2
                     && attributes.isContentSpatialized) 0x4000 else 0) or
@@ -426,21 +452,15 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 }
                 throw NativeTrackException("getProxy() returned null, check prior logs")
             }
-            routingListener = object : AudioRouting.OnRoutingChangedListener {
-                override fun onRoutingChanged(router: AudioRouting?) {
-                    this@NativeTrack.onRoutingChanged()
-                }
-            }
+            routingListener = AudioRouting.OnRoutingChangedListener { this@NativeTrack.onRoutingChanged() }
             proxy.addOnRoutingChangedListener(routingListener, null)
         } else {
             proxy = null
             routingListener = null
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            codecListener = object : AudioTrack.OnCodecFormatChangedListener {
-                override fun onCodecFormatChanged(audioTrack: AudioTrack, info: AudioMetadataReadMap?) {
-                    this@NativeTrack.onCodecFormatChanged(info)
-                }
+            codecListener = AudioTrack.OnCodecFormatChangedListener { audioTrack, info ->
+                this@NativeTrack.onCodecFormatChanged(info)
             }
             proxy!!.addOnCodecFormatChangedListener({ r -> r.run() }, codecListener)
         } else codecListener = null
@@ -859,14 +879,46 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
-    fun setPlaybackRate(playbackRate: Nothing) {
-        TODO()
+    fun setPlaybackRate(rate: PlaybackRate) {
+        val ret = try {
+            setPlaybackRateInternal(ptr, rate.speed, rate.pitch, if (rate.stretchForVoice) 1 else 0, when (rate.fallback) {
+	            StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_CUT_REPEAT -> -1
+	            StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_DEFAULT -> 0
+	            StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_MUTE -> 1
+	            StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_FAIL -> 2
+            })
+        } catch (t: Throwable) {
+            throw NativeTrackException("failed to set playback rate to $rate", t)
+        }
+        if (ret != 0) {
+            throw NativeTrackException("setPlaybackRate($rate) failed: $ret")
+        }
     }
-
     @RequiresApi(Build.VERSION_CODES.M)
-    fun getPlaybackRate(): Nothing {
-        TODO()
+    private external fun setPlaybackRateInternal(ptr: Long, speed: Float, pitch: Float, stretchMode: Int, fallback: Int): Int
+
+    enum class StretchFallbackMode {
+        AUDIO_TIMESTRETCH_FALLBACK_CUT_REPEAT,
+        AUDIO_TIMESTRETCH_FALLBACK_DEFAULT,
+        AUDIO_TIMESTRETCH_FALLBACK_MUTE,
+        AUDIO_TIMESTRETCH_FALLBACK_FAIL
     }
+    data class PlaybackRate(val speed: Float, val pitch: Float, val stretchForVoice: Boolean, val fallback: StretchFallbackMode)
+    @RequiresApi(Build.VERSION_CODES.M)
+    fun getPlaybackRate(): PlaybackRate {
+        val speedPitch = FloatArray(2)
+        val ret: Int = getPlaybackRateInternal(ptr, speedPitch)
+        return PlaybackRate(speedPitch[0], speedPitch[1],
+            ((ret shr 31) and 1) == 1, when (ret and 0xff) {
+                -1 + 1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_CUT_REPEAT
+                0 + 1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_DEFAULT
+                1 + 1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_MUTE
+                2 + 1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_FAIL
+                else -> throw IllegalArgumentException("timestretch $ret")
+            })
+    }
+    @RequiresApi(Build.VERSION_CODES.M)
+    private external fun getPlaybackRateInternal(ptr: Long, speedPitch: FloatArray): Int
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun setDualMonoMode(dualMonoMode: Int) {
@@ -1200,7 +1252,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private external fun writeInternal(ptr: Long, buf: ByteArray, offset: Int, blocking: Boolean): Long
 
     fun channelCount(): Int {
-        return Integer.bitCount(channelMask().toInt()) // TODO is this valid?
+        return Integer.bitCount(channelMask().toInt())
     }
 
     fun frameSize(): Int { // in bytes
@@ -1290,10 +1342,52 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
     private external fun getTimestampInternal(ptr: Long, out: LongArray): Int
 
-    @RequiresApi(Build.VERSION_CODES.N)
-    fun pendingDuration(location: Nothing): Int {
-        TODO()
+    class ExtendedTimestamp(val data: LongArray) {
+        // TODO implement parsing like
+        //  https://cs.android.com/android/platform/superproject/+/android-7.0.0_r1:frameworks/av/include/media/AudioTimestamp.h;l=37;drc=10b3d7e2f4c7d630d621f3b1405e59cc9a581a9d
     }
+    fun getTimestamp(): ExtendedTimestamp {
+        val out = LongArray(3 * 5 + 1)
+        val ret = try {
+            getTimestamp2Internal(ptr, out)
+        } catch (t: Throwable) {
+            throw NativeTrackException("failed to get ext timestamps", t)
+        }
+        if (ret != 0) {
+            throw NativeTrackException("getTimestamp() failed: $ret")
+        }
+        return ExtendedTimestamp(out)
+    }
+    private external fun getTimestamp2Internal(ptr: Long, out: LongArray): Int
+
+    enum class TimestampLocation {
+        Client,
+        Server,
+        Kernel,
+        ServerPriorToLastKernelOk,
+        KernelPriorToLastKernelOk,
+    }
+    @RequiresApi(Build.VERSION_CODES.N)
+    fun pendingDuration(location: TimestampLocation): Int {
+        val location2 = when (location) {
+	        TimestampLocation.Client -> 1
+	        TimestampLocation.Server -> 2
+	        TimestampLocation.Kernel -> 3
+	        TimestampLocation.ServerPriorToLastKernelOk -> 4
+	        TimestampLocation.KernelPriorToLastKernelOk -> 5
+        }
+        val ret = try {
+            pendingDurationInternal(ptr, location2)
+        } catch (t: Throwable) {
+            throw NativeTrackException("failed to get pending duration from $location", t)
+        }
+        if (ret < 0) {
+            throw NativeTrackException("failed to get pending duration from $location, ret = $ret")
+        }
+        return ret
+    }
+    @RequiresApi(Build.VERSION_CODES.N)
+    private external fun pendingDurationInternal(ptr: Long, location: Int): Int
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun hasStarted(): Boolean {
