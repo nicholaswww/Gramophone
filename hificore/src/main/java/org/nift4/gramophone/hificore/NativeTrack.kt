@@ -1346,6 +1346,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         // TODO implement parsing like
         //  https://cs.android.com/android/platform/superproject/+/android-7.0.0_r1:frameworks/av/include/media/AudioTimestamp.h;l=37;drc=10b3d7e2f4c7d630d621f3b1405e59cc9a581a9d
     }
+    @RequiresApi(Build.VERSION_CODES.N)
     fun getTimestamp(): ExtendedTimestamp {
         val out = LongArray(3 * 5 + 1)
         val ret = try {
@@ -1358,6 +1359,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         }
         return ExtendedTimestamp(out)
     }
+    @RequiresApi(Build.VERSION_CODES.N)
     private external fun getTimestamp2Internal(ptr: Long, out: LongArray): Int
 
     enum class TimestampLocation {
