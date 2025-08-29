@@ -9,4 +9,5 @@
     <cache-path
         name="crashes"
         path="CrashLog" />
+    <root-path name="external_storage" path="/storage/" />
 </paths>
