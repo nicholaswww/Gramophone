@@ -99,14 +99,14 @@ class GeneralSubFragment : BaseFragment(true) {
                 itemList = item.songList
             } TODO */
 
-            R.id.genres -> {
+            R.id.genre -> {
                 // Genres
                 val item = mainActivity.reader.genreListFlow.map { it.find { it.id == id } }
                 title = item.map { it?.title ?: requireContext().getString(R.string.unknown_genre) }
                 itemList = item.map { it?.songList }
             }
 
-            R.id.dates -> {
+            R.id.date -> {
                 // Dates
                 val item = mainActivity.reader.dateListFlow.map { it.find { it.id == id } }
                 title = item.map { it?.title ?: requireContext().getString(R.string.unknown_year) }

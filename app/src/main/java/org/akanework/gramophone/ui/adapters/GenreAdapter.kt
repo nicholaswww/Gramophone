@@ -52,7 +52,7 @@ class GenreAdapter(
     override fun onClick(item: Genre) {
         mainActivity.startFragment(GeneralSubFragment()) {
             putString("Id", item.id?.toString())
-            putInt("Item", R.id.genres)
+            putInt("Item", R.id.genre)
         }
     }
 
