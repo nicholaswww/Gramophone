@@ -35,12 +35,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
-import org.akanework.gramophone.logic.comparators.AlphaNumericComparator
 import org.akanework.gramophone.logic.comparators.SupportComparator
 import org.akanework.gramophone.logic.ui.DefaultItemHeightHelper
 import org.akanework.gramophone.logic.ui.ItemHeightHelper
@@ -49,13 +49,26 @@ import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.AdapterFragment
 import uk.akane.libphonograph.items.FileNode
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.concurrent.atomics.AtomicInt
 
 class DetailedFolderAdapter(
     private val fragment: Fragment,
     private val isDetailed: Boolean
 ) : AdapterFragment.BaseInterface<RecyclerView.ViewHolder>() {
     private val mainActivity = fragment.requireActivity() as MainActivity
+    override val context
+        get() = mainActivity
+    override val layoutInflater
+        get() = fragment.layoutInflater
+    override val ownsView = false
+    override var layoutType: BaseAdapter.LayoutType?
+        get() = null
+        set(_) {
+            throw UnsupportedOperationException("layout type not impl")
+        }
+    override val itemCountForDecor: Int
+        get() = folderAdapter.itemCount
+    override val sortType = MutableStateFlow(Sorter.Type.ByFilePathAscending)
+    override val sortTypes = setOf(Sorter.Type.ByFilePathAscending, Sorter.Type.BySizeDescending)
     private val liveData = if (isDetailed) mainActivity.reader.folderStructureFlow
         else mainActivity.reader.shallowFolderFlow
     private var scope: CoroutineScope? = null
@@ -63,6 +76,7 @@ class DetailedFolderAdapter(
     private val folderAdapter: FolderListAdapter =
         FolderListAdapter(listOf(), mainActivity, this)
     private val songList = MutableSharedFlow<List<MediaItem>>(1)
+    private val decorAdapter = BaseDecorAdapter<DetailedFolderAdapter>(this, R.plurals.folders, false)
     private val songAdapter: SongAdapter =
         SongAdapter(fragment, songList, true, null, false, folder = true).apply {
             onFullyDrawnListener = { reportFullyDrawn() }
@@ -70,15 +84,19 @@ class DetailedFolderAdapter(
         }
     override val concatAdapter: ConcatAdapter =
         ConcatAdapter(ConcatAdapter.Config.Builder().setIsolateViewTypes(false).build(),
-            this, folderPopAdapter, folderAdapter, songAdapter.concatAdapter)
+            decorAdapter, this, folderPopAdapter, folderAdapter, songAdapter.concatAdapter)
     override val itemHeightHelper by lazy {
-        DefaultItemHeightHelper.concatItemHeightHelper(folderPopAdapter, { 1 },
+        DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, { decorAdapter.itemCount },
+            DefaultItemHeightHelper.concatItemHeightHelper(folderPopAdapter, { folderPopAdapter.itemCount },
             DefaultItemHeightHelper.concatItemHeightHelper(folderAdapter,
-                { folderAdapter.itemCount }, songAdapter))
+                { folderAdapter.itemCount }, songAdapter.itemHeightHelper)))
     }
     private var root: FileNode? = null
     private var fileNodePath = ArrayList<String>()
     private var recyclerView: MyRecyclerView? = null
+    init {
+        decorAdapter.jumpDownPos = { decorAdapter.itemCount + folderPopAdapter.itemCount + folderAdapter.itemCount }
+    }
 
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
@@ -131,6 +149,11 @@ class DetailedFolderAdapter(
         }
     }
 
+    override fun sort(type: Sorter.Type) {
+        sortType.value = type
+        update(null)
+    }
+
     private fun update(invertedDirection: Boolean?) {
         var item = root
         for (path in fileNodePath) {
@@ -142,7 +165,7 @@ class DetailedFolderAdapter(
         }
         val doUpdate = { canDiff: Boolean ->
             folderPopAdapter.enabled = fileNodePath.isNotEmpty()
-            folderAdapter.updateList(item?.folderList?.values ?: listOf(), canDiff)
+            folderAdapter.updateList(item?.folderList?.values ?: listOf(), canDiff, sortType.value)
             runBlocking { songList.emit(item?.songList ?: listOf()) }
         }
         recyclerView.let {
@@ -242,20 +265,25 @@ class DetailedFolderAdapter(
         override fun getItemCount(): Int = folderList.size
 
         @SuppressLint("NotifyDataSetChanged")
-        fun updateList(newCollection: Collection<FileNode>, canDiff: Boolean) {
+        fun updateList(newCollection: Collection<FileNode>, canDiff: Boolean, sortType: Sorter.Type) {
             val newList = newCollection.toMutableList()
             CoroutineScope(Dispatchers.Default).launch {
                 val diffResult = if (canDiff) DiffUtil.calculateDiff(
                     DiffCallback(folderList, newList)) else null
+                val newList2 = if (sortType == Sorter.Type.BySizeDescending)
+                    newList.sortedByDescending { it.folderList.size + it.songList.size }
+                else
+                    newList.sortedWith(
+                    SupportComparator.createAlphanumericComparator(cnv = {
+                        it.folderName
+                    }))
                 withContext(Dispatchers.Main) {
-                    folderList = newList.sortedWith(
-                        SupportComparator.createAlphanumericComparator(cnv = {
-                            it.folderName
-                        }))
+                    folderList = newList2
                     if (diffResult != null)
                         diffResult.dispatchUpdatesTo(this@FolderListAdapter)
                     else
                         notifyDataSetChanged()
+                    folderFragment.decorAdapter.updateSongCounter()
                     folderFragment.recyclerView?.doOnLayout {
                         folderFragment.recyclerView?.postOnAnimation { reportFullyDrawn() }
                     }

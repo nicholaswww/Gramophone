@@ -17,6 +17,7 @@
 
 package org.akanework.gramophone.ui.fragments
 
+import android.content.Context
 import android.content.IntentSender
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -27,6 +28,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.flow.StateFlow
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
@@ -34,11 +36,13 @@ import org.akanework.gramophone.logic.ui.ItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.ui.adapters.AlbumAdapter
 import org.akanework.gramophone.ui.adapters.ArtistAdapter
+import org.akanework.gramophone.ui.adapters.BaseAdapter
 import org.akanework.gramophone.ui.adapters.DateAdapter
 import org.akanework.gramophone.ui.adapters.DetailedFolderAdapter
 import org.akanework.gramophone.ui.adapters.GenreAdapter
 import org.akanework.gramophone.ui.adapters.PlaylistAdapter
 import org.akanework.gramophone.ui.adapters.SongAdapter
+import org.akanework.gramophone.ui.adapters.Sorter
 
 /**
  * AdapterFragment:
@@ -123,6 +127,16 @@ class AdapterFragment : BaseFragment(null) {
             onFullyDrawnListener?.invoke()
             onFullyDrawnListener = null
         }
+
+        // for decor
+        abstract val context: Context
+        abstract val layoutInflater: LayoutInflater
+        abstract val ownsView: Boolean
+        abstract val sortType: StateFlow<Sorter.Type>
+        abstract val sortTypes: Set<Sorter.Type>
+        abstract var layoutType: BaseAdapter.LayoutType?
+        abstract fun sort(type: Sorter.Type)
+        abstract val itemCountForDecor: Int
     }
 
     interface RequestAdapter {

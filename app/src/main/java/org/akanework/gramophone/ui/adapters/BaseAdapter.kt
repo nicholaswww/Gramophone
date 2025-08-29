@@ -82,7 +82,7 @@ abstract class BaseAdapter<T : Any>(
     naturalOrderHelper: Sorter.NaturalOrderHelper<T>?,
     initialSortType: Sorter.Type,
     private val pluralStr: Int,
-    val ownsView: Boolean,
+    override val ownsView: Boolean,
     defaultLayoutType: LayoutType,
     val isSubFragment: Int? = null,
     rawOrderExposed: Boolean = false,
@@ -91,11 +91,11 @@ abstract class BaseAdapter<T : Any>(
     private val fallbackSpans: Int = 1
 ) : AdapterFragment.BaseInterface<BaseAdapter.ViewHolder>(), PopupTextProvider, ItemHeightHelper {
 
-    val context = fragment.requireContext()
+    override val context = fragment.requireContext()
     protected val liveDataAgent = MutableStateFlow(liveData)
     protected inline val mainActivity
         get() = context as MainActivity
-    internal inline val layoutInflater: LayoutInflater
+    override val layoutInflater: LayoutInflater
         get() = fragment.layoutInflater
     private val listHeight = context.resources.getDimensionPixelSize(R.dimen.list_height)
     private val largerListHeight =
@@ -109,6 +109,8 @@ abstract class BaseAdapter<T : Any>(
     override val itemHeightHelper by lazy {
         DefaultItemHeightHelper.concatItemHeightHelper(decorAdapter, { 1 }, this)
     }
+    override val itemCountForDecor
+        get() = itemCount
     protected var list: Pair<List<T>, List<T>>? = null
     private var layoutManager: RecyclerView.LayoutManager? = null
     protected var recyclerView: MyRecyclerView? = null
@@ -134,7 +136,7 @@ abstract class BaseAdapter<T : Any>(
         )!!
     )
 
-    var layoutType: LayoutType? = null
+    override var layoutType: LayoutType? = null
         @SuppressLint("NotifyDataSetChanged")
         set(value) {
             if (field == LayoutType.GRID && value != LayoutType.GRID) {
@@ -162,7 +164,7 @@ abstract class BaseAdapter<T : Any>(
             lockedInGridSize = false
             notifyDataSetChanged() // we change view type for all items
         }
-    val sortType: MutableStateFlow<Sorter.Type> = MutableStateFlow(
+    override val sortType: MutableStateFlow<Sorter.Type> = MutableStateFlow(
         if (prefSortType != Sorter.Type.None && prefSortType != initialSortType
             && sortTypes.contains(prefSortType)
         )
@@ -189,7 +191,7 @@ abstract class BaseAdapter<T : Any>(
             }
         }.toList()
     }.sharePauseableIn(CoroutineScope(Dispatchers.Default), SharingStarted.WhileSubscribed(5000), replay = 1)
-    val sortTypes: Set<Sorter.Type>
+    override val sortTypes: Set<Sorter.Type>
         get() = if (canSort) sorter.getSupportedTypes() else setOf(Sorter.Type.None)
 
     init {
@@ -330,8 +332,8 @@ abstract class BaseAdapter<T : Any>(
             layoutInflater.inflate(viewType, parent, false),
         )
 
-    fun sort(selector: Sorter.Type) {
-        sortType.value = selector
+    override fun sort(type: Sorter.Type) {
+        sortType.value = type
     }
 
     protected open fun onListUpdated() {}

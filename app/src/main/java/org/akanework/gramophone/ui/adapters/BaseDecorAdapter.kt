@@ -33,9 +33,10 @@ import com.google.android.material.button.MaterialButton
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.ItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
+import org.akanework.gramophone.ui.fragments.AdapterFragment
 import org.akanework.gramophone.ui.getAdapterType
 
-open class BaseDecorAdapter<T : BaseAdapter<*>>(
+open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
     protected val adapter: T,
     private val pluralStr: Int,
     private val isSubFragment: Boolean
@@ -57,7 +58,7 @@ open class BaseDecorAdapter<T : BaseAdapter<*>>(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val count = adapter.itemCount
+        val count = adapter.itemCountForDecor
         holder.playAll.visibility =
             if (adapter is SongAdapter || adapter is AlbumAdapter) View.VISIBLE else View.GONE
         holder.shuffleAll.visibility =

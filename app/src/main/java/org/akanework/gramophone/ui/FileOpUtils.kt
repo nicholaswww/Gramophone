@@ -3,13 +3,13 @@ package org.akanework.gramophone.ui
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.adapters.AlbumAdapter
 import org.akanework.gramophone.ui.adapters.ArtistAdapter
-import org.akanework.gramophone.ui.adapters.BaseAdapter
 import org.akanework.gramophone.ui.adapters.DateAdapter
 import org.akanework.gramophone.ui.adapters.GenreAdapter
 import org.akanework.gramophone.ui.adapters.PlaylistAdapter
 import org.akanework.gramophone.ui.adapters.SongAdapter
+import org.akanework.gramophone.ui.fragments.AdapterFragment
 
-fun getAdapterType(adapter: BaseAdapter<*>) =
+fun getAdapterType(adapter: AdapterFragment.BaseInterface<*>) =
     when {
         adapter is AlbumAdapter && adapter.isSubFragment == null -> {
             0
