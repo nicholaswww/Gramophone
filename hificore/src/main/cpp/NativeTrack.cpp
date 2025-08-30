@@ -1752,5 +1752,5 @@ Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_getMinFrameCountIn
                                                                                        jobject,
                                                                                        jint stream_type,
                                                                                        jint sample_rate_in_hz) {
-	return ZN7android10AudioTrack16getMinFrameCountEPm19audio_stream_type_tj(stream_type, sample_rate_in_hz)
+	return ZN7android10AudioTrack16getMinFrameCountEPm19audio_stream_type_tj(stream_type, sample_rate_in_hz);
 }
