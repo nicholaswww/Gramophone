@@ -138,9 +138,22 @@ object ItemManipulator {
 
     @ChecksSdkIntAtLeast(Build.VERSION_CODES.R)
     fun needRequestWrite(context: Context, uri: Uri): Boolean {
-        return hasScopedStorageV2() && !checkIfFileAttributedToSelf(context, uri) &&
+        return hasScopedStorageV2() && (!checkIfFileAttributedToSelf(context, uri)
+                || !checkIfFileOnPrimaryVolume(context, uri)) &&
                 context.checkUriPermission(uri, Process.myPid(), Process.myUid(),
                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun checkIfFileOnPrimaryVolume(context: Context, uri: Uri): Boolean {
+        val cursor = context.contentResolver.query(uri,
+            arrayOf(MediaStore.MediaColumns.VOLUME_NAME), null, null, null)
+        if (cursor == null) return false
+        cursor.use {
+            if (!cursor.moveToFirst()) return false
+            val column = cursor.getColumnIndex(MediaStore.MediaColumns.VOLUME_NAME)
+            val volume = cursor.getStringOrNullIfThrow(column)
+            return volume == "external_primary"
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -176,7 +189,7 @@ object ItemManipulator {
                 Log.e(TAG, Log.getStackTraceString(t))
             }
             try {
-                out.resolveSibling("${out.name}.bak").writeBytes(backup)
+                out.resolveSibling("${out.nameWithoutExtension}_BAK_${System.currentTimeMillis()}.${out.extension}").writeBytes(backup)
             } catch (t: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(t))
             }

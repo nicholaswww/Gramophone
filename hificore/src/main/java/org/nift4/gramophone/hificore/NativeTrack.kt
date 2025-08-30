@@ -1,3 +1,21 @@
+/*
+ *     Copyright (C) 2011 The Android Open Source Project
+ *                   2025 nift4
+ *
+ *     Gramophone is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     Gramophone is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package org.nift4.gramophone.hificore
 
 import android.annotation.SuppressLint
@@ -220,9 +238,33 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
             return DirectPlaybackSupport(hasOffload == true, false, hasDirect == true)
         }
-        fun getMinBufferSize(sampleRateInHz: Int, channelConfig: Int, audioFormat: Int): Int {
-            TODO()
+        fun getMinBufferSize(sampleRateInHz: Int, channelConfig: Int, audioFormat: UInt): Int {
+            val minFrameCount = getMinFrameCount(-1, sampleRateInHz)
+            val bps = bitsPerSampleForFormat(audioFormat)
+            if (bps == 0) // compressed
+                return minFrameCount
+            return minFrameCount * channelConfig * (bps / 8)
         }
+        fun getMinFrameCount(streamType: Int, sampleRateInHz: Int): Int {
+            prepareForLib()
+            return try {
+                getMinFrameCountInternal(streamType, sampleRateInHz)
+            } catch (t: Throwable) {
+                throw NativeTrackException("failed to get min frame count ($streamType, $sampleRateInHz)", t)
+            }
+        }
+        private external fun getMinFrameCountInternal(streamType: Int, sampleRateInHz: Int): Int
+        private fun prepareForLib() {
+            if (!AudioTrackHiddenApi.libLoaded)
+                throw NativeTrackException("lib isn't loaded (maybe this device is banned?)")
+            if (!try {
+                    initDlsym()
+                } catch (t: Throwable) {
+                    throw NativeTrackException("initDlsym() failed", t)
+                })
+                throw NativeTrackException("initDlsym() returned false")
+        }
+
         fun bitsPerSampleForFormat(format: UInt): Int {
             val cafOffloadMain = when {
                 Build.VERSION.SDK_INT >= 25 -> null
@@ -344,20 +386,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             throw IllegalArgumentException("contentId cannot be negative (did you mean to use null?)")
         if (contentId == 0 && syncId == null)
             throw IllegalArgumentException("CONTENT_ID_NONE with no syncId (did you mean to use null?)")
-        if (!AudioTrackHiddenApi.canLoadLib())
-            throw IllegalStateException("this device is banned from native-enhanced features")
+        prepareForLib()
         audioManager = context.getSystemService<AudioManager>()!!
-        try {
-            System.loadLibrary("hificore")
-        } catch (t: Throwable) {
-            throw NativeTrackException("failed to load libhificore.so", t)
-        }
-        if (!try {
-            initDlsym()
-        } catch (t: Throwable) {
-            throw NativeTrackException("initDlsym() failed", t)
-        })
-            throw NativeTrackException("initDlsym() returned false")
         ptr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val ats = context.attributionSource
             val parcel = Parcel.obtain()
@@ -465,8 +495,6 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             proxy!!.addOnCodecFormatChangedListener({ r -> r.run() }, codecListener)
         } else codecListener = null
         myState = State.ALIVE
-        Log.e("hi", "dump:${AudioTrackHiddenApi.dumpInternal(getRealPtr(ptr))}")
-        Log.e("hi", "my flags:${flags()} nfa:${notificationPeriodInFrames()}")
     }
     private external fun create(parcel: Parcel?): Long
     /*
@@ -880,6 +908,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
 
     @RequiresApi(Build.VERSION_CODES.M)
     fun setPlaybackRate(rate: PlaybackRate) {
+        if (myState != State.ALIVE)
+            throw IllegalStateException("state is $myState")
         val ret = try {
             setPlaybackRateInternal(ptr, rate.speed, rate.pitch, if (rate.stretchForVoice) 1 else 0, when (rate.fallback) {
 	            StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_CUT_REPEAT -> -1
@@ -906,6 +936,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     data class PlaybackRate(val speed: Float, val pitch: Float, val stretchForVoice: Boolean, val fallback: StretchFallbackMode)
     @RequiresApi(Build.VERSION_CODES.M)
     fun getPlaybackRate(): PlaybackRate {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
         val speedPitch = FloatArray(2)
         val ret: Int = getPlaybackRateInternal(ptr, speedPitch)
         return PlaybackRate(speedPitch[0], speedPitch[1],
@@ -1342,25 +1374,56 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
     private external fun getTimestampInternal(ptr: Long, out: LongArray): Int
 
-    class ExtendedTimestamp(val data: LongArray) {
-        // TODO implement parsing like
-        //  https://cs.android.com/android/platform/superproject/+/android-7.0.0_r1:frameworks/av/include/media/AudioTimestamp.h;l=37;drc=10b3d7e2f4c7d630d621f3b1405e59cc9a581a9d
+    enum class Timebase {
+        Monotonic,
+        Boottime,
+    }
+    class ExtendedTimestamp(private val mPosition: LongArray, private val mTimeNs: LongArray,
+                            private val mTimebaseOffset: LongArray, val mFlushed: Long) {
+        class Timestamp(position: Long, time: Long, timebase: Timebase, location: TimestampLocation)
+        fun getBestTimestamp(timebase: Timebase): Timestamp? {
+            getTimestamp(TimestampLocation.Kernel, timebase)?.let { return it }
+            return getTimestamp(TimestampLocation.Server, timebase)
+        }
+        fun getTimestamp(location: TimestampLocation, timebase: Timebase): Timestamp? {
+            val i = when (location) {
+	            TimestampLocation.Client -> 0
+	            TimestampLocation.Server -> 1
+	            TimestampLocation.Kernel -> 2
+	            TimestampLocation.ServerPriorToLastKernelOk -> 3
+	            TimestampLocation.KernelPriorToLastKernelOk -> 4
+            }
+            if (mTimeNs[i] > 0) {
+                return Timestamp(
+                    mPosition[i], mTimeNs[i] +
+                            mTimebaseOffset[if (timebase == Timebase.Boottime) 1 else 0], timebase,
+                    if (i == 2) TimestampLocation.Kernel else TimestampLocation.Server
+                )
+            }
+            return null
+        }
     }
     @RequiresApi(Build.VERSION_CODES.N)
     fun getTimestamp(): ExtendedTimestamp {
-        val out = LongArray(3 * 5 + 1)
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
+        val mPosition = LongArray(5)
+        val mTimeNs = LongArray(5)
+        val mTimebaseOffset = LongArray(2)
+        val mFlushed = LongArray(1)
         val ret = try {
-            getTimestamp2Internal(ptr, out)
+            getTimestamp2Internal(ptr, mPosition, mTimeNs, mTimebaseOffset, mFlushed)
         } catch (t: Throwable) {
             throw NativeTrackException("failed to get ext timestamps", t)
         }
         if (ret != 0) {
             throw NativeTrackException("getTimestamp() failed: $ret")
         }
-        return ExtendedTimestamp(out)
+        return ExtendedTimestamp(mPosition, mTimeNs, mTimebaseOffset, mFlushed[0])
     }
     @RequiresApi(Build.VERSION_CODES.N)
-    private external fun getTimestamp2Internal(ptr: Long, out: LongArray): Int
+    private external fun getTimestamp2Internal(ptr: Long, mPosition: LongArray, mTimeNs: LongArray,
+                                               mTimebaseOffset: LongArray, mFlushed: LongArray): Int
 
     enum class TimestampLocation {
         Client,
@@ -1371,6 +1434,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
     @RequiresApi(Build.VERSION_CODES.N)
     fun pendingDuration(location: TimestampLocation): Int {
+        if (myState == State.RELEASED)
+            throw IllegalStateException("state is $myState")
         val location2 = when (location) {
 	        TimestampLocation.Client -> 1
 	        TimestampLocation.Server -> 2

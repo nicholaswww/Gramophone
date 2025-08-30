@@ -1,5 +1,6 @@
 /*
- *     Copyright (C) 2025 nift4
+ *     Copyright (C) 2011 The Android Open Source Project
+ *                   2025 nift4
  *
  *     Gramophone is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by

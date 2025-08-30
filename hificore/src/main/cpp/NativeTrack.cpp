@@ -1,5 +1,6 @@
 /*
- *     Copyright (C) 2025 nift4
+ *     Copyright (C) 2011 The Android Open Source Project
+ *                   2025 nift4
  *
  *     Gramophone is free software: you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
@@ -158,6 +159,8 @@ typedef int32_t(*ZN7android10AudioTrack15pendingDurationEPiNS_17ExtendedTimestam
 static ZN7android10AudioTrack15pendingDurationEPiNS_17ExtendedTimestamp8LocationE_t ZN7android10AudioTrack15pendingDurationEPiNS_17ExtendedTimestamp8LocationE = nullptr;
 typedef int32_t(*ZN7android10AudioTrack12getTimestampEPNS_17ExtendedTimestampE_t)(void* thisptr, ExtendedTimestamp* ts);
 static ZN7android10AudioTrack12getTimestampEPNS_17ExtendedTimestampE_t ZN7android10AudioTrack12getTimestampEPNS_17ExtendedTimestampE = nullptr;
+typedef int32_t(*ZN7android10AudioTrack16getMinFrameCountEPm19audio_stream_type_tj_t)(int32_t streamType, int32_t sampleRateHz);
+static ZN7android10AudioTrack16getMinFrameCountEPm19audio_stream_type_tj_t ZN7android10AudioTrack16getMinFrameCountEPm19audio_stream_type_tj = nullptr;
 typedef int32_t(*ZN7android10AudioTrack6reloadEv_t)(void* thisptr);
 static ZN7android10AudioTrack6reloadEv_t ZN7android10AudioTrack6reloadEv = nullptr;
 typedef int32_t(*ZN7android10AudioTrack15attachAuxEffectEi_t)(void* thisptr, int32_t effectId);
@@ -587,7 +590,9 @@ Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_initDlsym(JNIEnv* 
 	if (android_get_device_api_level() >= 24) {
 		DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack21getBufferDurationInUsEPl, false)
 		DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack15pendingDurationEPiNS_17ExtendedTimestamp8LocationE, false)
+		DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack12getTimestampEPNS_17ExtendedTimestampE, false)
 	}
+	DLSYM_OR_RETURN(libaudioclient, ZN7android10AudioTrack16getMinFrameCountEPm19audio_stream_type_tj, false)
     if (android_get_device_api_level() == 23) {
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem10getLatencyEiPj, false)
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem13getFrameCountEiPm, false)
@@ -1711,7 +1716,7 @@ Java_org_nift4_gramophone_hificore_NativeTrack_setPlaybackRateInternal(JNIEnv *,
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_org_nift4_gramophone_hificore_NativeTrack_pendingDurationInternal(JNIEnv *env, jobject thiz,
+Java_org_nift4_gramophone_hificore_NativeTrack_pendingDurationInternal(JNIEnv *, jobject,
                                                                        jlong ptr, jint location) {
 	int32_t out;
 	auto holder = (track_holder*) ptr;
@@ -1725,11 +1730,27 @@ Java_org_nift4_gramophone_hificore_NativeTrack_pendingDurationInternal(JNIEnv *e
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_org_nift4_gramophone_hificore_NativeTrack_getTimestamp2Internal(JNIEnv *env, jobject thiz,
-                                                                     jlong ptr, jlongArray out) {
+Java_org_nift4_gramophone_hificore_NativeTrack_getTimestamp2Internal(JNIEnv *env, jobject,
+                                                                     jlong ptr,
+																	 jlongArray mPosition,
+																	 jlongArray mTimeNs,
+																	 jlongArray mTimebaseOffset,
+																	 jlongArray mFlushed) {
 	ExtendedTimestamp ts;
 	auto holder = (track_holder*) ptr;
-	int ret = ZN7android10AudioTrack12getTimestampEPNS_17ExtendedTimestampE(holder->track, ts);
-	env->SetLongArrayRegion(out, 0, sizeof(ExtendedTimestamp) / sizeof(jlong), (jlong*)&ts);
+	int ret = ZN7android10AudioTrack12getTimestampEPNS_17ExtendedTimestampE(holder->track, &ts);
+	env->SetLongArrayRegion(mPosition, 0, sizeof(ts.mPosition) / sizeof(jlong), (jlong*)&ts.mPosition);
+	env->SetLongArrayRegion(mTimeNs, 0, sizeof(ts.mTimeNs) / sizeof(jlong), (jlong*)&ts.mTimeNs);
+	env->SetLongArrayRegion(mTimebaseOffset, 0, sizeof(ts.mTimebaseOffset) / sizeof(jlong), (jlong*)&ts.mTimebaseOffset);
+	env->SetLongArrayRegion(mFlushed, 0, 1, (jlong*)&ts.mFlushed);
 	return ret;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_getMinFrameCountInternal(JNIEnv *,
+                                                                                       jobject,
+                                                                                       jint stream_type,
+                                                                                       jint sample_rate_in_hz) {
+	return ZN7android10AudioTrack16getMinFrameCountEPm19audio_stream_type_tj(stream_type, sample_rate_in_hz)
 }

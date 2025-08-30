@@ -27,6 +27,8 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
+import android.view.WindowInsets
 import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
 import androidx.appcompat.app.AlertDialog
@@ -44,6 +46,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.AdapterFragment
@@ -255,6 +258,9 @@ class PlaylistAdapter(
             val b = d.getButton(DialogInterface.BUTTON_POSITIVE)
             et.editableText.append(initialValue)
             b.isEnabled = !initialValue.isBlank()
+            d.window!!.decorView.measure(View.MeasureSpec.UNSPECIFIED,View.MeasureSpec.UNSPECIFIED)
+            // TODO: why on earth is this even needed? "Small Phone" emu otherwise cant type
+            d.window!!.setLayout(ViewGroup.LayoutParams.WRAP_CONTENT, d.window!!.decorView.measuredHeight)
             et.addTextChangedListener(afterTextChanged = {
                 val name = et.editableText.toString()
                 b.isEnabled = !name.isBlank()
