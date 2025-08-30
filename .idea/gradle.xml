@@ -136,6 +136,6 @@
         </option>
       </GradleProjectSettings>
     </option>
-    <option name="offlineMode" value="true" />
+    <option name="offlineMode" value="false" />
   </component>
 </project>
