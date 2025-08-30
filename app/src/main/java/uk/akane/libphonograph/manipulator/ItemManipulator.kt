@@ -145,6 +145,7 @@ object ItemManipulator {
     }
 
     private fun checkIfFileOnPrimaryVolume(context: Context, uri: Uri): Boolean {
+        // TODO: is this even needed? it was only added to test if it fixes a bug for a user.
         val cursor = context.contentResolver.query(uri,
             arrayOf(MediaStore.MediaColumns.VOLUME_NAME), null, null, null)
         if (cursor == null) return false

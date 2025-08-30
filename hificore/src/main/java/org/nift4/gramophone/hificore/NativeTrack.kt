@@ -45,6 +45,7 @@ import java.nio.ByteBuffer
  * this class or its methods. However, you should always be prepared to handle such an exception, as everything can
  * fail.
  * TODO: tone down the magic numbers a bit.
+ * TODO: check AudioSystem for more methods we are interested in. (like track descriptors)
  */
 @Suppress("unused")
 class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int, sampleRate: Int,
@@ -145,7 +146,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 return DirectPlaybackSupport.NONE // TODO implement native getPlaybackOffloadSupport
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && hasDirect == null) {
-                hasDirect = false // TODO implement native isDirectPlaybackSupported
+                hasDirect = false // TODO implement native isDirectOutputSupported
             }
             val bitWidth = bitsPerSampleForFormat(encoding)
             var hasOffload: Boolean? = null
@@ -198,8 +199,9 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                         )
                         hasOffload = false
                     } else {
-                        hasOffload = (track.flags() and 0x11) == 0x11
-                        if ((track.flags() and 0x11) == 0x1) {
+                        val flags = track.flags()
+                        hasOffload = (flags and 0x11) == 0x11
+                        if ((flags and 0x11) == 0x1) {
                             hasDirect = true
                         }
                     }
@@ -1244,13 +1246,17 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
     private external fun releaseBufferInternal(ptr: Long, frameSize: Int, buf: ByteBuffer, limit: Int)
 
-    fun write(buf: ByteBuffer, blocking: Boolean): Long {
+    fun write(buf: ByteBuffer, offset: Int?, size: Int?, blocking: Boolean): Long {
         if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
-        if (!buf.isDirect)
-            throw IllegalArgumentException("must use direct ByteBuffer, otherwise use ByteArray")
+        if (!buf.isDirect) {
+            return write(buf.array(), buf.arrayOffset() + (offset ?: buf.position()),
+                size ?: (buf.limit() - (offset ?: buf.position())), blocking)
+        }
+        // TODO replicate blockUntilOffloadDrain()
         val ret = try {
-            writeInternal(ptr, buf, buf.position(), buf.limit() - buf.position(), blocking)
+            writeInternal(ptr, buf, offset ?: buf.position(),
+                size ?: (buf.limit() - (offset ?: buf.position())), blocking)
         } catch (t: Throwable) {
             throw NativeTrackException("write($buf / $blocking) failed", t)
         }
@@ -1263,11 +1269,12 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         }
         return ret
     }
-    fun write(buf: ByteArray, offset: Int, blocking: Boolean): Long {
+    fun write(buf: ByteArray, offset: Int, size: Int?, blocking: Boolean): Long {
         if (myState != State.ALIVE)
             throw IllegalStateException("state is $myState")
+        // TODO replicate blockUntilOffloadDrain()
         val ret = try {
-            writeInternal(ptr, buf, offset, blocking)
+            writeInternal(ptr, buf, offset, size ?: buf.size, blocking)
         } catch (t: Throwable) {
             throw NativeTrackException("write(${buf.size} / $blocking) failed", t)
         }
@@ -1280,8 +1287,31 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         }
         return ret
     }
+    fun write(buf: FloatArray, offset: Int, size: Int?, blocking: Boolean): Long {
+        if (myState != State.ALIVE)
+            throw IllegalStateException("state is $myState")
+        // TODO assert format is float
+        // TODO replicate blockUntilOffloadDrain()
+        val ret = try {
+            writeInternal(ptr, buf, offset, size ?: buf.size, blocking)
+        } catch (t: Throwable) {
+            throw NativeTrackException("write(${buf.size} / $blocking) failed", t)
+        }
+        if (ret == -32L) {
+            myState = State.DEAD_OBJECT
+            throw NativeTrackException("write(${buf.size} / $blocking) failed, track died")
+        }
+        if (ret < 0) {
+            throw NativeTrackException("write(${buf.size} / $blocking) failed: $ret")
+        }
+        return ret
+    }
+    fun write(buf: ByteArray, offset: Int, size: Int?, blocking: Boolean, timestamp: Long): Long {
+        TODO("Implement HW_AV_SYNC write API")
+    }
     private external fun writeInternal(ptr: Long, buf: ByteBuffer, offset: Int, size: Int, blocking: Boolean): Long
-    private external fun writeInternal(ptr: Long, buf: ByteArray, offset: Int, blocking: Boolean): Long
+    private external fun writeInternal(ptr: Long, buf: ByteArray, offset: Int, size: Int, blocking: Boolean): Long
+    private external fun writeInternal(ptr: Long, buf: FloatArray, offset: Int, size: Int, blocking: Boolean): Long
 
     fun channelCount(): Int {
         return Integer.bitCount(channelMask().toInt())
@@ -1492,58 +1522,76 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         ALIVE, // ready to use
     }
 
+    interface Callback {
+        fun onUnderrun()
+        fun onMarker(markerPosition: Int)
+        fun onNewPos(newPos: Int)
+        fun onStreamEnd()
+        fun onNewIAudioTrack()
+        fun onNewTimestamp(timestampMs: Int, timeNanoSec: Long)
+        fun onLoopEnd(loopsRemaining: Int)
+        fun onBufferEnd()
+        fun onMoreData(frameCount: Long, buffer: ByteBuffer): Long // ret = bytes written
+        fun onCanWriteMoreData(frameCount: Long, sizeBytes: Long)
+        fun onRoutingChanged()
+        fun onCodecFormatChanged(metadata: AudioMetadataReadMap?)
+    }
+    var cb: Callback? = null
+
     // called from native, on callback thread (not main thread!)
     private fun onUnderrun() {
-        Log.i(TAG, "onUnderrun called")
+        cb?.onUnderrun()
     }
     // called from native, on callback thread (not main thread!)
     private fun onMarker(markerPosition: Int) {
-        Log.i(TAG, "onMarker called: $markerPosition")
+        cb?.onMarker(markerPosition)
     }
     // called from native, on callback thread (not main thread!)
     private fun onNewPos(newPos: Int) {
-        Log.i(TAG, "onNewPos called: $newPos")
+        cb?.onNewPos(newPos)
     }
     // called from native, on callback thread (not main thread!)
     private fun onStreamEnd() {
-        Log.i(TAG, "onStreamEnd called")
+        cb?.onStreamEnd()
     }
     // called from native, on callback thread (not main thread!)
     private fun onNewIAudioTrack() {
-        Log.i(TAG, "onNewIAudioTrack called")
+        cb?.onNewIAudioTrack()
     }
     // called from native, on callback thread (not main thread!)
     private fun onNewTimestamp(timestampMs: Int, timeNanoSec: Long) {
-        Log.i(TAG, "onNewTimestamp called: timestampMs=$timestampMs timeNanoSec=$timeNanoSec")
+        cb?.onNewTimestamp(timestampMs, timeNanoSec)
     }
     // called from native, on callback thread (not main thread!)
     private fun onLoopEnd(loopsRemaining: Int) {
-        Log.i(TAG, "onLoopEnd called")
+        cb?.onLoopEnd(loopsRemaining)
     }
     // called from native, on callback thread (not main thread!)
     private fun onBufferEnd() {
-        Log.i(TAG, "onBufferEnd called")
+        cb?.onBufferEnd()
     }
     // called from native, on callback thread (not main thread!)
     // Be careful to not hold a reference to the buffer after returning. It will immediately be invalid!
     private fun onMoreData(frameCount: Long, buffer: ByteBuffer): Long {
-        Log.i(TAG, "onMoreData called: frameCount=$frameCount sizeBytes=${buffer.capacity()}")
+        cb?.let {
+            return it.onMoreData(frameCount, buffer)
+        }
         return 0 // amount of bytes written
     }
     // called from native, on callback thread (not main thread!)
     private fun onCanWriteMoreData(frameCount: Long, sizeBytes: Long) {
-        Log.i(TAG, "onCanWriteMoreData called: frameCount=$frameCount sizeBytes=$sizeBytes")
+        cb?.onCanWriteMoreData(frameCount, sizeBytes)
     }
     // called from native, on random thread (not main thread!) - only M for now, N+ uses proxy
     private fun onAudioDeviceUpdate(ioHandle: Int, routedDevices: IntArray) {
-        Log.i(TAG, "onAudioDeviceUpdate called: ioHandle=$ioHandle routedDevices=${routedDevices.contentToString()}")
+        cb?.onRoutingChanged()
     }
     // called on audio track initialization thread, most often main thread but not always
     private fun onRoutingChanged() {
-        Log.i(TAG, "onRoutingChanged called")
+        cb?.onRoutingChanged()
     }
     // called on random thread
     private fun onCodecFormatChanged(metadata: AudioMetadataReadMap?) {
-        Log.i(TAG, "onCodecFormatChanged called: metadata=$metadata")
+        cb?.onCodecFormatChanged(metadata)
     }
 }

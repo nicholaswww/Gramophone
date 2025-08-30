@@ -1522,8 +1522,9 @@ Java_org_nift4_gramophone_hificore_NativeTrack_writeInternal__JLjava_nio_ByteBuf
 
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_org_nift4_gramophone_hificore_NativeTrack_writeInternal__J_3BIZ(JNIEnv *env, jobject,
-                                                                    jlong ptr, jbyteArray buf, jint offset,
+Java_org_nift4_gramophone_hificore_NativeTrack_writeInternal__J_3BIIZ(JNIEnv *env, jobject,
+                                                                    jlong ptr, jbyteArray buf,
+																	jint offset, jint size,
                                                                     jboolean blocking) {
     auto holder = (track_holder*) ptr;
     if (holder->died)
@@ -1532,11 +1533,29 @@ Java_org_nift4_gramophone_hificore_NativeTrack_writeInternal__J_3BIZ(JNIEnv *env
     if (buffer == nullptr) {
         return INT32_MIN;
     }
-    jsize size = env->GetArrayLength(buf);
     void* base = buffer + offset;
     ssize_t ret = ZN7android10AudioTrack5writeEPKvjb(holder->track, base, size, blocking);
     env->ReleaseByteArrayElements(buf, buffer, JNI_ABORT);
     return ret;
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_org_nift4_gramophone_hificore_NativeTrack_writeInternal__J_3FIIZ(JNIEnv *env, jobject,
+                                                                      jlong ptr, jfloatArray buf,
+                                                                      jint offset, jint size,
+                                                                      jboolean blocking) {
+	auto holder = (track_holder*) ptr;
+	if (holder->died)
+		return -32; // DEAD_OBJECT
+	jfloat* buffer = env->GetFloatArrayElements(buf, nullptr);
+	if (buffer == nullptr) {
+		return INT32_MIN;
+	}
+	void* base = buffer + offset;
+	ssize_t ret = ZN7android10AudioTrack5writeEPKvjb(holder->track, base, size * sizeof(jfloat), blocking);
+	env->ReleaseFloatArrayElements(buf, buffer, JNI_ABORT);
+	return ret;
 }
 
 extern "C"
