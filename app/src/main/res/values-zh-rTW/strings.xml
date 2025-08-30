@@ -48,7 +48,6 @@
     <string name="dialog_path">路徑</string>
     <string name="unknown_album">未知專輯</string>
     <string name="recently_added">最近添加</string>
-    <string name="folders">檔案夾</string>
     <string name="settings_app_theme">主題</string>
     <string name="natural_order">自然排序</string>
     <plurals name="songs">

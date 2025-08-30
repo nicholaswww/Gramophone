@@ -73,7 +73,6 @@
     <string name="dialog_path">Путь</string>
     <string name="unknown_album">Неизвестный альбом</string>
     <string name="recently_added">Недавно добавленные</string>
-    <string name="folders">Папки</string>
     <string name="settings_app_theme">Тема приложения</string>
     <!-- Not translatable -->
     <string name="natural_order">По возрастанию</string>

@@ -25,7 +25,6 @@
     <string name="settings_app_name">Uygulama adı</string>
     <string name="settings_content_based_color">İçerik tabanlı renkler</string>
     <string name="dialog_track_number">Parça numarası</string>
-    <string name="folders">Klasörler</string>
     <plurals name="artists">
         <item quantity="one">%d Sanatçı</item>
         <item quantity="other">%d Sanatçılar</item>

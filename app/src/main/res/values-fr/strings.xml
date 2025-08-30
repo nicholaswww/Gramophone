@@ -23,7 +23,6 @@
     <string name="natural_order">Ordre naturel</string>
     <string name="light">Clair</string>
     <string name="settings_app_name">Nom de l’appli</string>
-    <string name="folders">Dossiers</string>
     <plurals name="artists">
         <item quantity="one">%d artiste</item>
         <item quantity="many">%d artistes</item>
