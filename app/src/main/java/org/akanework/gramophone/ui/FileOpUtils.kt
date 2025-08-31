@@ -70,8 +70,12 @@ fun getAdapterType(adapter: AdapterFragment.BaseInterface<*>) =
             13
         }
 
-        adapter is DetailedFolderAdapter -> {
+        adapter is DetailedFolderAdapter && !adapter.isDetailed -> {
             14
+        }
+
+        adapter is DetailedFolderAdapter && adapter.isDetailed -> {
+            15
         }
 
         else -> {

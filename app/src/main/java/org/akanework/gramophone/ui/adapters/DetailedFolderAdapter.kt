@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class DetailedFolderAdapter(
     private val fragment: Fragment,
-    private val isDetailed: Boolean
+    val isDetailed: Boolean
 ) : AdapterFragment.BaseInterface<RecyclerView.ViewHolder>() {
     private val mainActivity = fragment.requireActivity() as MainActivity
     override val context
