@@ -26,6 +26,7 @@ import android.widget.TextView
 import androidx.core.view.doOnLayout
 import androidx.fragment.app.Fragment
 import androidx.media3.common.MediaItem
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.DiffUtil
@@ -42,11 +43,13 @@ import kotlinx.coroutines.withContext
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.comparators.SupportComparator
+import org.akanework.gramophone.logic.getStringStrict
 import org.akanework.gramophone.logic.ui.DefaultItemHeightHelper
 import org.akanework.gramophone.logic.ui.ItemHeightHelper
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.AdapterFragment
+import org.akanework.gramophone.ui.getAdapterType
 import uk.akane.libphonograph.items.FileNode
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -67,8 +70,19 @@ class DetailedFolderAdapter(
         }
     override val itemCountForDecor: Int
         get() = folderAdapter.itemCount
-    override val sortType = MutableStateFlow(Sorter.Type.ByFilePathAscending)
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private var prefSortType: Sorter.Type = Sorter.Type.valueOf(
+        prefs.getStringStrict(
+            "S" + getAdapterType(this).toString(),
+            Sorter.Type.None.toString()
+        )!!
+    )
     override val sortTypes = setOf(Sorter.Type.ByFilePathAscending, Sorter.Type.BySizeDescending)
+    override val sortType = MutableStateFlow(
+        if (prefSortType != Sorter.Type.None && sortTypes.contains(prefSortType))
+        prefSortType
+    else
+        Sorter.Type.ByFilePathAscending)
     private val liveData = if (isDetailed) mainActivity.reader.folderStructureFlow
         else mainActivity.reader.shallowFolderFlow
     private var scope: CoroutineScope? = null
@@ -76,7 +90,7 @@ class DetailedFolderAdapter(
     private val folderAdapter: FolderListAdapter =
         FolderListAdapter(listOf(), mainActivity, this)
     private val songList = MutableSharedFlow<List<MediaItem>>(1)
-    private val decorAdapter = BaseDecorAdapter<DetailedFolderAdapter>(this, R.plurals.folders, false)
+    private val decorAdapter = BaseDecorAdapter<DetailedFolderAdapter>(this, R.plurals.folders)
     private val songAdapter: SongAdapter =
         SongAdapter(fragment, songList, true, null, false, folder = true).apply {
             onFullyDrawnListener = { reportFullyDrawn() }
@@ -212,6 +226,10 @@ class DetailedFolderAdapter(
 
     override fun getPopupText(view: View, position: Int): CharSequence {
         var newPos = position
+        if (newPos < decorAdapter.itemCount) {
+            return "-"
+        }
+        newPos -= decorAdapter.itemCount
         if (newPos < folderPopAdapter.itemCount) {
             return "-"
         }

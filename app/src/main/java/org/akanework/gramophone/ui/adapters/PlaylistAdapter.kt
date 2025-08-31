@@ -209,7 +209,7 @@ class PlaylistAdapter(
 
     private inner class PlaylistDecorAdapter(
         playlistAdapter: PlaylistAdapter
-    ) : BaseDecorAdapter<PlaylistAdapter>(playlistAdapter, R.plurals.items, false) {
+    ) : BaseDecorAdapter<PlaylistAdapter>(playlistAdapter, R.plurals.items) {
 
         override fun onBindViewHolder(
             holder: ViewHolder,

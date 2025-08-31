@@ -38,8 +38,7 @@ import org.akanework.gramophone.ui.getAdapterType
 
 open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
     protected val adapter: T,
-    private val pluralStr: Int,
-    private val isSubFragment: Boolean
+    private val pluralStr: Int
 ) : MyRecyclerView.Adapter<BaseDecorAdapter.ViewHolder>(), ItemHeightHelper {
 
     protected val context: Context = adapter.context
@@ -126,13 +125,11 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
                         if (!menuItem.isChecked) {
                             adapter.sort(buttonMap[menuItem.itemId]!!)
                             menuItem.isChecked = true
-                            if (!isSubFragment) {
-                                prefs.edit {
-                                    putString(
-                                        "S" + getAdapterType(adapter).toString(),
-                                        buttonMap[menuItem.itemId].toString()
-                                    )
-                                }
+                            prefs.edit {
+                                putString(
+                                    "S" + getAdapterType(adapter).toString(),
+                                    buttonMap[menuItem.itemId].toString()
+                                )
                             }
                         }
                         true
@@ -142,13 +139,11 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
                         if (!menuItem.isChecked) {
                             adapter.layoutType = layoutMap[menuItem.itemId]!!
                             menuItem.isChecked = true
-                            if (!isSubFragment) {
-                                prefs.edit {
-                                    putString(
-                                        "L" + getAdapterType(adapter).toString(),
-                                        layoutMap[menuItem.itemId].toString()
-                                    )
-                                }
+                            prefs.edit {
+                                putString(
+                                    "L" + getAdapterType(adapter).toString(),
+                                    layoutMap[menuItem.itemId].toString()
+                                )
                             }
                         }
                         true

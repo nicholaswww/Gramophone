@@ -119,7 +119,7 @@ abstract class BaseAdapter<T : Any>(
     private var prefs = PreferenceManager.getDefaultSharedPreferences(context)
 
     @Suppress("LeakingThis")
-    private var prefSortType: Sorter.Type = if (canSort) Sorter.Type.valueOf(
+    private val prefSortType: Sorter.Type = if (canSort) Sorter.Type.valueOf(
         prefs.getStringStrict(
             "S" + getAdapterType(this).toString(),
             Sorter.Type.None.toString()
@@ -165,9 +165,7 @@ abstract class BaseAdapter<T : Any>(
             notifyDataSetChanged() // we change view type for all items
         }
     override val sortType: MutableStateFlow<Sorter.Type> = MutableStateFlow(
-        if (prefSortType != Sorter.Type.None && prefSortType != initialSortType
-            && sortTypes.contains(prefSortType)
-        )
+        if (prefSortType != Sorter.Type.None && sortTypes.contains(prefSortType))
             prefSortType
         else
             initialSortType
@@ -339,7 +337,7 @@ abstract class BaseAdapter<T : Any>(
     protected open fun onListUpdated() {}
 
     protected open fun createDecorAdapter(): BaseDecorAdapter<out BaseAdapter<T>> {
-        return BaseDecorAdapter(this, pluralStr, isSubFragment != null)
+        return BaseDecorAdapter(this, pluralStr)
     }
 
     override fun getItemViewType(position: Int): Int {

@@ -4,6 +4,7 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.adapters.AlbumAdapter
 import org.akanework.gramophone.ui.adapters.ArtistAdapter
 import org.akanework.gramophone.ui.adapters.DateAdapter
+import org.akanework.gramophone.ui.adapters.DetailedFolderAdapter
 import org.akanework.gramophone.ui.adapters.GenreAdapter
 import org.akanework.gramophone.ui.adapters.PlaylistAdapter
 import org.akanework.gramophone.ui.adapters.SongAdapter
@@ -67,6 +68,10 @@ fun getAdapterType(adapter: AdapterFragment.BaseInterface<*>) =
         adapter is AlbumAdapter && (adapter.isSubFragment == R.id.artist
                 || adapter.isSubFragment == R.id.album_artist) -> {
             13
+        }
+
+        adapter is DetailedFolderAdapter -> {
+            14
         }
 
         else -> {
