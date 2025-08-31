@@ -245,7 +245,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             val bps = bitsPerSampleForFormat(audioFormat)
             if (bps == 0) // compressed
                 return minFrameCount
-            return minFrameCount * channelConfig * (bps / 8)
+            return minFrameCount * Integer.bitCount(channelConfig) * (bps / 8)
         }
         fun getMinFrameCount(streamType: Int, sampleRateInHz: Int): Int {
             prepareForLib()
@@ -350,7 +350,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     private var sessionId: Int
     private var cachedBuffer: ByteBuffer?
     val ptr: Long
-    var myState: State
+    @Volatile var myState: State
     // proxy limitations: a lot of fields not initialized (mSampleRate, mAudioFormat, mOffloaded, ...) which can
     // cause some internal checks in various methods to fail; stream event and playback position callbacks both
     // are no-op; we MUST call play(), pause(), stop() and don't use the native methods ourselves for this to work;
@@ -1410,7 +1410,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
     }
     class ExtendedTimestamp(private val mPosition: LongArray, private val mTimeNs: LongArray,
                             private val mTimebaseOffset: LongArray, val mFlushed: Long) {
-        class Timestamp(position: Long, time: Long, timebase: Timebase, location: TimestampLocation)
+        data class Timestamp(val position: Long, val time: Long, val timebase: Timebase, val location: TimestampLocation)
         fun getBestTimestamp(timebase: Timebase): Timestamp? {
             getTimestamp(TimestampLocation.Kernel, timebase)?.let { return it }
             return getTimestamp(TimestampLocation.Server, timebase)
@@ -1536,7 +1536,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         fun onRoutingChanged()
         fun onCodecFormatChanged(metadata: AudioMetadataReadMap?)
     }
-    var cb: Callback? = null
+    @Volatile var cb: Callback? = null
 
     // called from native, on callback thread (not main thread!)
     private fun onUnderrun() {
