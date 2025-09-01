@@ -18,8 +18,6 @@
 package org.nift4.gramophone.hificore
 
 import android.annotation.SuppressLint
-import android.content.Context
-import android.media.AudioDeviceInfo
 import android.media.AudioTrack
 import android.os.Build
 import android.os.IBinder

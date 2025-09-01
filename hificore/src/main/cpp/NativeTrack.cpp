@@ -438,53 +438,6 @@ public:
         mHolder = nullptr;
     }
 };
-/*
-class DeviceCallbackV33 : public android::AudioSystem::AudioDeviceCallbackV33 {
-public:
-    track_holder* mHolder;
-
-    explicit DeviceCallbackV33(track_holder& holder) : mHolder(&holder) {}
-
-    void onAudioDeviceUpdate(int32_t audioIo, int32_t deviceId) override {
-        if (mHolder != nullptr) {
-            callOnAudioDeviceUpdate(mHolder, audioIo, {deviceId});
-        } else {
-            ALOGE("leaked device callback? drop onAudioDeviceUpdate io%d dev%d", audioIo, deviceId);
-        }
-    }
-
-    bool onIncStrongAttempted(uint32_t flags, const void *id) override {
-        return false; // never revive
-    }
-
-    void onLastStrongRef(const void *id) override {
-        mHolder = nullptr;
-    }
-};
-class DeviceCallbackV35Qpr2 : public android::AudioSystem::AudioDeviceCallbackV35Qpr2 {
-public:
-    track_holder* mHolder;
-
-    explicit DeviceCallbackV35Qpr2(track_holder& holder) : mHolder(&holder) {}
-
-    void onAudioDeviceUpdate(int32_t audioIo, const DeviceIdVector& deviceIds) override {
-        if (mHolder != nullptr) {
-            callOnAudioDeviceUpdate(mHolder, audioIo, deviceIds);
-        } else {
-            ALOGE("leaked device callback? drop onAudioDeviceUpdate io%d dev%d(%zu)", audioIo,
-                  !deviceIds.empty() ? deviceIds[0] : 0, deviceIds.size());
-        }
-    }
-
-    bool onIncStrongAttempted(uint32_t flags, const void *id) override {
-        return false; // never revive
-    }
-
-    void onLastStrongRef(const void *id) override {
-        mHolder = nullptr;
-    }
-};
- */
 
 static void callbackAdapter(int event, void* userptr, void* info) {
     auto user = ((track_holder*) userptr)->callback;
@@ -1134,14 +1087,18 @@ Java_org_nift4_gramophone_hificore_NativeTrack_getProxy(JNIEnv* env, jobject, jl
     jmethodID setId = env->GetMethodID(at, "native_setPlayerIId", "(I)V");
     if (setId == nullptr) {
         ALOGW("getProxy: didn't find android/media/AudioTrack.native_setPlayerIId(I)V");
+		if (android_get_device_api_level() >= 31) {
+			return nullptr; // throw
+		}
         env->ExceptionClear();
-        //return nullptr; TODO on which API levels should this work?
     }
     jfieldID id = env->GetFieldID(at, "mPlayerIId", "I");
     if (id == nullptr) {
         ALOGW("getProxy: didn't find android/media/AudioTrack.mPlayerIId int");
+	    if (android_get_device_api_level() >= 31) {
+		    return nullptr; // throw
+	    }
         env->ExceptionClear();
-        //return nullptr; TODO on which API levels should this work?
     }
     // creating with 0 and then using deferred_connect() skips PlayerBase registration, which
     // allows us to do it ourselves, but with our real session ID (almost like a real AudioTrack).
@@ -1183,17 +1140,10 @@ Java_org_nift4_gramophone_hificore_NativeTrack_dtor(
         if (ret != 0) {
             ALOGE("failed to remove audio device callback, error %d", ret);
         }
-        /*if (android_get_device_api_level() >= 36 || ZN7android10AudioTrack18getRoutedDeviceIdsEv) {
-            ((DeviceCallbackV35Qpr2*)holder->deviceCallback)->decStrong(holder);
-        } else if (android_get_device_api_level() >= 33) {
-            ((DeviceCallbackV33*)holder->deviceCallback)->decStrong(holder);
-        } else {*/
-            ((DeviceCallbackV23*)holder->deviceCallback)->decStrong(holder);
-        //}
+        ((DeviceCallbackV23*)holder->deviceCallback)->decStrong(holder);
         holder->deviceCallback = nullptr;
     }
-    // TODO call audioTrack stopAndJoinCallbacks where appropriate
-    // RefBase will call the dtor
+    // RefBase will call the dtor; dtor will call stopAndJoinCallbacks where appropriate
     if (android_get_device_api_level() >= 33) {
         // virtual inheritance, let's have the compiler generate the vtable stuff
         ((android::AudioTrack *) holder->track)->decStrong(holder);
@@ -1204,7 +1154,6 @@ Java_org_nift4_gramophone_hificore_NativeTrack_dtor(
     holder->track = nullptr;
     holder->callback = nullptr;
     if (holder->sharedMemoryBuffer) {
-        // TODO is it safe to dealloc shared memory here or will it race with AudioTrack?
         env->DeleteGlobalRef(holder->sharedMemoryBuffer);
     }
     env->DeleteGlobalRef(holder->thiz);
@@ -1259,7 +1208,7 @@ Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_isOffloadSupported
                 .usage = LEGACY_AUDIO_USAGE_MEDIA,
                 .use_small_bufs = false,
         };
-    } // TODO verify if this works on Q/R?
+    }
     return ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t(offloadInfo.oldInfo);
 }
 
@@ -1697,23 +1646,27 @@ Java_org_nift4_gramophone_hificore_NativeTrack_getBufferDurationInUsInternal(JNI
                                                                              jlong ptr) {
 	auto holder = (track_holder*) ptr;
 	int64_t out;
-	// TODO: is wrapping of int64_t an issue?
+	// as long as speed >= 0 and sample rate >= 0, out will be >= 0, hence we can discard sign
     int32_t ret = ZN7android10AudioTrack21getBufferDurationInUsEPl(holder->track, &out);
-	if (ret < 0) {
+	if (ret != 0) {
+		if (ret > 0) {
+			ALOGE("getBufferDurationInUs returned positive error code %d, this should never happen", ret);
+			return -1;
+		}
 		return ret;
 	}
 	return out;
 }
 
 extern "C"
-JNIEXPORT jint JNICALL
+JNIEXPORT jlong JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_getPlaybackRateInternal(JNIEnv *env, jobject,
                                                                        jlong ptr,
                                                                        jfloatArray speed_pitch) {
 	auto holder = (track_holder*) ptr;
 	audio_playback_rate rate = ZNK7android10AudioTrack15getPlaybackRateEv(holder->track);
 	env->SetFloatArrayRegion(speed_pitch, 0, 2, &rate.mSpeed);
-	return (rate.mStretchMode == 1) << 31 | (rate.mFallbackMode + 1) & 0xff;
+	return (jlong)rate.mStretchMode << 32 | rate.mFallbackMode;
 }
 
 extern "C"
@@ -1734,17 +1687,13 @@ Java_org_nift4_gramophone_hificore_NativeTrack_setPlaybackRateInternal(JNIEnv *,
 }
 
 extern "C"
-JNIEXPORT jint JNICALL
+JNIEXPORT jlong JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_pendingDurationInternal(JNIEnv *, jobject,
                                                                        jlong ptr, jint location) {
 	int32_t out;
 	auto holder = (track_holder*) ptr;
 	int ret = ZN7android10AudioTrack15pendingDurationEPiNS_17ExtendedTimestamp8LocationE(holder->track, &out, location);
-	if (ret < 0) {
-		return ret;
-	}
-	// TODO: is removal of sign from out an issue?
-	return out;
+	return (jlong)out << 32 | ret;
 }
 
 extern "C"

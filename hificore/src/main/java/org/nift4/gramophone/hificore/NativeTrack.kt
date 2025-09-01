@@ -133,11 +133,8 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                             format, attributes)
                 }
             }
-            if (!initDlsym()) {
-                Log.e(TAG, "initDlsym() failed")
-                return DirectPlaybackSupport.NONE
-            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // TODO implement native getDirectProfilesForAttributes
                 return DirectPlaybackSupport.NONE // TODO implement native getDirectPlaybackSupport
             }
             // TODO before T, inactive routes were considered in isDirectPlaybackSupported according to AOSP doc.
@@ -155,6 +152,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 || !formatIsRawPcm(encoding) || bitWidth < 24
             ) {
                 // this cannot be trusted on N/O with 24+ bit PCM formats due to format confusion bug
+                // TODO verify if this works on Q/R
                 hasOffload = try {
                     isOffloadSupported(sampleRate, encoding.toInt(), channelMask.toInt(), 0, bitWidth, 0)
                 } catch (t: Throwable) {
@@ -240,6 +238,9 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             }
             return DirectPlaybackSupport(hasOffload == true, false, hasDirect == true)
         }
+        /*private external fun getDirectPlaybackSupport(usage: Int, contentType: Int, attrFlags: Int,
+                                                      sampleRate: Int, format: Int, channelMask: Int,
+                                                      bitRate: Int, bitWidth: Int, offloadBufferSize: Int) TODO*/
         fun getMinBufferSize(sampleRateInHz: Int, channelConfig: Int, audioFormat: UInt): Int {
             val minFrameCount = getMinFrameCount(-1, sampleRateInHz)
             val bps = bitsPerSampleForFormat(audioFormat)
@@ -941,18 +942,20 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         if (myState == State.RELEASED)
             throw IllegalStateException("state is $myState")
         val speedPitch = FloatArray(2)
-        val ret: Int = getPlaybackRateInternal(ptr, speedPitch)
+        val ret = getPlaybackRateInternal(ptr, speedPitch)
+        val stretchForVoice = (ret shr 32).toInt()
+        val fallbackMode = ret.toInt()
         return PlaybackRate(speedPitch[0], speedPitch[1],
-            ((ret shr 31) and 1) == 1, when (ret and 0xff) {
-                -1 + 1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_CUT_REPEAT
-                0 + 1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_DEFAULT
-                1 + 1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_MUTE
-                2 + 1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_FAIL
+            stretchForVoice == 1, when (fallbackMode) {
+                -1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_CUT_REPEAT
+                0 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_DEFAULT
+                1 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_MUTE
+                2 -> StretchFallbackMode.AUDIO_TIMESTRETCH_FALLBACK_FAIL
                 else -> throw IllegalArgumentException("timestretch $ret")
             })
     }
     @RequiresApi(Build.VERSION_CODES.M)
-    private external fun getPlaybackRateInternal(ptr: Long, speedPitch: FloatArray): Int
+    private external fun getPlaybackRateInternal(ptr: Long, speedPitch: FloatArray): Long
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun setDualMonoMode(dualMonoMode: Int) {
@@ -1473,18 +1476,20 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
 	        TimestampLocation.ServerPriorToLastKernelOk -> 4
 	        TimestampLocation.KernelPriorToLastKernelOk -> 5
         }
-        val ret = try {
+        val data = try {
             pendingDurationInternal(ptr, location2)
         } catch (t: Throwable) {
             throw NativeTrackException("failed to get pending duration from $location", t)
         }
-        if (ret < 0) {
+        val ret = (data shr 32).toInt()
+        val out = data.toInt()
+        if (ret != 0) {
             throw NativeTrackException("failed to get pending duration from $location, ret = $ret")
         }
-        return ret
+        return out
     }
     @RequiresApi(Build.VERSION_CODES.N)
-    private external fun pendingDurationInternal(ptr: Long, location: Int): Int
+    private external fun pendingDurationInternal(ptr: Long, location: Int): Long
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun hasStarted(): Boolean {
