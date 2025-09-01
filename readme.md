@@ -70,7 +70,7 @@ Gramophone hides songs shorter than 60 seconds by default. You can change it in 
 **I changed the min length setting, but some songs are still missing!**
 Make sure you haven't excluded the folder in _Behaviour > Folder blacklist_.
 Then, try to reboot your phone, then wait a few minutes (this will rescan the system-wide media database Gramophone uses to find songs).
-If it's still not visible, your system version may not support the song: this most commonly is observed for .opus, which will only be found since Android 10.
+If it's still not visible, your system version may not support scanning this file extension: this most commonly is observed for .opus, which will only be scanned since Android 10 (pro tip: rename your .opus file to .ogg, and it will be detected on Android 6 and later).
 
 **My song isn't playing! / My song is playing, but it's completely silent, yet the volume is turned up!**
 Please note that Gramophone relys on system media codecs to make the app smaller. This means
