@@ -483,11 +483,10 @@ fun AppWidgetManager.createWidgetInSizes(appWidgetId: Int, creator: (SizeF?) -> 
 
 // the whole point of this function is to do literally nothing at all (but without impacting
 // performance) in release builds and ignore StrictMode violations in debug builds
-inline fun <reified T> allowDiskAccessInStrictMode(relax: Boolean = false, doIt: () -> T): T {
+inline fun <reified T> allowDiskAccessInStrictMode(doIt: () -> T): T {
     return if (BuildConfig.DEBUG) {
         if (Looper.getMainLooper() != Looper.myLooper()) {
-            if (relax) doIt() else
-                throw IllegalStateException("allowDiskAccessInStrictMode(false) on wrong thread")
+            throw IllegalStateException("allowDiskAccessInStrictMode(false) on wrong thread")
         } else {
             val policy = StrictMode.allowThreadDiskReads()
             try {
@@ -501,10 +500,9 @@ inline fun <reified T> allowDiskAccessInStrictMode(relax: Boolean = false, doIt:
 }
 
 inline fun <reified T> SharedPreferences.use(
-    relax: Boolean = false,
     doIt: SharedPreferences.() -> T
 ): T {
-    return allowDiskAccessInStrictMode(relax) { doIt() }
+    return allowDiskAccessInStrictMode { doIt() }
 }
 
 @Suppress("NOTHING_TO_INLINE")

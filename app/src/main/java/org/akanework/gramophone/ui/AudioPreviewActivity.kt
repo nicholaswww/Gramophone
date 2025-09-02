@@ -124,7 +124,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
 
         d = MaterialAlertDialogBuilder(this)
             .setView(R.layout.activity_audio_preview)

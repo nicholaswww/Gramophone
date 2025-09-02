@@ -34,7 +34,7 @@ import uk.akane.libphonograph.items.Artist
  */
 class ArtistAdapter(
     fragment: Fragment,
-    private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(fragment.requireContext()),
+    private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(fragment.requireContext().applicationContext),
     var isAlbumArtist: Boolean = prefs.getBooleanStrict("isDisplayingAlbumArtist", false)
 ) : BaseAdapter<Artist>
     (

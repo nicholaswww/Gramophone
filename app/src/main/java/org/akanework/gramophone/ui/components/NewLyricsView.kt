@@ -53,7 +53,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
     private val isElegantTextHeight = false // TODO this was causing issues, but target 36 can't turn this off anymore... needs rework
     private var charScaling: Boolean
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private lateinit var typeface: Typeface
     private val grdWidth = context.resources.getDimension(R.dimen.lyric_gradient_size)
     private val defaultTextSize = context.resources.getDimension(R.dimen.lyric_text_size)

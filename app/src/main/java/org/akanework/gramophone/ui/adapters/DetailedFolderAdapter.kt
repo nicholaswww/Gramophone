@@ -70,7 +70,7 @@ class DetailedFolderAdapter(
         }
     override val itemCountForDecor: Int
         get() = folderAdapter.itemCount
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private var prefSortType: Sorter.Type = Sorter.Type.valueOf(
         prefs.getStringStrict(
             "S" + getAdapterType(this).toString(),

@@ -88,6 +88,7 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -240,7 +241,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         playbackHandler = Handler(internalPlaybackThread.looper)
         handler = Handler(Looper.getMainLooper())
         nm = NotificationManagerCompat.from(this)
-        prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
         setListener(this)
         setMediaNotificationProvider(
             MeiZuLyricsMediaNotificationProvider(this) { lastSentHighlightedLyric }
@@ -456,29 +457,31 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 )
             }
         }
-        lastPlayedManager.restore { items, factory ->
-            if (mediaSession == null) return@restore
-            if (items != null) {
-                if (endedWorkaroundPlayer?.nextShuffleOrder != null)
-                    throw IllegalStateException("shuffleFactory was found orphaned")
-                endedWorkaroundPlayer?.nextShuffleOrder = factory.toFactory()
-                try {
-                    mediaSession?.player?.setMediaItems(
-                        items.mediaItems, items.startIndex, items.startPositionMs
-                    )
-                } catch (e: IllegalSeekPositionException) {
-                    // invalid data, whatever...
-                    Log.e(TAG, "failed to restore: " + Log.getStackTraceString(e))
-                    endedWorkaroundPlayer?.nextShuffleOrder = null
+        scope.launch {
+            lastPlayedManager.restore { items, factory ->
+                if (mediaSession == null) return@restore
+                if (items != null) {
+                    if (endedWorkaroundPlayer?.nextShuffleOrder != null)
+                        throw IllegalStateException("shuffleFactory was found orphaned")
+                    endedWorkaroundPlayer?.nextShuffleOrder = factory.toFactory()
+                    try {
+                        mediaSession?.player?.setMediaItems(
+                            items.mediaItems, items.startIndex, items.startPositionMs
+                        )
+                    } catch (e: IllegalSeekPositionException) {
+                        // invalid data, whatever...
+                        Log.e(TAG, "failed to restore: " + Log.getStackTraceString(e))
+                        endedWorkaroundPlayer?.nextShuffleOrder = null
+                    }
+                    if (endedWorkaroundPlayer?.nextShuffleOrder != null)
+                        throw IllegalStateException("shuffleFactory was not consumed during restore")
+                    handler.post {
+                        // Prepare Player after UI thread is less busy (loads tracks, required for lyric)
+                        controller?.prepare()
+                    }
                 }
-                if (endedWorkaroundPlayer?.nextShuffleOrder != null)
-                    throw IllegalStateException("shuffleFactory was not consumed during restore")
-                handler.post {
-                    // Prepare Player after UI thread is less busy (loads tracks, required for lyric)
-                    controller?.prepare()
-                }
+                lastPlayedManager.allowSavingState = true
             }
-            lastPlayedManager.allowSavingState = true
         }
         if (Flags.FAVORITE_SONGS) {
             scope.launch {
@@ -709,24 +712,31 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         isForPlayback: Boolean
     ): ListenableFuture<MediaItemsWithStartPosition> {
         val settable = SettableFuture.create<MediaItemsWithStartPosition>()
-        lastPlayedManager.restore { items, factory ->
-            if (items == null) {
-                settable.setException(
-                    NullPointerException(
-                        "null MediaItemsWithStartPosition, see former logs for root cause"
-                    ).also { Log.e(TAG, Log.getStackTraceString(it)) }
-                )
-            } else {
-                if (endedWorkaroundPlayer?.nextShuffleOrder != null)
-                    throw IllegalStateException("shuffleFactory was found orphaned")
-                if (isForPlayback && items.mediaItems.isNotEmpty()) {
-                    endedWorkaroundPlayer?.nextShuffleOrder = factory.toFactory()
-                    settable.set(items)
-                    if (endedWorkaroundPlayer?.nextShuffleOrder != null)
-                        throw IllegalStateException("shuffleFactory was not consumed during resumption")
+        val job = scope.launch {
+            lastPlayedManager.restore { items, factory ->
+                if (items == null) {
+                    settable.setException(
+                        NullPointerException(
+                            "null MediaItemsWithStartPosition, see former logs for root cause"
+                        ).also { Log.e(TAG, Log.getStackTraceString(it)) }
+                    )
                 } else {
-                    settable.set(items)
+                    if (endedWorkaroundPlayer?.nextShuffleOrder != null)
+                        throw IllegalStateException("shuffleFactory was found orphaned")
+                    if (isForPlayback && items.mediaItems.isNotEmpty()) {
+                        endedWorkaroundPlayer?.nextShuffleOrder = factory.toFactory()
+                        settable.set(items)
+                        if (endedWorkaroundPlayer?.nextShuffleOrder != null)
+                            throw IllegalStateException("shuffleFactory was not consumed during resumption")
+                    } else {
+                        settable.set(items)
+                    }
                 }
+            }
+        }
+        job.invokeOnCompletion { t ->
+            if (t is CancellationException && !settable.isDone) {
+                settable.setException(t)
             }
         }
         return settable

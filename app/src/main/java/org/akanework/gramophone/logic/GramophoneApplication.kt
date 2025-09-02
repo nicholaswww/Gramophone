@@ -104,18 +104,18 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     override fun onCreate() {
         super.onCreate()
         // disk read and write on first launch, but unavoidable as threads would race setDefaultNightMode
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this@GramophoneApplication)
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         if (BuildConfig.DEBUG) {
             // Use StrictMode to find anti-pattern issues
             StrictMode.setThreadPolicy(
                 ThreadPolicy.Builder()
                     .detectAll()
                     .let {
-                        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+                            Build.VERSION.SDK_INT == Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                             it.permitExplicitGc() // platform bug, now fixed
                         } else it
                     }
-                    .permitDiskReads() // permit disk reads due to media3 setMetadata() TODO extra player thread
                     .penaltyLog()
                     .penaltyDialog()
                     .build()

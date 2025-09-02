@@ -47,7 +47,7 @@ class LegacyLyricsAdapter(
     private val instance
         get() = activity.getPlayer()
     private var recyclerView: MyRecyclerView? = null
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private var defaultTextColor = 0
     private var highlightTextColor = 0
     private val interpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)

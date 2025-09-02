@@ -139,7 +139,7 @@ class FullBottomSheet
     private var firstTime = false
     private var enableQualityInfo = false
 
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private var currentFormat: AudioFormatDetector.AudioFormats? = null
 
     companion object {
@@ -364,7 +364,7 @@ class FullBottomSheet
 
         if (Flags.FORMAT_INFO_DIALOG) {
             bottomSheetFullQualityDetails.setOnClickListener {
-                MaterialAlertDialogBuilder(context)
+                MaterialAlertDialogBuilder(wrappedContext ?: context)
                     .setTitle(R.string.audio_signal_chain)
                     .setMessage(
                         currentFormat?.prettyToString(context)

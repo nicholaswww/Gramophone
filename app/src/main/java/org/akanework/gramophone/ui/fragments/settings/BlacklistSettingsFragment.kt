@@ -22,7 +22,7 @@ class BlacklistSettingsActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(R.layout.fragment_blacklist_settings)
         val topAppBar = findViewById<MaterialToolbar>(R.id.topAppBar)
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
 
         findViewById<AppBarLayout>(R.id.appbarlayout).enableEdgeToEdgePaddingListener()
         val folderArray = runBlocking { gramophoneApplication.reader.foldersFlow.first().toMutableList() }

@@ -45,7 +45,7 @@ class ViewPager2Adapter(
 ) : FragmentStateAdapter(fragmentManager, lifecycle),
     SharedPreferences.OnSharedPreferenceChangeListener, DefaultLifecycleObserver {
 
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private var tabs = mapSettingToTabList(prefs.getStringStrict("tabs", "")!!)
 
     init {

@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
@@ -47,6 +48,7 @@ import uk.akane.libphonograph.utils.MiscUtils.findBestCover
 import uk.akane.libphonograph.utils.MiscUtils.handleMediaFolder
 import uk.akane.libphonograph.utils.MiscUtils.handleShallowMediaItem
 import java.io.File
+import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
 import kotlin.math.min
@@ -534,6 +536,9 @@ internal object Reader {
                 val paths = try {
                     playlistPath?.let { p -> PlaylistSerializer.read(p).map { if (it.isFile) it else null } }
                 } catch (_: PlaylistSerializer.UnsupportedPlaylistFormatException) {
+                    null
+                } catch (e: IOException) {
+                    Log.w("Reader", "failed to read playlist $playlistPath", e)
                     null
                 }
                 if (paths != null && content.size > paths.size) {

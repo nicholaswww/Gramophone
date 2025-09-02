@@ -97,7 +97,7 @@ class PlayerBottomSheet private constructor(
 
     private val activity
         get() = context as MainActivity
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private val lifecycleOwner: LifecycleOwner
         get() = activity
     private val handler = Handler(Looper.getMainLooper())

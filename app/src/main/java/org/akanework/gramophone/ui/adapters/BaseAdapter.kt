@@ -116,7 +116,7 @@ abstract class BaseAdapter<T : Any>(
     protected var recyclerView: MyRecyclerView? = null
         private set
 
-    private var prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private var prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
 
     @Suppress("LeakingThis")
     private val prefSortType: Sorter.Type = if (canSort) Sorter.Type.valueOf(

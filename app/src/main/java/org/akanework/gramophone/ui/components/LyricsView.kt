@@ -21,7 +21,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
     SharedPreferences.OnSharedPreferenceChangeListener {
 
 
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private var recyclerView: MyRecyclerView? = null
     private var newView: NewLyricsView? = null
     private val adapter

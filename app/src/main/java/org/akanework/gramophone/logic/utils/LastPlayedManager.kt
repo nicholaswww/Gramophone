@@ -34,6 +34,7 @@ import androidx.media3.session.MediaSession.MediaItemsWithStartPosition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.logic.use
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
@@ -75,10 +76,8 @@ class LastPlayedManager(
     }
 
     fun eraseShuffleOrder() {
-        prefs.use(relax = true) {
-            edit(commit = true) {
-                putString("shuffle_persist", null)
-            }
+        prefs.edit(commit = true) {
+            putString("shuffle_persist", null)
         }
     }
 
@@ -155,11 +154,11 @@ class LastPlayedManager(
         }
     }
 
-    fun restore(callback: (MediaItemsWithStartPosition?, CircularShuffleOrder.Persistent) -> Unit) {
+    suspend fun restore(callback: (MediaItemsWithStartPosition?, CircularShuffleOrder.Persistent) -> Unit) {
         if (BuildConfig.DEBUG) {
             Log.d(TAG, "decoding playlist...")
         }
-        CoroutineScope(Dispatchers.Default).launch {
+        withContext(Dispatchers.Default) {
             val seed = try {
                 CircularShuffleOrder.Persistent.deserialize(
                     prefs.getString(
@@ -178,7 +177,7 @@ class LastPlayedManager(
                 val lastPlayedPos = prefs.getLong("last_played_pos", 0)
                 if (lastPlayedGrp == null || lastPlayedLst == null) {
                     runCallback(callback, seed) { null }
-                    return@launch
+                    return@withContext
                 }
                 val repeatMode = prefs.getInt("repeat_mode", Player.REPEAT_MODE_OFF)
                 val shuffleModeEnabled = prefs.getBoolean("shuffle", false)
@@ -295,7 +294,7 @@ class LastPlayedManager(
                     controller.playbackParameters = playbackParameters
                     data
                 }
-                return@launch
+                return@withContext
             } catch (e: Exception) {
                 try {
                     this@LastPlayedManager.eraseShuffleOrder()
@@ -303,14 +302,14 @@ class LastPlayedManager(
                 }
                 Log.e(TAG, Log.getStackTraceString(e))
                 runCallback(callback, seed) { null }
-                return@launch
+                return@withContext
             }
         }
     }
 }
 
 @OptIn(UnstableApi::class)
-private inline fun runCallback(
+private suspend inline fun runCallback(
     crossinline callback: (
         MediaItemsWithStartPosition?,
         CircularShuffleOrder.Persistent
@@ -318,7 +317,7 @@ private inline fun runCallback(
     seed: CircularShuffleOrder.Persistent,
     noinline parameter: () -> MediaItemsWithStartPosition?
 ) {
-    CoroutineScope(Dispatchers.Main).launch { callback(parameter(), seed) }
+    withContext(Dispatchers.Main) { callback(parameter(), seed) }
 }
 
 private class SafeDelimitedStringConcat(private val delimiter: String) {

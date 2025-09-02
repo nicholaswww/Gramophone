@@ -44,7 +44,7 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
     protected val context: Context = adapter.context
     private val dpHeight = context.resources.getDimensionPixelSize(R.dimen.decor_height)
     private var recyclerView: MyRecyclerView? = null
-    private var prefs = PreferenceManager.getDefaultSharedPreferences(context)
+    private var prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     var jumpUpPos: (() -> Int)? = null
     var jumpDownPos: (() -> Int)? = null
 
