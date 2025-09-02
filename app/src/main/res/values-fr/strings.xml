@@ -131,7 +131,6 @@
     <string name="settings_blacklist">Liste d\'exclusion</string>
     <string name="settings_blacklist_folder">Exclure des dossiers</string>
     <string name="settings_blacklist_folder_summary">Filtre les morceaux de certains dossiers</string>
-    <string name="delete_failed">Échec de la suppression</string>
     <string name="settings_crash_application">Faire planter l\'application</string>
     <string name="album_cover">Pochette d\'album</string>
     <string name="dialog_edit_metadata">Modifier</string>
@@ -291,7 +290,6 @@
     <string name="gramophone_crashed_explainer2">Gramophone à crasher :(\n\nMerci de m\'envoyer un rapport de bug pour que les problèmes comme celle qui a conduit à ce crash peut être résolu !\n\nChaques situations aussi unique que la musique, sans votre aide il est probable que ce bug ne sera <b>PAS</b> résolu !</string>
     <string name="spk_encoding_opus">Opus</string>
     <string name="audio_signal_chain">Chaîne son spatial</string>
-    <string name="delete_failed_playlist">Suppression de la liste de lecture échouée</string>
     <string name="mix_port_flag_unknown">Inconnu</string>
     <string name="spk_encoding_pcm_8_24bit">24-bit (8,24) PCM</string>
     <string name="spk_encoding_amr_wb">AMR-WB</string>

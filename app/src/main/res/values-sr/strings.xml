@@ -135,7 +135,6 @@
     <string name="settings_appearance_summary">Izgled aplikacije, režimi teme</string>
     <string name="settings_crash_application_summary">Pad-O-Matic 3000</string>
     <string name="dialog_edit_metadata">Uredi</string>
-    <string name="delete_failed">Brisanje pesme nije uspelo</string>
     <string name="album_cover">Omot albuma</string>
     <string name="album_covers_enhance">Poboljšano učitavanje omota albuma</string>
     <string name="crash_clipboard">Evidencija pada je kopirana u međuspremnik</string>

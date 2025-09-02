@@ -54,7 +54,6 @@
     <string name="settings_category_full_player">To\'liq o\'yinchi</string>
     <string name="settings_crash_application">Ilovani ochirish</string>
     <string name="dialog_lyrics">Qo\'shiq matni</string>
-    <string name="delete_failed">Qo‘shiqni o‘chirib bo‘lmadi</string>
     <string name="album_covers_enhance">Kengaytirilgan albom muqovasini yuklanmoqda</string>
     <string name="current_playlist">Hozirgi pleylist</string>
     <string name="fgs_failed_text">Ilovani ochish va ijroni davom ettirish uchun shu yerni bosing</string>

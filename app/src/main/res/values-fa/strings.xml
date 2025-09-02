@@ -122,7 +122,6 @@
         <item quantity="one">%d هنرمند</item>
         <item quantity="other">%d هنرمند</item>
     </plurals>
-    <string name="delete_failed">پاک‌کردن آواز شکست خورد</string>
     <string name="details">ریزگان</string>
     <string name="settings_album_round_corner_summary">به کار انداختن گوشۀ گرد در پخش کنندۀ کامل</string>
     <string name="settings_player_ui_summary">رابط کاربری پخش کننده، ترانه‌ها</string>
@@ -402,7 +401,6 @@
     <string name="refreshing_wait">درحال بازخوانی، لطفا صبر کنید…</string>
     <string name="still_refreshing">درحال بازخوانی، گام %1$d/%2$d: %3$s</string>
     <string name="did_you_know">آیا می‌دانستید…</string>
-    <string name="rename_failed_playlist">تغییر نام سیاهۀپخش شکست خورد</string>
     <string name="playlist_name">نام سیاهۀپخش</string>
     <string name="rename_playlist">تغییر نام سیاهۀپخش</string>
     <string name="add_to_playlist">افزودن به سیاهۀپخش</string>
@@ -411,7 +409,6 @@
     <string name="log_attachment">گزارش به‌عنوان ضمیمه به‌طور خودکار فرستاده خواهد شد</string>
     <string name="log_will_auto_send">گزارش به‌طور خودکار فرستاده خواهد شد، در عوض مشکل را توضیح دهید</string>
     <string name="refresh_did_you_know">گرامافون در هر بار شروع برنامه، لیست آهنگ‌های به‌روز شده را درخواست می‌کند و در حالی که گرامافون در حال اجرا است، رسانه‌های جدید را نیز به‌طور خودکار شناسایی می‌کند. دکمه «بازخوانی» رسانه‌ها را در گرامافون بارگیری مجدد نمی‌کند، در عوض، از سیستم شما می‌خواهد که تمام فایل‌ها را از تمام دستگاه‌های ذخیره‌سازی دائمی متصل دوباره اسکن کند (به همین دلیل است که مدتی طول می‌کشد). این یعنی هرگز نیازی به استفاده از این ویژگی نخواهید داشت، مگر این‌که سیستم یا برنامه‌های دیگر شما دچار نقص شوند.\n\nآیا برخی از آهنگ‌ها را از دست داده‌اید؟ حتماً «تنظیمات &gt; رفتار» را برای پالایۀ کمینۀ مدت زمان و لیست سیاه پوشه بررسی کنید و تأیید کنید که این تنظیمات روی مقدار مورد انتظار تنظیم شده‌اند. برای دلایل احتمالی بیشتر، لطفا سوالات پرتکرار ما را بررسی کنید.</string>
-    <string name="delete_failed_playlist">پاک کردن سیاهۀپخش شکست خورد</string>
     <string name="rename">تغییر نام</string>
     <string name="settings_hq_output">خروجی کیفیت بالا</string>
     <string name="settings_hq_output_summary">اجازۀ استفاده از هر قالب نمونه‌ای به جای محدود کردن به عدد صحیح ۱۶ بیتی</string>

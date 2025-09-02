@@ -139,7 +139,6 @@
     <string name="fgs_failed_text">Klik di sini untuk membuka aplikasi dan melanjutkan pemutaran</string>
     <string name="fgs_failed_channel">Pemutaran gagal dilanjutkan</string>
     <string name="settings_crash_application">Aplikasi crash</string>
-    <string name="delete_failed">Gagal menghapus lagu</string>
     <string name="crash_clipboard">Disalin catatan kerusakan ke papan klip</string>
     <string name="settings_trim_lyrics">Hapus jarak antar lirik</string>
     <string name="sort_by_release_date">Tanggal rilis</string>
@@ -284,5 +283,4 @@
     <string name="settings_lyrics_char_scaling_summary">Hitung kecepatan gradien lirik dalam karakter per detik, bukan piksel per detik. Mungkin menyebabkan kecepatan terlihat tidak teratur karena panjang karakter yang berbeda dalam piksel.</string>
     <string name="settings_lyrics_char_scaling">Skala berbasis karakter untuk gradien lirik</string>
     <string name="settings_open_source_licenses">Lisensi sumber terbuka</string>
-    <string name="delete_failed_playlist">Menghapus daftar putar gagal</string>
-</resources>
+    </resources>

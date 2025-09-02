@@ -76,6 +76,7 @@
     <string name="dialog_title">Nosaukums</string>
     <string name="dialog_genre">Žanrs</string>
     <string name="dialog_year">Gads</string>
+    <string name="folders">Mapes</string>
     <string name="settings_content_based_color">Krāsas, kuras balstītas uz saturu</string>
     <string name="dialog_path">Ceļš</string>
     <string name="recently_added">Nesen pievienotie</string>
@@ -146,5 +147,4 @@
     <string name="settings_category_misc">Dažādi</string>
     <string name="settings_crash_application">Nokrašot aplikāciju</string>
     <string name="settings_crash_application_summary">Krašotājs-3000</string>
-    <string name="delete_failed">Dziesmas izdzēšana neveiksmīga</string>
-</resources>
+    </resources>

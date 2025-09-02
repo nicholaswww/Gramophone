@@ -44,7 +44,6 @@
     <string name="settings_preference_category_application">Aplikace</string>
     <string name="settings_category_basic_info">Základní informace</string>
     <string name="settings_blacklist_folder">Složky černé listiny</string>
-    <string name="delete_failed">Smazání skladby selhalo</string>
     <string name="settings_about_app">O aplikaci</string>
     <string name="settings_about_gramophone">Informace o aplikaci</string>
     <string name="sort_by_add_date">Datum přidání</string>

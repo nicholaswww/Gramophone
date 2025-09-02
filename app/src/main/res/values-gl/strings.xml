@@ -147,7 +147,6 @@
     <string name="album_cover">Portado do álbum</string>
     <string name="dialog_edit_metadata">Editar</string>
     <string name="dialog_lyrics">Letras</string>
-    <string name="delete_failed">Fallou o borrado da canción</string>
     <string name="album_covers_enhance">Carga de portada mellorada</string>
     <string name="album_covers_enhance_desc">Mostrar portadas de maior calidade e permitir que a portada do álbum e a canción sexan diferentes (require acceso a fotos)</string>
     <string name="deny_images"><![CDATA[Please deny \"Photos and videos\" permission]]></string>
@@ -403,10 +402,8 @@
     <string name="log_attachment">O rexistros vanse enviar automaticamente como un anexo</string>
     <string name="log_will_auto_send">O rexistros vanse enviar automaticamente, só tes que explicar o problema</string>
     <string name="rename">Cambiar nome</string>
-    <string name="delete_failed_playlist">Fallou a eliminación da lista</string>
     <string name="create_playlist">Crear lista…</string>
     <string name="did_you_know">Sabías que…</string>
-    <string name="rename_failed_playlist">Fallou o cambio de nome da lista</string>
     <string name="playlist_name">Nome da lista</string>
     <string name="add_to_playlist">Engadir á lista</string>
     <string name="still_refreshing">Actualizando, paso %1$d/%2$d: %3$s</string>

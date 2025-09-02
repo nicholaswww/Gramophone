@@ -40,7 +40,6 @@
     <string name="dialog_title">Titulo</string>
     <string name="settings_repository">Repositorio</string>
     <string name="sort_by_modified_date">Data de modification</string>
-    <string name="delete_failed">Falleva le deletion del canto</string>
     <plurals name="songs">
         <item quantity="one">%d canto</item>
         <item quantity="other">%d cantos</item>

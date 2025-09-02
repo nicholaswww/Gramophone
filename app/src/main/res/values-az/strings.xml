@@ -34,6 +34,7 @@
     <string name="settings_version">Versiya</string>
     <string name="settings_about_app">Haqqında</string>
     <string name="settings_about_gramophone">Tətbiq haqqında</string>
+    <string name="folders">Qovluqlar</string>
     <string name="dialog_album_artist">Albom ifaçısı</string>
     <string name="go_to_artist">İfaçıya keç</string>
     <string name="dialog_lyrics">Sözlər</string>
@@ -107,7 +108,6 @@
     <string name="settings_preference_category_application">Tətbiq</string>
     <string name="settings_category_filters">Filtrlər</string>
     <string name="album_cover">Albom örtüyü</string>
-    <string name="delete_failed">Mahnının silinməsində xəta baş verdi</string>
     <string name="settings_category_full_player">Pleyer</string>
     <string name="timer">Yuxu taymeri</string>
     <string name="sort_by_release_date">Yayımlanma tarixi üzrə</string>

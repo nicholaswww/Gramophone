@@ -125,7 +125,6 @@
     <string name="settings_crash_application">Aplicació de fallades</string>
     <string name="album_cover">Caràtules d\'àlbums</string>
     <string name="dialog_edit_metadata">Edita</string>
-    <string name="delete_failed">Ha fallat en suprimir la cançó</string>
     <string name="album_covers_enhance">Càrrega millorada de les caràtules d\'àlbums</string>
     <string name="deny_images"><![CDATA[Denegueu el permís \"Fotos i vídeos\"]]></string>
     <string name="grant_audio"><![CDATA[Atorgueu el permís \"Música i àudio\"]]></string>
@@ -408,11 +407,9 @@
     <string name="log_attachment">Els registres s\'enviaran automàticament com a adjunts</string>
     <string name="rename">Canvia el nom</string>
     <string name="create_playlist">Crea una llista de reproducció…</string>
-    <string name="delete_failed_playlist">Ha fallat la supressió de la llista de reproducció</string>
     <string name="refreshing_wait">S\'està actualitzant, espereu…</string>
     <string name="still_refreshing">S\'està actualitzant, pas %1$d/%2$d: %3$s</string>
     <string name="did_you_know">Sabíeu que…</string>
-    <string name="rename_failed_playlist">Fa fallat en canviar de nom la llista de reproducció</string>
     <string name="playlist_name">Nom de llista de reproducció</string>
     <string name="rename_playlist">Canvia el nom de la llista de reproducció</string>
     <string name="add_to_playlist">Afegeix a la llista de reproducció</string>

@@ -80,7 +80,6 @@
     <string name="settings_blacklist">Piilotetut kansiot</string>
     <string name="settings_category_misc">Sekalaiset</string>
     <string name="settings_category_filters">Suodattimet</string>
-    <string name="delete_failed">Kappaleen poistaminen epäonnistui</string>
     <string name="grant_images"><![CDATA[Myönnä \"Kuvat ja videot\" -lupa]]></string>
     <string name="settings_category_basic_info">Perustiedot</string>
     <string name="crash_clipboard">Kaatumisloki kopioitu leikepöydälle</string>
@@ -150,7 +149,6 @@
     <string name="preference_category_quality">Laatu</string>
     <string name="album_cover">Albumin kansi</string>
     <string name="dialog_lyrics">Sanoitukset</string>
-    <string name="delete_failed_playlist">Soittolistan poistaminen epäonnistui</string>
     <string name="album_covers_enhance">Parannettu albumin kannen lataus</string>
     <string name="album_covers_enhance_desc">Näytä korkealaatuisia laulujen kansia ja salli albumin ja kappaleen kansien erot (vaatii kuvien pääsyn käyttöoikeuden)</string>
     <string name="grant_audio"><![CDATA[Myönnä \"Musiikki ja ääni\" -lupa]]></string>
