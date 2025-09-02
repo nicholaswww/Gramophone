@@ -20,7 +20,7 @@ public class AlacFile
 						bit reads */
 
 	public int numchannels = 0;
-	public int bytespersample = 0;
+	public int bytespersample_output = 0;
 
     LeadingZeros lz = new LeadingZeros();
 
@@ -36,7 +36,7 @@ public class AlacFile
 
 	/* stuff from setinfo */
 	public int setinfo_max_samples_per_frame = 0; // 0x1000 = 4096
-	int setinfo_sample_size = 0; // 0x10
+	int bitspersample_input = 0; // 0x10
 	int setinfo_rice_historymult = 0; // 0x28
 	int setinfo_rice_initialhistory = 0; // 0x0a
 	int setinfo_rice_kmodifier = 0; // 0x0e

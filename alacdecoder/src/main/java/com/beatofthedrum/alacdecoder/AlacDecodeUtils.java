@@ -35,10 +35,10 @@ public class AlacDecodeUtils
 	  if (current_version != 0) {
 		  throw new AlacDecoderException("unsupported version " + current_version);
 	  }
-	  alac.setinfo_sample_size = inputbuffer.get();
-	  if (alac.setinfo_sample_size != 16 && alac.setinfo_sample_size != 20 &&
-			  alac.setinfo_sample_size != 24 && alac.setinfo_sample_size != 32) {
-		  throw new AlacDecoderException("bad sample size " + alac.setinfo_sample_size);
+	  alac.bitspersample_input = inputbuffer.get();
+	  if (alac.bitspersample_input != 16 && alac.bitspersample_input != 20 &&
+			  alac.bitspersample_input != 24 && alac.bitspersample_input != 32) {
+		  throw new AlacDecoderException("bad sample size " + alac.bitspersample_input);
 	  }
 	  alac.setinfo_rice_historymult = inputbuffer.get();
 	  alac.setinfo_rice_initialhistory =  inputbuffer.get();
@@ -706,7 +706,7 @@ public class AlacDecodeUtils
 					 * as a 32bit integer */
 					outputsamples = readbits(alac, 32);
                 }
-				newoutputsize = outputsamples * alac.bytespersample;
+				newoutputsize = outputsamples * alac.bytespersample_output;
 				if (newoutputsize > outputsize) {
 					outputsize = newoutputsize;
 				}
@@ -719,7 +719,7 @@ public class AlacDecodeUtils
 				}
 				ByteBuffer outbuffer = Util.castNonNull(decoutbuffer.data);
 
-				readsamplesize = alac.setinfo_sample_size - (uncompressed_bytes * 8);
+				readsamplesize = alac.bitspersample_input - (uncompressed_bytes * 8);
 
 				if (isnotcompressed == 0) { // so it is compressed
 					int[] predictor_coef_table = alac.predictor_coef_table_a;
@@ -767,11 +767,11 @@ public class AlacDecodeUtils
 					}
 					predictor_decompress_fir_adapt(alac.outputsamples_buffer[channel_index], outputsamples, readsamplesize, predictor_coef_table, predictor_coef_num, prediction_quantitization);
 				} else { // not compressed, easy case
-					if (alac.setinfo_sample_size <= 16) {
+					if (alac.bitspersample_input <= 16) {
 						int bitsmove;
 						for (int i = 0; i < outputsamples; i++) {
-							int audiobits = readbits(alac, alac.setinfo_sample_size);
-							bitsmove = 32 - alac.setinfo_sample_size;
+							int audiobits = readbits(alac, alac.bitspersample_input);
+							bitsmove = 32 - alac.bitspersample_input;
 
 							audiobits = ((audiobits << bitsmove) >> bitsmove);
 
@@ -779,17 +779,19 @@ public class AlacDecodeUtils
 						}
 					} else {
 						int x;
-						int m = 1 << (24 - 1);
+						int m = 1 << (alac.bitspersample_input - 1);
 						for (int i = 0; i < outputsamples; i++) {
 							int audiobits;
 
 							audiobits = readbits(alac, 16);
 							/* special case of sign extension..
 							 * as we'll be ORing the low 16bits into this */
-							audiobits = audiobits << (alac.setinfo_sample_size - 16);
-							audiobits = audiobits | readbits(alac, alac.setinfo_sample_size - 16);
-							x = audiobits & ((1 << 24) - 1);
-							audiobits = (x ^ m) - m;    // sign extend 24 bits
+							audiobits = audiobits << (alac.bitspersample_input - 16);
+							audiobits = audiobits | readbits(alac, alac.bitspersample_input - 16);
+							if (alac.bitspersample_input != 32) {
+								x = audiobits & ((1 << alac.bitspersample_input) - 1);
+								audiobits = (x ^ m) - m;    // sign extend our data bits
+							}
 
 							alac.outputsamples_buffer[channel_index][i] = audiobits;
 						}
@@ -797,9 +799,8 @@ public class AlacDecodeUtils
 					uncompressed_bytes = 0; // always 0 for uncompressed
 				}
 
-				switch (alac.setinfo_sample_size) {
+				switch (alac.bitspersample_input) {
 					case 16: {
-
 						for (int i = 0; i < outputsamples; i++) {
 							short sample = (short) alac.outputsamples_buffer[channel_index][i];
 							outbuffer.putShort((i * alac.numchannels + channel_index_a) * 2, sample);
@@ -870,7 +871,7 @@ public class AlacDecodeUtils
 					 * as a 32bit integer */
 					outputsamples = readbits(alac, 32);
 				}
-				newoutputsize = outputsamples * alac.bytespersample;
+				newoutputsize = outputsamples * alac.bytespersample_output;
 				if (newoutputsize > outputsize) {
 					outputsize = newoutputsize;
 				}
@@ -883,7 +884,7 @@ public class AlacDecodeUtils
 				}
 				ByteBuffer outbuffer = Util.castNonNull(decoutbuffer.data);
 
-				readsamplesize = alac.setinfo_sample_size - (uncompressed_bytes * 8) + 1;
+				readsamplesize = alac.bitspersample_input - (uncompressed_bytes * 8) + 1;
 
 				if (isnotcompressed == 0) { // compressed
 					int[] predictor_coef_table_a = alac.predictor_coef_table_a;
@@ -967,17 +968,17 @@ public class AlacDecodeUtils
 					}
 					predictor_decompress_fir_adapt(alac.outputsamples_buffer[channel_index + 1], outputsamples, readsamplesize, predictor_coef_table_b, predictor_coef_num_b, prediction_quantitization_b);
 				} else { // not compressed, easy case
-					if (alac.setinfo_sample_size <= 16) {
+					if (alac.bitspersample_input <= 16) {
 						int bitsmove;
 
 						for (int i = 0; i < outputsamples; i++) {
 							int audiobits_a;
 							int audiobits_b;
 
-							audiobits_a = readbits(alac, alac.setinfo_sample_size);
-							audiobits_b = readbits(alac, alac.setinfo_sample_size);
+							audiobits_a = readbits(alac, alac.bitspersample_input);
+							audiobits_b = readbits(alac, alac.bitspersample_input);
 
-							bitsmove = 32 - alac.setinfo_sample_size;
+							bitsmove = 32 - alac.bitspersample_input;
 
 							audiobits_a = ((audiobits_a << bitsmove) >> bitsmove);
 							audiobits_b = ((audiobits_b << bitsmove) >> bitsmove);
@@ -987,23 +988,27 @@ public class AlacDecodeUtils
 						}
 					} else {
 						int x;
-						int m = 1 << (24 - 1);
+						int m = 1 << (alac.bitspersample_input - 1);
 
 						for (int i = 0; i < outputsamples; i++) {
 							int audiobits_a;
 							int audiobits_b;
 
 							audiobits_a = readbits(alac, 16);
-							audiobits_a = audiobits_a << (alac.setinfo_sample_size - 16);
-							audiobits_a = audiobits_a | readbits(alac, alac.setinfo_sample_size - 16);
-							x = audiobits_a & ((1 << 24) - 1);
-							audiobits_a = (x ^ m) - m;        // sign extend 24 bits
+							audiobits_a = audiobits_a << (alac.bitspersample_input - 16);
+							audiobits_a = audiobits_a | readbits(alac, alac.bitspersample_input - 16);
+							if (alac.bitspersample_input != 32) {
+								x = audiobits_a & ((1 << alac.bitspersample_input) - 1);
+								audiobits_a = (x ^ m) - m;        // sign extend our data bits
+							}
 
 							audiobits_b = readbits(alac, 16);
-							audiobits_b = audiobits_b << (alac.setinfo_sample_size - 16);
-							audiobits_b = audiobits_b | readbits(alac, alac.setinfo_sample_size - 16);
-							x = audiobits_b & ((1 << 24) - 1);
-							audiobits_b = (x ^ m) - m;        // sign extend 24 bits
+							audiobits_b = audiobits_b << (alac.bitspersample_input - 16);
+							audiobits_b = audiobits_b | readbits(alac, alac.bitspersample_input - 16);
+							if (alac.bitspersample_input != 32) {
+								x = audiobits_a & ((1 << alac.bitspersample_input) - 1);
+								audiobits_a = (x ^ m) - m;        // sign extend our data bits
+							}
 
 							alac.outputsamples_buffer[channel_index][i] = audiobits_a;
 							alac.outputsamples_buffer[channel_index + 1][i] = audiobits_b;
@@ -1014,7 +1019,7 @@ public class AlacDecodeUtils
 					interlacing_leftweight = 0;
 				}
 
-				switch (alac.setinfo_sample_size) {
+				switch (alac.bitspersample_input) {
 					case 16: {
 						deinterlace_16(alac.outputsamples_buffer[channel_index], alac.outputsamples_buffer[channel_index + 1], outbuffer, alac.numchannels, channel_index_a, channel_index_b, outputsamples, interlacing_shift, interlacing_leftweight);
 						break;
@@ -1083,7 +1088,7 @@ public class AlacDecodeUtils
 			newfile.predictor_coef_table_b = new int[1024];
 		}
 		newfile.numchannels = numchannels;
-		newfile.bytespersample = (samplesize / 8) * numchannels;
+		newfile.bytespersample_output = ((samplesize == 20 ? 24 : samplesize) / 8) * numchannels;
 
 		return newfile;
 	}

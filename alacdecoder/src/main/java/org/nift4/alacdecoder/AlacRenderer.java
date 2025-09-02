@@ -30,7 +30,6 @@ public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
             return C.FORMAT_UNSUPPORTED_DRM;
         }
         int bitDepth = format.initializationData.get(0)[5];
-        // should we support ENCODING_PCM_20BIT in media3 instead?
         int pcmEncoding = bitDepth == 20 ? C.ENCODING_PCM_24BIT : Util.getPcmEncoding(bitDepth);
         if (!sinkSupportsFormat(
                 Util.getPcmFormat(pcmEncoding, format.channelCount, format.sampleRate))) {

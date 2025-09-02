@@ -3,6 +3,7 @@ package org.nift4.alacdecoder;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
+import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
@@ -25,14 +26,15 @@ public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoder
     public AlacDecoder(Format inputFormat, int numInputBuffers, int numOutputBuffers) throws AlacDecoderException {
         super(new DecoderInputBuffer[numInputBuffers], new SimpleDecoderOutputBuffer[numOutputBuffers]);
         this.inputFormat = inputFormat;
-        this.file = AlacDecodeUtils.create_alac(
-                Util.getByteDepth(inputFormat.pcmEncoding) * 8, inputFormat.channelCount);
+        int bitDepth = inputFormat.initializationData.get(0)[5];
+        this.file = AlacDecodeUtils.create_alac(bitDepth, inputFormat.channelCount);
         this.file.channel_map = getChannelMapping();
         AlacDecodeUtils.alac_set_info(file, ByteBuffer.wrap(inputFormat.initializationData.get(0)));
         int mp4MaxSize = inputFormat.maxInputSize != Format.NO_VALUE ? inputFormat.maxInputSize
                 : ALAC_MAX_PACKET_SIZE;
-        setInitialInputBufferSize(Math.min(
-                file.bytespersample * file.setinfo_max_samples_per_frame, mp4MaxSize));
+        // TODO: doesn't really make sense to set input buffer size by pcm expected size
+        setInitialInputBufferSize(Math.min(Math.ceilDiv(bitDepth * inputFormat.channelCount *
+                file.setinfo_max_samples_per_frame, 8), mp4MaxSize));
     }
 
     public Format getInputFormat() {
