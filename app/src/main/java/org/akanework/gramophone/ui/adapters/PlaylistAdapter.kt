@@ -156,7 +156,7 @@ class PlaylistAdapter(
 
                 R.id.rename -> {
                     if (item.id == null) {
-                        Toast.makeText(context, R.string.rename_failed_playlist, Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, context.getString(R.string.rename_failed_playlist, "$item"), Toast.LENGTH_LONG).show()
                         return@setOnMenuItemClickListener true
                     }
                     playlistNameDialog(context, R.string.rename_playlist, item.title ?: "") { name ->
@@ -194,12 +194,15 @@ class PlaylistAdapter(
                 } catch (e: Exception) {
                     Log.e("PlaylistAdapter", Log.getStackTraceString(e))
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, R.string.rename_failed_playlist, Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, context.getString(
+                            R.string.rename_failed_playlist, e.message),
+                            Toast.LENGTH_LONG).show()
                     }
                 }
             }
         } else {
-            Toast.makeText(context, R.string.rename_failed_playlist, Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.rename_failed_playlist,
+                "$resultCode"), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -227,7 +230,9 @@ class PlaylistAdapter(
                         } catch (e: Exception) {
                             Log.e("PlaylistAdapter", Log.getStackTraceString(e))
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(context, R.string.create_failed_playlist, Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, context.getString(
+                                    R.string.create_failed_playlist, e.message),
+                                    Toast.LENGTH_LONG).show()
                             }
                         }
                     }

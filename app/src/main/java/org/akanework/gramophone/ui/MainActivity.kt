@@ -197,7 +197,7 @@ class MainActivity : AppCompatActivity() {
     @kotlin.OptIn(FlowPreview::class)
     fun addToPlaylistDialog(song: File?) {
         if (song == null) {
-            Toast.makeText(this@MainActivity, R.string.edit_playlist_failed, Toast.LENGTH_LONG).show()
+            Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, "song == null"), Toast.LENGTH_LONG).show()
             return
         }
         val playlists = runBlocking { reader.playlistListFlow.first().filter { it.id != null } }
@@ -272,12 +272,12 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Log.e("MainActivity", Log.getStackTraceString(e))
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivity, R.string.edit_playlist_failed, Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, e.message), Toast.LENGTH_LONG).show()
                     }
                 }
             }
         } else {
-            Toast.makeText(this, R.string.edit_playlist_failed, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.edit_playlist_failed, "$resultCode"), Toast.LENGTH_LONG).show()
         }
     }
 
