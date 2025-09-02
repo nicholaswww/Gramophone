@@ -29,6 +29,9 @@ import java.io.IOException
 
 object ItemManipulator {
     private const val TAG = "ItemManipulator"
+    // TODO: generally migrate writing IO to MediaStore on R+ (not on legacy!) in order to get rich
+    //  error messages instead of FUSE just saying ENOPERM (reading is more complicated but should
+    //  also be considered)
 
     fun deleteSong(context: Context, file: File, id: Long): MediaStoreRequest {
         val uri = ContentUris.withAppendedId(
@@ -71,7 +74,7 @@ object ItemManipulator {
                     }
                 }
                 val notOk = urisWithStatus.filter { !it.second }
-                val ok = notOk.isNotEmpty()
+                val ok = notOk.isEmpty()
                 if (!ok && hasScopedStorageV2()) {
                     val pendingIntent = MediaStore.createDeleteRequest(
                         context.contentResolver, notOk.map { it.first }

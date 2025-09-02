@@ -133,7 +133,9 @@ class PlaylistAdapter(
 
                 R.id.delete -> {
                     if (item.id == null) {
-                        Toast.makeText(context, R.string.delete_failed_playlist, Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, context.getString(
+                            R.string.delete_failed_playlist, "item.id == null"),
+                            Toast.LENGTH_LONG).show()
                         return@setOnMenuItemClickListener true
                     }
                     val res = ItemManipulator.deletePlaylist(context, item.id!!)
@@ -155,7 +157,7 @@ class PlaylistAdapter(
                                         Log.e("PlaylistAdapter", Log.getStackTraceString(e))
                                         withContext(Dispatchers.Main) {
                                             Toast.makeText(context, context.getString(
-                                                R.string.delete_failed_playlist, e.message),
+                                                R.string.delete_failed_playlist, e.javaClass.name + ": " + e.message),
                                                 Toast.LENGTH_LONG).show()
                                         }
                                     }
@@ -217,7 +219,7 @@ class PlaylistAdapter(
                     Log.e("PlaylistAdapter", Log.getStackTraceString(e))
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, context.getString(
-                            R.string.rename_failed_playlist, e.message),
+                            R.string.rename_failed_playlist, e.javaClass.name + ": " + e.message),
                             Toast.LENGTH_LONG).show()
                     }
                 }
@@ -253,7 +255,7 @@ class PlaylistAdapter(
                             Log.e("PlaylistAdapter", Log.getStackTraceString(e))
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(context, context.getString(
-                                    R.string.create_failed_playlist, e.message),
+                                    R.string.create_failed_playlist, e.javaClass.name + ": " + e.message),
                                     Toast.LENGTH_LONG).show()
                             }
                         }

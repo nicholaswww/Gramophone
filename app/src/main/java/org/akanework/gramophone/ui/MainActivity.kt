@@ -214,7 +214,7 @@ class MainActivity : AppCompatActivity() {
                             } catch (e: Exception) {
                                 Log.e("MainActivity", Log.getStackTraceString(e))
                                 withContext(Dispatchers.Main) {
-                                    Toast.makeText(this@MainActivity, getString(R.string.create_failed_playlist, e.message), Toast.LENGTH_LONG).show()
+                                    Toast.makeText(this@MainActivity, getString(R.string.create_failed_playlist, e.javaClass.name + ": " + e.message), Toast.LENGTH_LONG).show()
                                 }
                                 return@launch
                             }
@@ -223,7 +223,7 @@ class MainActivity : AppCompatActivity() {
                             } catch (e: Exception) {
                                 Log.e("MainActivity", Log.getStackTraceString(e))
                                 withContext(Dispatchers.Main) {
-                                    Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, e.message), Toast.LENGTH_LONG).show()
+                                    Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, e.javaClass.name + ": " + e.message), Toast.LENGTH_LONG).show()
                                 }
                             }
                         }
@@ -272,7 +272,7 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Log.e("MainActivity", Log.getStackTraceString(e))
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, e.message), Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, e.javaClass.name + ": " + e.message), Toast.LENGTH_LONG).show()
                     }
                 }
             }

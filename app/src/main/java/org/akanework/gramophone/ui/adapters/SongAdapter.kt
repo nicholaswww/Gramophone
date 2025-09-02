@@ -242,7 +242,7 @@ class SongAdapter(
                                         Log.e("SongAdapter", Log.getStackTraceString(e))
                                         withContext(Dispatchers.Main) {
                                             Toast.makeText(context, context.getString(
-                                                R.string.delete_failed, e.message),
+                                                R.string.delete_failed, e.javaClass.name + ": " + e.message),
                                                 Toast.LENGTH_LONG).show()
                                         }
                                     }
