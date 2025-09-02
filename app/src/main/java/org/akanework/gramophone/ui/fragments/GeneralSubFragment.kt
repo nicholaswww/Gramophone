@@ -134,7 +134,8 @@ class GeneralSubFragment : BaseFragment(true) {
                     } else if (it is Favorite) {
                         requireContext().getString(R.string.playlist_favourite)
                     } else {
-                        it?.title ?: requireContext().getString(R.string.unknown_playlist)
+                        it?.title ?: (requireContext().getString(R.string.unknown_playlist)
+                                + if (it != null) " (${it.id} - ${it.path})" else "")
                     }
                 }
                 itemList = item.map { it?.songList }
