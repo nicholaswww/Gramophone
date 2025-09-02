@@ -7,7 +7,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
 import java.util.Properties
 
-val aboutLibsVersion = "12.2.3" // keep in sync with plugin version
+val aboutLibsVersion = "13.0.0-b01" // keep in sync with plugin version
 
 plugins {
     id("com.android.application")
@@ -279,15 +279,15 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.collection:collection-ktx:1.5.0")
-    implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
-    implementation("androidx.core:core-ktx:1.16.0")
-    implementation("androidx.core:core-splashscreen:1.2.0-beta02")
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.core:core-splashscreen:1.2.0-rc01")
     //implementation("androidx.datastore:datastore-preferences:1.1.0-rc01") TODO don't abuse shared prefs
-    implementation("androidx.fragment:fragment-ktx:1.8.8")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
-    implementation("androidx.mediarouter:mediarouter:1.8.0")
-    val media3Version = "1.7.1"
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.3")
+    implementation("androidx.mediarouter:mediarouter:1.8.1")
+    val media3Version = "1.8.0"
     implementation("androidx.media3:media3-common-ktx:$media3Version")
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-midi:$media3Version")
@@ -300,7 +300,7 @@ dependencies {
     implementation("com.mikepenz:aboutlibraries-compose-m3:$aboutLibsVersion")
     implementation("com.google.android.material:material:1.12.0")
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
-    implementation("io.coil-kt.coil3:coil-compose:3.2.0")
+    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
     //noinspection GradleDependency newer versions need java.nio which is api 26+
     //implementation("com.github.albfernandez:juniversalchardet:2.0.3") TODO
@@ -311,7 +311,7 @@ dependencies {
     // Note: JAudioTagger is not compatible with Android 5, we can't ship it in app
     debugImplementation("net.jthink:jaudiotagger:3.0.1") // <-- for "SD Exploder"
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.15.1")
+    testImplementation("org.robolectric:robolectric:4.16")
     "userdebugImplementation"(kotlin("reflect")) // who thought String.invoke() is a good idea?????
     debugImplementation(kotlin("reflect"))
 }

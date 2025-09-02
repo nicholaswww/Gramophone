@@ -30,6 +30,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -222,7 +223,7 @@ class SongAdapter(
                 R.id.delete -> {
                     val res = ItemManipulator.deleteSong(context, item.getFile()!!, item.requireMediaStoreId())
                     if (res.continueAction != null) {
-                        AlertDialog.Builder(context)
+                        MaterialAlertDialogBuilder(context)
                             .setTitle(R.string.delete)
                             .setMessage(context.getString(R.string.delete_really, item.mediaMetadata.title))
                             .setPositiveButton(R.string.yes) { _, _ ->

@@ -204,7 +204,7 @@ class MainActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.add_to_playlist)
             .setIcon(R.drawable.ic_playlist_play)
-            .setItems((playlists.map { it.title } + getString(R.string.create_playlist)).toTypedArray())
+            .setItems((playlists.map { it.title.toString() } + getString(R.string.create_playlist)).toTypedArray())
             { d, item ->
                 if (playlists.size == item) {
                     PlaylistAdapter.playlistNameDialog(this, R.string.create_playlist, "") { name ->

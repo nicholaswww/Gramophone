@@ -77,13 +77,13 @@ class PlaylistAdapter(
     private val ioScope = CoroutineScope(Dispatchers.IO)
 
     override fun virtualTitleOf(item: Playlist): String {
-        return context.getString(
-            when (item) {
-                is RecentlyAdded -> R.string.recently_added
-                is Favorite -> R.string.playlist_favourite
-                else -> R.string.unknown_playlist
+        return when (item) {
+            is RecentlyAdded -> context.getString(R.string.recently_added)
+            is Favorite -> context.getString(R.string.playlist_favourite)
+            else -> {
+                context.getString(R.string.unknown_playlist) + " (${item.id} - ${item.path})"
             }
-        )
+        }
     }
 
     override fun coverOf(item: Playlist): Uri? {
@@ -137,7 +137,7 @@ class PlaylistAdapter(
                     }
                     val res = ItemManipulator.deletePlaylist(context, item.id!!)
                     if (res.continueAction != null) {
-                        AlertDialog.Builder(context)
+                        MaterialAlertDialogBuilder(context)
                             .setTitle(R.string.delete)
                             .setMessage(context.getString(R.string.delete_really, item.title))
                             .setPositiveButton(R.string.yes) { _, _ ->
