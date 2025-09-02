@@ -1,5 +1,6 @@
 package uk.akane.libphonograph.manipulator
 
+import android.app.PendingIntent
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -15,12 +16,14 @@ import android.provider.MediaStore
 import android.util.Log
 import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.RequiresApi
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.logic.hasImprovedMediaStore
 import org.akanework.gramophone.logic.hasMarkIsFavouriteStatus
 import org.akanework.gramophone.logic.hasScopedStorageV2
 import uk.akane.libphonograph.getIntOrNullIfThrow
 import uk.akane.libphonograph.getLongOrNullIfThrow
 import uk.akane.libphonograph.getStringOrNullIfThrow
+import uk.akane.libphonograph.toUriCompat
 import java.io.File
 import java.io.IOException
 
@@ -59,12 +62,24 @@ object ItemManipulator {
             return MediaStoreRequest(pendingIntent.intentSender)
         } else {
             return MediaStoreRequest {
-                return@MediaStoreRequest try {
-                    !uris.map {
-                        context.contentResolver.delete(it, null, null) == 1
-                    }.contains(false)
-                } catch (_: SecurityException) {
-                    false
+                val urisWithStatus = uris.map {
+                    try {
+                        it to (context.contentResolver.delete(it, null, null) == 1)
+                    } catch (e: SecurityException) {
+                        Log.e("ItemManipulator", "failed to delete $it", e)
+                        it to false
+                    }
+                }
+                val notOk = urisWithStatus.filter { !it.second }
+                val ok = notOk.isNotEmpty()
+                if (!ok && hasScopedStorageV2()) {
+                    val pendingIntent = MediaStore.createDeleteRequest(
+                        context.contentResolver, notOk.map { it.first }
+                    )
+                    throw DeleteFailedPleaseTryDeleteRequestException(pendingIntent)
+                } else if (!ok) {
+                    throw IOException("failed to delete" +
+                            "${notOk.size} items")
                 }
             }
         }
@@ -138,9 +153,9 @@ object ItemManipulator {
 
     @ChecksSdkIntAtLeast(Build.VERSION_CODES.R)
     fun needRequestWrite(context: Context, uri: Uri): Boolean {
-        return hasScopedStorageV2() /*&& !checkIfFileAttributedToSelf(context, uri) &&
+        return hasScopedStorageV2() && !checkIfFileAttributedToSelf(context, uri) &&
                 context.checkUriPermission(uri, Process.myPid(), Process.myUid(),
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED TODO*/
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -190,25 +205,36 @@ object ItemManipulator {
             throw IOException("can't rename to existing")
         // don't use normal rename methods as media store caches the old title in that case
         new.writeBytes(out.readBytes())
-        if (!out.delete())
-            throw IOException("delete after rename failed")
+        if (!out.delete()) {
+            MediaScannerConnection.scanFile(context, arrayOf(new.toString()), null) { path, uri ->
+                if (uri == null && path == new.toString()) {
+                    Log.e(TAG, "failed to scan renamed playlist $path")
+                }
+            }
+            if (!hasScopedStorageV2())
+                throw IOException("deletion of old file failed, both old and new files exist")
+            throw DeleteFailedPleaseTryDeleteRequestException(MediaStore.createDeleteRequest(
+                context.contentResolver, listOf(new.toUriCompat())
+            ))
+        }
         MediaScannerConnection.scanFile(context, arrayOf(out.toString(), new.toString()), null) { path, uri ->
             if (uri == null && path == new.toString()) {
                 Log.e(TAG, "failed to scan renamed playlist $path")
             }
         }
     }
+    class DeleteFailedPleaseTryDeleteRequestException(val pendingIntent: PendingIntent) : Exception()
 
     class MediaStoreRequest {
         val startSystemDialog: IntentSender?
-        val continueAction: (suspend () -> Boolean)?
+        val continueAction: (suspend () -> Unit)?
 
         constructor(startSystemDialog: IntentSender) {
             this.startSystemDialog = startSystemDialog
             this.continueAction = null
         }
 
-        constructor(continueAction: (suspend () -> Boolean)) {
+        constructor(continueAction: (suspend () -> Unit)) {
             this.startSystemDialog = null
             this.continueAction = continueAction
         }

@@ -55,6 +55,7 @@ import uk.akane.libphonograph.dynamicitem.Favorite
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
 import uk.akane.libphonograph.items.Playlist
 import uk.akane.libphonograph.manipulator.ItemManipulator
+import uk.akane.libphonograph.manipulator.ItemManipulator.DeleteFailedPleaseTryDeleteRequestException
 import java.io.File
 
 /**
@@ -142,7 +143,22 @@ class PlaylistAdapter(
                             .setMessage(context.getString(R.string.delete_really, item.title))
                             .setPositiveButton(R.string.yes) { _, _ ->
                                 CoroutineScope(Dispatchers.IO).launch {
-                                    res.continueAction.invoke()
+                                    try {
+                                        res.continueAction.invoke()
+                                    } catch (e: DeleteFailedPleaseTryDeleteRequestException) {
+                                        withContext(Dispatchers.Main) {
+                                            mainActivity.intentSender.launch(
+                                                IntentSenderRequest.Builder(e.pendingIntent).build()
+                                            )
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("PlaylistAdapter", Log.getStackTraceString(e))
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, context.getString(
+                                                R.string.delete_failed_playlist, e.message),
+                                                Toast.LENGTH_LONG).show()
+                                        }
+                                    }
                                 }
                             }
                             .setNegativeButton(R.string.no) { _, _ -> }
@@ -191,6 +207,12 @@ class PlaylistAdapter(
             CoroutineScope(Dispatchers.Default).launch {
                 try {
                     ItemManipulator.renamePlaylist(context, File(path), newName)
+                } catch (e: DeleteFailedPleaseTryDeleteRequestException) {
+                    withContext(Dispatchers.Main) {
+                        mainActivity.intentSender.launch(
+                            IntentSenderRequest.Builder(e.pendingIntent).build()
+                        )
+                    }
                 } catch (e: Exception) {
                     Log.e("PlaylistAdapter", Log.getStackTraceString(e))
                     withContext(Dispatchers.Main) {

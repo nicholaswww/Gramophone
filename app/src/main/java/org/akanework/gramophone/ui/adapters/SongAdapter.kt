@@ -18,6 +18,7 @@
 package org.akanework.gramophone.ui.adapters
 
 import android.net.Uri
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
@@ -35,6 +36,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.logic.requireMediaStoreId
@@ -228,7 +230,22 @@ class SongAdapter(
                             .setMessage(context.getString(R.string.delete_really, item.mediaMetadata.title))
                             .setPositiveButton(R.string.yes) { _, _ ->
                                 CoroutineScope(Dispatchers.IO).launch {
-                                    res.continueAction.invoke()
+                                    try {
+                                        res.continueAction.invoke()
+                                    } catch (e: ItemManipulator.DeleteFailedPleaseTryDeleteRequestException) {
+                                        withContext(Dispatchers.Main) {
+                                            mainActivity.intentSender.launch(
+                                                IntentSenderRequest.Builder(e.pendingIntent).build()
+                                            )
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("SongAdapter", Log.getStackTraceString(e))
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, context.getString(
+                                                R.string.delete_failed, e.message),
+                                                Toast.LENGTH_LONG).show()
+                                        }
+                                    }
                                 }
                             }
                             .setNegativeButton(R.string.no) { _, _ -> }
