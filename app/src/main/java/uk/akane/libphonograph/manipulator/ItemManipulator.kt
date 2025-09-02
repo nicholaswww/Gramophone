@@ -32,6 +32,9 @@ object ItemManipulator {
     // TODO: generally migrate writing IO to MediaStore on R+ (not on legacy!) in order to get rich
     //  error messages instead of FUSE just saying ENOPERM (reading is more complicated but should
     //  also be considered)
+    //  i.e. do not use FUSE for insert, delete, or anything else
+    //  also fallback to ContentProvider.delete() with RecoverableSecurityException if
+    //   createDeleteRequest throws the all items need to be specified unique id stuff
 
     fun deleteSong(context: Context, file: File, id: Long): MediaStoreRequest {
         val uri = ContentUris.withAppendedId(

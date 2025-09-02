@@ -1083,11 +1083,13 @@ class FullBottomSheet
             val uri = ContentUris.withAppendedId(
                 MediaStore.Audio.Media.getContentUri("external"), song.requireMediaStoreId()
             )
-            val sender = ItemManipulator.setFavorite(activity, setOf(uri), isChecked)
-            if (sender != null)
-                activity.intentSender.launch(
-                    IntentSenderRequest.Builder(sender).build()
-                )
+            CoroutineScope(Dispatchers.Default).launch {
+                val sender = ItemManipulator.setFavorite(activity, setOf(uri), isChecked)
+                if (sender != null)
+                    activity.intentSender.launch(
+                        IntentSenderRequest.Builder(sender).build()
+                    )
+            }
         }
     }
 

@@ -187,11 +187,21 @@ class PlaylistAdapter(
                             putString("NewName", name)
                             putString("Path", item.path!!.absolutePath)
                         }
-                        if (ItemManipulator.needRequestWrite(context, uri)) {
-                            val pendingIntent = MediaStore.createWriteRequest(context.contentResolver, listOf(uri))
-                            (fragment as AdapterFragment).startRequest(pendingIntent.intentSender, data)
-                        } else {
-                            onRequest(Activity.RESULT_OK, data)
+                        CoroutineScope(Dispatchers.Default).launch {
+                            if (ItemManipulator.needRequestWrite(context, uri)) {
+                                val pendingIntent = MediaStore.createWriteRequest(
+                                    context.contentResolver,
+                                    listOf(uri)
+                                )
+                                (fragment as AdapterFragment).startRequest(
+                                    pendingIntent.intentSender,
+                                    data
+                                )
+                            } else {
+                                withContext(Dispatchers.Main) {
+                                    onRequest(Activity.RESULT_OK, data)
+                                }
+                            }
                         }
                     }
                 }

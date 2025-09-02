@@ -136,8 +136,11 @@ class MainActivity : AppCompatActivity() {
             registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {}
         addToPlaylistIntentSender =
             registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
-                doAddToPlaylist(it.resultCode, pendingRequest
-                    ?: throw IllegalStateException("pending playlist add request is null"))
+                val req = pendingRequest
+                    ?: throw IllegalStateException("pending playlist add request is null")
+                CoroutineScope(Dispatchers.Default).launch {
+                    doAddToPlaylist(it.resultCode, req)
+                }
             }
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(object :
@@ -249,35 +252,39 @@ class MainActivity : AppCompatActivity() {
             putStringArrayList("Songs", songs)
             putString("PlaylistPath", playlist.absolutePath)
         }
-        if (ItemManipulator.needRequestWrite(this, uri)) {
-            pendingRequest = data
-            val pendingIntent = MediaStore.createWriteRequest(contentResolver, listOf(uri))
-            addToPlaylistIntentSender.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
-        } else {
-            doAddToPlaylist(RESULT_OK, data)
+        CoroutineScope(Dispatchers.Default).launch {
+            if (ItemManipulator.needRequestWrite(this@MainActivity, uri)) {
+                pendingRequest = data
+                val pendingIntent = MediaStore.createWriteRequest(contentResolver, listOf(uri))
+                addToPlaylistIntentSender.launch(
+                    IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                )
+            } else {
+                doAddToPlaylist(RESULT_OK, data)
+            }
         }
     }
 
-    private fun doAddToPlaylist(resultCode: Int, data: Bundle) {
+    private suspend fun doAddToPlaylist(resultCode: Int, data: Bundle) {
         if (resultCode == RESULT_OK) {
             val add = data.getBoolean("AddToEnd")
             val path = File(data.getString("PlaylistPath")!!)
             val songs = data.getStringArrayList("Songs")!!.map { File(it) }
-            CoroutineScope(Dispatchers.Default).launch {
-                try {
-                    if (add)
-                        ItemManipulator.addToPlaylist(this@MainActivity, path, songs)
-                    else
-                        ItemManipulator.setPlaylistContent(this@MainActivity, path, songs)
-                } catch (e: Exception) {
-                    Log.e("MainActivity", Log.getStackTraceString(e))
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, e.javaClass.name + ": " + e.message), Toast.LENGTH_LONG).show()
-                    }
+            try {
+                if (add)
+                    ItemManipulator.addToPlaylist(this@MainActivity, path, songs)
+                else
+                    ItemManipulator.setPlaylistContent(this@MainActivity, path, songs)
+            } catch (e: Exception) {
+                Log.e("MainActivity", Log.getStackTraceString(e))
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, e.javaClass.name + ": " + e.message), Toast.LENGTH_LONG).show()
                 }
             }
         } else {
-            Toast.makeText(this, getString(R.string.edit_playlist_failed, "$resultCode"), Toast.LENGTH_LONG).show()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, "$resultCode"), Toast.LENGTH_LONG).show()
+            }
         }
     }
 

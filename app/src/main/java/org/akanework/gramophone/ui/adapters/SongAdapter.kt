@@ -223,37 +223,55 @@ class SongAdapter(
                 }
 
                 R.id.delete -> {
-                    val res = ItemManipulator.deleteSong(context, item.getFile()!!, item.requireMediaStoreId())
-                    if (res.continueAction != null) {
-                        MaterialAlertDialogBuilder(context)
-                            .setTitle(R.string.delete)
-                            .setMessage(context.getString(R.string.delete_really, item.mediaMetadata.title))
-                            .setPositiveButton(R.string.yes) { _, _ ->
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    try {
-                                        res.continueAction.invoke()
-                                    } catch (e: ItemManipulator.DeleteFailedPleaseTryDeleteRequestException) {
-                                        withContext(Dispatchers.Main) {
-                                            mainActivity.intentSender.launch(
-                                                IntentSenderRequest.Builder(e.pendingIntent).build()
-                                            )
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("SongAdapter", Log.getStackTraceString(e))
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, context.getString(
-                                                R.string.delete_failed, e.javaClass.name + ": " + e.message),
-                                                Toast.LENGTH_LONG).show()
+                    CoroutineScope(Dispatchers.Default).launch {
+                        val res = ItemManipulator.deleteSong(
+                            context,
+                            item.getFile()!!,
+                            item.requireMediaStoreId()
+                        )
+                        if (res.continueAction != null) {
+                            withContext(Dispatchers.Main) {
+                                MaterialAlertDialogBuilder(context)
+                                    .setTitle(R.string.delete)
+                                    .setMessage(
+                                        context.getString(
+                                            R.string.delete_really,
+                                            item.mediaMetadata.title
+                                        )
+                                    )
+                                    .setPositiveButton(R.string.yes) { _, _ ->
+                                        CoroutineScope(Dispatchers.IO).launch {
+                                            try {
+                                                res.continueAction.invoke()
+                                            } catch (e: ItemManipulator.DeleteFailedPleaseTryDeleteRequestException) {
+                                                withContext(Dispatchers.Main) {
+                                                    mainActivity.intentSender.launch(
+                                                        IntentSenderRequest.Builder(e.pendingIntent)
+                                                            .build()
+                                                    )
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e("SongAdapter", Log.getStackTraceString(e))
+                                                withContext(Dispatchers.Main) {
+                                                    Toast.makeText(
+                                                        context, context.getString(
+                                                            R.string.delete_failed,
+                                                            e.javaClass.name + ": " + e.message
+                                                        ),
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                }
+                                            }
                                         }
                                     }
-                                }
+                                    .setNegativeButton(R.string.no) { _, _ -> }
+                                    .show()
                             }
-                            .setNegativeButton(R.string.no) { _, _ -> }
-                            .show()
-                    } else {
-                        mainActivity.intentSender.launch(
-                            IntentSenderRequest.Builder(res.startSystemDialog!!).build()
-                        )
+                        } else {
+                            mainActivity.intentSender.launch(
+                                IntentSenderRequest.Builder(res.startSystemDialog!!).build()
+                            )
+                        }
                     }
                     true
                 }
