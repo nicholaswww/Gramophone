@@ -26,6 +26,7 @@
     <string name="settings_app_name">Nombre de la aplicación</string>
     <string name="settings_content_based_color">Habilitar colores basados en el contenido</string>
     <string name="dialog_track_number">Número de pista</string>
+    <string name="folders">Carpetas</string>
     <plurals name="artists">
         <item quantity="one">%d Artista</item>
         <item quantity="many">%d Artistas</item>
@@ -313,7 +314,6 @@
     <string name="spk_encoding_aac_latm_lc">AAC-LC en LATM</string>
     <string name="rename_failed_playlist">No se pudo renombrar la lista de reproducción</string>
     <string name="playlist_name">Nombre de la lista de reproducción</string>
-    <string name="create_failed_playlist">No se pudo crear la lista de reproducción</string>
     <string name="rename_playlist">Renombrar lista de reproducción</string>
     <string name="add_to_playlist">Añadir a la lista de reproducción</string>
     <string name="mix_port_flag_incall_music">Música durante llamadas</string>

@@ -28,6 +28,7 @@
     <string name="dialog_artist">Izvođač</string>
     <string name="settings_category_behavior">Ponašanje</string>
     <string name="dialog_path">Putanja</string>
+    <string name="folders">Direktorijumi</string>
     <string name="natural_order">Prirodni red</string>
     <string name="grid">Mreža</string>
     <string name="list">Lista</string>

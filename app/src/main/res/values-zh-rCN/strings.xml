@@ -260,7 +260,6 @@
     <string name="send_email">发送邮件</string>
     <string name="send_email_manually">找不到邮件软件，请将日志发送到 nift4dev@gmail.com</string>
     <string name="did_you_know">你知道吗……</string>
-    <string name="create_failed_playlist">创建播放列表失败</string>
     <string name="rename_failed_playlist">重命名播放列表失败</string>
     <string name="device_type_wired_headset">有线耳麦</string>
     <string name="device_type_wired_headphones">有线耳机</string>
@@ -350,7 +349,6 @@
     <string name="crash_report">崩溃报告</string>
     <string name="playlist_name">播放列表名称</string>
     <string name="rename_playlist">重命名播放列表</string>
-    <string name="edit_playlist_failed">编辑播放列表失败</string>
     <string name="add_to_playlist">添加到播放列表</string>
     <string name="settings_hq_output">高品质输出</string>
     <string name="settings_hq_output_summary">允许使用任意采样格式，而非仅限于16位整型</string>

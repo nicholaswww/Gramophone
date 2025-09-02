@@ -62,6 +62,7 @@
     <string name="dialog_path">Percurso</string>
     <string name="unknown_album">Album incognite</string>
     <string name="recently_added">Recentemente addite</string>
+    <string name="folders">Dossieres</string>
     <string name="grid">Grillia</string>
     <string name="list">Lista</string>
     <string name="layout">Monstrar</string>

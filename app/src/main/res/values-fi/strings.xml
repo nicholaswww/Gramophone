@@ -51,6 +51,7 @@
     <string name="dialog_path">Polku</string>
     <string name="unknown_album">Tuntematon albumi</string>
     <string name="recently_added">Äskettäin lisätyt</string>
+    <string name="folders">Kansiot</string>
     <string name="settings_app_theme">Sovelluksen teema</string>
     <string name="layout">Näyttö</string>
     <string name="home_menu_equalizer">Taajuuskorjain</string>

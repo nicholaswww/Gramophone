@@ -73,6 +73,7 @@
     <string name="dialog_path">Путь</string>
     <string name="unknown_album">Неизвестный альбом</string>
     <string name="recently_added">Недавно добавленные</string>
+    <string name="folders">Папки</string>
     <string name="settings_app_theme">Тема приложения</string>
     <!-- Not translatable -->
     <string name="natural_order">По возрастанию</string>
@@ -412,9 +413,7 @@
     <string name="still_refreshing">Обновление, шаг %1$d/%2$d: %3$s</string>
     <string name="rename_failed_playlist">Не удалось переименовать плейлист</string>
     <string name="playlist_name">Название плейлиста</string>
-    <string name="create_failed_playlist">Не удалось создать плейлист</string>
     <string name="rename_playlist">Переименовать плейлист</string>
-    <string name="edit_playlist_failed">Не удалось отредактировать плейлист</string>
     <string name="add_to_playlist">Добавить в плейлист</string>
     <string name="enter_msg_for_dev_here">Введите сообщение для разработчика здесь</string>
     <string name="log_attachment">Журналы будут отправлены в виде вложения автоматически</string>

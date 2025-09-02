@@ -125,6 +125,7 @@
     <string name="spk_encoding_aac_adts_scalable">AAC Scalable ใน ADTS</string>
     <string name="crash_report">รายงานข้อบกพร่อง</string>
     <string name="home_menu_settings">ตั้งค่า</string>
+    <string name="folders">โฟลเดอร์</string>
     <string name="sort_by_album">อัลบั้ม</string>
     <string name="device_type_hdmi">HDMI</string>
     <string name="home_menu_refresh">รีเฟรช</string>

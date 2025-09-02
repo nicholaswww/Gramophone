@@ -28,6 +28,7 @@
     <string name="settings_content_based_color">Колеры на аснове кантэнту</string>
     <string name="unknown_title">Невядомая назва</string>
     <string name="dialog_track_number">Нумар трэка</string>
+    <string name="folders">Папкі</string>
     <plurals name="artists">
         <item quantity="one">%d выканаўца</item>
         <item quantity="few">%d выканаўцы</item>

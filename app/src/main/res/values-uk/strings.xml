@@ -417,9 +417,7 @@
     <string name="did_you_know">Чи знаєте ви…</string>
     <string name="rename_failed_playlist">Не вдалося перейменувати список відтворення</string>
     <string name="playlist_name">Назва списку відтворення</string>
-    <string name="create_failed_playlist">Не вдалося створити список відтворення</string>
     <string name="rename_playlist">Перейменувати список відтворення</string>
-    <string name="edit_playlist_failed">Не вдалося редагувати список відтворення</string>
     <string name="add_to_playlist">Додати до списку відтворення</string>
     <string name="refreshing_wait">Оновлення, зачекайте…</string>
     <string name="still_refreshing">Освіжаючий, крок %1$d/%2$d: %3$s</string>

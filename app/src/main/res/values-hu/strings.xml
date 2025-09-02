@@ -107,6 +107,7 @@
     <string name="filesystem">Fájlrendszer</string>
     <string name="settings_behavior_summary">Szűrők, indítási viselkedés</string>
     <string name="settings_blacklist_folder_summary">Dalok kiszűrése bizonyos mappákból</string>
+    <string name="folders">Mappák</string>
     <string name="settings_category_full_player">Teljes lejátszó</string>
     <string name="dialog_genre">Műfaj</string>
     <string name="go_to_album">Albumhoz ugrás</string>
