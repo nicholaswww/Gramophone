@@ -468,7 +468,8 @@ object AudioFormatDetector {
         if (f == null) return null
         val format = f.downstreamFormat
         if (format == null) return null
-        val bitrate = format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong()
+        val bitrate = if (format.sampleMimeType != MimeTypes.AUDIO_ALAC)
+            format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() else null
         val sampleRate = format.sampleRate.takeIf { it != Format.NO_VALUE }
         val bitDepth = try {
             Util.getByteDepth(format.pcmEncoding) * 8
