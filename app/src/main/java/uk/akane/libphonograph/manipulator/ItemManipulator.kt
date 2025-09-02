@@ -138,23 +138,9 @@ object ItemManipulator {
 
     @ChecksSdkIntAtLeast(Build.VERSION_CODES.R)
     fun needRequestWrite(context: Context, uri: Uri): Boolean {
-        return hasScopedStorageV2() && (!checkIfFileAttributedToSelf(context, uri)
-                || !checkIfFileOnPrimaryVolume(context, uri)) &&
+        return hasScopedStorageV2() /*&& !checkIfFileAttributedToSelf(context, uri) &&
                 context.checkUriPermission(uri, Process.myPid(), Process.myUid(),
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun checkIfFileOnPrimaryVolume(context: Context, uri: Uri): Boolean {
-        // TODO: is this even needed? it was only added to test if it fixes a bug for a user.
-        val cursor = context.contentResolver.query(uri,
-            arrayOf(MediaStore.MediaColumns.VOLUME_NAME), null, null, null)
-        if (cursor == null) return false
-        cursor.use {
-            if (!cursor.moveToFirst()) return false
-            val column = cursor.getColumnIndex(MediaStore.MediaColumns.VOLUME_NAME)
-            val volume = cursor.getStringOrNullIfThrow(column)
-            return volume == "external_primary"
-        }
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED TODO*/
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
