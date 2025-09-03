@@ -152,8 +152,9 @@ abstract class BaseAdapter<T : Any>(
                     LinearLayoutManager(context)
                 else CustomGridLayoutManager(
                     context, if (value != LayoutType.GRID
-                        || context.resources.configuration.orientation
-                        == Configuration.ORIENTATION_PORTRAIT
+                        || (context.resources.configuration.orientation
+                                == Configuration.ORIENTATION_PORTRAIT
+                                || context.resources.configuration.screenWidthDp < 600)
                     ) 2 else 4
                 )
                 if (recyclerView != null) {
