@@ -145,9 +145,9 @@ abstract class BaseAdapter<T : Any>(
             field = value
             if (value != null && ownsView) {
                 layoutManager = if (value != LayoutType.GRID
-                    && context.resources.configuration.orientation
+                    && (context.resources.configuration.orientation
                     == Configuration.ORIENTATION_PORTRAIT
-                    || context.resources.configuration.screenWidthDp < 600
+                    || context.resources.configuration.screenWidthDp < 600)
                 )
                     LinearLayoutManager(context)
                 else CustomGridLayoutManager(
