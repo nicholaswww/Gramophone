@@ -253,7 +253,7 @@ object AudioFormatDetector {
     enum class AudioQuality : Parcelable {
         UNKNOWN,    // Unable to determine quality
         LOSSY,      // Compressed formats (MP3, AAC, OGG)
-        CD,         // 16-bit/44.1kHz or 16-bit/48kHz (Red Book)
+        CD,         // 16-bit/44.1kHz (Red Book)
         HD,         // 24-bit/44.1kHz or 24-bit/48kHz
         HIRES       // 24-bit/88.2kHz+ (Hi-Res Audio standard)
     }
@@ -660,12 +660,12 @@ object AudioFormatDetector {
         bitDepth != null && sampleRate != null &&
                 bitDepth >= 24 && sampleRate >= 88200 -> AudioQuality.HIRES
 
-        // HD: 24bit at standard rates OR 16bit at high rates
-        bitDepth != null && sampleRate != null && (
-                (bitDepth >= 24 && sampleRate in setOf(44100, 48000)) ||
-                        (bitDepth == 16 && sampleRate >= 88200)) -> AudioQuality.HD
+        // HD: >16bit at standard rates OR 16bit at high rates
+        bitDepth != null && sampleRate != null &&
+                (bitDepth > 16 || sampleRate > 48000) -> AudioQuality.HD
 
         // CD: 16bit at standard rates
+        // TODO: but 48Khz isn't CD...
         bitDepth == 16 && sampleRate in setOf(44100, 48000) -> AudioQuality.CD
 
         // Fallback for non-standard combinations
