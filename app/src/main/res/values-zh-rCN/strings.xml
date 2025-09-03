@@ -133,7 +133,6 @@
     <string name="dialog_lyrics">歌词</string>
     <string name="dialog_edit_metadata">编辑</string>
     <string name="album_cover">专辑封面</string>
-    <string name="delete_failed">删除歌曲失败</string>
     <string name="grant_images">请授予“图片和视频”权限</string>
     <string name="deny_images">请拒绝“图片和视频”权限</string>
     <string name="crash_clipboard">已将崩溃日志复制到剪贴板</string>
@@ -237,7 +236,6 @@
     <string name="gramophone_crashed_explainer2">留声机崩溃了 :(\n\n请给我们发送故障报告以便我们修复引发这个故障的问题！\n\n每个情况因音乐而异，没有您的帮助这几乎永远&lt;/b&gt;无法&lt;/b&gt;修复！</string>
     <string name="email_clipboard">已复制邮件地址以及文本到剪贴板</string>
     <string name="audio_signal_chain">音频信号链</string>
-    <string name="delete_failed_playlist">删除播放列表失败</string>
     <string name="settings_trim_lyrics_summary">歌词行首或行尾的空格可能具有艺术效果，若不需要可开启此开关自动移除。</string>
     <string name="failed_to_parse_lyric">歌词解析失败</string>
     <string name="audio_not_initialized">音频播放系统尚未初始化。试着播放些什么吧！</string>
@@ -260,7 +258,6 @@
     <string name="send_email">发送邮件</string>
     <string name="send_email_manually">找不到邮件软件，请将日志发送到 nift4dev@gmail.com</string>
     <string name="did_you_know">你知道吗……</string>
-    <string name="rename_failed_playlist">重命名播放列表失败</string>
     <string name="device_type_wired_headset">有线耳麦</string>
     <string name="device_type_wired_headphones">有线耳机</string>
     <string name="device_type_unknown">未知设备</string>

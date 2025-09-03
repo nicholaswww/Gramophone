@@ -110,7 +110,6 @@
     <string name="settings_lyrics_bold">粗體歌詞</string>
     <string name="settings_lyrics_center">中心對齊</string>
     <string name="settings_lyrics_configuration_summary">設定歌詞外觀</string>
-    <string name="delete_failed">歌曲刪除失敗</string>
     <string name="dialog_edit_metadata">編輯</string>
     <string name="album_cover">專輯封面</string>
     <string name="settings_blacklist">黑名單</string>
@@ -216,7 +215,6 @@
     <string name="playlist_editing_pref_desc">可將歌曲新增至播放清單（移動／移除功能尚未實作）</string>
     <string name="app_name">Gramophone</string>
     <string name="settings_contributors_click">%s (點擊查看更多！)</string>
-    <string name="delete_failed_playlist">刪除播放清單錯誤</string>
     <string name="divider">分隔線</string>
     <string name="scroll_to_albums">滑動到專輯</string>
     <string name="scroll_to_songs">滑動到歌曲</string>
