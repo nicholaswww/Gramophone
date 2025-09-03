@@ -130,6 +130,8 @@ object AudioFormatDetector {
         ENCODING_PCM_8BIT(C.ENCODING_PCM_8BIT, "AUDIO_FORMAT_PCM_8_BIT", 0x2U, 21, R.string.spk_encoding_pcm_8bit),
         ENCODING_PCM_16BIT(C.ENCODING_PCM_16BIT, "AUDIO_FORMAT_PCM_16_BIT", 0x1U, 21, R.string.spk_encoding_pcm_16bit),
         ENCODING_PCM_16BIT_BIG_ENDIAN(C.ENCODING_PCM_16BIT_BIG_ENDIAN, null, null, null, R.string.spk_encoding_pcm_16bit_big_endian),
+        ENCODING_PCM_20BIT(C.ENCODING_PCM_20BIT, null, null, null, R.string.spk_encoding_pcm_20bit),
+        ENCODING_PCM_20BIT_BIG_ENDIAN(C.ENCODING_PCM_20BIT_BIG_ENDIAN, null, null, null, R.string.spk_encoding_pcm_20bit_big_endian),
         ENCODING_PCM_24BIT(C.ENCODING_PCM_24BIT, "AUDIO_FORMAT_PCM_24_BIT_PACKED", 0x6U, 21, R.string.spk_encoding_pcm_24bit),
         ENCODING_PCM_8_24BIT(null, "AUDIO_FORMAT_PCM_8_24_BIT", 0x4U, 21, R.string.spk_encoding_pcm_8_24bit),
         ENCODING_PCM_24BIT_BIG_ENDIAN(C.ENCODING_PCM_24BIT_BIG_ENDIAN, null, null, null, R.string.spk_encoding_pcm_24bit_big_endian),
@@ -374,7 +376,7 @@ object AudioFormatDetector {
 
             append("Bit depth: ")
             val bitDepth = try {
-                Util.getByteDepth(format.pcmEncoding) * 8
+                Util.getBitDepth(format.pcmEncoding)
             } catch (_: IllegalArgumentException) {
                 null
             }
@@ -472,7 +474,7 @@ object AudioFormatDetector {
             format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() else null
         val sampleRate = format.sampleRate.takeIf { it != Format.NO_VALUE }
         val bitDepth = try {
-            Util.getByteDepth(format.pcmEncoding) * 8
+            Util.getBitDepth(format.pcmEncoding)
         } catch (_: IllegalArgumentException) {
             null
         }
