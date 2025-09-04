@@ -83,8 +83,8 @@ jobs:
           to-who: ${{ secrets.TG_CHAT_ID }}
           message: 'Beep boop, build failed, no apk for you, sorry.'
         env:
-          API_ID: ${{ secrets.TG_API_ID }}
-          API_HASH: ${{ secrets.TG_API_HASH }}
+          API_ID: ${{ secrets.TG_APP_ID }}
+          API_HASH: ${{ secrets.TG_APP_HASH }}
           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
 
       - name: Upload files to Telegram
