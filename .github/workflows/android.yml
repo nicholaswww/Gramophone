@@ -78,7 +78,7 @@ jobs:
 
       - name: Notify about error in Telegram (failure)
         if: github.event_name != 'pull_request' && failure()
-        uses: xz-dev/TelegramFileUploader@v1
+        uses: xz-dev/TelegramFileUploader@v1.1.1
         with:
           to-who: ${{ secrets.TG_CHAT_ID }}
           message: 'Beep boop, build failed, no apk for you, sorry.'
@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload files to Telegram
         if: github.event_name != 'pull_request'
-        uses: xz-dev/TelegramFileUploader@v1
+        uses: xz-dev/TelegramFileUploader@v1.1.1
         with:
           to-who: ${{ secrets.TG_CHAT_ID }}
           message: 'Beep boop, here is a new CI apk for you. Bot out.'
