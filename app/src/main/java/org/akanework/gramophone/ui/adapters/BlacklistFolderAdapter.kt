@@ -1,24 +1,77 @@
 package org.akanework.gramophone.ui.adapters
 
+import android.annotation.SuppressLint
 import android.content.SharedPreferences
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.checkbox.MaterialCheckBox
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
-import org.akanework.gramophone.logic.getStringSetStrict
+import org.akanework.gramophone.logic.gramophoneApplication
 import org.akanework.gramophone.logic.ui.MyRecyclerView
+import org.akanework.gramophone.logic.utils.flows.repeatPausingWithLifecycle
+import org.akanework.gramophone.ui.fragments.settings.BlacklistSettingsActivity
 
+@SuppressLint("NotifyDataSetChanged")
 class BlacklistFolderAdapter(
-    private val activity: AppCompatActivity,
-    private val folderArray: MutableList<String>,
+    private val activity: BlacklistSettingsActivity,
     private val prefs: SharedPreferences
 ) : MyRecyclerView.Adapter<BlacklistFolderAdapter.ViewHolder>() {
-    private val folderFilter =
-        prefs.getStringSetStrict("folderFilter", null)?.toMutableSet() ?: mutableSetOf()
+    private var folderArray: List<String>? = null
+    private var folderFilter: Set<String>? = null
+
+    init {
+        repeatPausingWithLifecycle(activity, Dispatchers.Default) {
+            activity.gramophoneApplication.reader.foldersFlow.
+            combine(activity.gramophoneApplication.blackListSetFlow) { newFolderArray, newFolderFilter ->
+                val sortedFolderArray = newFolderArray.sorted()
+                val oldFolderArray = folderArray?.toList()
+                val oldFolderFilter = folderFilter?.toSet()
+                val diff = if (oldFolderArray != null && oldFolderFilter != null)
+                    DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                    override fun getOldListSize(): Int {
+                        return oldFolderArray.size
+                    }
+
+                    override fun getNewListSize(): Int {
+                        return sortedFolderArray.size
+                    }
+
+                    override fun areItemsTheSame(
+                        oldItemPosition: Int,
+                        newItemPosition: Int
+                    ): Boolean {
+                        return oldFolderArray[oldItemPosition] == sortedFolderArray[newItemPosition]
+                    }
+
+                    override fun areContentsTheSame(
+                        oldItemPosition: Int,
+                        newItemPosition: Int
+                    ): Boolean {
+                        return oldFolderFilter.contains(oldFolderArray[newItemPosition]) ==
+                                newFolderFilter.contains(sortedFolderArray[newItemPosition])
+                    }
+
+                }, true) else null
+                withContext(Dispatchers.Main + NonCancellable) {
+                    folderArray = sortedFolderArray
+                    folderFilter = newFolderFilter
+                    if (diff != null)
+                        diff.dispatchUpdatesTo(this@BlacklistFolderAdapter)
+                    else
+                        notifyDataSetChanged()
+                }
+            }.collect()
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         ViewHolder(
@@ -34,19 +87,19 @@ class BlacklistFolderAdapter(
         val folderLocation: TextView = view.findViewById(R.id.title)
     }
 
-    override fun getItemCount(): Int = folderArray.size
+    override fun getItemCount(): Int = folderArray?.size ?: 0
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.checkBox.isChecked = folderFilter.contains(folderArray[position])
-        holder.folderLocation.text = folderArray[position]
+        holder.checkBox.isChecked = folderFilter!!.contains(folderArray!![position])
+        holder.folderLocation.text = folderArray!![position]
         holder.checkBox.setOnClickListener {
             prefs.edit {
                 putStringSet("folderFilter",
-                    folderFilter.also {
+                    folderFilter!!.let {
                         if (holder.checkBox.isChecked)
-                            it.add(folderArray[position])
+                             it + folderArray!![position]
                         else
-                            it.remove(folderArray[position])
+                            it - folderArray!![position]
                     })
             }
         }

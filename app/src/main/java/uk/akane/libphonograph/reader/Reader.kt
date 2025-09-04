@@ -405,7 +405,11 @@ internal object Reader {
                 }
                 if (shouldLoadFolders) {
                     handleShallowMediaItem(song, albumId, parent.name, shallowRoot!!)
-                    folders!!.add(fldPath)
+                    var tmpPath = parent
+                    while (tmpPath != null) {
+                        folders!!.add(tmpPath.absolutePath)
+                        tmpPath = tmpPath.parentFile
+                    }
                 }
             }
         }

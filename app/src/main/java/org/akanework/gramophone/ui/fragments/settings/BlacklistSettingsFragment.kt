@@ -25,8 +25,6 @@ class BlacklistSettingsActivity : AppCompatActivity() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
 
         findViewById<AppBarLayout>(R.id.appbarlayout).enableEdgeToEdgePaddingListener()
-        val folderArray = runBlocking { gramophoneApplication.reader.foldersFlow.first().toMutableList() }
-        folderArray.sort()
 
         topAppBar.setNavigationOnClickListener {
             finish()
@@ -35,6 +33,6 @@ class BlacklistSettingsActivity : AppCompatActivity() {
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerview)
         recyclerView.enableEdgeToEdgePaddingListener()
         recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = BlacklistFolderAdapter(this, folderArray, prefs)
+        recyclerView.adapter = BlacklistFolderAdapter(this, prefs)
     }
 }
