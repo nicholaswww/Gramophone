@@ -191,10 +191,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             customCommands[0]
 
     private val timer: Runnable = Runnable {
-        controller!!.pause()
+        if (timerPauseOnEnd) {
+            endedWorkaroundPlayer!!.exoPlayer.pauseAtEndOfMediaItems = true
+        } else {
+            controller!!.pause()
+        }
         timerDuration = null
     }
-
+    private var timerPauseOnEnd = false
     private var timerDuration: Long? = null
         set(value) {
             field = value
@@ -646,11 +650,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 }
 
                 SERVICE_SET_TIMER -> {
-                    // 0 = clear timer
-                    customCommand.customExtras.getInt("duration").let {
-                        timerDuration = if (it > 0) System.currentTimeMillis() + it else null
+                    // 0 = clear timer; 0 with pauseOnEnd true will pause on end of current song
+                    val duration = customCommand.customExtras.getInt("duration")
+                    val pauseOnEnd = customCommand.customExtras.getBoolean("pauseOnEnd")
+                    if (duration > 0) {
+                        timerPauseOnEnd = pauseOnEnd
+                        timerDuration = System.currentTimeMillis() + duration
+                    } else {
+                        timerDuration = null
+                        this.endedWorkaroundPlayer!!.exoPlayer.pauseAtEndOfMediaItems = pauseOnEnd
                     }
-                    this.endedWorkaroundPlayer.exoPlayer.pauseAtEndOfMediaItems
                     SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
@@ -658,7 +667,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     SessionResult(SessionResult.RESULT_SUCCESS).also {
                         timerDuration?.let { td ->
                             it.extras.putInt("duration", (td - System.currentTimeMillis()).toInt())
-                        }
+                            it.extras.putBoolean("pauseOnEnd", timerPauseOnEnd)
+                        } ?: it.extras.putBoolean("pauseOnEnd",
+                            this.endedWorkaroundPlayer!!.exoPlayer.pauseAtEndOfMediaItems)
                     }
                 }
 

@@ -384,18 +384,19 @@ class FullBottomSheet
         }
 
         bottomSheetTimerButton.setOnClickListener {
+            // TODO: expose wait until song end in ui
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
             val picker =
                 MaterialTimePicker
                     .Builder()
-                    .setHour((instance?.getTimer() ?: 0) / 3600 / 1000)
-                    .setMinute(((instance?.getTimer() ?: 0) % (3600 * 1000)) / (60 * 1000))
+                    .setHour((instance?.getTimer()?.first ?: 0) / 3600 / 1000)
+                    .setMinute(((instance?.getTimer()?.first ?: 0) % (3600 * 1000)) / (60 * 1000))
                     .setTimeFormat(TimeFormat.CLOCK_24H)
                     .setInputMode(MaterialTimePicker.INPUT_MODE_KEYBOARD)
                     .build()
             picker.addOnPositiveButtonClickListener {
                 val destinationTime: Int = picker.hour * 1000 * 3600 + picker.minute * 1000 * 60
-                instance?.setTimer(destinationTime, )
+                instance?.setTimer(destinationTime, false)
             }
             picker.show(activity.supportFragmentManager, "timer")
         }
@@ -539,13 +540,14 @@ class FullBottomSheet
 
     private fun updateTimer() {
         val t = instance?.getTimer()
-        bottomSheetTimerButton.isChecked = t != null
+        bottomSheetTimerButton.isChecked = t?.first != null || t?.second == true
         TooltipCompat.setTooltipText(
             bottomSheetTimerButton,
-            if (t != null) context.getString(
-                R.string.timer_expiry,
-                DateFormat.getTimeFormat(context).format(System.currentTimeMillis() + t)
-            ) else context.getString(R.string.timer)
+            if (t?.first != null) context.getString(
+                if (t.second) R.string.timer_expiry_eos else R.string.timer_expiry,
+                DateFormat.getTimeFormat(context).format(System.currentTimeMillis() + t.first!!)
+            ) else if (t?.second == true) context.getString(R.string.timer_expiry_end_of_this_song)
+            else context.getString(R.string.timer)
         )
     }
 

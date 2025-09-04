@@ -233,21 +233,23 @@ inline fun Int.dpToPx(context: Context): Int =
 inline fun Float.dpToPx(context: Context): Float =
     (this * context.resources.displayMetrics.density)
 
-fun MediaController.getTimer(): Int? =
+fun MediaController.getTimer(): Pair<Int?, Boolean> =
     sendCustomCommand(
         SessionCommand(SERVICE_QUERY_TIMER, Bundle.EMPTY),
         Bundle.EMPTY
     ).get().extras.run {
-        if (containsKey("duration"))
+        (if (containsKey("duration"))
             getInt("duration")
-        else null
+        else null) to (if (containsKey("pauseOnEnd"))
+            getBoolean("pauseOnEnd")
+            else throw IllegalArgumentException("expected pauseOnEnd to be set"))
     }
 
 fun MediaController.setTimer(value: Int, waitUntilSongEnd: Boolean) {
     sendCustomCommand(
         SessionCommand(SERVICE_SET_TIMER, Bundle.EMPTY).apply {
             customExtras.putInt("duration", value)
-            customExtras.putBoolean("wait_until_song_end", waitUntilSongEnd)
+            customExtras.putBoolean("pauseOnEnd", waitUntilSongEnd)
         }, Bundle.EMPTY
     )
 }
