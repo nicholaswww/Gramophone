@@ -28,6 +28,15 @@ jobs:
     name: Build App
     runs-on: ubuntu-latest
     steps:
+  
+      - name: Generate bot data
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "RANDOM_QUOTE=$(shuf -n1 <<<"$LIST_OF_QUOTES")" >> $GITHUB_ENV
+          echo "RANDOM_QUOTE_ERROR=$(shuf -n1 <<<"$LIST_OF_ERROR_QUOTES")" >> $GITHUB_ENV
+        env:
+          LIST_OF_QUOTES: ${{ secrets.LIST_OF_QUOTES }}
+          LIST_OF_ERROR_QUOTES: ${{ secrets.LIST_OF_ERROR_QUOTES }}
 
       - uses: actions/checkout@v4
         with:
@@ -81,7 +90,7 @@ jobs:
         uses: xz-dev/TelegramFileUploader@v1.1.1
         with:
           to-who: ${{ secrets.TG_CHAT_ID }}
-          message: 'Beep boop, build failed, no apk for you, sorry.'
+          message: ${{ env.RANDOM_QUOTE_ERROR }}
         env:
           API_ID: ${{ secrets.TG_APP_ID }}
           API_HASH: ${{ secrets.TG_APP_HASH }}
@@ -92,7 +101,7 @@ jobs:
         uses: xz-dev/TelegramFileUploader@v1.1.1
         with:
           to-who: ${{ secrets.TG_CHAT_ID }}
-          message: 'Beep boop, here is a new CI apk for you. Bot out.'
+          message: ${{ env.RANDOM_QUOTE }}
           files: |
             ${{ env.APK_FILE }}
         env:
