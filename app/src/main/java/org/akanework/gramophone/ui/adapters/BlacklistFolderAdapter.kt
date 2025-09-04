@@ -56,7 +56,7 @@ class BlacklistFolderAdapter(
                         oldItemPosition: Int,
                         newItemPosition: Int
                     ): Boolean {
-                        return oldFolderFilter.contains(oldFolderArray[newItemPosition]) ==
+                        return oldFolderFilter.contains(oldFolderArray[oldItemPosition]) ==
                                 newFolderFilter.contains(sortedFolderArray[newItemPosition])
                     }
 
@@ -93,14 +93,18 @@ class BlacklistFolderAdapter(
         holder.checkBox.isChecked = folderFilter!!.contains(folderArray!![position])
         holder.folderLocation.text = folderArray!![position]
         holder.checkBox.setOnClickListener {
-            prefs.edit {
-                putStringSet("folderFilter",
-                    folderFilter!!.let {
-                        if (holder.checkBox.isChecked)
-                             it + folderArray!![position]
-                        else
-                            it - folderArray!![position]
-                    })
+            val position = holder.bindingAdapterPosition
+            if (position != RecyclerView.NO_POSITION) {
+                prefs.edit {
+                    putStringSet(
+                        "folderFilter",
+                        folderFilter!!.let {
+                            if (holder.checkBox.isChecked)
+                                it + folderArray!![position]
+                            else
+                                it - folderArray!![position]
+                        })
+                }
             }
         }
         holder.itemView.setOnClickListener {

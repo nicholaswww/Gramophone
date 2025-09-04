@@ -409,6 +409,8 @@ internal object Reader {
                     while (tmpPath != null) {
                         folders!!.add(tmpPath.absolutePath)
                         tmpPath = tmpPath.parentFile
+                        if (tmpPath.absolutePath == "/storage/emulated" || tmpPath.absolutePath == "/storage")
+                            tmpPath = null // lets not allow to blacklist more than entire volumes
                     }
                 }
             }
@@ -459,7 +461,17 @@ internal object Reader {
         val genreList = genreMap?.values?.toList()
         val dateList = dateMap?.values?.toList()
 
-        folders?.addAll(blackListSet)
+        if (folders != null) {
+            for (blacklistedFolder in blackListSet) {
+                var tmpPath: File? = File(blacklistedFolder)
+                while (tmpPath != null) {
+                    folders.add(tmpPath.absolutePath)
+                    tmpPath = tmpPath.parentFile
+                    if (tmpPath.absolutePath == "/storage/emulated" || tmpPath.absolutePath == "/storage")
+                        tmpPath = null // lets not allow to blacklist more than entire volumes
+                }
+            }
+        }
 
         return ReaderResult(
             songs,
