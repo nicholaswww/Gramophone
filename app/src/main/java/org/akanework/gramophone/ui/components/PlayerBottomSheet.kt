@@ -428,12 +428,12 @@ class PlayerBottomSheet private constructor(
         val myTag = bottomSheetPreviewControllerButton.getTag(R.id.play_next) as Int?
         if (instance?.isPlaying == true && myTag != 1) {
             bottomSheetPreviewControllerButton.icon =
-                AppCompatResources.getDrawable(context, R.drawable.play_anim)
+                AppCompatResources.getDrawable(context, R.drawable.ic_play_anim)
             bottomSheetPreviewControllerButton.icon.startAnimation()
             bottomSheetPreviewControllerButton.setTag(R.id.play_next, 1)
         } else if (instance?.isPlaying == false && myTag != 2) {
             bottomSheetPreviewControllerButton.icon =
-                AppCompatResources.getDrawable(context, R.drawable.pause_anim)
+                AppCompatResources.getDrawable(context, R.drawable.ic_pause_anim)
             bottomSheetPreviewControllerButton.icon.startAnimation()
             bottomSheetPreviewControllerButton.setTag(R.id.play_next, 2)
         }

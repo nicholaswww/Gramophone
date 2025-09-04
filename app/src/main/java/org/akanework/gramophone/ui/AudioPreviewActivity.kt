@@ -495,7 +495,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
     private fun updatePlayPauseButton() {
         if (player.isPlaying) {
             if (playPauseButton.getTag(R.id.play_next) as Int? != 1) {
-                playPauseButton.icon = AppCompatResources.getDrawable(this, R.drawable.play_anim)
+                playPauseButton.icon = AppCompatResources.getDrawable(this, R.drawable.ic_play_anim)
                 playPauseButton.icon.startAnimation()
                 playPauseButton.setTag(R.id.play_next, 1)
             }
@@ -509,7 +509,7 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
         } else if (player.playbackState != Player.STATE_BUFFERING) {
             if (playPauseButton.getTag(R.id.play_next) as Int? != 2) {
                 playPauseButton.icon =
-                    AppCompatResources.getDrawable(this, R.drawable.pause_anim)
+                    AppCompatResources.getDrawable(this, R.drawable.ic_pause_anim)
                 playPauseButton.icon.startAnimation()
                 playPauseButton.setTag(R.id.play_next, 2)
             }

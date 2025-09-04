@@ -222,25 +222,24 @@
 			android:layout_height="90dp"
 			android:layout_centerHorizontal="true"
 			android:layout_marginTop="18dp"
-			android:background="@drawable/bg_play_anim"
 			android:insetLeft="0dp"
 			android:insetTop="0dp"
 			android:insetRight="0dp"
 			android:insetBottom="0dp"
 			app:tooltipText="@string/play"
 			android:contentDescription="@string/play"
-			app:backgroundTint="?attr/colorSecondaryContainer"
-			app:icon="@drawable/play_anim"
+			android:background="@drawable/rp_buttons_dynamic"
+			app:icon="@drawable/ic_play_anim"
 			app:iconGravity="textStart"
 			app:iconPadding="0dp"
-			app:iconSize="42dp"
+			app:iconSize="72dp"
 			app:iconTint="?attr/colorOnSecondaryContainer"
 			app:layout_constraintBottom_toBottomOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintTop_toBottomOf="@id/duration_frame" />
 
-		<com.google.android.material.button.MaterialButton
+		<org.akanework.gramophone.ui.components.AnimatedVectorButton
 			android:id="@+id/sheet_previous_song"
 			android:layout_width="90dp"
 			android:layout_height="90dp"
@@ -257,7 +256,7 @@
 			app:icon="@drawable/ic_skip_previous"
 			app:iconGravity="textStart"
 			app:iconPadding="0dp"
-			app:iconSize="38sp"
+			app:iconSize="64dp"
 			app:iconTint="?attr/colorOnSurface"
 			app:layout_constraintBottom_toBottomOf="@id/sheet_mid_button"
 			app:layout_constraintEnd_toStartOf="@id/sheet_mid_button"
@@ -265,7 +264,7 @@
 			app:layout_constraintStart_toStartOf="parent"
 			app:layout_constraintTop_toTopOf="@id/sheet_mid_button" />
 
-		<com.google.android.material.button.MaterialButton
+		<org.akanework.gramophone.ui.components.AnimatedVectorButton
 			android:id="@+id/sheet_next_song"
 			android:layout_width="90dp"
 			android:layout_height="90dp"
@@ -282,7 +281,7 @@
 			app:icon="@drawable/ic_skip_next"
 			app:iconGravity="textStart"
 			app:iconPadding="0dp"
-			app:iconSize="38sp"
+			app:iconSize="64dp"
 			app:iconTint="?attr/colorOnSurface"
 			app:layout_constraintBottom_toBottomOf="@id/sheet_mid_button"
 			app:layout_constraintEnd_toEndOf="parent"
@@ -386,10 +385,9 @@
 			app:iconTint="@color/sl_fav_button" />
 
 		<com.google.android.material.button.MaterialButton
-			android:id="@+id/timer"
+			android:id="@+id/more_tools"
 			android:layout_width="48dp"
 			android:layout_height="48dp"
-			android:layout_weight="1"
 			android:background="@drawable/rp_buttons"
 			android:checkable="true"
 			android:insetLeft="0dp"
@@ -397,31 +395,12 @@
 			android:insetRight="0dp"
 			android:insetBottom="0dp"
 			android:saveEnabled="false"
-			app:tooltipText="@string/timer"
-			android:contentDescription="@string/timer"
-			app:toggleCheckedStateOnClick="false"
-			app:icon="@drawable/sl_check_timer"
+			app:tooltipText="@string/dialog_lyrics"
+			android:contentDescription="@string/dialog_lyrics"
+			app:icon="@drawable/ic_more_vert_alt"
 			app:iconGravity="textStart"
 			app:iconPadding="0dp"
 			app:iconSize="24sp"
-			app:iconTint="?attr/colorOnSurface" />
-
-		<com.google.android.material.button.MaterialButton
-			android:id="@+id/playlist"
-			android:layout_width="48dp"
-			android:layout_height="48dp"
-			android:layout_weight="1"
-			android:background="@drawable/rp_buttons"
-			android:insetLeft="0dp"
-			android:insetTop="0dp"
-			android:insetRight="0dp"
-			android:insetBottom="0dp"
-			app:tooltipText="@string/current_playlist"
-			android:contentDescription="@string/current_playlist"
-			app:icon="@drawable/ic_playlist_play"
-			app:iconGravity="textStart"
-			app:iconPadding="0dp"
-			app:iconSize="24dp"
 			app:iconTint="?attr/colorOnSurface" />
 	</LinearLayout>
 

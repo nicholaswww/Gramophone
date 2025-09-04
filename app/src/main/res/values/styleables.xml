@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+	<attr name="icon" format="reference" />
+	<attr name="iconSize" format="dimension" />
+
 	<declare-styleable name="MyTextAppearance">
 		<attr name="textFontWeight" format="integer"/>
 	</declare-styleable>
@@ -9,5 +12,9 @@
 	<declare-styleable name="AppWidget">
 		<attr name="system_app_widget_background_radius" format="dimension"/>
 		<attr name="system_app_widget_inner_radius" format="dimension"/>
+	</declare-styleable>
+	<declare-styleable name="AnimatedVectorButton">
+		<attr name="icon" />
+		<attr name="iconSize" />
 	</declare-styleable>
 </resources>

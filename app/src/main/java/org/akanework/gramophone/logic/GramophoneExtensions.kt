@@ -47,6 +47,8 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
+import androidx.appcompat.view.SupportMenuInflater
+import androidx.appcompat.view.menu.MenuBuilder
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -612,3 +614,9 @@ operator fun PaddingValues.plus(other: PaddingValues): PaddingValues = PaddingVa
             other.calculateEndPadding(LayoutDirection.Ltr),
     bottom = this.calculateBottomPadding() + other.calculateBottomPadding(),
 )
+
+fun Context.loadMenuFromResource(resId: Int): MenuBuilder {
+    val menu = MenuBuilder(this)
+    SupportMenuInflater(this).inflate(resId, menu)
+    return menu
+}
