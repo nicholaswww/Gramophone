@@ -25,6 +25,7 @@ import androidx.core.content.FileProvider
 import androidx.preference.Preference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
@@ -41,7 +42,6 @@ class ExperimentalSettingsActivity : BaseSettingsActivity(R.string.settings_expe
 
 class ExperimentalSettingsFragment : BasePreferenceFragment() {
 
-    private lateinit var selfLogDir: File
     private lateinit var e: Exception
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -55,14 +55,10 @@ class ExperimentalSettingsFragment : BasePreferenceFragment() {
             e = RuntimeException("skill issue")
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        selfLogDir = File(requireContext().cacheDir, "SelfLog")
-    }
-
     override fun onResume() {
         super.onResume()
         CoroutineScope(Dispatchers.IO).launch {
+            val selfLogDir = File(requireContext().cacheDir, "SelfLog")
             selfLogDir.listFiles()?.forEach(File::delete)
         }
     }
@@ -81,6 +77,7 @@ class ExperimentalSettingsFragment : BasePreferenceFragment() {
                 runInterruptible {
                     p.waitFor()
                 }
+                val selfLogDir = File(requireContext().cacheDir, "SelfLog")
                 val f = File(selfLogDir.also { it.mkdirs() },
                     "GramophoneLog${System.currentTimeMillis()}.txt")
                 f.writeText("SDK: ${Build.VERSION.SDK_INT}\nDevice: ${Build.BRAND} ${Build.DEVICE} " +
