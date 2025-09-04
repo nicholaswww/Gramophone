@@ -1245,9 +1245,15 @@ class FullBottomSheet
                 }
             }
             holder.itemView.setOnClickListener {
-                ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-                val instance = activity.getPlayer()
-                instance?.seekToDefaultPosition(playlist.first[holder.absoluteAdapterPosition])
+                val pos = holder.bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) { // if -1, user clicked remove on this item
+                    ViewCompat.performHapticFeedback(
+                        it,
+                        HapticFeedbackConstantsCompat.CONTEXT_CLICK
+                    )
+                    val instance = activity.getPlayer()
+                    instance?.seekToDefaultPosition(playlist.first[pos])
+                }
             }
         }
 
