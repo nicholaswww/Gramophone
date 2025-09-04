@@ -347,7 +347,12 @@ class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
                             if (lp?.toUri()?.scheme == "file") { // Let's try our luck! Material Files supports this
                                 fileUri = lp.toUri()
                             } else { // ¯\_(ツ)_/¯
-                                val pfd = contentResolver.openFileDescriptor(uri, "r")
+                                val pfd = try {
+                                    contentResolver.openFileDescriptor(uri, "r")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, Log.getStackTraceString(e))
+                                    null
+                                }
                                 if (pfd == null) return@run null
                                 val l = try {
                                     Os.readlink("/proc/self/fd/" + pfd.fd)
