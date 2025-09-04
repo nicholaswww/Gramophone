@@ -243,10 +243,11 @@ fun MediaController.getTimer(): Int? =
         else null
     }
 
-fun MediaController.setTimer(value: Int) {
+fun MediaController.setTimer(value: Int, waitUntilSongEnd: Boolean) {
     sendCustomCommand(
         SessionCommand(SERVICE_SET_TIMER, Bundle.EMPTY).apply {
             customExtras.putInt("duration", value)
+            customExtras.putBoolean("wait_until_song_end", waitUntilSongEnd)
         }, Bundle.EMPTY
     )
 }

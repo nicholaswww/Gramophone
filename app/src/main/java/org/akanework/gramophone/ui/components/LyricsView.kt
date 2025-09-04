@@ -11,10 +11,7 @@ import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.MyRecyclerView
-import org.akanework.gramophone.logic.utils.Flags
-import org.akanework.gramophone.logic.utils.MediaStoreUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
-import org.akanework.gramophone.logic.utils.convertForLegacy
 import org.akanework.gramophone.ui.MainActivity
 
 class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, attrs),
@@ -78,7 +75,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
                 it.updateTextColor(defaultTextColor, highlightTextColor)
             }
             recyclerView!!.addItemDecoration(LyricPaddingDecoration(context))
-            adapter?.updateLyrics(lyrics.convertForLegacy())
+            adapter?.updateLyrics(lyrics)
         }
     }
 
@@ -110,7 +107,7 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
 
     fun updateLyrics(parsedLyrics: SemanticLyrics?) {
         lyrics = parsedLyrics
-        adapter?.updateLyrics(lyrics.convertForLegacy())
+        adapter?.updateLyrics(lyrics)
         newView?.updateLyrics(lyrics)
     }
 

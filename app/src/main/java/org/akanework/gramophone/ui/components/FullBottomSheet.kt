@@ -395,7 +395,7 @@ class FullBottomSheet
                     .build()
             picker.addOnPositiveButtonClickListener {
                 val destinationTime: Int = picker.hour * 1000 * 3600 + picker.minute * 1000 * 60
-                instance?.setTimer(destinationTime)
+                instance?.setTimer(destinationTime, )
             }
             picker.show(activity.supportFragmentManager, "timer")
         }

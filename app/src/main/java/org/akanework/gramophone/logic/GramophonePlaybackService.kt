@@ -650,6 +650,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     customCommand.customExtras.getInt("duration").let {
                         timerDuration = if (it > 0) System.currentTimeMillis() + it else null
                     }
+                    this.endedWorkaroundPlayer.exoPlayer.pauseAtEndOfMediaItems
                     SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
@@ -704,6 +705,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     SessionResult(SessionError.ERROR_BAD_VALUE)
                 }
             })
+    }
+
+    override fun onPlayWhenReadyChanged(
+        eventTime: AnalyticsListener.EventTime,
+        playWhenReady: Boolean,
+        reason: @Player.PlayWhenReadyChangeReason Int
+    ) {
+        if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+            this.endedWorkaroundPlayer?.exoPlayer?.pauseAtEndOfMediaItems = false
+        }
     }
 
     override fun onPlaybackResumption(

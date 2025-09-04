@@ -30,7 +30,8 @@ import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.CustomSmoothScroller
 import org.akanework.gramophone.logic.ui.MyRecyclerView
-import org.akanework.gramophone.logic.utils.MediaStoreUtils
+import org.akanework.gramophone.logic.utils.SemanticLyrics
+import org.akanework.gramophone.logic.utils.SemanticLyrics.SyncedLyrics
 import org.akanework.gramophone.ui.MainActivity
 
 class LegacyLyricsAdapter(
@@ -51,7 +52,7 @@ class LegacyLyricsAdapter(
     private var defaultTextColor = 0
     private var highlightTextColor = 0
     private val interpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
-    private val lyricList = mutableListOf<MediaStoreUtils.Lyric>()
+    private val lyricList = mutableListOf<Lyric>()
     var currentFocusPos = -1
         private set
     private var currentTranslationPos = -1
@@ -360,12 +361,13 @@ class LegacyLyricsAdapter(
         }
     }
 
-    fun updateLyrics(parsedLyrics: MutableList<MediaStoreUtils.Lyric>?) {
+    fun updateLyrics(newLyric: SemanticLyrics?) {
+        val parsedLyrics = newLyric.convertForLegacy()
         if (lyricList != parsedLyrics) {
             lyricList.clear()
             if (parsedLyrics?.isEmpty() != false) {
                 lyricList.add(
-                    MediaStoreUtils.Lyric(
+                    Lyric(
                         null,
                         context.getString(R.string.no_lyric_found)
                     )
@@ -385,5 +387,22 @@ class LegacyLyricsAdapter(
         highlightTextColor = newHighlightColor
         @SuppressLint("NotifyDataSetChanged")
         notifyDataSetChanged()
+    }
+
+    private data class Lyric(
+        val timeStamp: Long? = null,
+        val content: String = "",
+        var isTranslation: Boolean = false
+    )
+
+    private fun SemanticLyrics?.convertForLegacy(): MutableList<Lyric>? {
+        if (this == null) return null
+        if (this is SyncedLyrics) {
+            return this.text.map {
+                Lyric(it.start.toLong(), it.text, it.isTranslated)
+            }.toMutableList()
+        }
+        return mutableListOf(Lyric(null,
+            this.unsyncedText.joinToString("\n") { it.first }, false))
     }
 }

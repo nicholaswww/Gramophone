@@ -1105,14 +1105,3 @@ fun parseSrt(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
         }, ts, (it.endTimeUs / 1000).toULong(), null, null, l)
     })
 }
-
-fun SemanticLyrics?.convertForLegacy(): MutableList<MediaStoreUtils.Lyric>? {
-    if (this == null) return null
-    if (this is SyncedLyrics) {
-        return this.text.map {
-            MediaStoreUtils.Lyric(it.start.toLong(), it.text, it.isTranslated)
-        }.toMutableList()
-    }
-    return mutableListOf(MediaStoreUtils.Lyric(null,
-        this.unsyncedText.joinToString("\n") { it.first }, false))
-}
