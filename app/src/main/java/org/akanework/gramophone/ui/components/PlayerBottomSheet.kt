@@ -82,18 +82,12 @@ class PlayerBottomSheet private constructor(
         private const val TAG = "PlayerBottomSheet"
     }
 
-    private var lastDisposable: Disposable? = null
     private var standardBottomSheetBehavior: MyBottomSheetBehavior<FrameLayout>? = null
     @SuppressLint("RestrictedApi")
     private var lyricsBackHelper: MaterialBottomContainerBackHelper? = null
     private var bottomSheetBackCallback: OnBackPressedCallback? = null
     val fullPlayer: FullBottomSheet
     private val previewPlayer: View
-    private val bottomSheetPreviewCover: ImageView
-    private val bottomSheetPreviewTitle: TextView
-    private val bottomSheetPreviewSubtitle: TextView
-    private val bottomSheetPreviewControllerButton: MaterialButton
-    private val bottomSheetPreviewNextButton: MaterialButton
 
     private val activity
         get() = context as MainActivity
@@ -130,11 +124,6 @@ class PlayerBottomSheet private constructor(
         inflate(context, R.layout.bottom_sheet, this)
         previewPlayer = findViewById(R.id.preview_player)
         fullPlayer = findViewById(R.id.full_player)
-        bottomSheetPreviewTitle = findViewById(R.id.preview_song_name)
-        bottomSheetPreviewSubtitle = findViewById(R.id.preview_artist_name)
-        bottomSheetPreviewCover = findViewById(R.id.preview_album_cover)
-        bottomSheetPreviewControllerButton = findViewById(R.id.preview_control)
-        bottomSheetPreviewNextButton = findViewById(R.id.preview_next)
 
         setOnClickListener {
             if (standardBottomSheetBehavior!!.state == BottomSheetBehavior.STATE_COLLAPSED) {
@@ -142,19 +131,8 @@ class PlayerBottomSheet private constructor(
             }
         }
 
-        bottomSheetPreviewControllerButton.setOnClickListener {
-            ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-            instance?.playOrPause()
-        }
-
-        bottomSheetPreviewNextButton.setOnClickListener {
-            ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-            instance?.seekToNext()
-        }
-
         activity.controllerViewModel.addControllerCallback(activity.lifecycle) { _, _ ->
             instance?.addListener(this@PlayerBottomSheet)
-            onPlaybackStateChanged(instance?.playbackState ?: Player.STATE_IDLE)
             onMediaItemTransition(
                 instance?.currentMediaItem,
                 Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
@@ -385,25 +363,6 @@ class PlayerBottomSheet private constructor(
         mediaItem: MediaItem?,
         reason: Int,
     ) {
-        if ((instance?.mediaItemCount ?: 0) > 0) {
-            lastDisposable?.dispose()
-            lastDisposable = context.imageLoader.enqueue(ImageRequest.Builder(context).apply {
-                target(onSuccess = {
-                    bottomSheetPreviewCover.setImageDrawable(it.asDrawable(context.resources))
-                }, onError = {
-                    bottomSheetPreviewCover.setImageDrawable(it?.asDrawable(context.resources))
-                }) // do not react to onStart() which sets placeholder
-                data(mediaItem?.mediaMetadata?.artworkUri)
-                scale(Scale.FILL)
-                error(R.drawable.ic_default_cover)
-            }.build())
-            bottomSheetPreviewTitle.text = mediaItem?.mediaMetadata?.title
-            bottomSheetPreviewSubtitle.text =
-                mediaItem?.mediaMetadata?.artist ?: context.getString(R.string.unknown_artist)
-        } else {
-            lastDisposable?.dispose()
-            lastDisposable = null
-        }
         var newState = standardBottomSheetBehavior?.state
         if ((instance?.mediaItemCount ?: 0) > 0 && visible) {
             if (newState != BottomSheetBehavior.STATE_EXPANDED) {
@@ -419,29 +378,8 @@ class PlayerBottomSheet private constructor(
         }
     }
 
-    override fun onIsPlayingChanged(isPlaying: Boolean) {
-        onPlaybackStateChanged(instance?.playbackState ?: Player.STATE_IDLE)
-    }
-
-    override fun onPlaybackStateChanged(playbackState: Int) {
-        if (playbackState == Player.STATE_BUFFERING) return
-        val myTag = bottomSheetPreviewControllerButton.getTag(R.id.play_next) as Int?
-        if (instance?.isPlaying == true && myTag != 1) {
-            bottomSheetPreviewControllerButton.icon =
-                AppCompatResources.getDrawable(context, R.drawable.play_anim)
-            bottomSheetPreviewControllerButton.icon.startAnimation()
-            bottomSheetPreviewControllerButton.setTag(R.id.play_next, 1)
-        } else if (instance?.isPlaying == false && myTag != 2) {
-            bottomSheetPreviewControllerButton.icon =
-                AppCompatResources.getDrawable(context, R.drawable.pause_anim)
-            bottomSheetPreviewControllerButton.icon.startAnimation()
-            bottomSheetPreviewControllerButton.setTag(R.id.play_next, 2)
-        }
-    }
-
     override fun onStop(owner: LifecycleOwner) {
         super.onStop(owner)
         fullPlayer.onStop()
     }
-
 }
