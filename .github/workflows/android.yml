@@ -28,15 +28,6 @@ jobs:
     name: Build App
     runs-on: ubuntu-latest
     steps:
-  
-      - name: Generate bot data
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "RANDOM_QUOTE=$(shuf -n1 <<<"$LIST_OF_QUOTES")" >> $GITHUB_ENV
-          echo "RANDOM_QUOTE_ERROR=$(shuf -n1 <<<"$LIST_OF_ERROR_QUOTES")" >> $GITHUB_ENV
-        env:
-          LIST_OF_QUOTES: ${{ secrets.LIST_OF_QUOTES }}
-          LIST_OF_ERROR_QUOTES: ${{ secrets.LIST_OF_ERROR_QUOTES }}
 
       - uses: actions/checkout@v4
         with:
