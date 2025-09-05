@@ -430,6 +430,7 @@ abstract class BaseAdapter<T : Any>(
         holder.itemView.setOnClickListener(null)
         holder.moreButton.setOnClickListener(null)
         (holder.nowPlaying.drawable as? NowPlayingDrawable?)?.level2Done = null
+        holder.itemView.background = null
         holder.nowPlaying.setImageDrawable(null)
         holder.nowPlaying.visibility = View.GONE
         holder.songCover.dispose()

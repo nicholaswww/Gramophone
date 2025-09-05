@@ -23,6 +23,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ShareCompat
 import androidx.core.content.FileProvider
@@ -31,6 +32,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -329,6 +331,7 @@ class SongAdapter(
                     holder.nowPlaying.setImageDrawable(null)
                 }
                 holder.nowPlaying.drawable?.level = 2
+                holder.itemView.background = null
                 return
             }
         } else {
@@ -339,6 +342,7 @@ class SongAdapter(
         holder.nowPlaying.setImageDrawable(NowPlayingDrawable()
             .also { it.level = if (currentIsPlaying == true) 1 else 0 })
         holder.nowPlaying.visibility = View.VISIBLE
+        holder.itemView.background = AppCompatResources.getDrawable(context, R.drawable.bg_nowplaying_hint)
     }
 
     // TODO support album year sort
