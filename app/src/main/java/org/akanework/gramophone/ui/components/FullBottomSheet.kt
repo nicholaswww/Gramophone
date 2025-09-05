@@ -625,7 +625,7 @@ class FullBottomSheet
             ).dpToPx(context).toFloat()
         }
         if (key == null || key == "cookie_cover") {
-            bottomSheetFullCover.setClip(prefs.getBooleanStrict("cookie_cover", true))
+            bottomSheetFullCover.setClip(prefs.getBooleanStrict("cookie_cover", false))
         }
     }
 
