@@ -61,7 +61,7 @@ class NowPlayingDrawable(context: Context) : Drawable() {
                 Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
             withContext(Dispatchers.Main) {
                 this@NowPlayingDrawable.animationsEnabled = animationsEnabled
-                ts = System.currentTimeMillis()
+                if (animationsEnabled) ts = System.currentTimeMillis()
                 invalidateSelf()
             }
         }
