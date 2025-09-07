@@ -790,9 +790,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         return Futures.immediateFuture(LibraryResult.ofItem(item, outParams))
     }*/
 
-    override fun onTracksChanged(eventTime: AnalyticsListener.EventTime, tracks: Tracks) {
-        // controller will return wrong item at this point TODO why, this is the controller's listener
-        val mediaItem = endedWorkaroundPlayer?.currentMediaItem
+    override fun onTracksChanged(tracks: Tracks) {
+        val mediaItem = controller?.currentMediaItem
 
         lyricsFetcher.launch {
             // round-trip to make sure the current callback is completed
