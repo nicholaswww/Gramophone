@@ -90,7 +90,7 @@ class DetailedFolderAdapter(
     private val folderAdapter: FolderListAdapter =
         FolderListAdapter(listOf(), mainActivity, this)
     private val songList = MutableSharedFlow<List<MediaItem>>(1)
-    private val decorAdapter = BaseDecorAdapter<DetailedFolderAdapter>(this, R.plurals.folders)
+    private val decorAdapter = BaseDecorAdapter<DetailedFolderAdapter>(this, R.plurals.folders_plural)
     private val songAdapter: SongAdapter =
         SongAdapter(fragment, songList, true, null, false, folder = true).apply {
             onFullyDrawnListener = { reportFullyDrawn() }
