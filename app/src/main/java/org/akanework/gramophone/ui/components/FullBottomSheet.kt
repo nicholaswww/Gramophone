@@ -132,6 +132,7 @@ class FullBottomSheet
 
     private var wrappedContext: Context? = null
     private var currentJob: CoroutineScope? = null
+    private var currentDisposable: Disposable? = null
     private var isUserTracking = false
     private var runnableRunning = false
     private var firstTime = false
@@ -629,6 +630,8 @@ class FullBottomSheet
 
     private fun removeColorScheme() {
         currentJob?.cancel()
+        currentDisposable?.dispose()
+        currentDisposable = null
         wrappedContext = null
         currentJob = CoroutineScope(Dispatchers.Default)
         currentJob!!.launch {
@@ -638,12 +641,14 @@ class FullBottomSheet
 
     private fun addColorScheme() {
         currentJob?.cancel()
+        currentDisposable?.dispose()
+        currentDisposable = null
         val job = CoroutineScope(Dispatchers.Default)
         currentJob = job
         val mediaItem = instance?.currentMediaItem
         val file = mediaItem?.getFile()
         job.launch {
-            context.imageLoader.enqueue(
+            currentDisposable = context.imageLoader.enqueue(
                 ImageRequest.Builder(context).apply {
                     data(Pair(file, mediaItem?.mediaMetadata?.artworkUri))
                     val colorAccuracy = prefs.getBoolean("color_accuracy", false)
