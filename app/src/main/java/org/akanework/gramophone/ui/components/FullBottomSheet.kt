@@ -8,7 +8,6 @@ import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.TransitionDrawable
 import android.provider.MediaStore
 import android.text.format.DateFormat
@@ -16,8 +15,6 @@ import android.util.AttributeSet
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewPropertyAnimator
@@ -27,9 +24,6 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.result.IntentSenderRequest
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.appcompat.view.SupportMenuInflater
-import androidx.appcompat.view.menu.MenuBuilder
-import androidx.appcompat.view.menu.MenuPopupHelper
 import androidx.appcompat.widget.TooltipCompat
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.graphics.Insets
@@ -38,6 +32,7 @@ import androidx.core.graphics.scale
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
 import androidx.core.view.isInvisible
 import androidx.core.widget.TextViewCompat
 import androidx.media3.common.C
@@ -120,7 +115,7 @@ import uk.akane.libphonograph.manipulator.ItemManipulator
 import java.util.LinkedList
 import kotlin.math.min
 
-@SuppressLint("NotifyDataSetChanged", "RestrictedApi")
+@SuppressLint("NotifyDataSetChanged")
 @androidx.annotation.OptIn(UnstableApi::class)
 class FullBottomSheet
     (context: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) :
@@ -205,15 +200,16 @@ class FullBottomSheet
     private val bottomSheetFullTitle: TextView
     private val bottomSheetFullSubtitle: TextView
     private val bottomSheetFullControllerButton: MaterialButton
-    private val bottomSheetFullNextButton: AnimatedVectorButton
-    private val bottomSheetFullPreviousButton: AnimatedVectorButton
+    private val bottomSheetFullNextButton: MaterialButton
+    private val bottomSheetFullPreviousButton: MaterialButton
     private val bottomSheetFullDuration: TextView
     private val bottomSheetFullPosition: TextView
     private var bottomSheetFullQualityDetails: TextView
     private val bottomSheetFullSlideUpButton: MaterialButton
     private val bottomSheetShuffleButton: MaterialButton
     private val bottomSheetLoopButton: MaterialButton
-    private val bottomSheetMoreToolButton: MaterialButton
+    private val bottomSheetPlaylistButton: MaterialButton
+    private val bottomSheetTimerButton: MaterialButton
     private val bottomSheetFavoriteButton: MaterialButton
     val bottomSheetLyricButton: MaterialButton
     private val bottomSheetFullSeekBar: SeekBar
@@ -247,10 +243,11 @@ class FullBottomSheet
         bottomSheetFullSlideUpButton = findViewById(R.id.slide_down)
         bottomSheetShuffleButton = findViewById(R.id.sheet_random)
         bottomSheetLoopButton = findViewById(R.id.sheet_loop)
+        bottomSheetTimerButton = findViewById(R.id.timer)
         bottomSheetFavoriteButton = findViewById(R.id.favor)
         if (!Flags.FAVORITE_SONGS)
             bottomSheetFavoriteButton.visibility = GONE
-        bottomSheetMoreToolButton = findViewById(R.id.more_tools)
+        bottomSheetPlaylistButton = findViewById(R.id.playlist)
         bottomSheetLyricButton = findViewById(R.id.lyrics)
         bottomSheetFullLyricView = findViewById(R.id.lyric_frame)
         bottomSheetFullQualityDetails = findViewById(R.id.quality_details)
@@ -297,7 +294,7 @@ class FullBottomSheet
         prefs.registerOnSharedPreferenceChangeListener(this)
         activity.controllerViewModel.customCommandListeners.addCallback(activity.lifecycle) { _, command, _ ->
             when (command.customAction) {
-                GramophonePlaybackService.SERVICE_TIMER_CHANGED -> {} // updateTimer()
+                GramophonePlaybackService.SERVICE_TIMER_CHANGED -> updateTimer()
 
                 GramophonePlaybackService.SERVICE_GET_LYRICS -> {
                     val parsedLyrics = instance?.getLyrics()
@@ -386,6 +383,24 @@ class FullBottomSheet
             }
         }
 
+        bottomSheetTimerButton.setOnClickListener {
+            // TODO: expose wait until song end in ui
+            ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
+            val picker =
+                MaterialTimePicker
+                    .Builder()
+                    .setHour((instance?.getTimer()?.first ?: 0) / 3600 / 1000)
+                    .setMinute(((instance?.getTimer()?.first ?: 0) % (3600 * 1000)) / (60 * 1000))
+                    .setTimeFormat(TimeFormat.CLOCK_24H)
+                    .setInputMode(MaterialTimePicker.INPUT_MODE_KEYBOARD)
+                    .build()
+            picker.addOnPositiveButtonClickListener {
+                val destinationTime: Int = picker.hour * 1000 * 3600 + picker.minute * 1000 * 60
+                instance?.setTimer(destinationTime, false)
+            }
+            picker.show(activity.supportFragmentManager, "timer")
+        }
+
         bottomSheetLoopButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
             instance?.repeatMode = when (instance?.repeatMode) {
@@ -398,101 +413,61 @@ class FullBottomSheet
 
         bottomSheetFavoriteButton.addOnCheckedChangeListener(this)
 
-        bottomSheetMoreToolButton.setOnClickListener {
-            val menu = MenuBuilder(context)
-            SupportMenuInflater(context).inflate(R.menu.full_tool_menu, menu)
-            menu.setCallback(object : MenuBuilder.Callback {
-                override fun onMenuItemSelected(
-                    menu: MenuBuilder,
-                    item: MenuItem
-                ): Boolean {
-                    return when (item.itemId) {
-                        R.id.timer -> {
-                            ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-                            val picker =
-                                MaterialTimePicker
-                                    .Builder()
-                                    .setHour((instance?.getTimer()?.first ?: 0) / 3600 / 1000)
-                                    .setMinute(((instance?.getTimer()?.first ?: 0) % (3600 * 1000)) / (60 * 1000))
-                                    .setTimeFormat(TimeFormat.CLOCK_24H)
-                                    .setInputMode(MaterialTimePicker.INPUT_MODE_KEYBOARD)
-                                    .build()
-                            picker.addOnPositiveButtonClickListener {
-                                val destinationTime: Int = picker.hour * 1000 * 3600 + picker.minute * 1000 * 60
-                                instance?.setTimer(destinationTime, false)
-                            }
-                            picker.show(activity.supportFragmentManager, "timer")
-                            true
-                        }
-                        R.id.playlist -> {
-                            ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-                            val playlistBottomSheet = BottomSheetDialog(context)
-                            playlistBottomSheet.setContentView(R.layout.playlist_bottom_sheet)
-                            val recyclerView = playlistBottomSheet.findViewById<MyRecyclerView>(R.id.recyclerview)!!
-                            ViewCompat.setOnApplyWindowInsetsListener(recyclerView) { v, ic ->
-                                val i = ic.getInsets(
-                                    WindowInsetsCompat.Type.systemBars()
-                                            or WindowInsetsCompat.Type.displayCutout()
-                                )
-                                val i2 = ic.getInsetsIgnoringVisibility(
-                                    WindowInsetsCompat.Type.systemBars()
-                                            or WindowInsetsCompat.Type.displayCutout()
-                                )
-                                v.setPadding(i.left, 0, i.right, i.bottom)
-                                return@setOnApplyWindowInsetsListener WindowInsetsCompat.Builder(ic)
-                                    .setInsets(
-                                        WindowInsetsCompat.Type.systemBars()
-                                                or WindowInsetsCompat.Type.displayCutout(),
-                                        Insets.of(0, i.top, 0, 0)
-                                    )
-                                    .setInsetsIgnoringVisibility(
-                                        WindowInsetsCompat.Type.systemBars()
-                                                or WindowInsetsCompat.Type.displayCutout(),
-                                        Insets.of(0, i2.top, 0, 0)
-                                    )
-                                    .build()
-                            }
-                            val playlistAdapter = PlaylistCardAdapter(activity)
-                            val callback: ItemTouchHelper.Callback =
-                                PlaylistCardMoveCallback(playlistAdapter::onRowMoved)
-                            val touchHelper = ItemTouchHelper(callback)
-                            touchHelper.attachToRecyclerView(recyclerView)
-                            playlistNowPlaying = playlistBottomSheet.findViewById(R.id.now_playing)
-                            playlistNowPlaying!!.text = instance?.currentMediaItem?.mediaMetadata?.title
-                            playlistNowPlayingCover = playlistBottomSheet.findViewById(R.id.now_playing_cover)
-                            playlistNowPlayingCover!!.load(instance?.currentMediaItem?.mediaMetadata?.artworkUri) {
-                                placeholderScaleToFit(R.drawable.ic_default_cover)
-                                crossfade(true)
-                                error(R.drawable.ic_default_cover)
-                            }
-                            recyclerView.layoutManager = LinearLayoutManager(context)
-                            recyclerView.adapter = playlistAdapter
-                            recyclerView.scrollToPosition(playlistAdapter.playlist.first.indexOfFirst { i ->
-                                i == (instance?.currentMediaItemIndex ?: 0)
-                            })
-                            recyclerView.fastScroll(null, null)
-                            playlistBottomSheet.setOnDismissListener {
-                                if (playlistNowPlaying != null) {
-                                    playlistNowPlayingCover!!.dispose()
-                                    playlistNowPlayingCover = null
-                                    playlistNowPlaying = null
-                                }
-                            }
-                            playlistBottomSheet.show()
-                            true
-                        }
-                        else -> false
-                    }
-                }
-
-                override fun onMenuModeChange(menu: MenuBuilder) {
-                }
+        bottomSheetPlaylistButton.setOnClickListener {
+            ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
+            val playlistBottomSheet = BottomSheetDialog(context)
+            playlistBottomSheet.setContentView(R.layout.playlist_bottom_sheet)
+            val recyclerView = playlistBottomSheet.findViewById<MyRecyclerView>(R.id.recyclerview)!!
+            ViewCompat.setOnApplyWindowInsetsListener(recyclerView) { v, ic ->
+                val i = ic.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+                            or WindowInsetsCompat.Type.displayCutout()
+                )
+                val i2 = ic.getInsetsIgnoringVisibility(
+                    WindowInsetsCompat.Type.systemBars()
+                            or WindowInsetsCompat.Type.displayCutout()
+                )
+                v.setPadding(i.left, 0, i.right, i.bottom)
+                return@setOnApplyWindowInsetsListener WindowInsetsCompat.Builder(ic)
+                    .setInsets(
+                        WindowInsetsCompat.Type.systemBars()
+                                or WindowInsetsCompat.Type.displayCutout(),
+                        Insets.of(0, i.top, 0, 0)
+                    )
+                    .setInsetsIgnoringVisibility(
+                        WindowInsetsCompat.Type.systemBars()
+                                or WindowInsetsCompat.Type.displayCutout(),
+                        Insets.of(0, i2.top, 0, 0)
+                    )
+                    .build()
+            }
+            val playlistAdapter = PlaylistCardAdapter(activity)
+            val callback: ItemTouchHelper.Callback =
+                PlaylistCardMoveCallback(playlistAdapter::onRowMoved)
+            val touchHelper = ItemTouchHelper(callback)
+            touchHelper.attachToRecyclerView(recyclerView)
+            playlistNowPlaying = playlistBottomSheet.findViewById(R.id.now_playing)
+            playlistNowPlaying!!.text = instance?.currentMediaItem?.mediaMetadata?.title
+            playlistNowPlayingCover = playlistBottomSheet.findViewById(R.id.now_playing_cover)
+            playlistNowPlayingCover!!.load(instance?.currentMediaItem?.mediaMetadata?.artworkUri) {
+                placeholderScaleToFit(R.drawable.ic_default_cover)
+                crossfade(true)
+                error(R.drawable.ic_default_cover)
+            }
+            recyclerView.layoutManager = LinearLayoutManager(context)
+            recyclerView.adapter = playlistAdapter
+            recyclerView.scrollToPosition(playlistAdapter.playlist.first.indexOfFirst { i ->
+                i == (instance?.currentMediaItemIndex ?: 0)
             })
-            addIconPadding(menu, 8.dpToPx(context))
-
-            val menuHelper = MenuPopupHelper(context, menu, it)
-            menuHelper.setForceShowIcon(true)
-            menuHelper.show()
+            recyclerView.fastScroll(null, null)
+            playlistBottomSheet.setOnDismissListener {
+                if (playlistNowPlaying != null) {
+                    playlistNowPlayingCover!!.dispose()
+                    playlistNowPlayingCover = null
+                    playlistNowPlaying = null
+                }
+            }
+            playlistBottomSheet.show()
         }
         bottomSheetFullControllerButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
@@ -542,6 +517,7 @@ class FullBottomSheet
         activity.controllerViewModel.addControllerCallback(activity.lifecycle) { _, _ ->
             firstTime = true
             instance?.addListener(this@FullBottomSheet)
+            updateTimer()
             onRepeatModeChanged(instance?.repeatMode ?: Player.REPEAT_MODE_OFF)
             onShuffleModeEnabledChanged(instance?.shuffleModeEnabled == true)
             onPlaybackStateChanged(instance?.playbackState ?: Player.STATE_IDLE)
@@ -562,15 +538,17 @@ class FullBottomSheet
         }
     }
 
-    fun addIconPadding(menu: Menu, paddingPx: Int) {
-        for (i in 0 until menu.size()) {
-            val item = menu.getItem(i)
-            val icon = item.icon
-            if (icon != null) {
-                val inset = InsetDrawable(icon, paddingPx, 0, 0, 0)
-                item.icon = inset
-            }
-        }
+    private fun updateTimer() {
+        val t = instance?.getTimer()
+        bottomSheetTimerButton.isChecked = t?.first != null || t?.second == true
+        TooltipCompat.setTooltipText(
+            bottomSheetTimerButton,
+            if (t?.first != null) context.getString(
+                if (t.second) R.string.timer_expiry_eos else R.string.timer_expiry,
+                DateFormat.getTimeFormat(context).format(System.currentTimeMillis() + t.first!!)
+            ) else if (t?.second == true) context.getString(R.string.timer_expiry_end_of_this_song)
+            else context.getString(R.string.timer)
+        )
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
@@ -901,13 +879,20 @@ class FullBottomSheet
             duration = BACKGROUND_COLOR_TRANSITION_SEC
         }
 
+        secondaryContainerTransition.apply {
+            addUpdateListener { animation ->
+                val progressColor = animation.animatedValue as Int
+                bottomSheetFullControllerButton.backgroundTintList =
+                    ColorStateList.valueOf(progressColor)
+            }
+            duration = BACKGROUND_COLOR_TRANSITION_SEC
+        }
+
         onSecondaryContainerTransition.apply {
             addUpdateListener { animation ->
                 val progressColor = animation.animatedValue as Int
                 bottomSheetFullControllerButton.iconTint =
                     ColorStateList.valueOf(progressColor)
-                bottomSheetFullNextButton.setDrawableColor(progressColor)
-                bottomSheetFullPreviousButton.setDrawableColor(progressColor)
             }
             duration = BACKGROUND_COLOR_TRANSITION_SEC
         }
@@ -970,6 +955,10 @@ class FullBottomSheet
                 Color.MAGENTA
             )
 
+            bottomSheetTimerButton.iconTint =
+                ColorStateList.valueOf(colorOnSurface)
+            bottomSheetPlaylistButton.iconTint =
+                ColorStateList.valueOf(colorOnSurface)
             bottomSheetShuffleButton.iconTint =
                 selectorBackground
             bottomSheetLoopButton.iconTint =
@@ -979,6 +968,10 @@ class FullBottomSheet
             bottomSheetFavoriteButton.iconTint =
                 selectorFavBackground
 
+            bottomSheetFullNextButton.iconTint =
+                ColorStateList.valueOf(colorOnSurface)
+            bottomSheetFullPreviousButton.iconTint =
+                ColorStateList.valueOf(colorOnSurface)
             bottomSheetFullSlideUpButton.iconTint =
                 ColorStateList.valueOf(colorOnSurface)
 
@@ -1153,9 +1146,12 @@ class FullBottomSheet
                 bottomSheetFullControllerButton.icon =
                     AppCompatResources.getDrawable(
                         wrappedContext ?: context,
-                        R.drawable.ic_play_anim
+                        R.drawable.play_anim
                     )
+                bottomSheetFullControllerButton.background =
+                    AppCompatResources.getDrawable(context, R.drawable.bg_play_anim)
                 bottomSheetFullControllerButton.icon.startAnimation()
+                bottomSheetFullControllerButton.background.startAnimation()
                 bottomSheetFullControllerButton.setTag(R.id.play_next, 1)
             }
             if (!isUserTracking) {
@@ -1171,9 +1167,12 @@ class FullBottomSheet
                 bottomSheetFullControllerButton.icon =
                     AppCompatResources.getDrawable(
                         wrappedContext ?: context,
-                        R.drawable.ic_pause_anim
+                        R.drawable.pause_anim
                     )
+                bottomSheetFullControllerButton.background =
+                    AppCompatResources.getDrawable(context, R.drawable.bg_pause_anim)
                 bottomSheetFullControllerButton.icon.startAnimation()
+                bottomSheetFullControllerButton.background.startAnimation()
                 bottomSheetFullControllerButton.setTag(R.id.play_next, 2)
                 bottomSheetFullCover.stopRotation()
             }

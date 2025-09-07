@@ -80,7 +80,7 @@
         android:src="@drawable/ic_play_arrow"
         app:tooltipText="@string/play"
         android:contentDescription="@string/play"
-        app:icon="@drawable/ic_play_anim"
+        app:icon="@drawable/play_anim"
         app:iconGravity="textStart"
         app:iconPadding="0dp"
         app:iconSize="24dp"
