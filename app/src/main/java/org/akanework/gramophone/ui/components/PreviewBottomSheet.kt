@@ -15,6 +15,7 @@ import coil3.asDrawable
 import coil3.imageLoader
 import coil3.request.Disposable
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import coil3.request.error
 import coil3.size.Scale
 import com.google.android.material.button.MaterialButton
@@ -103,6 +104,7 @@ class PreviewBottomSheet(context: Context, attrs: AttributeSet?, defStyleAttr: I
 				}) // do not react to onStart() which sets placeholder
 				data(mediaItem?.mediaMetadata?.artworkUri)
 				scale(Scale.FILL)
+				allowHardware(bottomSheetPreviewCover.isHardwareAccelerated)
 				error(R.drawable.ic_default_cover)
 			}.build())
 			bottomSheetPreviewTitle.text = mediaItem?.mediaMetadata?.title

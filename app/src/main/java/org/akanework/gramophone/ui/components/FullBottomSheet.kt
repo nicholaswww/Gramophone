@@ -1084,6 +1084,7 @@ class FullBottomSheet
                         bottomSheetFullCover.setImageDrawable(it?.asDrawable(context.resources))
                     }) // do not react to onStart() which sets placeholder
                     error(R.drawable.ic_default_cover)
+                    allowHardware(bottomSheetFullCover.isHardwareAccelerated)
                 }.build()
             )
         }
