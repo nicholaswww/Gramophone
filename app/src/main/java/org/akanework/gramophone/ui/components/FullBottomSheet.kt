@@ -1026,7 +1026,7 @@ class FullBottomSheet
                                 removeColorScheme()
                             }
                         })
-                        error(R.drawable.ic_default_cover_full)
+                        error(R.drawable.ic_default_cover)
                         allowHardware(false)
                     }.build()
                 )
