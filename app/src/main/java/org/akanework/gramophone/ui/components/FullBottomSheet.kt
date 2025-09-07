@@ -196,7 +196,7 @@ class FullBottomSheet
         updateQualityIndicators(if (enableQualityInfo)
             AudioFormatDetector.detectAudioFormat(currentFormat) else null)
     }
-    private val bottomSheetFullCover: TransformableImageView
+    private val bottomSheetFullCover: ImageView
     private val bottomSheetFullTitle: TextView
     private val bottomSheetFullSubtitle: TextView
     private val bottomSheetFullControllerButton: MaterialButton
@@ -576,12 +576,12 @@ class FullBottomSheet
             }
         }
         if (key == null || key == "audio_quality_info") {
-            enableQualityInfo = prefs.getBooleanStrict("audio_quality_info", false)
+            enableQualityInfo = prefs.getBooleanStrict("audio_quality_info", true)
             updateQualityIndicators(if (enableQualityInfo)
                 AudioFormatDetector.detectAudioFormat(currentFormat) else null)
         }
         if (key == null || key == "centered_title") {
-            if (prefs.getBooleanStrict("centered_title", false)) {
+            if (prefs.getBooleanStrict("centered_title", true)) {
                 bottomSheetFullTitle.gravity = Gravity.CENTER
                 bottomSheetFullSubtitle.gravity = Gravity.CENTER
             } else {
@@ -601,9 +601,6 @@ class FullBottomSheet
                 "album_round_corner",
                 context.resources.getInteger(R.integer.round_corner_radius)
             ).dpToPx(context).toFloat()
-        }
-        if (key == null || key == "cookie_cover") {
-            bottomSheetFullCover.setClip(prefs.getBooleanStrict("cookie_cover", true))
         }
     }
 
@@ -775,13 +772,6 @@ class FullBottomSheet
                 -1
             )
 
-        val colorSecondary =
-            MaterialColors.getColor(
-                ctx,
-                com.google.android.material.R.attr.colorSecondary,
-                -1
-            )
-
         val colorSecondaryContainer =
             MaterialColors.getColor(
                 ctx,
@@ -923,10 +913,10 @@ class FullBottomSheet
         currentJob = null
         withContext(Dispatchers.Main) {
             bottomSheetFullTitle.setTextColor(
-                colorPrimary
+                colorOnSurface
             )
             bottomSheetFullSubtitle.setTextColor(
-                colorSecondary
+                colorOnSurfaceVariant
             )
             TextViewCompat.setCompoundDrawableTintList(
                 bottomSheetFullQualityDetails,
@@ -934,6 +924,9 @@ class FullBottomSheet
             )
             bottomSheetFullQualityDetails.setTextColor(
                 colorOnSurfaceVariant
+            )
+            bottomSheetFullCoverFrame.setCardBackgroundColor(
+                colorSurface
             )
             // TODO test/tweak walaoke colors
             bottomSheetFullLyricView.updateTextColor(
@@ -976,10 +969,10 @@ class FullBottomSheet
                 ColorStateList.valueOf(colorOnSurface)
 
             bottomSheetFullPosition.setTextColor(
-                colorOnSurface
+                colorAccent
             )
             bottomSheetFullDuration.setTextColor(
-                colorOnSurface
+                colorAccent
             )
         }
     }
@@ -1026,7 +1019,7 @@ class FullBottomSheet
                                 removeColorScheme()
                             }
                         })
-                        error(R.drawable.ic_default_cover_full)
+                        error(R.drawable.ic_default_cover)
                         allowHardware(false)
                     }.build()
                 )
@@ -1161,7 +1154,6 @@ class FullBottomSheet
                 runnableRunning = true
                 handler.postDelayed(positionRunnable, SLIDER_UPDATE_INTERVAL)
             }
-            bottomSheetFullCover.startRotation()
         } else if (playbackState != Player.STATE_BUFFERING) {
             if (bottomSheetFullControllerButton.getTag(R.id.play_next) as Int? != 2) {
                 bottomSheetFullControllerButton.icon =
@@ -1174,7 +1166,6 @@ class FullBottomSheet
                 bottomSheetFullControllerButton.icon.startAnimation()
                 bottomSheetFullControllerButton.background.startAnimation()
                 bottomSheetFullControllerButton.setTag(R.id.play_next, 2)
-                bottomSheetFullCover.stopRotation()
             }
             if (!isUserTracking) {
                 progressDrawable.animate = false

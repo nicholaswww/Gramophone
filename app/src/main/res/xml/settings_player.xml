@@ -30,8 +30,7 @@
             android:max="28"
             android:summary="@string/settings_album_round_corner_summary"
             android:title="@string/settings_album_round_corner"
-            app:showSeekBarValue="true"
-            />
+            app:showSeekBarValue="true" />
 
         <SwitchPreferenceCompat
             android:defaultValue="true"
@@ -43,7 +42,7 @@
             android:widgetLayout="@layout/preference_switch_widget" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:icon="@drawable/ic_format_align_center"
             android:key="centered_title"
             android:layout="@layout/preference_switch"
@@ -70,23 +69,13 @@
             android:widgetLayout="@layout/preference_switch_widget" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:icon="@drawable/ic_high_res"
             android:key="audio_quality_info"
             android:layout="@layout/preference_switch"
             android:summary="@string/settings_audio_quality_info_summary"
             android:title="@string/settings_audio_quality_info"
             android:widgetLayout="@layout/preference_switch_widget" />
-
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:icon="@drawable/ic_cookie"
-            android:key="cookie_cover"
-            android:layout="@layout/preference_switch"
-            android:summary="@string/settings_cookie_summary"
-            android:title="@string/settings_cookie_info"
-            android:widgetLayout="@layout/preference_switch_widget"
-            />
 
     </PreferenceCategory>
 
