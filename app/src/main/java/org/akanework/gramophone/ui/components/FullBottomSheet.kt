@@ -976,10 +976,10 @@ class FullBottomSheet
                 ColorStateList.valueOf(colorOnSurface)
 
             bottomSheetFullPosition.setTextColor(
-                colorOnSurface
+                colorOnSurfaceVariant
             )
             bottomSheetFullDuration.setTextColor(
-                colorOnSurface
+                colorOnSurfaceVariant
             )
         }
     }
