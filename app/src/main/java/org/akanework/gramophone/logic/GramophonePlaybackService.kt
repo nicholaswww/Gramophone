@@ -576,7 +576,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 commandButton.sessionCommand?.let { availableSessionCommands.add(it) }
             }
             if (this.controller?.currentTimeline?.isEmpty == false) {
-                builder.setMediaButtonPreferences(
+                builder.setCustomLayout(
                     ImmutableList.of(
                         getRepeatCommand(),
                         getShufflingCommand()
@@ -963,7 +963,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             if (mediaSession!!.isMediaNotificationController(it)
                 || mediaSession!!.isAutoCompanionController(it)
                 || mediaSession!!.isAutomotiveController(it)) {
-                mediaSession!!.setMediaButtonPreferences(it, if (isEmpty) emptyList() else
+                mediaSession!!.setCustomLayout(it, if (isEmpty) emptyList() else
                     ImmutableList.of(getRepeatCommand(), getShufflingCommand()))
             }
         }
