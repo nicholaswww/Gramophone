@@ -541,12 +541,6 @@ inline fun SharedPreferences.getBooleanStrict(key: String, defValue: Boolean): B
     return use { getBoolean(key, defValue) }
 }
 
-@Suppress("NOTHING_TO_INLINE")
-@Contract(value = "_,!null->!null")
-inline fun SharedPreferences.getStringSetStrict(key: String, defValue: Set<String>?): Set<String>? {
-    return use { getStringSet(key, defValue) }
-}
-
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 fun Context.hasImagePermission() =
     checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==

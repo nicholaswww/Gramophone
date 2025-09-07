@@ -8,10 +8,10 @@ import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.TransitionDrawable
 import android.provider.MediaStore
 import android.text.format.DateFormat
 import android.util.AttributeSet
+import android.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -28,11 +28,9 @@ import androidx.appcompat.widget.TooltipCompat
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.graphics.Insets
 import androidx.core.graphics.TypefaceCompat
-import androidx.core.graphics.scale
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.doOnLayout
 import androidx.core.view.isInvisible
 import androidx.core.widget.TextViewCompat
 import androidx.media3.common.C
@@ -54,10 +52,10 @@ import coil3.imageLoader
 import coil3.load
 import coil3.request.Disposable
 import coil3.request.ImageRequest
+import coil3.request.allowConversionToBitmap
 import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.request.error
-import coil3.size.Precision
 import coil3.size.Scale
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -72,7 +70,7 @@ import com.google.android.material.timepicker.TimeFormat
 import com.google.common.util.concurrent.Futures
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -133,7 +131,7 @@ class FullBottomSheet
     var minimize: (() -> Unit)? = null
 
     private var wrappedContext: Context? = null
-    private var currentJob: Job? = null
+    private var currentJob: CoroutineScope? = null
     private var isUserTracking = false
     private var runnableRunning = false
     private var firstTime = false
@@ -147,6 +145,7 @@ class FullBottomSheet
         const val BACKGROUND_COLOR_TRANSITION_SEC: Long = 300
         const val FOREGROUND_COLOR_TRANSITION_SEC: Long = 150
         const val LYRIC_FADE_TRANSITION_SEC: Long = 125
+        private const val TAG = "FullBottomSheet"
     }
 
     private val touchListener =
@@ -225,7 +224,6 @@ class FullBottomSheet
     private var playlistNowPlaying: TextView? = null
     private var playlistNowPlayingCover: ImageView? = null
     private var lastDisposable: Disposable? = null
-    private var deferredImageLoader: (() -> Unit)? = null
 
     init {
         inflate(context, R.layout.full_player, this)
@@ -528,12 +526,9 @@ class FullBottomSheet
             onMediaMetadataChanged(instance?.mediaMetadata ?: MediaMetadata.EMPTY)
             firstTime = false
         }
-        addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-            postOnAnimation {
-                if (isLaidOut && !isLayoutRequested) {
-                    deferredImageLoader?.invoke()
-                    deferredImageLoader = null
-                }
+        bottomSheetFullCover.addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (oldRight - oldLeft != right - left || oldBottom - oldTop != bottom - top) {
+                loadCoverForImageView()
             }
         }
     }
@@ -635,38 +630,59 @@ class FullBottomSheet
     private fun removeColorScheme() {
         currentJob?.cancel()
         wrappedContext = null
-        currentJob = CoroutineScope(Dispatchers.Default).launch {
+        currentJob = CoroutineScope(Dispatchers.Default)
+        currentJob!!.launch {
             applyColorScheme()
         }
     }
 
     private fun addColorScheme() {
         currentJob?.cancel()
-        currentJob = CoroutineScope(Dispatchers.Default).launch {
-            var drawable = bottomSheetFullCover.drawable
-            if (drawable is TransitionDrawable) drawable = drawable.getDrawable(1)
-            val bitmap = if (drawable is BitmapDrawable) drawable.bitmap else {
-                removeColorScheme()
-                return@launch
-            }
-            val colorAccuracy = prefs.getBoolean("color_accuracy", false)
-            val targetWidth = if (colorAccuracy) (bitmap.width / 4).coerceAtMost(256) else 16
-            val targetHeight = if (colorAccuracy) (bitmap.height / 4).coerceAtMost(256) else 16
-            val scaledBitmap = bitmap.scale(targetWidth, targetHeight, false)
+        val job = CoroutineScope(Dispatchers.Default)
+        currentJob = job
+        val mediaItem = instance?.currentMediaItem
+        val file = mediaItem?.getFile()
+        job.launch {
+            context.imageLoader.enqueue(
+                ImageRequest.Builder(context).apply {
+                    data(Pair(file, mediaItem?.mediaMetadata?.artworkUri))
+                    val colorAccuracy = prefs.getBoolean("color_accuracy", false)
+                    if (colorAccuracy) {
+                        size(256, 256)
+                    } else {
+                        size(16, 16)
+                    }
+                    allowConversionToBitmap(true)
+                    scale(Scale.FILL)
+                    target(onSuccess = {
+                        val drawable = it.asDrawable(context.resources)
+                        job.launch {
+                            val bitmap = if (drawable is BitmapDrawable) drawable.bitmap else {
+                                removeColorScheme()
+                                return@launch
+                            }
+                            val options = DynamicColorsOptions.Builder()
+                                .setContentBasedSource(bitmap)
+                                .build() // <-- this is computationally expensive!
 
-            val options = DynamicColorsOptions.Builder()
-                .setContentBasedSource(scaledBitmap)
-                .build() // <-- this is computationally expensive!
+                            wrappedContext = DynamicColors.wrapContextIfAvailable(
+                                context,
+                                options
+                            ).apply {
+                                // TODO does https://stackoverflow.com/a/58004553 describe this or another bug? will google ever fix anything?
+                                resources.configuration.uiMode =
+                                    context.resources.configuration.uiMode
+                            }
 
-            wrappedContext = DynamicColors.wrapContextIfAvailable(
-                context,
-                options
-            ).apply {
-                // TODO does https://stackoverflow.com/a/58004553 describe this or another bug? will google ever fix anything?
-                resources.configuration.uiMode = context.resources.configuration.uiMode
-            }
-
-            applyColorScheme()
+                            applyColorScheme()
+                        }
+                    }, onError = {
+                        removeColorScheme()
+                    })
+                    error(R.drawable.ic_default_cover)
+                    allowHardware(false)
+                }.build()
+            )
         }
     }
 
@@ -740,8 +756,6 @@ class FullBottomSheet
             info.bitrate?.let {
                 if (hadFirst)
                     append(" / ")
-                else
-                    hadFirst = true
                 append("${it / 1000}kbps")
             }
         }
@@ -806,13 +820,6 @@ class FullBottomSheet
             AppCompatResources.getColorStateList(
                 ctx,
                 R.color.sl_fav_button
-            )
-
-        val colorAccent =
-            MaterialColors.getColor(
-                ctx,
-                com.google.android.material.R.attr.colorAccent,
-                -1
             )
 
         val backgroundProcessedColor = ColorUtils.getColor(
@@ -992,49 +999,13 @@ class FullBottomSheet
         if (instance?.mediaItemCount != 0) {
             lastDisposable?.dispose()
             lastDisposable = null
-            val loader = {
-                if (lastDisposable != null) {
-                    throw IllegalStateException("raced while loading cover in onMediaItemTransition?")
-                }
-                val file = mediaItem?.getFile()
-                lastDisposable = context.imageLoader.enqueue(
-                    ImageRequest.Builder(context).apply {
-                        data(Pair(file, mediaItem?.mediaMetadata?.artworkUri))
-                        if (bottomSheetFullCover.width == 0 || bottomSheetFullCover.height == 0) {
-                            size(300, 300) // need some bitmap for material colour
-                        } else {
-                            size(bottomSheetFullCover.width, bottomSheetFullCover.height)
-                        }
-                        precision(Precision.INEXACT)
-                        scale(Scale.FILL)
-                        // do not react to onStart() which sets placeholder
-                        target(onSuccess = {
-                            bottomSheetFullCover.setImageDrawable(it.asDrawable(context.resources))
-                        }, onError = {
-                            bottomSheetFullCover.setImageDrawable(it?.asDrawable(context.resources))
-                        }) // do not react to onStart() which sets placeholder
-                        listener(onSuccess = { _, _ ->
-                            if (DynamicColors.isDynamicColorAvailable() &&
-                                prefs.getBooleanStrict("content_based_color", true)
-                            ) {
-                                addColorScheme()
-                            }
-                        }, onError = { _, _ ->
-                            if (DynamicColors.isDynamicColorAvailable() &&
-                                prefs.getBooleanStrict("content_based_color", true)
-                            ) {
-                                removeColorScheme()
-                            }
-                        })
-                        error(R.drawable.ic_default_cover)
-                        allowHardware(false)
-                    }.build()
-                )
+            if (bottomSheetFullCover.isLaidOut && !bottomSheetFullCover.isLayoutRequested) {
+                loadCoverForImageView()
             }
-            if (isLaidOut && !isLayoutRequested) {
-                loader()
-            } else {
-                deferredImageLoader = loader
+            if (DynamicColors.isDynamicColorAvailable() &&
+                prefs.getBooleanStrict("content_based_color", true)
+            ) {
+                addColorScheme()
             }
             bottomSheetFullTitle.setTextAnimation(
                 mediaItem?.mediaMetadata?.title,
@@ -1056,7 +1027,6 @@ class FullBottomSheet
             lastDisposable?.dispose()
             lastDisposable = null
             playlistNowPlayingCover?.dispose()
-            deferredImageLoader = null
         }
     }
 
@@ -1084,6 +1054,33 @@ class FullBottomSheet
                 bottomSheetFullPosition.text = position
             }
             bottomSheetFullLyricView.updateLyricPositionFromPlaybackPos()
+        }
+    }
+
+    private fun loadCoverForImageView() {
+        if (lastDisposable != null) {
+            lastDisposable?.dispose()
+            lastDisposable = null
+            Log.e(TAG, "raced while loading cover in onMediaItemTransition?")
+        }
+        val mediaItem = instance?.currentMediaItem
+        Log.d(TAG, "load cover for " + mediaItem?.mediaMetadata?.title + " considered")
+        if (bottomSheetFullCover.width != 0 && bottomSheetFullCover.height != 0) {
+            Log.d(TAG, "load cover for " + mediaItem?.mediaMetadata?.title + " at " + bottomSheetFullCover.width + " " + bottomSheetFullCover.height)
+            val file = mediaItem?.getFile()
+            lastDisposable = context.imageLoader.enqueue(
+                ImageRequest.Builder(context).apply {
+                    data(Pair(file, mediaItem?.mediaMetadata?.artworkUri))
+                    size(bottomSheetFullCover.width, bottomSheetFullCover.height)
+                    scale(Scale.FILL)
+                    target(onSuccess = {
+                        bottomSheetFullCover.setImageDrawable(it.asDrawable(context.resources))
+                    }, onError = {
+                        bottomSheetFullCover.setImageDrawable(it?.asDrawable(context.resources))
+                    }) // do not react to onStart() which sets placeholder
+                    error(R.drawable.ic_default_cover)
+                }.build()
+            )
         }
     }
 
