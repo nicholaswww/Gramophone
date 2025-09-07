@@ -336,7 +336,7 @@ class SongAdapter(
             if (currentMediaItem == null || getSongList().getOrNull(position)?.mediaId != currentMediaItem)
                 return
         }
-        holder.nowPlaying.setImageDrawable(NowPlayingDrawable()
+        holder.nowPlaying.setImageDrawable(NowPlayingDrawable(context)
             .also { it.level = if (currentIsPlaying == true) 1 else 0 })
         holder.nowPlaying.visibility = View.VISIBLE
     }

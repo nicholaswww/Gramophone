@@ -2,6 +2,7 @@
 
 package org.akanework.gramophone.ui.components
 
+import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Color
@@ -13,7 +14,12 @@ import android.graphics.PorterDuffColorFilter
 import android.graphics.Rect
 import android.graphics.Region
 import android.graphics.drawable.Drawable
+import android.provider.Settings
 import androidx.annotation.ColorInt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerp
 
@@ -30,10 +36,11 @@ private inline val barHeightMin
 private inline val animDuration
     get() = 200f
 
-class NowPlayingDrawable : Drawable() {
+class NowPlayingDrawable(context: Context) : Drawable() {
 
     private val paint = Paint()
     private val rng = Random
+    private var animationsEnabled: Boolean? = null
     var level2Done: Runnable? = null
     private var sx: Float = 1f // scale x
     private var sy: Float = 1f // scale y
@@ -48,6 +55,18 @@ class NowPlayingDrawable : Drawable() {
     private var rt: Float = 0f // right target
     private var ts: Long = 0L
 
+    init {
+        CoroutineScope(Dispatchers.Default).launch {
+            val animationsEnabled = Settings.Global.getFloat(context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
+            withContext(Dispatchers.Main) {
+                this@NowPlayingDrawable.animationsEnabled = animationsEnabled
+                ts = System.currentTimeMillis()
+                invalidateSelf()
+            }
+        }
+    }
+
     override fun draw(canvas: Canvas) {
         val ld = if (lc == lt && level == 1) {
             lt = rng.nextInt(barHeight - barHeightMin).toFloat() + barHeightMin; li = lc; true
@@ -58,8 +77,10 @@ class NowPlayingDrawable : Drawable() {
         val rd = if (rc == rt && level == 1) {
             rt = rng.nextInt(barHeight - barHeightMin).toFloat() + barHeightMin; ri = rc; true
         } else false
-        if (ld || md || rd) ts = System.currentTimeMillis()
-        val scale = ((System.currentTimeMillis() - ts) / animDuration).coerceAtMost(1f)
+        if ((ld || md || rd) && animationsEnabled == true) ts = System.currentTimeMillis()
+        val scale = if (animationsEnabled == true)
+                ((System.currentTimeMillis() - ts) / animDuration).coerceAtMost(1f)
+        else if (animationsEnabled == false) 1f else 0f
 
         // Left bar
         lc = lerp(li, lt, scale)
