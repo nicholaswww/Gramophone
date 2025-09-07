@@ -477,7 +477,7 @@ object AudioFormatDetector {
             null
         }
         val isLossless = isLosslessFormat(format.sampleMimeType)
-        val bitrate = if (isLossless == true)
+        val bitrate = if (isLossless != true)
             format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() else null
         val spatialFormat = detectSpatialFormat(format)
         val sourceChannels = format.channelCount.takeIf { it != Format.NO_VALUE }
