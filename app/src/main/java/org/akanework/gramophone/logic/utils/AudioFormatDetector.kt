@@ -470,8 +470,6 @@ object AudioFormatDetector {
         if (f == null) return null
         val format = f.downstreamFormat
         if (format == null) return null
-        val bitrate = if (format.sampleMimeType != MimeTypes.AUDIO_ALAC)
-            format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() else null
         val sampleRate = format.sampleRate.takeIf { it != Format.NO_VALUE }
         val bitDepth = try {
             Util.getBitDepth(format.pcmEncoding)
@@ -479,6 +477,8 @@ object AudioFormatDetector {
             null
         }
         val isLossless = isLosslessFormat(format.sampleMimeType)
+        val bitrate = if (isLossless == true)
+            format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() else null
         val spatialFormat = detectSpatialFormat(format)
         val sourceChannels = format.channelCount.takeIf { it != Format.NO_VALUE }
 
