@@ -79,7 +79,7 @@
             android:widgetLayout="@layout/preference_switch_widget" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:icon="@drawable/ic_cookie"
             android:key="cookie_cover"
             android:layout="@layout/preference_switch"
