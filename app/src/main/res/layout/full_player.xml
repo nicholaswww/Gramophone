@@ -93,7 +93,7 @@
 				android:textColor="?colorPrimary"
 				app:textFontWeight="500"
 				android:fontFamily="sans-serif"
-				android:textSize="22sp"
+				android:textSize="24sp"
 				tools:text="Artifiction" />
 
 			<org.akanework.gramophone.ui.components.MarqueeTextView
@@ -106,7 +106,7 @@
 				android:textColor="?colorSecondary"
 				app:textFontWeight="500"
 				android:fontFamily="sans-serif"
-				android:textSize="17sp"
+				android:textSize="19sp"
 				tools:text="Artifiction" />
 
 		</LinearLayout>
