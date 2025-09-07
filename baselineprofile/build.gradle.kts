@@ -23,7 +23,8 @@ android {
 			freeCompilerArgs = listOf(
 				"-Xno-param-assertions",
 				"-Xno-call-assertions",
-				"-Xno-receiver-assertions"
+				"-Xno-receiver-assertions",
+				"-Xannotation-default-target=param-property", // can remove later
 			)
 		}
 	}

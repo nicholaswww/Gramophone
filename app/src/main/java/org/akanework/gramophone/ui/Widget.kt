@@ -20,7 +20,9 @@ import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.media3.common.util.UnstableApi
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
@@ -80,9 +82,11 @@ class LyricWidgetProvider : AppWidgetProvider() {
         }
 
         fun adapterUpdate(context: Context) {
-            val awm = AppWidgetManager.getInstance(context)
-            for (appWidgetId in awm.appWidgetIds(context)) {
-                awm.notifyAppWidgetViewDataChanged(appWidgetId, R.id.list_view)
+            CoroutineScope(Dispatchers.Default).launch {
+                val awm = AppWidgetManager.getInstance(context)
+                for (appWidgetId in awm.appWidgetIds(context)) {
+                    awm.notifyAppWidgetViewDataChanged(appWidgetId, R.id.list_view)
+                }
             }
         }
 

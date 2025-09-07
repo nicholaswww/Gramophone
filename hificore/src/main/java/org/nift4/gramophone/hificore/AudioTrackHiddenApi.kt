@@ -53,7 +53,9 @@ object AudioTrackHiddenApi {
      */
     fun canLoadLib(): Boolean {
         return !(Build.VERSION.SDK_INT == 33 && Build.BRAND == "TECNO" &&
-                Build.PRODUCT.startsWith("BG6-")) // Tecno SPARK Go 2024
+                Build.PRODUCT.startsWith("BG6-")) && // Tecno SPARK Go 2024
+            !(Build.VERSION.SDK_INT == 34 && Build.BRAND == "samsung" &&
+                    Build.DEVICE == "dm1q") // Samsung Galaxy S23
     }
 
     @SuppressLint("PrivateApi")

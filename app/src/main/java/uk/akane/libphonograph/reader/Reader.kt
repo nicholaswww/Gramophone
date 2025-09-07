@@ -220,7 +220,7 @@ internal object Reader {
 
             while (it.moveToNext()) {
                 val path = it.getStringOrNullIfThrow(pathColumn)
-                val duration = it.getLongOrNullIfThrow(durationColumn)
+                val duration = it.getLongOrNullIfThrow(durationColumn)?.let { if (it >= 0) it else null }
                 val pathFile = path?.let { it1 -> File(it1) }
                 val parent = pathFile?.parentFile
                 val fldPath = parent?.absolutePath
