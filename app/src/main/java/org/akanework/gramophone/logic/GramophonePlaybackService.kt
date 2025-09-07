@@ -50,6 +50,7 @@ import androidx.media3.common.Format
 import androidx.media3.common.IllegalSeekPositionException
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED
@@ -169,12 +170,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var downstreamFormat: Format? = null
     private var audioSinkInputFormat: Format? = null
     private var audioTrackInfo: AudioTrackInfo? = null
+    private var bitrate: Long? = null
     private var btInfo: BtCodecInfo? = null
     private var proxy: BtCodecInfo.Companion.Proxy? = null
     private var audioTrackInfoCounter = 0
     private var audioTrackReleaseCounter = 0
     private val scope = CoroutineScope(Dispatchers.Default)
     private val lyricsFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
+    private val bitrateFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
 
     private fun getRepeatCommand() =
         when (controller!!.repeatMode) {
@@ -678,6 +681,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         it.extras.putBundle("file_format", downstreamFormat?.toBundle())
                         it.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
                         it.extras.putParcelable("track_format", audioTrackInfo)
+                        if (downstreamFormat?.sampleMimeType == MimeTypes.AUDIO_OPUS) {
+                            bitrate?.let { value -> it.extras.putLong("bitrate", value) }
+                        }
                         it.extras.putParcelable("hal_format", afFormatTracker.format)
                         if (afFormatTracker.format?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
                             it.extras.putParcelable("bt", btInfo)
@@ -892,6 +898,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        bitrate = null
+        bitrateFetcher.launch {
+            bitrate = mediaItem?.getBitrate() // TODO subtract cover size
+            this@GramophonePlaybackService.mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
+            )
+        }
         lyrics = null
         scheduleSendingLyrics(true)
         lastPlayedManager.save()
