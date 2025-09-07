@@ -126,18 +126,15 @@ private sealed class SyntacticLrc {
                 ) {
                     out.add(NewLine())
                     pos += 2
-                    pendingBgNewLine = false
                     continue
                 }
                 if (pos < text.length && (text[pos] == '\n' || text[pos] == '\r')) {
                     out.add(NewLine())
                     pos++
-                    pendingBgNewLine = false
                     continue
                 }
                 if (pendingBgNewLine) {
                     out.add(NewLine.SyntheticNewLine())
-                    pendingBgNewLine = false
                     continue
                 }
                 val tmMatch = timeMarksRegex.matchAt(text, pos)
@@ -304,14 +301,12 @@ private sealed class SyntacticLrc {
                     } == null)
                 // Recover only text information to make the most out of this damaged file.
                     it.flatMap {
-                        if (it is InvalidText)
-                            listOf(it)
-                        else if (it is SpeakerTag)
-                            listOf(it)
-                        else if (it is LyricText)
-                            listOf(InvalidText(it.text))
-                        else
-                            listOf()
+                        when (it) {
+                            is InvalidText -> listOf(it)
+                            is SpeakerTag -> listOf(it)
+                            is LyricText -> listOf(InvalidText(it.text))
+                            else -> listOf()
+                        }
                     }
                 else it
             }.let {
@@ -558,9 +553,9 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
     var speaker: SpeakerEntity? = null
     var hadLyricSinceWordSync = true
     var hadWordSyncSinceNewLine = false
-    var currentLine = mutableListOf<Pair<ULong, String?>>()
+    val currentLine = mutableListOf<Pair<ULong, String?>>()
     var syncPointStreak = 0
-    var compressed = mutableListOf<ULong>()
+    val compressed = mutableListOf<ULong>()
     for (element in lyricSyntax) {
         if (element is SyntacticLrc.SyncPoint)
             syncPointStreak++
@@ -604,7 +599,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
             }
 
             element is SyntacticLrc.NewLine -> {
-                var words = if (currentLine.size > 1 || hadWordSyncSinceNewLine) {
+                val words = if (currentLine.size > 1 || hadWordSyncSinceNewLine) {
                     val wout = mutableListOf<Word>()
                     var idx = 0
                     for (i in currentLine.indices) {
@@ -821,7 +816,7 @@ private class TtmlTimeTracker(private val parser: XmlPullParser, private val isA
     }
     private fun parseRange(offset: ULong): ULongRange? {
         var begin = parseTimestampMs(parser.getAttributeValue("", "begin"), offset.toLong(), false)?.toULong()
-        var dur = parseTimestampMs(parser.getAttributeValue("", "dur"), 0L, false)?.toULong()
+        val dur = parseTimestampMs(parser.getAttributeValue("", "dur"), 0L, false)?.toULong()
         var end = parseTimestampMs(parser.getAttributeValue("", "end"), offset.toLong(), false)?.toULong()
         if (begin == null && end == null || end == null && dur == null
             || begin == null && dur == null)

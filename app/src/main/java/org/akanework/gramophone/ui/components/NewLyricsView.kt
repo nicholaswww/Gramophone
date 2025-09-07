@@ -789,8 +789,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         return Pair(
             Pair(
                 width,
+                (if (heights.isNotEmpty())
                 (heights.max() * (1 - (1 / smallSizeFactor)) + heights.sum()).toInt()
-                    + globalPaddingTop + globalPaddingBottom
+                        else 0) + globalPaddingTop + globalPaddingBottom
             ), spLines
         )
     }
