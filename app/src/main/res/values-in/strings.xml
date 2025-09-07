@@ -50,6 +50,7 @@
     <string name="dialog_artist">Artis</string>
     <string name="settings_category_behavior">Tindakan</string>
     <string name="dialog_album">Album</string>
+    <string name="folders">Folder</string>
     <string name="dialog_genre">Genre</string>
     <string name="settings_mediastore_filter">Minimum panjang lagu (detik)</string>
     <string name="dialog_path">Lokasi</string>
