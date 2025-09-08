@@ -426,6 +426,7 @@ internal object Reader {
             val artistFound = findBestAlbumArtist(it.songList)
             it.albumArtist = artistFound?.first
             it.albumArtistId = artistFound?.second ?: artistCacheMap?.get(it.albumArtist)
+                    ?: "nonMediaStoreArtist:${it.albumArtist}".hashCode().toLong()
             it.albumYear = it.songList.mapNotNull { it.mediaMetadata.releaseYear }.maxOrNull()
             val albumArtist = albumArtistMap?.getOrPut(it.albumArtistId) {
                 Artist(it.albumArtistId, it.albumArtist, mutableListOf(), mutableListOf())
