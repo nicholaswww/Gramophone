@@ -44,10 +44,3 @@
     onMoreData(...);
     onCanWriteMoreData(...);
 }
-
-# get rid of spammy logging
--assumenosideeffects class
-                  android.util.Log {
-    public static int v(...);
-    public static int d(...);
-}
