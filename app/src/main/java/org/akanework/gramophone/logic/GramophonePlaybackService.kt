@@ -759,7 +759,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                             throw IllegalStateException("shuffleFactory was not consumed during resumption")
                     } else if (items.mediaItems.isNotEmpty()) {
                         var theItem = items.mediaItems[items.startIndex]
-	                    if (theItem.mediaMetadata.durationMs != null &&
+                        if (theItem.mediaMetadata.durationMs != null &&
                             theItem.mediaMetadata.durationMs!! > 0 &&
                             items.startPositionMs != C.TIME_UNSET) {
                             theItem = theItem.buildUpon()

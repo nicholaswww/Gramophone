@@ -32,6 +32,7 @@ import android.util.Size
 import android.webkit.MimeTypeMap
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.fragment.app.strictmode.FragmentStrictMode
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.preference.PreferenceManager
@@ -123,8 +124,30 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             StrictMode.setVmPolicy(
                 VmPolicy.Builder()
                     .detectAll()
-                    .penaltyLog().build()
+                    // detectAll does in fact not detect everything :)
+                    .let {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            it.detectImplicitDirectBoot()
+                        } else it
+                    }
+                    .let {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            it.detectNonSdkApiUsage()
+                        } else it
+                    }
+                    .penaltyDeath()
+                    .build()
             )
+            FragmentStrictMode.defaultPolicy = FragmentStrictMode.Policy.Builder()
+                .detectFragmentReuse()
+                .detectFragmentTagUsage()
+                .detectRetainInstanceUsage()
+                .detectSetUserVisibleHint()
+                .detectTargetFragmentUsage()
+                .detectWrongFragmentContainer()
+                .detectWrongNestedHierarchy()
+                .penaltyDeath()
+                .build()
         }
         uacManager = UacManager(this)
         Flags.PLAYLIST_EDITING = prefs.getBooleanStrict("playlist_editing", false)
