@@ -173,13 +173,16 @@ internal object Reader {
         val dateMap = if (shouldLoadDates) hashMapOf<Int?, Date>() else null
         val idMap = if (shouldLoadIdMap) hashMapOf<Long, MediaItem>() else null
         val pathMap = if (shouldLoadIdMap) hashMapOf<String, MediaItem>() else null
-        val cursor = context.contentResolver.query(
+        val hasVolume = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+	        MediaStore.getExternalVolumeNames(context).contains(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else true
+        val cursor = if (hasVolume) context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             projection,
             selection,
             null,
             MediaStore.Audio.Media.TITLE + " COLLATE UNICODE ASC",
-        )
+        ) else null
         val defaultZone by lazy { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             ZoneId.systemDefault()
         } else null }
