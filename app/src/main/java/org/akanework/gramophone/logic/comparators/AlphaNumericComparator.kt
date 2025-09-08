@@ -137,11 +137,11 @@ class AlphaNumericComparator : Comparator<String?> {
         var ss2 = s2
         if ((ss1 == null || ss1.trim { it <= ' ' }
                 .isEmpty()) && ss2 != null && ss2.trim { it <= ' ' }.isNotEmpty()) {
-            return -1
+            return 1
         }
         if ((ss2 == null || ss2.trim { it <= ' ' }
                 .isEmpty()) && ss1 != null && ss1.trim { it <= ' ' }.isNotEmpty()) {
-            return 1
+            return -1
         }
         if ((ss1 == null || ss1.trim { it <= ' ' }
                 .isEmpty()) && (ss2 == null || ss2.trim { it <= ' ' }

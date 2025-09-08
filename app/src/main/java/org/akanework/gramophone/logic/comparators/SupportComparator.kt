@@ -48,14 +48,14 @@ class SupportComparator<T, U>(
 
         fun <T> createAlphanumericComparator(
             inverted: Boolean = false,
-            cnv: (T) -> CharSequence,
+            cnv: (T) -> CharSequence?,
             fallback: Comparator<T>? = null
         ): Comparator<T> {
             return SupportComparator(
                 AlphaNumericComparator(),
                 fallback,
                 inverted
-            ) { cnv(it).toString() }
+            ) { cnv(it)?.toString() }
         }
     }
 }
