@@ -73,6 +73,7 @@ import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaBrowser
+import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSession.MediaItemsWithStartPosition
@@ -756,6 +757,40 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         settable.set(items)
                         if (endedWorkaroundPlayer?.nextShuffleOrder != null)
                             throw IllegalStateException("shuffleFactory was not consumed during resumption")
+                    } else if (items.mediaItems.isNotEmpty()) {
+                        var theItem = items.mediaItems[items.startIndex]
+	                    if (theItem.mediaMetadata.durationMs != null &&
+                            theItem.mediaMetadata.durationMs!! > 0 &&
+                            items.startPositionMs != C.TIME_UNSET) {
+                            theItem = theItem.buildUpon()
+                                .setMediaMetadata(theItem.mediaMetadata.buildUpon()
+                                    .setExtras(Bundle(theItem.mediaMetadata.extras).apply {
+                                        if (items.startPositionMs == 0L) {
+                                            putInt(
+                                                MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+                                                MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+                                            )
+                                        } else if (items.startPositionMs != theItem.mediaMetadata.durationMs!!) {
+                                            putInt(
+                                                MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+                                                MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+                                            )
+                                            putDouble(
+                                                MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE,
+                                                (items.startPositionMs.toDouble() /
+                                                        theItem.mediaMetadata.durationMs!!)
+                                                    .coerceIn(0.0, 1.0)
+                                            )
+                                        } else {
+                                            putInt(
+                                                MediaConstants.EXTRAS_KEY_COMPLETION_STATUS,
+                                                MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+                                            )
+                                        }
+                                    }).build()).build()
+	                    }
+                        settable.set(MediaItemsWithStartPosition(listOf(theItem),
+                            0, items.startPositionMs))
                     } else {
                         settable.set(items)
                     }
