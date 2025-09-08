@@ -36,7 +36,6 @@ import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.DialogCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -76,7 +75,7 @@ import java.util.concurrent.TimeUnit
  * BugHandlerActivity:
  *   An activity makes crash reporting easier.
  */
-class BugHandlerActivity : AppCompatActivity() {
+class BugHandlerActivity : BaseActivity() {
 
     private var shouldSendEmail = true
     private var triedToSendEmail = false

@@ -910,6 +910,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lastPlayedManager.save()
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (prefs.getBooleanStrict("stopPlayingWhenDismissTask", false)) {
+            pauseAllPlayersAndStopSelf()
+        } else {
+            super.onTaskRemoved(rootIntent)
+        }
+    }
+
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         scheduleSendingLyrics(false)
         lastPlayedManager.save()

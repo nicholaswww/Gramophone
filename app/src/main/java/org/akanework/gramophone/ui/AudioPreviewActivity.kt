@@ -20,7 +20,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.ActivityCompat
 import androidx.core.net.toFile
@@ -54,6 +53,7 @@ import org.akanework.gramophone.logic.hasScopedStorageV2
 import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import org.akanework.gramophone.logic.playOrPause
 import org.akanework.gramophone.logic.startAnimation
+import org.akanework.gramophone.logic.ui.BaseActivity
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
 import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneExtractorsFactory
@@ -67,7 +67,7 @@ import java.io.File
 private const val TAG = "AudioPreviewActivity"
 
 @OptIn(UnstableApi::class)
-class AudioPreviewActivity : AppCompatActivity(), View.OnClickListener {
+class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
 
     companion object {
         private const val PERMISSION_READ_MEDIA_AUDIO = 100

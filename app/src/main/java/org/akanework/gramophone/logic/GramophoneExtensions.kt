@@ -490,7 +490,7 @@ fun AppWidgetManager.createWidgetInSizes(appWidgetId: Int, creator: (SizeF?) -> 
 inline fun <reified T> allowDiskAccessInStrictMode(doIt: () -> T): T {
     return if (BuildConfig.DEBUG) {
         if (Looper.getMainLooper() != Looper.myLooper()) {
-            throw IllegalStateException("allowDiskAccessInStrictMode(false) on wrong thread")
+            throw IllegalStateException("allowDiskAccessInStrictMode() on wrong thread")
         } else {
             val policy = StrictMode.allowThreadDiskReads()
             try {

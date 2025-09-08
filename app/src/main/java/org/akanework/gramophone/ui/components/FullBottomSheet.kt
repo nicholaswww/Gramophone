@@ -6,6 +6,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.provider.MediaStore
@@ -24,6 +25,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.result.IntentSenderRequest
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.TooltipCompat
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.graphics.Insets
@@ -677,6 +679,12 @@ class FullBottomSheet
                                 // TODO does https://stackoverflow.com/a/58004553 describe this or another bug? will google ever fix anything?
                                 resources.configuration.uiMode =
                                     context.resources.configuration.uiMode
+                            }.let { themeContext ->
+                                if (prefs.getBoolean("pureDark", false) &&
+                                    (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                                    Configuration.UI_MODE_NIGHT_YES) {
+                                    ContextThemeWrapper(themeContext, R.style.ThemeOverlay_PureDark)
+                                } else themeContext
                             }
 
                             applyColorScheme()
