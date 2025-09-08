@@ -1012,9 +1012,7 @@ class FullBottomSheet
         if (instance?.mediaItemCount != 0) {
             lastDisposable?.dispose()
             lastDisposable = null
-            if (bottomSheetFullCover.isLaidOut && !bottomSheetFullCover.isLayoutRequested) {
-                loadCoverForImageView()
-            }
+            loadCoverForImageView()
             if (DynamicColors.isDynamicColorAvailable() &&
                 prefs.getBooleanStrict("content_based_color", true)
             ) {
