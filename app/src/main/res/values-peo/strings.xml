@@ -112,7 +112,7 @@
     <string name="settings_category_misc">متفرقه</string>
     <string name="settings_category_filters">فیلتر ها</string>
     <string name="album_cover">کاور آلبوم</string>
-    <string name="delete_failed">پاک کردن آهنگ ها ناموفق بود</string>
+    <string name="delete_failed">پاک کردن آهنگ ناموفق بود: %s</string>
     <string name="fgs_failed_channel">شکست ادامه ی پخش</string>
     <string name="sort_by_release_date">زمان انتشار</string>
     <string name="timer_expiry">تایمر خواب آهنگ را در %s متوقف خواهد کرد</string>
@@ -124,4 +124,36 @@
     <string name="scroll_to_albums">اسکرول به البوم ها</string>
     <string name="skip_next">پرش به بعدی</string>
     <string name="position_slider">موقعیت اسلایدر</string>
+    <string name="app_name">گرامافون</string>
+    <string name="home_menu_shuffle">پخش تصادفی همه</string>
+    <plurals name="folders_plural">
+        <item quantity="one">پوشه</item>
+        <item quantity="other">پوشه ها</item>
+    </plurals>
+    <string name="sort_by_album_artist">خواننده ی البوم</string>
+    <string name="settings_default_progress_bar_summary">فعال کردن نوار پخش بر اساس متریال دیزاین</string>
+    <string name="opensource_info">اپن‌سورس و تحت گواهینامه ی GPL-3.0\nکپی‌رایت %s</string>
+    <string name="playlist_favourite">مورد علاقه</string>
+    <string name="now_playing">در حال پخش</string>
+    <string name="settings_package_type">نوع بسته</string>
+    <string name="no_lyric_found">متن ٱهنگ یافت نشد</string>
+    <string name="dialog_disc_number">شماره ی دیسک</string>
+    <string name="unknown_title">عنوان ناشناخته</string>
+    <string name="dialog_duration">مدت زمان</string>
+    <string name="settings_player_ui">رابط کاربری پخش کننده</string>
+    <string name="settings_appearance_summary">ظاهر برنامه، حالت تم</string>
+    <string name="settings_about_app">درباره</string>
+    <string name="settings_about_gramophone">درباره ی برنامه</string>
+    <string name="settings_category_links">لینک ها</string>
+    <string name="settings_library_summary">مدیریت کتابخانه ی مدیا</string>
+    <string name="settings_player_options">صدا</string>
+    <string name="settings_player_options_summary">کیفیت خروجی، رفتار پخش</string>
+    <string name="settings_customization">شخصی سازی</string>
+    <string name="settings_customization_summary">مدیریت گزینه های شخصی سازی</string>
+    <string name="settings_album_round_corner_summary">فعال کردن گوشه های گرد در صفحه پخش کننده ی اصلی</string>
+    <string name="settings_audio">صدا</string>
+    <string name="settings_title_bold_summary">استفاده از عنوان درشت(بولد) برای صفحه ی اصلی پخش</string>
+    <string name="settings_experimental_settings">ٱزمایشی</string>
+    <string name="settings_experimental_settings_summary">قابلیت های ٱزمایشی، متفرقه</string>
+    <string name="delete_failed_playlist">پاک کردن لیست پخش ناموفق بود: %s</string>
 </resources>
