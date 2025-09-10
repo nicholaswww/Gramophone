@@ -118,6 +118,7 @@
     <string name="album_cover">Albumi kaanepilt</string>
     <string name="dialog_edit_metadata">Muuda</string>
     <string name="dialog_lyrics">Laulusõnad</string>
+    <string name="delete_failed">Pala kustutamine ei õnnestunud: %s</string>
     <string name="album_covers_enhance">Albumi tõhustatud kaanepiltide laadimine</string>
     <string name="album_covers_enhance_desc">Kasuta parema kvaliteediga kaanepilte ning luba albumi ja palade kaanepiltidel erineda (eeldab õigust avada fotosid ja pildifaile)</string>
     <string name="deny_images"><![CDATA[Palun keela \"Fotod ja videod\" õigused]]></string>
@@ -402,16 +403,18 @@
     <string name="do_not_enter_email_enter_msg">Palun sisesta sõnum, mitte e-posti aadress</string>
     <string name="log_will_auto_send">Logid saadame niikuinii automaatselt, pigem palun kirjelda probleemi olemust või vea tekkimist</string>
     <string name="log_attachment">Logid saadame automaatselt manusena</string>
+    <string name="delete_failed_playlist">Esitusloendi kustutamine ei õnnestunud: %s</string>
     <string name="rename">Muuda nime</string>
     <string name="create_playlist">Loo esitusloend…</string>
     <string name="did_you_know">Kas sa teadsid…</string>
     <string name="playlist_name">Esitusloendi nimi</string>
     <string name="rename_playlist">Muuda esitusloendi nime</string>
     <string name="add_to_playlist">Lisa esitusloendisse</string>
-    <string name="edit_playlist_failed">Ei õnnestunud muuta esitusloendit</string>
+    <string name="rename_failed_playlist">Esitusloendi nime muutmine ei õnnestunud: %s</string>
+    <string name="edit_playlist_failed">Esitusloendi muutmine ei õnnestunud: %s</string>
     <string name="still_refreshing">Uuendan, %1$d/%2$d: %3$s</string>
     <string name="refreshing_wait">Uuendan, palun oota…</string>
-    <string name="create_failed_playlist">Ei õnnestunud luua esitusloendit</string>
+    <string name="create_failed_playlist">Esitusloendi loomine ei õnnestunud: %s</string>
     <string name="refresh_did_you_know">Gramophone otsib uusi või uuendatud palasid igal rakenduse käivitamisel ning ka töötamise ajal suudab ta uut sisu tuvastada. See „Uuenda“ nupp ei laadi palu Gramophone\'i uuesti, vaid hoopis käivitab uue süsteemiülese palade otsingu kõikidelt lubatud andmakandjatelt (sellepärast kulubki nii palju aega). Mis praktikas tähendab seda, et kui just kogu süsteemis või muudes rakendustes pole talitlusvigu, siis sul pole vaja seda funktsionaalsust kasutada.\n\nMõned palad on puudu? Palun vaata „Seadistused“ → „Käitumine“ ning kontrolli, et lugude miinimumkestused ja kaustade keeluloend vastavad sinu eelistustele. Muude võimalike põhjuste kohta leiad teavet ka meie Korduma kippuvate küsimuste lehelt.</string>
     <string name="settings_hq_output">Kõrge kvaliteediga väljund</string>
     <string name="settings_hq_output_summary">Selle asemel, et piirduda vaid 16-bitiste täisarvudega, luba kõikide muude diskreetimisvormingute kasutamist</string>
@@ -435,4 +438,18 @@
     <string name="offload_enabled_if_gapless">Kasutusel, kui katkestusteta taasesitus on võimalik</string>
     <string name="settings_audio_offload">Heli töötlus protsessoriväliselt (säästab akukasutust)</string>
     <string name="settings_telegram">Telegram</string>
+    <string name="timer_expiry_eos">Unetaimer peatab esituse, kui lugude esitamine lõppeb %s</string>
+    <string name="timer_expiry_end_of_this_song">Unetaimer peatab esituse selle loo esitamise lõppedes</string>
+    <string name="spk_encoding_pcm_20bit">20-bitine PCM</string>
+    <string name="spk_encoding_pcm_20bit_big_endian">20-bitine PCM (tavajärjestusega)</string>
+    <string name="settings_cookie_summary">Näita albumite kaanepilte küpsisekujulistena</string>
+    <string name="settings_cookie_info">Küpsiselaadsed kaanepildid</string>
+    <plurals name="folders_plural">
+        <item quantity="one">%d kaust</item>
+        <item quantity="other">%d kausta</item>
+    </plurals>
+    <string name="settings_pure_dark">Täiesti must kujundus</string>
+    <string name="settings_pure_dark_summary">Kujundus, kus kõik tumedas pinnad on süsimusta värvu (OLED-ekraanidel võib tumedate värvide kadu)</string>
+    <string name="settings_stop_on_dismiss">Loobumisel peata</string>
+    <string name="settings_stop_on_dismiss_summary">Lõpeta meediaesitus rakenduse sugemisel Androidi viimatikasutatud rakenduste loendist</string>
 </resources>

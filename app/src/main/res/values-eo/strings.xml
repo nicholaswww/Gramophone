@@ -32,6 +32,7 @@
     <string name="dialog_genre">Ĝenro</string>
     <string name="dialog_year">Jaro</string>
     <string name="unknown_album">Nekonata albumo</string>
+    <string name="folders">Dosierujoj</string>
     <string name="settings_app_theme">Aplika temo</string>
     <string name="grid">Krado</string>
     <string name="list">Listo</string>

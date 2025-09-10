@@ -125,6 +125,7 @@
     <string name="settings_crash_application">Aplicació de fallades</string>
     <string name="album_cover">Caràtules d\'àlbums</string>
     <string name="dialog_edit_metadata">Edita</string>
+    <string name="delete_failed">Ha fallat en suprimir la cançó: %s</string>
     <string name="album_covers_enhance">Càrrega millorada de les caràtules d\'àlbums</string>
     <string name="deny_images"><![CDATA[Denegueu el permís \"Fotos i vídeos\"]]></string>
     <string name="grant_audio"><![CDATA[Atorgueu el permís \"Música i àudio\"]]></string>
@@ -171,7 +172,7 @@
     <string name="current_playlist">Llista de reproducció actual</string>
     <string name="sort_by_release_date">Data de publicació</string>
     <string name="fgs_failed_channel">La reproducció ha fallat en reprendre</string>
-    <string name="timer_expiry">El temporitzador d\'adormir-se farà pausa de la música a les %s</string>
+    <string name="timer_expiry">El temporitzador per a adormir-se farà pausa de la música a les %s</string>
     <string name="tab_order">Configuració de l\'ordre de les pestanyes</string>
     <string name="sort">Ordena</string>
     <string name="scroll_to_albums">Desplaça\'t als àlbums</string>
@@ -407,10 +408,14 @@
     <string name="log_attachment">Els registres s\'enviaran automàticament com a adjunts</string>
     <string name="rename">Canvia el nom</string>
     <string name="create_playlist">Crea una llista de reproducció…</string>
+    <string name="delete_failed_playlist">Ha fallat la supressió de la llista de reproducció: %s</string>
     <string name="refreshing_wait">S\'està actualitzant, espereu…</string>
     <string name="still_refreshing">S\'està actualitzant, pas %1$d/%2$d: %3$s</string>
     <string name="did_you_know">Sabíeu que…</string>
+    <string name="rename_failed_playlist">Fa fallat en canviar de nom la llista de reproducció: %s</string>
     <string name="playlist_name">Nom de llista de reproducció</string>
+    <string name="create_failed_playlist">Fa fallat en crear la llista de reproducció: %s</string>
+    <string name="edit_playlist_failed">Fa fallat en editar la llista de reproducció: %s</string>
     <string name="rename_playlist">Canvia el nom de la llista de reproducció</string>
     <string name="add_to_playlist">Afegeix a la llista de reproducció</string>
     <string name="refresh_did_you_know">El Gramophone demana una llista de cançons actualitzada en cada inici d\'aplicació, i mentre el Gramophone s\'està executant, també detectarà automàticament mitjans nous. Aquest botó «Actualitza» no tornarà a carregar el mitjà al Gramophone, sinó que demanarà al vostre sistema que torni a explorar tots els fitxers de tots els dispositius d\'emmagatzematge permanent connectats (per això triga una estona). Això vol dir que, tret que el vostre sistema o altres aplicacions estiguin funcionant malament, mai haureu d\'utilitzar aquesta funció.\n\nFalten algunes cançons? Assegureu-vos de comprovar la Configuració &gt; Comportament per al filtre de longitud mínima i la llista negra de carpetes, i confirmeu que aquests paràmetres estan definits amb el valor esperat. Per altres motius possibles, consulteu les nostres PMF.</string>
@@ -436,4 +441,15 @@
     <string name="offload_enabled_if_gapless">Activat si és possible la reproducció sense silencis</string>
     <string name="settings_audio_offload">Descarrega l\'àudio (estalvia bateria)</string>
     <string name="settings_telegram">Telegram</string>
+    <string name="spk_encoding_pcm_20bit">PCM de 20 bits</string>
+    <string name="spk_encoding_pcm_20bit_big_endian">PCM de 20 bits (endian gran)</string>
+    <string name="timer_expiry_eos">El temporitzador per a adormir-se farà pausa de la música quan acabi la reproducció de la cançó a les %s</string>
+    <string name="timer_expiry_end_of_this_song">El temporitzador per a adormir-se farà pausa de la música al final d\'aquesta cançó</string>
+    <plurals name="folders_plural">
+        <item quantity="one">%d carpeta</item>
+        <item quantity="many">%d de carpetes</item>
+        <item quantity="other">%d carpetes</item>
+    </plurals>
+    <string name="settings_cookie_summary">Fa que la caràtula d\'àlbum tingui forma de galeta</string>
+    <string name="settings_cookie_info">Caràtula en forma de galeta</string>
 </resources>
