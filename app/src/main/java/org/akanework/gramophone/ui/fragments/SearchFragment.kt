@@ -31,7 +31,9 @@ import com.google.android.material.appbar.AppBarLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.closeKeyboard
@@ -39,6 +41,7 @@ import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.showKeyboard
 import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.ui.adapters.SongAdapter
+import org.akanework.gramophone.ui.adapters.Sorter
 
 /**
  * SearchFragment:
@@ -49,7 +52,6 @@ import org.akanework.gramophone.ui.adapters.SongAdapter
  */
 class SearchFragment : BaseFragment(true) {
     // TODO this class leaks InsetSourceControl
-    private val filteredList: MutableList<MediaItem> = mutableListOf()
     private lateinit var editText: EditText
 
     override fun onCreateView(
@@ -63,12 +65,23 @@ class SearchFragment : BaseFragment(true) {
         appBarLayout.enableEdgeToEdgePaddingListener()
         editText = rootView.findViewById(R.id.edit_text)
         val recyclerView = rootView.findViewById<MyRecyclerView>(R.id.recyclerview)
-        val songList = MutableStateFlow(listOf<MediaItem>())
+        val searchTextFlow = MutableStateFlow("")
         val songAdapter =
             SongAdapter(
-                this, songList,
-                true, null, false, isSubFragment = R.id.search,
-                allowDiffUtils = true, rawOrderExposed = true
+                this, mainActivity.reader.songListFlow.combine(searchTextFlow) { list, text ->
+                    list.filter {
+                        // TODO sort results by match quality? (using raw=natural order)
+                        val isMatchingTitle =
+                            it.mediaMetadata.title?.contains(text, true) == true
+                        val isMatchingAlbum =
+                            it.mediaMetadata.albumTitle?.contains(text, true) == true
+                        val isMatchingArtist =
+                            it.mediaMetadata.artist?.contains(text, true) == true
+                        isMatchingTitle || isMatchingAlbum || isMatchingArtist
+                    }
+                },
+                true, null, isSubFragment = R.id.search,
+                allowDiffUtils = true, rawOrderExposed = Sorter.Type.ByTitleAscending
             )
         val returnButton = rootView.findViewById<Button>(R.id.return_button)
 
@@ -81,28 +94,7 @@ class SearchFragment : BaseFragment(true) {
         recyclerView.fastScroll(songAdapter, songAdapter.itemHeightHelper)
 
         editText.addTextChangedListener { rawText ->
-            // TODO sort results by match quality? (using NaturalOrderHelper)
-            if (rawText.isNullOrBlank()) {
-                songList.value = listOf()
-            } else {
-                // make sure the user doesn't edit away our text while we are filtering
-                val text = rawText.toString()
-                // Launch a coroutine for searching in the library.
-                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Default) {
-                    // Clear the list from the last search.
-                    filteredList.clear()
-                    // Filter the library.
-                    filteredList.addAll(mainActivity.reader.songListFlow.first().filter {
-                        val isMatchingTitle = it.mediaMetadata.title?.contains(text, true) == true
-                        val isMatchingAlbum =
-                            it.mediaMetadata.albumTitle?.contains(text, true) == true
-                        val isMatchingArtist =
-                            it.mediaMetadata.artist?.contains(text, true) == true
-                        isMatchingTitle || isMatchingAlbum || isMatchingArtist
-                    })
-                    songList.value = filteredList.toList()
-                }
-            }
+            searchTextFlow.value = rawText?.toString() ?: ""
         }
 
         returnButton.setOnClickListener {

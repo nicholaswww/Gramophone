@@ -33,8 +33,6 @@ import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import coil3.dispose
 import coil3.load
@@ -68,7 +66,6 @@ import org.akanework.gramophone.logic.utils.flows.PauseManagingSharedFlow.Compan
 import org.akanework.gramophone.logic.utils.flows.repeatPausingWithLifecycle
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.components.CustomGridLayoutManager
-import org.akanework.gramophone.ui.components.GridPaddingDecoration
 import org.akanework.gramophone.ui.components.NowPlayingDrawable
 import org.akanework.gramophone.ui.fragments.AdapterFragment
 import org.akanework.gramophone.ui.getAdapterType
@@ -82,14 +79,13 @@ abstract class BaseAdapter<T : Any>(
     naturalOrderHelper: Sorter.NaturalOrderHelper<T>?,
     initialSortType: Sorter.Type,
     private val pluralStr: Int,
-    override val ownsView: Boolean,
     defaultLayoutType: LayoutType,
     val isSubFragment: Int? = null,
     rawOrderExposed: Sorter.Type? = null,
     val isEdit: Boolean = false,
     private val allowDiffUtils: Boolean = false,
     private val canSort: Boolean = true,
-    private val fallbackSpans: Int = 1
+    override val canChangeLayout: Boolean = true
 ) : AdapterFragment.BaseInterface<BaseAdapter.ViewHolder>(), PopupTextProvider, ItemHeightHelper {
 
     override val context = fragment.requireContext()
@@ -113,7 +109,6 @@ abstract class BaseAdapter<T : Any>(
     override val itemCountForDecor
         get() = itemCount
     protected var list: Pair<List<T>, List<T>>? = null
-    private var layoutManager: RecyclerView.LayoutManager? = null
     protected var recyclerView: MyRecyclerView? = null
         private set
 
@@ -127,41 +122,18 @@ abstract class BaseAdapter<T : Any>(
         )!!
     ) else Sorter.Type.None
 
-    private var gridPaddingDecoration = GridPaddingDecoration(context)
-
     @Suppress("LeakingThis")
-    private var prefLayoutType: LayoutType = LayoutType.valueOf(
+    private var prefLayoutType: LayoutType = if (canChangeLayout) LayoutType.valueOf(
         prefs.getStringStrict(
             "L" + getAdapterType(this).toString(),
             LayoutType.NONE.toString()
         )!!
-    )
+    ) else LayoutType.NONE
 
     override var layoutType: LayoutType? = null
         @SuppressLint("NotifyDataSetChanged")
         set(value) {
-            if (field == LayoutType.GRID && value != LayoutType.GRID) {
-                recyclerView?.removeItemDecoration(gridPaddingDecoration)
-            }
             field = value
-            if (value != null && ownsView) {
-                layoutManager = if (value != LayoutType.GRID
-                    && (context.resources.configuration.orientation
-                    == Configuration.ORIENTATION_PORTRAIT
-                    || context.resources.configuration.screenWidthDp < 600)
-                )
-                    LinearLayoutManager(context)
-                else CustomGridLayoutManager(
-                    context, if (value != LayoutType.GRID
-                        || (context.resources.configuration.orientation
-                                == Configuration.ORIENTATION_PORTRAIT
-                                || context.resources.configuration.screenWidthDp < 600)
-                    ) 2 else 4
-                )
-                if (recyclerView != null) {
-                    applyLayoutManager()
-                }
-            }
             if (recyclerView != null && recyclerView!!.width != 0)
                 calculateGridSizeIfNeeded()
             lockedInGridSize = false
@@ -285,12 +257,6 @@ abstract class BaseAdapter<T : Any>(
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
         this.recyclerView = recyclerView
-        if (ownsView) {
-            recyclerView.setHasFixedSize(true)
-            if (recyclerView.layoutManager != layoutManager) {
-                applyLayoutManager()
-            }
-        }
         if (list != null) {
             recyclerView.doOnLayout {
                 recyclerView.postOnAnimation { reportFullyDrawn() }
@@ -300,26 +266,7 @@ abstract class BaseAdapter<T : Any>(
 
     override fun onDetachedFromRecyclerView(recyclerView: MyRecyclerView) {
         super.onDetachedFromRecyclerView(recyclerView)
-        if (layoutType == LayoutType.GRID) {
-            recyclerView.removeItemDecoration(gridPaddingDecoration)
-        }
         this.recyclerView = null
-        if (ownsView) {
-            recyclerView.layoutManager = null
-        }
-    }
-
-    private fun applyLayoutManager() {
-        // If a layout manager has already been set, get current scroll position.
-        val scrollPosition = if (recyclerView?.layoutManager != null) {
-            (recyclerView!!.layoutManager as LinearLayoutManager)
-                .findFirstCompletelyVisibleItemPosition()
-        } else 0
-        recyclerView?.layoutManager = layoutManager
-        if (layoutType == LayoutType.GRID) {
-            recyclerView?.addItemDecoration(gridPaddingDecoration)
-        }
-        recyclerView?.scrollToPosition(scrollPosition)
     }
 
     override fun getItemCount(): Int = list?.second?.size ?: 0
@@ -410,8 +357,7 @@ abstract class BaseAdapter<T : Any>(
             var w = recyclerView!!.width
             w -= recyclerView!!.paddingLeft + recyclerView!!.paddingRight // view padding
             w -= 2 * cardPadding // item decoration
-            w /= (layoutManager as? GridLayoutManager)?.spanCount
-                ?: fallbackSpans // we want width of one item
+            w /= CustomGridLayoutManager.FULL_SPAN_COUNT / getSpanSize() // we want width of one item
             w -= 2 * cardPadding // side padding
             // ...then use it to calculate height
             var h = w // cover is constrained 1:1
@@ -522,11 +468,12 @@ abstract class BaseAdapter<T : Any>(
 
     final override fun getPopupText(view: View, position: Int): CharSequence {
         // position here refers to pos in ConcatAdapter(!)
-        // 1 == decorAdapter.itemCount
         // if this crashes with IndexOutOfBoundsException, list access isn't guarded enough?
         // lib only ever gets popup text for what RecyclerView believes to be the first view
-        return (if (position >= 1)
-            sorter.getFastScrollHintFor(list!!.second[position - 1], sortType.value)
+        val daic = decorAdapter.itemCount
+        return (if (position >= daic)
+            sorter.getFastScrollHintFor(list!!.second[position - daic],
+                position - daic, sortType.value)
         else null) ?: "-"
     }
 
@@ -558,7 +505,7 @@ abstract class BaseAdapter<T : Any>(
     }
 
     override fun getItemHeightFromZeroTo(to: Int): Int {
-        val count = ((to / ((layoutManager as? GridLayoutManager)?.spanCount ?: fallbackSpans)
+        val count = ((to / (CustomGridLayoutManager.FULL_SPAN_COUNT / getSpanSize())
             .toFloat()) + 0.5f).toInt()
         return count * when (layoutType) {
             LayoutType.GRID -> gridHeight!!
@@ -566,5 +513,16 @@ abstract class BaseAdapter<T : Any>(
             LayoutType.LIST, null -> largerListHeight
             else -> throw IllegalArgumentException()
         }
+    }
+
+    fun getSpanSize(): Int {
+        val lowWidth = context.resources.configuration.orientation ==
+                Configuration.ORIENTATION_PORTRAIT ||
+                context.resources.configuration.screenWidthDp < 600
+        return if (layoutType != LayoutType.GRID && lowWidth)
+            CustomGridLayoutManager.LIST_PORTRAIT_SPAN_SIZE
+        else if (layoutType != LayoutType.GRID || lowWidth)
+            CustomGridLayoutManager.LIST_LANDSCAPE_GRID_PORTRAIT_SPAN_SIZE
+        else CustomGridLayoutManager.GRID_LANDSCAPE_SPAN_SIZE
     }
 }

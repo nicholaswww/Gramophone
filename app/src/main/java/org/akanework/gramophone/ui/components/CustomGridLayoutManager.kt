@@ -18,7 +18,14 @@
 package org.akanework.gramophone.ui.components
 
 import android.content.Context
+import android.util.AttributeSet
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.getRecyclerView
+import org.akanework.gramophone.ui.adapters.BaseAdapter
+import org.akanework.gramophone.ui.adapters.BaseDecorAdapter
+import org.akanework.gramophone.ui.adapters.DetailedFolderAdapter
 
 /**
  * CustomGridLayoutManager:
@@ -28,18 +35,86 @@ import androidx.recyclerview.widget.GridLayoutManager
  * @author AkaneTan
  */
 class CustomGridLayoutManager(
-    context: Context,
-    spanCount: Int,
-) : GridLayoutManager(context, spanCount) {
+    context: Context
+) : GridLayoutManager(context, FULL_SPAN_COUNT) {
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int,
+                defStyleRes: Int) : this(context)
+    companion object {
+        const val FULL_SPAN_COUNT = 4
+        const val LIST_PORTRAIT_SPAN_SIZE = 4
+        const val LIST_LANDSCAPE_GRID_PORTRAIT_SPAN_SIZE = 2
+        const val GRID_LANDSCAPE_SPAN_SIZE = 1
+    }
     init {
         spanSizeLookup =
             object : SpanSizeLookup() {
-                override fun getSpanSize(position: Int): Int =
-                    if (position == 0) {
-                        spanCount
-                    } else {
-                        1
+                init {
+                    isSpanGroupIndexCacheEnabled = true
+                }
+
+                private fun getAdapterAndPosForPos(pos: Int): Pair<RecyclerView.Adapter<*>, Int> {
+                    val parent = getRecyclerView()
+                    if (parent == null) {
+                        throw IllegalStateException("null RecyclerView while looking up span")
                     }
+                    var adapter = parent.adapter
+                    var itemPosition = pos
+                    loop@while (adapter is ConcatAdapter) {
+                        for (it in adapter.adapters) {
+                            val c = it.itemCount
+                            if (itemPosition < c) {
+                                adapter = it
+                                continue@loop
+                            }
+                            itemPosition -= c
+                        }
+                        throw IllegalStateException("can't find desired adapter?")
+                    }
+                    return adapter!! to itemPosition
+                }
+
+                override fun getSpanSize(position: Int): Int {
+                    val (adapter, pos) = getAdapterAndPosForPos(position)
+                    return when (adapter) {
+	                    is BaseDecorAdapter<*> -> {
+		                    spanCount
+	                    }
+
+                        is DetailedFolderAdapter.FolderCardAdapter -> {
+                            spanCount
+                        }
+
+	                    is BaseAdapter<*> -> {
+		                    adapter.getSpanSize()
+	                    }
+
+	                    else -> {
+		                    throw IllegalStateException("unsupported adapter ${adapter.javaClass.name}")
+	                    }
+                    }
+                }
+
+                override fun getSpanIndex(position: Int, spanCount: Int): Int {
+                    val (adapter, pos) = getAdapterAndPosForPos(position)
+                    return when (adapter) {
+                        is BaseDecorAdapter<*> -> {
+                            0
+                        }
+
+                        is DetailedFolderAdapter.FolderCardAdapter -> {
+                            0
+                        }
+
+                        is BaseAdapter<*> -> {
+                            val spanSize = adapter.getSpanSize()
+                            (pos % (spanCount / spanSize)) * spanSize
+                        }
+
+                        else -> {
+                            throw IllegalStateException("unsupported adapter ${adapter.javaClass.name}")
+                        }
+                    }
+                }
             }
     }
 }

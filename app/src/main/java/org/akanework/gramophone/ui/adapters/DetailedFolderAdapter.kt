@@ -30,7 +30,6 @@ import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +61,7 @@ class DetailedFolderAdapter(
         get() = mainActivity
     override val layoutInflater
         get() = fragment.layoutInflater
-    override val ownsView = false
+    override val canChangeLayout = false
     override var layoutType: BaseAdapter.LayoutType?
         get() = null
         set(_) {
@@ -92,7 +91,7 @@ class DetailedFolderAdapter(
     private val songList = MutableSharedFlow<List<MediaItem>>(1)
     private val decorAdapter = BaseDecorAdapter<DetailedFolderAdapter>(this, R.plurals.folders_plural)
     private val songAdapter: SongAdapter =
-        SongAdapter(fragment, songList, true, null, false, folder = true).apply {
+        SongAdapter(fragment, songList, true, null, folder = true).apply {
             onFullyDrawnListener = { reportFullyDrawn() }
             decorAdapter.jumpUpPos = { 0 }
         }
@@ -124,14 +123,12 @@ class DetailedFolderAdapter(
                     }
             }
         }
-        recyclerView.layoutManager = LinearLayoutManager(recyclerView.context)
     }
 
     override fun onDetachedFromRecyclerView(recyclerView: MyRecyclerView) {
         super.onDetachedFromRecyclerView(recyclerView)
         scope!!.cancel()
         scope = null
-        recyclerView.layoutManager = null
     }
 
     fun onChanged(value: FileNode) {
@@ -361,7 +358,7 @@ class DetailedFolderAdapter(
         override fun getItemCount(): Int = if (enabled) 1 else 0
     }
 
-    private abstract class FolderCardAdapter(val folderFragment: DetailedFolderAdapter) :
+    abstract class FolderCardAdapter(val folderFragment: DetailedFolderAdapter) :
         MyRecyclerView.Adapter<FolderCardAdapter.ViewHolder>(), ItemHeightHelper {
         override fun getItemViewType(position: Int): Int = R.layout.adapter_folder_card
 

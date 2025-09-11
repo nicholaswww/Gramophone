@@ -13,5 +13,6 @@
 		android:clipChildren="false"
 		android:scrollbars="none"
 		app:layoutManager="org.akanework.gramophone.logic.ui.CustomLinearLayoutManager"
+		app:hasFixedSize="true"
 		tools:listitem="@layout/lyrics" />
 </merge>

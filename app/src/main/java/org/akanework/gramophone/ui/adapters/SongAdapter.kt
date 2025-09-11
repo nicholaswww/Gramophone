@@ -63,12 +63,11 @@ class SongAdapter(
     songList: Flow<List<MediaItem>?> = (fragment.requireActivity() as MainActivity).reader.songListFlow,
     canSort: Boolean,
     helper: Sorter.NaturalOrderHelper<MediaItem>?,
-    ownsView: Boolean,
     isSubFragment: Int? = null,
     allowDiffUtils: Boolean = false,
     rawOrderExposed: Sorter.Type? = if (isSubFragment == null) Sorter.Type.ByTitleAscending else null,
-    fallbackSpans: Int = 1,
     isEdit: Boolean = false,
+    canChangeLayout: Boolean = true,
     val folder: Boolean = false
 ) : BaseAdapter<MediaItem>
     (
@@ -82,13 +81,12 @@ class SongAdapter(
     else Sorter.Type.None,
     canSort = canSort,
     pluralStr = R.plurals.songs,
-    ownsView = ownsView,
+    canChangeLayout = canChangeLayout,
     isEdit = isEdit,
     defaultLayoutType = LayoutType.COMPACT_LIST,
     isSubFragment = isSubFragment,
     rawOrderExposed = rawOrderExposed,
-    allowDiffUtils = allowDiffUtils,
-    fallbackSpans = fallbackSpans
+    allowDiffUtils = allowDiffUtils
 ) {
 
     fun getSongList() = list?.second ?: emptyList()

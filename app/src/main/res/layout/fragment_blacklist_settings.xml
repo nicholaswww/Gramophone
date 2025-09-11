@@ -63,6 +63,7 @@
         android:scrollbars="none"
         android:paddingTop="4dp"
         android:contentDescription="@string/list"
-        app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior" />
+        app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior"
+        app:hasFixedSize="true"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

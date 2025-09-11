@@ -297,7 +297,7 @@ class Sorter<T>(
         )
     }
 
-    fun getFastScrollHintFor(item: T, sortType: Type): String? {
+    fun getFastScrollHintFor(item: T, pos: Int, sortType: Type): String? {
         return when (sortType) {
             Type.ByTitleDescending, Type.ByTitleAscending -> {
                 sortingHelper.getTitle(item)?.firstOrNull()?.toString()
@@ -344,7 +344,11 @@ class Sorter<T>(
             }
 
             Type.NaturalOrder -> {
-                naturalOrderHelper!!.lookup(item).toString()
+                if (rawOrderExposed == sortType) {
+                    pos
+                } else {
+                    naturalOrderHelper!!.lookup(item)
+                }.toString()
             }
 
             Type.None -> null

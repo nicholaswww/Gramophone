@@ -10,4 +10,8 @@
 		<attr name="system_app_widget_background_radius" format="dimension"/>
 		<attr name="system_app_widget_inner_radius" format="dimension"/>
 	</declare-styleable>
+	<declare-styleable name="MyRecyclerView">
+		<attr name="hasFixedSize" format="boolean"/>
+		<attr name="useGridPaddingDecoration" format="boolean"/>
+	</declare-styleable>
 </resources>

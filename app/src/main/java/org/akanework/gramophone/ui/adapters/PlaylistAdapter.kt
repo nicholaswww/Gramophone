@@ -71,7 +71,6 @@ class PlaylistAdapter(
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.items,
-    ownsView = true,
     defaultLayoutType = LayoutType.LIST
 ), AdapterFragment.RequestAdapter {
     override val defaultCover = R.drawable.ic_default_cover_playlist

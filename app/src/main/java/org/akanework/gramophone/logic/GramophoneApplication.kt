@@ -24,6 +24,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.media.ThumbnailUtils
 import android.os.Build
+import android.os.Debug
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
@@ -116,6 +117,11 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                             Build.VERSION.SDK_INT == Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                             it.permitExplicitGc() // platform bug, now fixed
                         } else it
+                    }
+                    .let {
+                        if (Debug.isDebuggerConnected())
+                            it.permitDiskReads()
+                        else it
                     }
                     .penaltyLog()
                     .penaltyDialog()

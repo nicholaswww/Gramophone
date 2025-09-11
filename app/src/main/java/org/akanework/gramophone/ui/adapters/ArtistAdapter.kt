@@ -45,7 +45,6 @@ class ArtistAdapter(
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.artists,
-    ownsView = true,
     defaultLayoutType = LayoutType.LIST
 ) {
 

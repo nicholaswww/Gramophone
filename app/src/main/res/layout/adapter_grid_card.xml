@@ -95,6 +95,6 @@
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="@id/linearLayout"
         app:layout_constraintBottom_toBottomOf="@id/linearLayout"
-        app:layout_constraintEnd_toStartOf="@id/more" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

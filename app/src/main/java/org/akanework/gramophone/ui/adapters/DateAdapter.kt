@@ -39,7 +39,6 @@ class DateAdapter(
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.items,
-    ownsView = true,
     defaultLayoutType = LayoutType.LIST
 ) {
 

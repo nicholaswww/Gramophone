@@ -33,10 +33,22 @@ import me.zhanghai.android.fastscroll.FastScrollerBuilder
 import me.zhanghai.android.fastscroll.FixOnItemTouchListenerRecyclerView
 import me.zhanghai.android.fastscroll.PopupTextProvider
 import org.akanework.gramophone.R
+import org.akanework.gramophone.ui.components.GridPaddingDecoration
 
-class MyRecyclerView(context: Context, attributeSet: AttributeSet?, defStyleAttr: Int) :
-    FixOnItemTouchListenerRecyclerView(context, attributeSet, defStyleAttr),
-    AppBarLayout.OnOffsetChangedListener {
+class MyRecyclerView : FixOnItemTouchListenerRecyclerView, AppBarLayout.OnOffsetChangedListener {
+    constructor(context: Context, attributeSet: AttributeSet?, defStyleAttr: Int) :
+            super(context, attributeSet, defStyleAttr) {
+        val arr = context.theme.obtainStyledAttributes(attributeSet,
+            R.styleable.MyRecyclerView, defStyleAttr, 0)
+        if (arr.getBoolean(R.styleable.MyRecyclerView_hasFixedSize, false)) {
+            setHasFixedSize(true)
+        }
+        if (arr.getBoolean(R.styleable.MyRecyclerView_useGridPaddingDecoration, false)) {
+            addItemDecoration(GridPaddingDecoration(context))
+        }
+        arr.recycle()
+    }
+
     constructor(context: Context, attributeSet: AttributeSet?)
             : this(context, attributeSet, 0)
 

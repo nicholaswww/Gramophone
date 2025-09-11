@@ -103,7 +103,7 @@ class AdapterFragment : BaseFragment(null) {
     private fun createAdapter(): BaseInterface<*> {
         val id = arguments?.getInt("ID", -1)
         return when (id) {
-            R.id.songs -> SongAdapter(this, canSort = true, helper = null, ownsView = true)
+            R.id.songs -> SongAdapter(this, canSort = true, helper = null)
             R.id.albums -> AlbumAdapter(this)
             R.id.artists -> ArtistAdapter(this)
             R.id.genres -> GenreAdapter(this)
@@ -131,7 +131,7 @@ class AdapterFragment : BaseFragment(null) {
         // for decor
         abstract val context: Context
         abstract val layoutInflater: LayoutInflater
-        abstract val ownsView: Boolean
+        abstract val canChangeLayout: Boolean
         abstract val sortType: StateFlow<Sorter.Type>
         abstract val sortTypes: Set<Sorter.Type>
         abstract var layoutType: BaseAdapter.LayoutType?

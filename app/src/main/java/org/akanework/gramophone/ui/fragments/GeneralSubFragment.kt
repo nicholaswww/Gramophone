@@ -170,7 +170,6 @@ class GeneralSubFragment : BaseFragment(true) {
                 canSort = true,
                 helper = null,
                 rawOrderExposed = rawOrderExposed,
-                ownsView = true,
                 isSubFragment = itemType
             )
 

@@ -60,8 +60,8 @@ class PlaylistEditFragment : BaseFragment(false) {
 				rawOrderExposed = Sorter.Type.NaturalOrder,
 				helper = null,
 				isEdit = true,
-				ownsView = false,
-				isSubFragment = R.id.playlists
+				canChangeLayout = false,
+				isSubFragment = R.id.edit
 			)
 
 		recyclerView.enableEdgeToEdgePaddingListener()

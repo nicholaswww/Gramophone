@@ -30,9 +30,7 @@ import java.util.GregorianCalendar
 class AlbumAdapter(
     fragment: Fragment,
     liveData: Flow<List<Album>?> = (fragment.requireActivity() as MainActivity).reader.albumListFlow,
-    ownsView: Boolean = true,
-    isSubFragment: Int? = null,
-    fallbackSpans: Int = 1
+    isSubFragment: Int? = null
 ) : BaseAdapter<Album>
     (
     fragment,
@@ -41,10 +39,8 @@ class AlbumAdapter(
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.albums,
-    ownsView = ownsView,
     defaultLayoutType = LayoutType.GRID,
-    isSubFragment = isSubFragment,
-    fallbackSpans = fallbackSpans
+    isSubFragment = isSubFragment
 ) {
 
     fun getAlbumList() = list?.second ?: emptyList()

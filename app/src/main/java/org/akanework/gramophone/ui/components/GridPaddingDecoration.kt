@@ -8,12 +8,11 @@ import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.adapters.BaseAdapter
+import org.akanework.gramophone.ui.adapters.BaseDecorAdapter
+import org.akanework.gramophone.ui.adapters.DetailedFolderAdapter
 
 class GridPaddingDecoration(context: Context) : RecyclerView.ItemDecoration() {
     private var mPadding = context.resources.getDimensionPixelSize(R.dimen.grid_card_side_padding)
-    private val columnSize = if (context.resources.configuration.orientation
-        == Configuration.ORIENTATION_PORTRAIT
-    ) 2 else 4
 
     override fun getItemOffsets(
         outRect: Rect,
@@ -21,51 +20,40 @@ class GridPaddingDecoration(context: Context) : RecyclerView.ItemDecoration() {
         parent: RecyclerView,
         state: RecyclerView.State
     ) {
-        if (parent.adapter !is ConcatAdapter
-            || ((parent.adapter as ConcatAdapter).adapters[1] !is BaseAdapter<*>
-                    && (parent.adapter as ConcatAdapter).adapters[0] !is ConcatAdapter)
-        ) {
-            throw IllegalArgumentException("Can't find desired adapter!")
+        super.getItemOffsets(outRect, view, parent, state)
+        var itemPosition = parent.getChildAdapterPosition(view)
+        if (itemPosition == RecyclerView.NO_POSITION) {
+            return
         }
-        if (parent.adapter is ConcatAdapter
-            && (parent.adapter as ConcatAdapter).adapters[1] is BaseAdapter<*>
-            && ((parent.adapter as ConcatAdapter).adapters[1] as BaseAdapter<*>).layoutType
-            != BaseAdapter.LayoutType.GRID
-        ) {
-            throw IllegalArgumentException("Target adapter layout type is not GridLayout!")
+        if (itemPosition >= (parent.adapter?.itemCount ?: 0)) {
+            return
         }
-
-        if ((parent.adapter as ConcatAdapter).adapters[1] !is BaseAdapter<*>
-            && (parent.adapter as ConcatAdapter).adapters[0] is ConcatAdapter
-        ) {
-            ((parent.adapter as ConcatAdapter).adapters[0] as ConcatAdapter).adapters[1].let {
-                val itemPosition = parent.getChildAdapterPosition(view)
-                if (itemPosition > it.itemCount) {
-                    return@getItemOffsets
+        var adapter = parent.adapter
+        loop@while (adapter is ConcatAdapter) {
+            for (it in adapter.adapters) {
+                val c = it.itemCount
+                if (itemPosition < c) {
+                    adapter = it
+                    continue@loop
                 }
-                if (itemPosition == RecyclerView.NO_POSITION) {
-                    return@getItemOffsets
-                } else if (itemPosition % columnSize == 0 && itemPosition != 0) {
-                    outRect.right = mPadding
-                } else if (itemPosition % columnSize - 1 == 0) {
-                    outRect.left = mPadding
-                } else {
-                    return@getItemOffsets
-                }
+                itemPosition -= c
             }
-        } else {
-            (parent.adapter as ConcatAdapter).adapters[1]?.let {
-                val itemPosition = parent.getChildAdapterPosition(view)
-                if (itemPosition == RecyclerView.NO_POSITION) {
-                    return@getItemOffsets
-                } else if (itemPosition % columnSize == 0 && itemPosition != 0) {
-                    outRect.right = mPadding
-                } else if (itemPosition % columnSize - 1 == 0) {
-                    outRect.left = mPadding
-                } else {
-                    return@getItemOffsets
-                }
-            }
+            throw IllegalStateException("can't find desired adapter?")
+        }
+        if (adapter is BaseDecorAdapter<*> || adapter is DetailedFolderAdapter.FolderCardAdapter) {
+            return
+        }
+        if (adapter !is BaseAdapter<*>) {
+            throw IllegalStateException("Cannot find desired adapter! ${adapter?.javaClass?.name}")
+        }
+        if (adapter.layoutType != BaseAdapter.LayoutType.GRID) {
+            return
+        }
+        val columnSize = CustomGridLayoutManager.FULL_SPAN_COUNT / adapter.getSpanSize()
+        if (itemPosition % columnSize == columnSize - 1) {
+            outRect.right = mPadding
+        } else if (itemPosition % columnSize == 0) {
+            outRect.left = mPadding
         }
     }
 }

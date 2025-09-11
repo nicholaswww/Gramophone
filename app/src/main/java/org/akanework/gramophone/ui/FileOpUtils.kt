@@ -78,6 +78,10 @@ fun getAdapterType(adapter: AdapterFragment.BaseInterface<*>) =
             15
         }
 
+        adapter is SongAdapter && adapter.isSubFragment == R.id.edit -> {
+            16
+        }
+
         else -> {
             throw IllegalArgumentException()
         }
