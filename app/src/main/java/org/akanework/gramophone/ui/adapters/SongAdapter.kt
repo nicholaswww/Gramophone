@@ -22,7 +22,6 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ShareCompat
 import androidx.core.content.FileProvider
@@ -67,8 +66,9 @@ class SongAdapter(
     ownsView: Boolean,
     isSubFragment: Int? = null,
     allowDiffUtils: Boolean = false,
-    rawOrderExposed: Boolean = isSubFragment == null,
+    rawOrderExposed: Sorter.Type? = if (isSubFragment == null) Sorter.Type.ByTitleAscending else null,
     fallbackSpans: Int = 1,
+    isEdit: Boolean = false,
     val folder: Boolean = false
 ) : BaseAdapter<MediaItem>
     (
@@ -77,13 +77,13 @@ class SongAdapter(
     sortHelper = MediaItemHelper(),
     naturalOrderHelper = if (canSort) helper else null,
     initialSortType = if (canSort)
-        (if (helper != null) Sorter.Type.NaturalOrder else
-            (if (folder) Sorter.Type.ByFilePathAscending else
-                if (rawOrderExposed) Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending))
+        (if (helper != null || rawOrderExposed == Sorter.Type.NaturalOrder) Sorter.Type.NaturalOrder else
+            (if (folder) Sorter.Type.ByFilePathAscending else Sorter.Type.ByTitleAscending))
     else Sorter.Type.None,
     canSort = canSort,
     pluralStr = R.plurals.songs,
     ownsView = ownsView,
+    isEdit = isEdit,
     defaultLayoutType = LayoutType.COMPACT_LIST,
     isSubFragment = isSubFragment,
     rawOrderExposed = rawOrderExposed,
@@ -127,34 +127,38 @@ class SongAdapter(
         }
 
     init {
-        mediaControllerViewModel.addRecreationalPlayerListener(
-            fragment.viewLifecycleOwner.lifecycle
-        ) {
-            currentMediaItem = it.currentMediaItem?.mediaId
-            currentIsPlaying =
-                it.playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
-            object : Player.Listener {
-                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                    currentMediaItem = mediaItem?.mediaId
-                }
+        if (!isEdit) {
+            mediaControllerViewModel.addRecreationalPlayerListener(
+                fragment.viewLifecycleOwner.lifecycle
+            ) {
+                currentMediaItem = it.currentMediaItem?.mediaId
+                currentIsPlaying =
+                    it.playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+                object : Player.Listener {
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        currentMediaItem = mediaItem?.mediaId
+                    }
 
-                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                    currentIsPlaying =
-                        playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
-                }
+                    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                        currentIsPlaying =
+                            playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+                    }
 
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    currentIsPlaying =
-                        it.playWhenReady && playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        currentIsPlaying =
+                            it.playWhenReady && playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
+                    }
                 }
             }
         }
     }
 
     override fun onListUpdated() {
-        // TODO run this method on a different thread / in advance
-        idToPosMap = hashMapOf()
-        list!!.second.forEachIndexed { i, item -> idToPosMap!![item.mediaId] = i }
+        if (!isEdit) {
+            // TODO run this method on a different thread / in advance
+            idToPosMap = hashMapOf()
+            list!!.second.forEachIndexed { i, item -> idToPosMap!![item.mediaId] = i }
+        }
     }
 
     override fun virtualTitleOf(item: MediaItem): String {
@@ -166,12 +170,14 @@ class SongAdapter(
     }
 
     override fun onClick(item: MediaItem) {
-        val mediaController = mainActivity.getPlayer()
-        mediaController?.apply {
-            val songList = getSongList()
-            setMediaItems(songList, songList.indexOf(item), C.TIME_UNSET)
-            prepare()
-            play()
+        if (!isEdit) {
+            val mediaController = mainActivity.getPlayer()
+            mediaController?.apply {
+                val songList = getSongList()
+                setMediaItems(songList, songList.indexOf(item), C.TIME_UNSET)
+                prepare()
+                play()
+            }
         }
     }
 

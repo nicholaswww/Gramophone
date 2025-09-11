@@ -138,7 +138,7 @@ class SearchFragment : BaseFragment(true) {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        viewLifecycleOwner.lifecycleScope.cancel()
+        viewLifecycleOwner.lifecycleScope.cancel() // TODO: why?
     }
 
 }

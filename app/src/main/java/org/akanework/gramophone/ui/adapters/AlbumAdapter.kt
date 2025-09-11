@@ -55,24 +55,6 @@ class AlbumAdapter(
         return context.getString(R.string.unknown_album)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
-        super.onBindViewHolder(holder, position, payloads)
-        if (layoutType == LayoutType.GRID) {
-            val item = list!!.second[position]
-            holder.itemView.setOnLongClickListener {
-                val popupMenu = PopupMenu(it.context, it)
-                onMenu(item, popupMenu)
-                popupMenu.show()
-                true
-            }
-        }
-    }
-
-    override fun onViewRecycled(holder: ViewHolder) {
-        holder.itemView.setOnLongClickListener(null)
-        super.onViewRecycled(holder)
-    }
-
     override fun onClick(item: Album) {
         mainActivity.startFragment(GeneralSubFragment()) {
             putString("Id", item.id?.toString())

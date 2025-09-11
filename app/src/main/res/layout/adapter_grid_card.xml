@@ -97,13 +97,4 @@
         app:layout_constraintBottom_toBottomOf="@id/linearLayout"
         app:layout_constraintEnd_toStartOf="@id/more" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/more"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        app:layout_constraintTop_toTopOf="@id/linearLayout"
-        app:layout_constraintBottom_toBottomOf="@id/linearLayout"
-        app:layout_constraintEnd_toEndOf="@id/cover_frame"
-        android:visibility="gone" />
-
 </androidx.constraintlayout.widget.ConstraintLayout>

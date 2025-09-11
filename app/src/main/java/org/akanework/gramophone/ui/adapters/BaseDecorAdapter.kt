@@ -59,9 +59,9 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val count = adapter.itemCountForDecor
         holder.playAll.visibility =
-            if (adapter is SongAdapter || adapter is AlbumAdapter) View.VISIBLE else View.GONE
+            if ((adapter is SongAdapter || adapter is AlbumAdapter) && !adapter.isEdit) View.VISIBLE else View.GONE
         holder.shuffleAll.visibility =
-            if (adapter is SongAdapter || adapter is AlbumAdapter) View.VISIBLE else View.GONE
+            if ((adapter is SongAdapter || adapter is AlbumAdapter) && !adapter.isEdit) View.VISIBLE else View.GONE
         holder.counter.text = context.resources.getQuantityString(pluralStr, count, count)
         holder.sortButton.visibility =
             if (adapter.sortType.value != Sorter.Type.None || adapter.ownsView) View.VISIBLE else View.GONE
@@ -70,10 +70,7 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
             popupMenu.inflate(R.menu.sort_menu)
             val buttonMap = mapOf(
                 Pair(R.id.natural, Sorter.Type.NaturalOrder),
-                Pair(
-                    R.id.name, if (adapter.sortTypes.contains(Sorter.Type.NativeOrder))
-                        Sorter.Type.NativeOrder else Sorter.Type.ByTitleAscending
-                ),
+                Pair(R.id.name, Sorter.Type.ByTitleAscending),
                 Pair(R.id.artist, Sorter.Type.ByArtistAscending),
                 Pair(R.id.album, Sorter.Type.ByAlbumTitleAscending),
                 Pair(R.id.album_artist, Sorter.Type.ByAlbumArtistAscending),

@@ -119,7 +119,7 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
             requireActivity().supportFragmentManager.popBackStack()
         }
         val title = item.map { it?.title ?: requireContext().getString(R.string.unknown_artist) }
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.Default) {
             title.collect {
                 withContext(Dispatchers.Main) {
                     // Show title text.

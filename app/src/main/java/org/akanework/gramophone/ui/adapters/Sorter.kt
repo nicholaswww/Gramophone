@@ -25,7 +25,7 @@ import java.io.File
 class Sorter<T>(
     val sortingHelper: Helper<T>,
     private val naturalOrderHelper: NaturalOrderHelper<T>?,
-    private val rawOrderExposed: Boolean = false
+    private val rawOrderExposed: Type? = null
 ) {
 
     abstract class Helper<T>(typesSupported: Set<Type>) {
@@ -98,28 +98,58 @@ class Sorter<T>(
         ByModifiedDateDescending, ByModifiedDateAscending,
         ByFilePathDescending, ByFilePathAscending,
         ByDiscAndTrack,
+        None;
 
-        /* do not use NativeOrder for something other than title or edit getSupportedTypes */
-        None, NativeOrder, NativeOrderDescending
-    }
-
-    fun getSupportedTypes(): Set<Type> {
-        return sortingHelper.typesSupported.let { types ->
-            (if (naturalOrderHelper != null)
-                types + Type.NaturalOrder
-            else types).let {
-                if (rawOrderExposed)
-                    it + Type.NativeOrder + Type.NativeOrderDescending -
-                            Type.ByTitleAscending - Type.ByTitleDescending
-                else it
+        companion object {
+            fun inverse(type: Type): Type? = when (type) {
+	            ByTitleDescending -> ByTitleAscending
+	            ByTitleAscending -> ByTitleDescending
+	            ByArtistDescending -> ByArtistAscending
+	            ByArtistAscending -> ByArtistDescending
+	            ByAlbumTitleDescending -> ByAlbumTitleAscending
+	            ByAlbumTitleAscending -> ByAlbumTitleDescending
+	            ByAlbumArtistDescending -> ByAlbumArtistAscending
+	            ByAlbumArtistAscending -> ByAlbumArtistDescending
+	            BySizeDescending -> BySizeAscending
+	            BySizeAscending -> BySizeDescending
+	            ByAlbumSizeDescending -> ByAlbumSizeAscending
+	            ByAlbumSizeAscending -> ByAlbumSizeDescending
+	            NaturalOrder -> null
+	            ByAddDateDescending -> ByAddDateAscending
+	            ByAddDateAscending -> ByAddDateDescending
+	            ByReleaseDateDescending -> ByReleaseDateAscending
+	            ByReleaseDateAscending -> ByReleaseDateDescending
+	            ByModifiedDateDescending -> ByModifiedDateAscending
+	            ByModifiedDateAscending -> ByModifiedDateDescending
+	            ByFilePathDescending -> ByFilePathAscending
+	            ByFilePathAscending -> ByFilePathDescending
+	            ByDiscAndTrack -> null
+	            None -> null
             }
         }
     }
 
-    fun getComparator(type: Type): HintedComparator<T>? {
+    fun getSupportedTypes(): Set<Type> {
+        return sortingHelper.typesSupported.let { types ->
+            if (naturalOrderHelper != null || rawOrderExposed == Type.NaturalOrder)
+                types + Type.NaturalOrder
+            else types
+        }
+    }
+
+    fun getComparator(type: Type): Pair<HintedComparator<T>?, Boolean> {
+        if (rawOrderExposed != null && type == Type.inverse(rawOrderExposed)) {
+            if (!getSupportedTypes().contains(type))
+                throw IllegalArgumentException("Unsupported type ${type.name}")
+            return null to true
+        }
+        return getComparatorNoReverse(type) to false
+    }
+
+    private fun getComparatorNoReverse(type: Type): HintedComparator<T>? {
         if (!getSupportedTypes().contains(type))
             throw IllegalArgumentException("Unsupported type ${type.name}")
-        if (type == Type.NativeOrder || type == Type.NativeOrderDescending) return null
+        if (type == rawOrderExposed || type == Type.None) return null
         return WrappingHintedComparator(type, when (type) {
             Type.ByTitleDescending -> {
                 SupportComparator.createAlphanumericComparator(true, {
@@ -137,9 +167,8 @@ class Sorter<T>(
                 SupportComparator.createAlphanumericComparator(
                     true, {
                         sortingHelper.getArtist(it)
-                    }, getComparator(
-                        if (rawOrderExposed)
-                            Type.NativeOrderDescending else Type.ByTitleDescending
+                    }, getComparatorNoReverse(
+                        Type.ByTitleDescending
                     )
                 )
             }
@@ -150,33 +179,33 @@ class Sorter<T>(
                     {
                         sortingHelper.getArtist(it)
                     },
-                    getComparator(if (rawOrderExposed) Type.NativeOrder else Type.ByTitleAscending)
+                    getComparatorNoReverse(Type.ByTitleAscending)
                 )
             }
 
             Type.ByAlbumTitleDescending -> {
                 SupportComparator.createAlphanumericComparator(true, {
                     sortingHelper.getAlbumTitle(it)
-                }, getComparator(Type.ByDiscAndTrack))
+                }, getComparatorNoReverse(Type.ByDiscAndTrack))
             }
 
             Type.ByAlbumTitleAscending -> {
                 SupportComparator.createAlphanumericComparator(false, {
                     sortingHelper.getAlbumTitle(it)
-                }, getComparator(Type.ByDiscAndTrack))
+                }, getComparatorNoReverse(Type.ByDiscAndTrack))
             }
 
             // TODO support choosing album artist > album year > disc/track
             Type.ByAlbumArtistDescending -> {
                 SupportComparator.createAlphanumericComparator(true, {
                     sortingHelper.getAlbumArtist(it)
-                }, getComparator(Type.ByAlbumTitleDescending))
+                }, getComparatorNoReverse(Type.ByAlbumTitleDescending))
             }
 
             Type.ByAlbumArtistAscending -> {
                 SupportComparator.createAlphanumericComparator(false, {
                     sortingHelper.getAlbumArtist(it)
-                }, getComparator(Type.ByAlbumTitleAscending))
+                }, getComparatorNoReverse(Type.ByAlbumTitleAscending))
             }
 
             Type.BySizeDescending -> {
@@ -218,14 +247,14 @@ class Sorter<T>(
             Type.ByReleaseDateDescending -> {
                 SupportComparator.createInversionComparator(
                     compareBy { sortingHelper.getReleaseDate(it) }, true,
-                    if (sortingHelper.canGetDiskAndTrack()) getComparator(Type.ByDiscAndTrack) else null
+                    if (sortingHelper.canGetDiskAndTrack()) getComparatorNoReverse(Type.ByDiscAndTrack) else null
                 )
             }
 
             Type.ByReleaseDateAscending -> {
                 SupportComparator.createInversionComparator(
                     compareBy { sortingHelper.getReleaseDate(it) }, false,
-                    if (sortingHelper.canGetDiskAndTrack()) getComparator(Type.ByDiscAndTrack) else null
+                    if (sortingHelper.canGetDiskAndTrack()) getComparatorNoReverse(Type.ByDiscAndTrack) else null
                 )
             }
 
@@ -263,16 +292,14 @@ class Sorter<T>(
                 )
             }
 
-            Type.None -> SupportComparator.createDummyComparator()
-
-            else -> throw IllegalStateException("this code is unreachable")
+            Type.None -> throw IllegalStateException()
         }
         )
     }
 
     fun getFastScrollHintFor(item: T, sortType: Type): String? {
         return when (sortType) {
-            Type.ByTitleDescending, Type.ByTitleAscending, Type.NativeOrder, Type.NativeOrderDescending -> {
+            Type.ByTitleDescending, Type.ByTitleAscending -> {
                 sortingHelper.getTitle(item)?.firstOrNull()?.toString()
             }
 

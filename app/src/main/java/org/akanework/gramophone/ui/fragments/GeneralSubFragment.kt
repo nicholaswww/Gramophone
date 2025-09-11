@@ -31,10 +31,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
@@ -45,6 +43,7 @@ import org.akanework.gramophone.ui.adapters.SongAdapter
 import org.akanework.gramophone.ui.adapters.Sorter
 import uk.akane.libphonograph.dynamicitem.Favorite
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
+import uk.akane.libphonograph.items.Playlist
 
 /**
  * GeneralSubFragment:
@@ -77,20 +76,14 @@ class GeneralSubFragment : BaseFragment(true) {
         val id = bundle.getString("Id")?.toLong()
 
         val title: Flow<String>
-
-        var helper: Sorter.NaturalOrderHelper<MediaItem>? = null
+        var rawOrderExposed: Sorter.Type? = null
 
         when (itemType) {
             R.id.album -> {
                 val item = mainActivity.reader.albumListFlow.map { it.find { it.id == id } }
                 title = item.map { it?.title ?: requireContext().getString(R.string.unknown_album) }
                 itemList = item.map { it?.songList }
-                helper =
-                    Sorter.NaturalOrderHelper {
-                        it.mediaMetadata.trackNumber?.plus(
-                            it.mediaMetadata.discNumber?.times(1000) ?: 0
-                        ) ?: 0
-                    }
+                rawOrderExposed = Sorter.Type.ByDiscAndTrack
             }
 
             /*R.id.artist -> {
@@ -139,13 +132,29 @@ class GeneralSubFragment : BaseFragment(true) {
                     }
                 }
                 itemList = item.map { it?.songList }
-                helper = Sorter.NaturalOrderHelper { runBlocking { itemList.first() }?.indexOf(it) ?: 0 }
+                rawOrderExposed = Sorter.Type.NaturalOrder
+                if (clazz == Playlist::class.java.name) {
+                    topAppBar.inflateMenu(R.menu.playlist_subfragment_menu)
+                    topAppBar.setOnMenuItemClickListener {
+                        when (it.itemId) {
+                            R.id.edit -> {
+                                mainActivity.startFragment(PlaylistEditFragment()) {
+                                    putString("Id", id?.toString())
+                                    putString("Class", arguments?.getString("Class"))
+                                }
+                                true
+                            }
+
+                            else -> false
+                        }
+                    }
+                }
             }
 
             else -> throw IllegalArgumentException()
         }
 
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.Default) {
             title.collect {
                 withContext(Dispatchers.Main) {
                     // Show title text.
@@ -159,7 +168,8 @@ class GeneralSubFragment : BaseFragment(true) {
                 this,
                 itemList,
                 canSort = true,
-                helper,
+                helper = null,
+                rawOrderExposed = rawOrderExposed,
                 ownsView = true,
                 isSubFragment = itemType
             )

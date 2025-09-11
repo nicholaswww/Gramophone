@@ -85,7 +85,8 @@ abstract class BaseAdapter<T : Any>(
     override val ownsView: Boolean,
     defaultLayoutType: LayoutType,
     val isSubFragment: Int? = null,
-    rawOrderExposed: Boolean = false,
+    rawOrderExposed: Sorter.Type? = null,
+    val isEdit: Boolean = false,
     private val allowDiffUtils: Boolean = false,
     private val canSort: Boolean = true,
     private val fallbackSpans: Int = 1
@@ -179,14 +180,13 @@ abstract class BaseAdapter<T : Any>(
         .combine(sortType) { it, st ->
         val l = it ?: emptyList()
         l to ArrayList(l).apply {
-            val cmp = sorter.getComparator(st)
-            if (st == Sorter.Type.NativeOrderDescending) {
-                reverse()
-            } else if (st != Sorter.Type.NativeOrder) {
+            val (cmp, reverseFirst) = sorter.getComparator(st)
+            if (reverseFirst) reverse()
+            if (cmp != null) {
                 sortWith { o1, o2 ->
                     if (isPinned(o1) && !isPinned(o2)) -1
                     else if (!isPinned(o1) && isPinned(o2)) 1
-                    else cmp?.compare(o1, o2) ?: 0
+                    else cmp.compare(o1, o2)
                 }
             }
         }.toList()
@@ -279,7 +279,7 @@ abstract class BaseAdapter<T : Any>(
         val title: TextView = view.findViewById(R.id.title)
         val subTitle: TextView = view.findViewById(R.id.artist)
         val trackCount: TextView = view.findViewById(R.id.track_count)
-        val moreButton: MaterialButton = view.findViewById(R.id.more)
+        val moreButton: MaterialButton? = view.findViewById(R.id.more)
     }
 
     override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
@@ -365,6 +365,14 @@ abstract class BaseAdapter<T : Any>(
                 }
             }
             holder.trackCount.text = trackCountOf(item)
+            if (!isEdit) {
+                holder.itemView.setOnLongClickListener {
+                    val popupMenu = PopupMenu(it.context, it)
+                    onMenu(item, popupMenu)
+                    popupMenu.show()
+                    true
+                }
+            }
         }
         holder.title.text = titleOf(item) ?: virtualTitleOf(item)
         holder.subTitle.text = subTitleOf(item)
@@ -374,10 +382,14 @@ abstract class BaseAdapter<T : Any>(
             error(defaultCover)
         }
         holder.itemView.setOnClickListener { onClick(item) }
-        holder.moreButton.setOnClickListener {
-            val popupMenu = PopupMenu(it.context, it)
-            onMenu(item, popupMenu)
-            popupMenu.show()
+        if (isEdit) {
+            holder.moreButton?.visibility = View.GONE
+        } else {
+            holder.moreButton?.setOnClickListener {
+                val popupMenu = PopupMenu(it.context, it)
+                onMenu(item, popupMenu)
+                popupMenu.show()
+            }
         }
     }
 
@@ -428,7 +440,8 @@ abstract class BaseAdapter<T : Any>(
 
     override fun onViewRecycled(holder: ViewHolder) {
         holder.itemView.setOnClickListener(null)
-        holder.moreButton.setOnClickListener(null)
+        holder.itemView.setOnLongClickListener(null)
+        holder.moreButton?.setOnClickListener(null)
         (holder.nowPlaying.drawable as? NowPlayingDrawable?)?.level2Done = null
         holder.nowPlaying.setImageDrawable(null)
         holder.nowPlaying.visibility = View.GONE
