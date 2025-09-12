@@ -70,12 +70,14 @@ class DetailedFolderAdapter(
     override val itemCountForDecor: Int
         get() = folderAdapter.itemCount
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
-    private var prefSortType: Sorter.Type = Sorter.Type.valueOf(
-        prefs.getStringStrict(
-            "S" + getAdapterType(this).toString(),
-            Sorter.Type.None.toString()
-        )!!
-    )
+    private var prefSortType: Sorter.Type = try {
+        Sorter.Type.valueOf(
+            prefs.getStringStrict(
+                "S" + getAdapterType(this).toString(),
+                Sorter.Type.None.toString()
+            )!!
+        )
+    } catch (_: IllegalArgumentException) { Sorter.Type.None }
     override val sortTypes = setOf(Sorter.Type.ByFilePathAscending, Sorter.Type.BySizeDescending)
     override val sortType = MutableStateFlow(
         if (prefSortType != Sorter.Type.None && sortTypes.contains(prefSortType))

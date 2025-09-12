@@ -115,21 +115,27 @@ abstract class BaseAdapter<T : Any>(
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
 
     private val prefSortType: Sorter.Type by lazy {
-        if (canSort) Sorter.Type.valueOf(
-            prefs.getStringStrict(
-                "S" + getAdapterType(this).toString(),
-                Sorter.Type.None.toString()
-            )!!
-        ) else Sorter.Type.None
+        if (canSort) try {
+            Sorter.Type.valueOf(
+                prefs.getStringStrict(
+                    "S" + getAdapterType(this).toString(),
+                    Sorter.Type.None.toString()
+                )!!
+            )
+        } catch (_: IllegalArgumentException) { Sorter.Type.None }
+        else Sorter.Type.None
     }
 
     private val prefLayoutType: LayoutType by lazy {
-        if (canChangeLayout) LayoutType.valueOf(
-            prefs.getStringStrict(
-                "L" + getAdapterType(this).toString(),
-                LayoutType.NONE.toString()
-            )!!
-        ) else LayoutType.NONE
+        if (canChangeLayout) try {
+            LayoutType.valueOf(
+                prefs.getStringStrict(
+                    "L" + getAdapterType(this).toString(),
+                    LayoutType.NONE.toString()
+                )!!
+            )
+        } catch (_: IllegalArgumentException) { LayoutType.NONE }
+        else LayoutType.NONE
     }
 
     override var layoutType: LayoutType? = null
