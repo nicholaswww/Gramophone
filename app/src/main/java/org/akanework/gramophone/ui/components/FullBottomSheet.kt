@@ -306,7 +306,7 @@ class FullBottomSheet
                     val format = instance?.getAudioFormat()
                     this.currentFormat = format
                     handler.removeCallbacks(formatUpdateRunnable)
-                    handler.postDelayed(formatUpdateRunnable, 500)
+                    handler.postDelayed(formatUpdateRunnable, 100)
                 }
 
                 else -> {
