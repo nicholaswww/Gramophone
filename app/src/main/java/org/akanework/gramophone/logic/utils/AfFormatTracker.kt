@@ -53,11 +53,10 @@ class AfFormatTracker(
     }
     // only access sink or track on PlaybackThread
     private var lastAudioTrack: AudioTrack? = null
-    private var lastPeriodUid: Any? = null
     private var audioSink: DefaultAudioSink? = null
     var format: AfFormatInfo? = null
         private set
-    var formatChangedCallback: ((AfFormatInfo?, Any) -> Unit)? = null
+    var formatChangedCallback: ((AfFormatInfo?) -> Unit)? = null
 
     private val routingChangedListener = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         AudioRouting.OnRoutingChangedListener {
@@ -75,10 +74,7 @@ class AfFormatTracker(
             "audioSink is null in onAudioTrackInitialized"
         )).getAudioTrack()
         if (router !== audioTrack) return // stale callback
-        // reaching here implies router == lastAudioTrack
-        if (lastPeriodUid == null)
-            throw NullPointerException("expected to have last period uid")
-        buildFormat(audioTrack, lastPeriodUid!!)
+        buildFormat(audioTrack)
     }
 
     // TODO why do we have to reflect on app code, there must be a better solution
@@ -113,9 +109,7 @@ class AfFormatTracker(
                         routingChangedListener as AudioTrack.OnRoutingChangedListener
                     )
                 }
-                lastPeriodUid?.let { formatChangedCallback?.invoke(null, it) }
                 this.lastAudioTrack = audioTrack
-                this.lastPeriodUid = eventTime.mediaPeriodId!!.periodUid
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     audioTrack?.addOnRoutingChangedListener(
                         routingChangedListener as AudioRouting.OnRoutingChangedListener,
@@ -129,35 +123,11 @@ class AfFormatTracker(
                     )
                 }
             }
-            buildFormat(audioTrack, eventTime.mediaPeriodId!!.periodUid)
+            buildFormat(audioTrack)
         }
     }
 
-    override fun onAudioTrackReleased(
-        eventTime: AnalyticsListener.EventTime,
-        audioTrackConfig: AudioTrackConfig
-    ) {
-        playbackHandler.post {
-            if (lastAudioTrack?.state == AudioTrack.STATE_UNINITIALIZED) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    lastAudioTrack?.removeOnRoutingChangedListener(
-                        routingChangedListener as AudioRouting.OnRoutingChangedListener
-                    )
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    @Suppress("deprecation")
-                    lastAudioTrack?.removeOnRoutingChangedListener(
-                        routingChangedListener as AudioTrack.OnRoutingChangedListener
-                    )
-                }
-                lastAudioTrack = null
-                formatChangedCallback?.invoke(null, lastPeriodUid!!)
-                lastPeriodUid = null
-                format = null
-            }
-        }
-    }
-
-    private fun buildFormat(audioTrack: AudioTrack?, periodUid: Any) {
+    private fun buildFormat(audioTrack: AudioTrack?) {
         audioTrack?.let {
             if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED) return@let null
             val rd = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
@@ -208,7 +178,7 @@ class AfFormatTracker(
             if (LOG_EVENTS)
                 Log.d(TAG, "audio hal format changed to: $it")
             format = it
-            formatChangedCallback?.invoke(it, periodUid)
+            formatChangedCallback?.invoke(it)
         }
     }
 
