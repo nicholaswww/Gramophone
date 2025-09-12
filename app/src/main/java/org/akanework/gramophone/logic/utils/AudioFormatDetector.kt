@@ -254,10 +254,11 @@ object AudioFormatDetector {
     @Parcelize
     enum class AudioQuality : Parcelable {
         UNKNOWN,    // Unable to determine quality
-        LOSSY,      // Compressed formats (MP3, AAC, OGG)
-        CD,         // 16-bit/44.1kHz (Red Book)
-        HD,         // 24-bit/44.1kHz or 24-bit/48kHz
-        HIRES       // 24-bit/88.2kHz+ (Hi-Res Audio standard)
+        LOSSY,      // Compressed lossy formats (MP3, AAC, OGG)
+        CD,         // 16-bit/44.1kHz (Red Book) lossless
+        HQ,         // other lossless formats that do not qualify as HD
+        HD,         // 24-bit/44.1kHz or 24-bit/48kHz lossless
+        HIRES       // 24-bit/88.2kHz+ (JAS Hi-Res Audio standard) lossless
     }
 
     @Parcelize
@@ -277,7 +278,7 @@ object AudioFormatDetector {
         DTS,            // DTS
         DTS_EXPRESS,    // DTS Express
         DTS_HD,         // DTS-HD
-        DTSX,           // DTS-X (DTS-UHD Profile 2)
+        DTS_UHD,        // DTS-UHD Profile 2
         OTHER
     }
 
@@ -485,7 +486,8 @@ object AudioFormatDetector {
         val quality = determineQualityTier(
             sampleRate = sampleRate,
             bitDepth = bitDepth,
-            isLossless = isLossless
+            isLossless = isLossless,
+            mimeType = format.sampleMimeType
         )
 
         return AudioFormatInfo(
@@ -508,7 +510,9 @@ object AudioFormatDetector {
         MimeTypes.AUDIO_ALAC,
         MimeTypes.AUDIO_WAV,
         MimeTypes.AUDIO_RAW,
-        MimeTypes.AUDIO_TRUEHD -> true
+        MimeTypes.AUDIO_TRUEHD,
+        MimeTypes.AUDIO_MIDI,
+        MimeTypes.AUDIO_EXOPLAYER_MIDI -> true
 
         // TODO distinguish lossless DTS-HD MA vs other lossy DTS-HD encoding schemes
         MimeTypes.AUDIO_DTS_HD, MimeTypes.AUDIO_DTS_X -> null
@@ -527,7 +531,7 @@ object AudioFormatDetector {
             MimeTypes.AUDIO_DTS -> SpatialFormat.DTS
             MimeTypes.AUDIO_DTS_EXPRESS -> SpatialFormat.DTS_EXPRESS
             MimeTypes.AUDIO_DTS_HD -> SpatialFormat.DTS_HD
-            MimeTypes.AUDIO_DTS_X -> SpatialFormat.DTSX
+            MimeTypes.AUDIO_DTS_X -> SpatialFormat.DTS_UHD
             else -> null
         }
 
@@ -535,7 +539,7 @@ object AudioFormatDetector {
 
         // Standard multichannel formats
         // TODO can we just go by channel count? isn't there any way to distinguish QUAD
-        //  from QUAD_BACK?
+        //  from QUAD_SIDE?
         //  answer: until https://github.com/androidx/media/issues/1471 happens we cannot
         return when (format.channelCount) {
             1 -> SpatialFormat.NONE          // Mono
@@ -651,10 +655,12 @@ object AudioFormatDetector {
             }
         }
 
-    private fun determineQualityTier(
+	@OptIn(UnstableApi::class)
+	private fun determineQualityTier(
         sampleRate: Int?,
         bitDepth: Int?,
-        isLossless: Boolean?
+        isLossless: Boolean?,
+        mimeType: String?
     ): AudioQuality = when {
         isLossless == false -> AudioQuality.LOSSY
 
@@ -666,11 +672,15 @@ object AudioFormatDetector {
         bitDepth != null && sampleRate != null &&
                 (bitDepth > 16 || sampleRate > 48000) -> AudioQuality.HD
 
-        // CD: 16bit at standard rates
-        // TODO: but 48Khz isn't CD...
-        bitDepth == 16 && sampleRate in setOf(44100, 48000) -> AudioQuality.CD
+        // CD: 16bit at 44.1kHz
+        bitDepth == 16 && sampleRate == 44100 -> AudioQuality.CD
 
         // Fallback for non-standard combinations
+        bitDepth != null && sampleRate != null -> AudioQuality.HQ
+
+        mimeType == MimeTypes.AUDIO_EXOPLAYER_MIDI ||
+                mimeType == MimeTypes.AUDIO_MIDI -> AudioQuality.HQ
+
         else -> AudioQuality.UNKNOWN
     }
 }

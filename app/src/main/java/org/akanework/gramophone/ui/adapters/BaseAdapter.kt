@@ -203,7 +203,7 @@ abstract class BaseAdapter<T : Any>(
                 val diff = if ((old?.second?.isNotEmpty() == true && it.second.isNotEmpty())
                     || allowDiffUtils
                 )
-                    DiffUtil.calculateDiff(SongDiffCallback(old?.second ?: emptyList(), it.second))
+                    DiffUtil.calculateDiff(SongDiffCallback(old?.second?.toList() ?: emptyList(), it.second.toList()))
                 else null
                 val sizeChanged = (old?.second?.size ?: 0) != it.second.size
                 val mutex = blockMutex

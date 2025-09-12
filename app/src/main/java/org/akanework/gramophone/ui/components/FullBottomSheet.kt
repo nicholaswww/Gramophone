@@ -734,6 +734,7 @@ class FullBottomSheet
                 AudioQuality.HIRES -> R.drawable.ic_high_res
                 AudioQuality.HD -> R.drawable.ic_hd
                 AudioQuality.CD -> R.drawable.ic_cd
+                AudioQuality.HQ -> R.drawable.ic_hq
                 AudioQuality.LOSSY -> R.drawable.ic_lossy
                 else -> null
             }
