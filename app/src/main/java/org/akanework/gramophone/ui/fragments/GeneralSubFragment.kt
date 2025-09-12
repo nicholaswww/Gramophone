@@ -83,7 +83,7 @@ class GeneralSubFragment : BaseFragment(true) {
                 val item = mainActivity.reader.albumListFlow.map { it.find { it.id == id } }
                 title = item.map { it?.title ?: requireContext().getString(R.string.unknown_album) }
                 itemList = item.map { it?.songList }
-                rawOrderExposed = Sorter.Type.ByDiscAndTrack
+                rawOrderExposed = Sorter.Type.ByAlbumTitleAscending
             }
 
             /*R.id.artist -> {
@@ -167,8 +167,6 @@ class GeneralSubFragment : BaseFragment(true) {
             SongAdapter(
                 this,
                 itemList,
-                canSort = true,
-                helper = null,
                 rawOrderExposed = rawOrderExposed,
                 isSubFragment = itemType
             )

@@ -74,6 +74,8 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
                 Pair(R.id.artist, Sorter.Type.ByArtistAscending),
                 Pair(R.id.album, Sorter.Type.ByAlbumTitleAscending),
                 Pair(R.id.album_artist, Sorter.Type.ByAlbumArtistAscending),
+                Pair(R.id.album_artist_year, Sorter.Type.ByAlbumArtistYearAscending),
+                Pair(R.id.album_year, Sorter.Type.ByAlbumYearDescending),
                 Pair(R.id.size, Sorter.Type.BySizeDescending),
                 Pair(R.id.add_date, Sorter.Type.ByAddDateDescending),
                 Pair(R.id.release_date, Sorter.Type.ByReleaseDateDescending),
@@ -83,7 +85,8 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
             val layoutMap = mapOf(
                 Pair(R.id.list, BaseAdapter.LayoutType.LIST),
                 Pair(R.id.compact_list, BaseAdapter.LayoutType.COMPACT_LIST),
-                Pair(R.id.grid, BaseAdapter.LayoutType.GRID)
+                Pair(R.id.grid, BaseAdapter.LayoutType.GRID),
+                Pair(R.id.compact_grid, BaseAdapter.LayoutType.COMPACT_GRID)
             )
             buttonMap.forEach {
                 popupMenu.menu.findItem(it.key).isVisible = adapter.sortTypes.contains(it.value)

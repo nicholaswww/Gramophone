@@ -46,7 +46,8 @@ class GridPaddingDecoration(context: Context) : RecyclerView.ItemDecoration() {
         if (adapter !is BaseAdapter<*>) {
             throw IllegalStateException("Cannot find desired adapter! ${adapter?.javaClass?.name}")
         }
-        if (adapter.layoutType != BaseAdapter.LayoutType.GRID) {
+        if (adapter.layoutType != BaseAdapter.LayoutType.GRID &&
+            adapter.layoutType != BaseAdapter.LayoutType.COMPACT_GRID) {
             return
         }
         val columnSize = CustomGridLayoutManager.FULL_SPAN_COUNT / adapter.getSpanSize()

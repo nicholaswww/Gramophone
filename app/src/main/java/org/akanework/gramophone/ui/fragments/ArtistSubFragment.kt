@@ -78,7 +78,7 @@ class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
         albumAdapter.decorAdapter.jumpDownPos = { albumAdapter.concatAdapter.itemCount }
         songAdapter = SongAdapter(
             this,
-            item.map { it?.songList }, canSort = true, helper = null,
+            item.map { it?.songList },
             isSubFragment = itemType
         )
         songAdapter.decorAdapter.jumpUpPos = { 0 }

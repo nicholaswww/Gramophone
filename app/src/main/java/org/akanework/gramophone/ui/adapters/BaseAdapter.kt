@@ -84,10 +84,10 @@ abstract class BaseAdapter<T : Any>(
     rawOrderExposed: Sorter.Type? = null,
     val isEdit: Boolean = false,
     private val allowDiffUtils: Boolean = false,
-    private val canSort: Boolean = true,
-    override val canChangeLayout: Boolean = true
+    private val canSort: Boolean = true
 ) : AdapterFragment.BaseInterface<BaseAdapter.ViewHolder>(), PopupTextProvider, ItemHeightHelper {
 
+    override val canChangeLayout = !isEdit
     override val context = fragment.requireContext()
     protected val liveDataAgent = MutableStateFlow(liveData)
     protected inline val mainActivity
@@ -112,23 +112,25 @@ abstract class BaseAdapter<T : Any>(
     protected var recyclerView: MyRecyclerView? = null
         private set
 
-    private var prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+    private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
 
-    @Suppress("LeakingThis")
-    private val prefSortType: Sorter.Type = if (canSort) Sorter.Type.valueOf(
-        prefs.getStringStrict(
-            "S" + getAdapterType(this).toString(),
-            Sorter.Type.None.toString()
-        )!!
-    ) else Sorter.Type.None
+    private val prefSortType: Sorter.Type by lazy {
+        if (canSort) Sorter.Type.valueOf(
+            prefs.getStringStrict(
+                "S" + getAdapterType(this).toString(),
+                Sorter.Type.None.toString()
+            )!!
+        ) else Sorter.Type.None
+    }
 
-    @Suppress("LeakingThis")
-    private var prefLayoutType: LayoutType = if (canChangeLayout) LayoutType.valueOf(
-        prefs.getStringStrict(
-            "L" + getAdapterType(this).toString(),
-            LayoutType.NONE.toString()
-        )!!
-    ) else LayoutType.NONE
+    private val prefLayoutType: LayoutType by lazy {
+        if (canChangeLayout) LayoutType.valueOf(
+            prefs.getStringStrict(
+                "L" + getAdapterType(this).toString(),
+                LayoutType.NONE.toString()
+            )!!
+        ) else LayoutType.NONE
+    }
 
     override var layoutType: LayoutType? = null
         @SuppressLint("NotifyDataSetChanged")
@@ -140,6 +142,8 @@ abstract class BaseAdapter<T : Any>(
             notifyDataSetChanged() // we change view type for all items
         }
     override val sortType: MutableStateFlow<Sorter.Type> = MutableStateFlow(
+        // TODO(ASAP): leaking this in prefSortType leads to uninitialized read in getAdapterType(),
+        //  which is why folder adapter cannot read saved sort values.
         if (prefSortType != Sorter.Type.None && sortTypes.contains(prefSortType))
             prefSortType
         else
@@ -234,6 +238,8 @@ abstract class BaseAdapter<T : Any>(
                 }
             }
         }
+        // TODO(ASAP): leaking this in prefLayoutType leads to uninitialized read in getAdapterType(),
+        //  which is why folder adapter cannot read saved layout values.
         layoutType =
             if (prefLayoutType != LayoutType.NONE && prefLayoutType != defaultLayoutType)
                 prefLayoutType
@@ -250,7 +256,7 @@ abstract class BaseAdapter<T : Any>(
         val nowPlaying: ImageView = view.findViewById(R.id.now_playing)
         val title: TextView = view.findViewById(R.id.title)
         val subTitle: TextView = view.findViewById(R.id.artist)
-        val trackCount: TextView = view.findViewById(R.id.track_count)
+        val trackCount: TextView? = view.findViewById(R.id.track_count)
         val moreButton: MaterialButton? = view.findViewById(R.id.more)
     }
 
@@ -291,7 +297,7 @@ abstract class BaseAdapter<T : Any>(
 
     override fun getItemViewType(position: Int): Int {
         return when (layoutType) {
-            LayoutType.GRID -> R.layout.adapter_grid_card
+            LayoutType.GRID, LayoutType.COMPACT_GRID -> R.layout.adapter_grid_card
             LayoutType.COMPACT_LIST -> R.layout.adapter_list_card
             LayoutType.LIST, null -> R.layout.adapter_list_card_larger
             else -> throw IllegalArgumentException()
@@ -303,7 +309,7 @@ abstract class BaseAdapter<T : Any>(
         position: Int
     ) {
         val item = list!!.second[position]
-        if (layoutType == LayoutType.GRID) {
+        if (layoutType == LayoutType.GRID || layoutType == LayoutType.COMPACT_GRID) {
             lockedInGridSize = true
             val newHeight = gridHeight!!
             if (holder.itemView.layoutParams.height != newHeight) {
@@ -311,7 +317,7 @@ abstract class BaseAdapter<T : Any>(
                     height = newHeight
                 }
             }
-            holder.trackCount.text = trackCountOf(item)
+            holder.trackCount!!.text = trackCountOf(item)
             if (!isEdit) {
                 holder.itemView.setOnLongClickListener {
                     val popupMenu = PopupMenu(it.context, it)
@@ -342,7 +348,7 @@ abstract class BaseAdapter<T : Any>(
 
     // need to call notifyDataSetChanged() afterwards, unless lockedInGridSize == false
     private fun calculateGridSizeIfNeeded() {
-        if (layoutType != LayoutType.GRID) return
+        if (layoutType != LayoutType.GRID && layoutType != LayoutType.COMPACT_GRID) return
         if (recyclerView != null && recyclerView!!.width != 0) {
             val cardPadding =
                 context.resources.getDimensionPixelSize(R.dimen.grid_card_side_padding)
@@ -478,10 +484,10 @@ abstract class BaseAdapter<T : Any>(
     }
 
     enum class LayoutType {
-        NONE, LIST, COMPACT_LIST, GRID
+        NONE, LIST, COMPACT_LIST, GRID, COMPACT_GRID
     }
 
-    open class StoreItemHelper<T : Item>(
+    abstract class StoreItemHelper<T : Item>(
         typesSupported: Set<Sorter.Type> = setOf(
             Sorter.Type.ByTitleDescending, Sorter.Type.ByTitleAscending,
             Sorter.Type.BySizeDescending, Sorter.Type.BySizeAscending
@@ -508,7 +514,7 @@ abstract class BaseAdapter<T : Any>(
         val count = ((to / (CustomGridLayoutManager.FULL_SPAN_COUNT / getSpanSize())
             .toFloat()) + 0.5f).toInt()
         return count * when (layoutType) {
-            LayoutType.GRID -> gridHeight!!
+            LayoutType.GRID, LayoutType.COMPACT_GRID -> gridHeight!!
             LayoutType.COMPACT_LIST -> listHeight
             LayoutType.LIST, null -> largerListHeight
             else -> throw IllegalArgumentException()
@@ -516,13 +522,18 @@ abstract class BaseAdapter<T : Any>(
     }
 
     fun getSpanSize(): Int {
+        val isList = layoutType != LayoutType.GRID && layoutType != LayoutType.COMPACT_GRID
         val lowWidth = context.resources.configuration.orientation ==
                 Configuration.ORIENTATION_PORTRAIT ||
                 context.resources.configuration.screenWidthDp < 600
-        return if (layoutType != LayoutType.GRID && lowWidth)
-            CustomGridLayoutManager.LIST_PORTRAIT_SPAN_SIZE
-        else if (layoutType != LayoutType.GRID || lowWidth)
-            CustomGridLayoutManager.LIST_LANDSCAPE_GRID_PORTRAIT_SPAN_SIZE
-        else CustomGridLayoutManager.GRID_LANDSCAPE_SPAN_SIZE
+        return when {
+            isList && lowWidth -> CustomGridLayoutManager.LIST_PORTRAIT_SPAN_SIZE
+            isList -> CustomGridLayoutManager.LIST_LANDSCAPE_SPAN_SIZE
+            layoutType == LayoutType.GRID && lowWidth -> CustomGridLayoutManager.GRID_PORTRAIT_SPAN_SIZE
+            layoutType == LayoutType.GRID -> CustomGridLayoutManager.GRID_LANDSCAPE_SPAN_SIZE
+            layoutType == LayoutType.COMPACT_GRID && lowWidth -> CustomGridLayoutManager.COMPACT_GRID_PORTRAIT_SPAN_SIZE
+            layoutType == LayoutType.COMPACT_GRID -> CustomGridLayoutManager.COMPACT_GRID_LANDSCAPE_SPAN_SIZE
+            else -> throw IllegalStateException("invalid span size for layout")
+        }
     }
 }

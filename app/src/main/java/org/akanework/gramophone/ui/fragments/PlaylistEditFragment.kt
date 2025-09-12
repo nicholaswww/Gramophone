@@ -56,11 +56,8 @@ class PlaylistEditFragment : BaseFragment(false) {
 			SongAdapter(
 				this,
 				songList,
-				canSort = false,
 				rawOrderExposed = Sorter.Type.NaturalOrder,
-				helper = null,
 				isEdit = true,
-				canChangeLayout = false,
 				isSubFragment = R.id.edit
 			)
 

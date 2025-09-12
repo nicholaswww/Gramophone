@@ -12,12 +12,8 @@ import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.withContext
 import org.akanework.gramophone.logic.hasAudioPermission
 import org.akanework.gramophone.logic.hasImagePermission
 import org.akanework.gramophone.logic.hasImprovedMediaStore
@@ -32,6 +28,7 @@ import uk.akane.libphonograph.items.Artist
 import uk.akane.libphonograph.items.Date
 import uk.akane.libphonograph.items.EXTRA_ADD_DATE
 import uk.akane.libphonograph.items.EXTRA_ALBUM_ID
+import uk.akane.libphonograph.items.EXTRA_ALBUM_YEAR
 import uk.akane.libphonograph.items.EXTRA_ARTIST_ID
 import uk.akane.libphonograph.items.EXTRA_AUTHOR
 import uk.akane.libphonograph.items.EXTRA_CD_TRACK_NUMBER
@@ -39,6 +36,8 @@ import uk.akane.libphonograph.items.EXTRA_MODIFIED_DATE
 import uk.akane.libphonograph.items.FileNode
 import uk.akane.libphonograph.items.Genre
 import uk.akane.libphonograph.items.RawPlaylist
+import uk.akane.libphonograph.items.addDate
+import uk.akane.libphonograph.items.modifiedDate
 import uk.akane.libphonograph.manipulator.PlaylistSerializer
 import uk.akane.libphonograph.putIfAbsentSupport
 import uk.akane.libphonograph.toUriCompat
@@ -354,6 +353,11 @@ internal object Reader {
                                 if (albumId != null) {
                                     putLong(EXTRA_ALBUM_ID, albumId)
                                 }
+                                // EXTRA_ALBUM_YEAR assigned below
+                                // TODO: is albumYear truly a good property of a song? it creates
+                                //  a cyclic dependency between albums derived from songs, and song
+                                //  metadata derived from album. maybe users of this should just
+                                //  query the album list instead and fetch album year from there.
                                 putString(EXTRA_AUTHOR, author)
                                 if (addDate != null) {
                                     putLong(EXTRA_ADD_DATE, addDate)
@@ -386,6 +390,8 @@ internal object Reader {
                         null,
                         null,
                         cover,
+                        null,
+                        null,
                         null,
                         mutableListOf()
                     )
@@ -428,6 +434,10 @@ internal object Reader {
             it.albumArtistId = artistFound?.second ?: artistCacheMap?.get(it.albumArtist)
                     ?: "nonMediaStoreArtist:${it.albumArtist}".hashCode().toLong()
             it.albumYear = it.songList.mapNotNull { it.mediaMetadata.releaseYear }.maxOrNull()
+            if (it.albumYear != null)
+                it.songList.forEach { item -> item.mediaMetadata.extras!!.putLong(EXTRA_ALBUM_YEAR, it.albumYear!!.toLong()) }
+            it.albumAddDate = it.songList.mapNotNull { it.mediaMetadata.addDate }.minOrNull()
+            it.albumModifiedDate = it.songList.mapNotNull { it.mediaMetadata.modifiedDate }.maxOrNull()
             val albumArtist = albumArtistMap?.getOrPut(it.albumArtistId) {
                 Artist(it.albumArtistId, it.albumArtist, mutableListOf(), mutableListOf())
             }

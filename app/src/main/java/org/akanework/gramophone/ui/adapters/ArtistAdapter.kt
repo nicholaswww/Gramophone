@@ -41,7 +41,7 @@ class ArtistAdapter(
     fragment,
     liveData = (fragment.requireActivity() as MainActivity).let { if (isAlbumArtist)
         it.reader.albumArtistListFlow else it.reader.artistListFlow },
-    sortHelper = StoreArtistHelper(),
+    sortHelper = StoreArtistHelper,
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.artists,
@@ -139,7 +139,7 @@ class ArtistAdapter(
         }
     }
 
-    class StoreArtistHelper : StoreItemHelper<Artist>(
+    object StoreArtistHelper : StoreItemHelper<Artist>(
         setOf(
             Sorter.Type.ByTitleDescending, Sorter.Type.ByTitleAscending,
             Sorter.Type.BySizeDescending, Sorter.Type.BySizeAscending,

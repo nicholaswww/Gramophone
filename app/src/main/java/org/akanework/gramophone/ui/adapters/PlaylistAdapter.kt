@@ -53,6 +53,7 @@ import org.akanework.gramophone.ui.fragments.AdapterFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.dynamicitem.Favorite
 import uk.akane.libphonograph.dynamicitem.RecentlyAdded
+import uk.akane.libphonograph.items.Date
 import uk.akane.libphonograph.items.Playlist
 import uk.akane.libphonograph.manipulator.ItemManipulator
 import uk.akane.libphonograph.manipulator.ItemManipulator.DeleteFailedPleaseTryDeleteRequestException
@@ -67,7 +68,7 @@ class PlaylistAdapter(
     (
     fragment,
     liveData = (fragment.requireActivity() as MainActivity).reader.playlistListFlow,
-    sortHelper = StoreItemHelper(),
+    sortHelper = StorePlaylistHelper,
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.items,
@@ -279,6 +280,8 @@ class PlaylistAdapter(
             super.onViewRecycled(holder)
         }
     }
+
+    object StorePlaylistHelper : StoreItemHelper<Playlist>()
 
     companion object {
         fun playlistNameDialog(context: Context, title: Int, initialValue: String, then: (String) -> Unit) {

@@ -40,12 +40,14 @@ import org.akanework.gramophone.logic.use
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
 import uk.akane.libphonograph.items.EXTRA_ADD_DATE
 import uk.akane.libphonograph.items.EXTRA_ALBUM_ID
+import uk.akane.libphonograph.items.EXTRA_ALBUM_YEAR
 import uk.akane.libphonograph.items.EXTRA_ARTIST_ID
 import uk.akane.libphonograph.items.EXTRA_AUTHOR
 import uk.akane.libphonograph.items.EXTRA_CD_TRACK_NUMBER
 import uk.akane.libphonograph.items.EXTRA_MODIFIED_DATE
 import uk.akane.libphonograph.items.addDate
 import uk.akane.libphonograph.items.albumId
+import uk.akane.libphonograph.items.albumYear
 import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.items.author
 import uk.akane.libphonograph.items.cdTrackNumber
@@ -136,6 +138,7 @@ class LastPlayedManager(
                     b.writeLong(it.mediaMetadata.durationMs)
                     b.writeLong(it.mediaMetadata.modifiedDate)
                     b.writeStringSafe(it.mediaMetadata.cdTrackNumber)
+                    b.writeLong(it.mediaMetadata.albumYear)
                     b.toString()
                 })
             prefs.edit {
@@ -232,6 +235,7 @@ class LastPlayedManager(
                                 b.skip() // used to be Path
                             val modifiedDate = b.readLong()
                             val cdTrackNumber = b.readStringSafe()
+                            val albumYear = b.readLong()
                             MediaItem.Builder()
                                 .setUri(uri)
                                 .setMediaId(mediaId!!)
@@ -266,6 +270,9 @@ class LastPlayedManager(
                                             }
                                             if (albumId != null) {
                                                 putLong(EXTRA_ALBUM_ID, albumId)
+                                            }
+                                            if (albumYear != null) {
+                                                putLong(EXTRA_ALBUM_YEAR, albumYear)
                                             }
                                             putString(EXTRA_CD_TRACK_NUMBER, cdTrackNumber)
                                             putString(EXTRA_AUTHOR, author)

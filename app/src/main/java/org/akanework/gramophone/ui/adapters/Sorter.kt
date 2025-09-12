@@ -43,6 +43,7 @@ class Sorter<T>(
         open fun getFile(item: T): File = throw UnsupportedOperationException()
         open fun getAlbumTitle(item: T): String? = throw UnsupportedOperationException()
         open fun getAlbumArtist(item: T): String? = throw UnsupportedOperationException()
+        open fun getAlbumYear(item: T): Long? = throw UnsupportedOperationException()
         open fun getSize(item: T): Int = throw UnsupportedOperationException()
         open fun getAlbumSize(item: T): Int = throw UnsupportedOperationException()
         open fun getAddDate(item: T): Long = throw UnsupportedOperationException()
@@ -60,6 +61,9 @@ class Sorter<T>(
 
         fun canGetAlbumArtist(): Boolean = typesSupported.contains(Type.ByAlbumArtistAscending)
                 || typesSupported.contains(Type.ByAlbumArtistDescending)
+
+        fun canGetAlbumYear(): Boolean = typesSupported.contains(Type.ByAlbumYearAscending)
+                || typesSupported.contains(Type.ByAlbumYearDescending)
 
         fun canGetSize(): Boolean = typesSupported.contains(Type.BySizeAscending)
                 || typesSupported.contains(Type.BySizeDescending)
@@ -91,6 +95,8 @@ class Sorter<T>(
         ByArtistDescending, ByArtistAscending,
         ByAlbumTitleDescending, ByAlbumTitleAscending,
         ByAlbumArtistDescending, ByAlbumArtistAscending,
+        ByAlbumArtistYearDescending, ByAlbumArtistYearAscending,
+        ByAlbumYearDescending, ByAlbumYearAscending,
         BySizeDescending, BySizeAscending,
         ByAlbumSizeDescending, ByAlbumSizeAscending,
         NaturalOrder, ByAddDateDescending, ByAddDateAscending,
@@ -110,6 +116,10 @@ class Sorter<T>(
 	            ByAlbumTitleAscending -> ByAlbumTitleDescending
 	            ByAlbumArtistDescending -> ByAlbumArtistAscending
 	            ByAlbumArtistAscending -> ByAlbumArtistDescending
+                ByAlbumArtistYearDescending -> ByAlbumArtistYearAscending
+                ByAlbumArtistYearAscending -> ByAlbumArtistYearDescending
+                ByAlbumYearDescending -> ByAlbumYearAscending
+                ByAlbumYearAscending -> ByAlbumYearDescending
 	            BySizeDescending -> BySizeAscending
 	            BySizeAscending -> BySizeDescending
 	            ByAlbumSizeDescending -> ByAlbumSizeAscending
@@ -195,7 +205,6 @@ class Sorter<T>(
                 }, getComparatorNoReverse(Type.ByDiscAndTrack))
             }
 
-            // TODO support choosing album artist > album year > disc/track
             Type.ByAlbumArtistDescending -> {
                 SupportComparator.createAlphanumericComparator(true, {
                     sortingHelper.getAlbumArtist(it)
@@ -206,6 +215,30 @@ class Sorter<T>(
                 SupportComparator.createAlphanumericComparator(false, {
                     sortingHelper.getAlbumArtist(it)
                 }, getComparatorNoReverse(Type.ByAlbumTitleAscending))
+            }
+
+            Type.ByAlbumArtistYearDescending -> {
+                SupportComparator.createAlphanumericComparator(true, {
+                    sortingHelper.getAlbumArtist(it)
+                }, getComparatorNoReverse(Type.ByAlbumYearDescending))
+            }
+
+            Type.ByAlbumArtistYearAscending -> {
+                SupportComparator.createAlphanumericComparator(false, {
+                    sortingHelper.getAlbumArtist(it)
+                }, getComparatorNoReverse(Type.ByAlbumYearAscending))
+            }
+
+            Type.ByAlbumYearDescending -> {
+                SupportComparator.createInversionComparator(compareBy {
+                    sortingHelper.getAlbumYear(it) ?: Long.MIN_VALUE
+                }, true, getComparatorNoReverse(Type.ByAlbumTitleAscending))
+            }
+
+            Type.ByAlbumYearAscending -> {
+                SupportComparator.createInversionComparator(compareBy {
+                    sortingHelper.getAlbumYear(it) ?: Long.MIN_VALUE
+                }, false, getComparatorNoReverse(Type.ByAlbumTitleDescending))
             }
 
             Type.BySizeDescending -> {
@@ -313,6 +346,14 @@ class Sorter<T>(
 
             Type.ByAlbumArtistDescending, Type.ByAlbumArtistAscending -> {
                 sortingHelper.getAlbumArtist(item)?.firstOrNull()?.toString()
+            }
+
+            Type.ByAlbumArtistYearDescending, Type.ByAlbumArtistYearAscending -> {
+                sortingHelper.getAlbumArtist(item)?.firstOrNull()?.toString()
+            }
+
+            Type.ByAlbumYearDescending, Type.ByAlbumYearAscending -> {
+                sortingHelper.getAlbumYear(item)?.toString()
             }
 
             Type.ByFilePathDescending, Type.ByFilePathAscending -> {

@@ -103,7 +103,7 @@ class AdapterFragment : BaseFragment(null) {
     private fun createAdapter(): BaseInterface<*> {
         val id = arguments?.getInt("ID", -1)
         return when (id) {
-            R.id.songs -> SongAdapter(this, canSort = true, helper = null)
+            R.id.songs -> SongAdapter(this)
             R.id.albums -> AlbumAdapter(this)
             R.id.artists -> ArtistAdapter(this)
             R.id.genres -> GenreAdapter(this)

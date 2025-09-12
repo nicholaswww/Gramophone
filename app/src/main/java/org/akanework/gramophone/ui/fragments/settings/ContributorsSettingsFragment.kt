@@ -71,7 +71,7 @@ class ContributorsSettingsActivity : BaseActivity() {
         setContent {
             MaterialTheme(
                 colorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    // TODO dedupe with other compose frags and add amoled theme
+                    // TODO(ASAP) dedupe with other compose frags and add amoled theme
                     if (isSystemInDarkTheme())
                         dynamicDarkColorScheme(applicationContext)
                     else

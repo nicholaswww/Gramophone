@@ -35,7 +35,7 @@ class AlbumAdapter(
     (
     fragment,
     liveData = liveData,
-    sortHelper = StoreAlbumHelper(),
+    sortHelper = StoreAlbumHelper,
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.albums,
@@ -92,12 +92,14 @@ class AlbumAdapter(
         }
     }
 
-    class StoreAlbumHelper : StoreItemHelper<Album>(
+    object StoreAlbumHelper : StoreItemHelper<Album>(
         setOf(
             Sorter.Type.ByTitleDescending, Sorter.Type.ByTitleAscending,
             Sorter.Type.ByArtistDescending, Sorter.Type.ByArtistAscending,
             Sorter.Type.BySizeDescending, Sorter.Type.BySizeAscending,
-            Sorter.Type.ByReleaseDateAscending, Sorter.Type.ByReleaseDateDescending
+            Sorter.Type.ByReleaseDateAscending, Sorter.Type.ByReleaseDateDescending,
+            Sorter.Type.ByAddDateAscending, Sorter.Type.ByAddDateDescending,
+            Sorter.Type.ByModifiedDateAscending, Sorter.Type.ByModifiedDateDescending
         )
     ) {
         override fun getArtist(item: Album): String? {
@@ -110,6 +112,14 @@ class AlbumAdapter(
 
         override fun getReleaseDate(item: Album): Long {
             return GregorianCalendar(item.albumYear ?: 0, 0, 0, 0, 0, 0).timeInMillis
+        }
+
+        override fun getAddDate(item: Album): Long {
+            return item.albumAddDate ?: -1
+        }
+
+        override fun getModifiedDate(item: Album): Long {
+            return item.albumModifiedDate ?: -1
         }
     }
 }

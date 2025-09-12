@@ -80,8 +80,8 @@ class SearchFragment : BaseFragment(true) {
                         isMatchingTitle || isMatchingAlbum || isMatchingArtist
                     }
                 },
-                true, null, isSubFragment = R.id.search,
-                allowDiffUtils = true, rawOrderExposed = Sorter.Type.ByTitleAscending
+                isSubFragment = R.id.search, allowDiffUtils = true,
+                rawOrderExposed = Sorter.Type.ByTitleAscending
             )
         val returnButton = rootView.findViewById<Button>(R.id.return_button)
 

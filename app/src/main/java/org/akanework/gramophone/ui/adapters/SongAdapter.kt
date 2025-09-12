@@ -48,12 +48,12 @@ import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.addDate
 import uk.akane.libphonograph.items.albumId
+import uk.akane.libphonograph.items.albumYear
 import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.items.modifiedDate
 import uk.akane.libphonograph.manipulator.ItemManipulator
 import java.io.File
 import java.util.GregorianCalendar
-
 
 /**
  * [SongAdapter] is an adapter for displaying songs.
@@ -61,27 +61,24 @@ import java.util.GregorianCalendar
 class SongAdapter(
     fragment: Fragment,
     songList: Flow<List<MediaItem>?> = (fragment.requireActivity() as MainActivity).reader.songListFlow,
-    canSort: Boolean,
-    helper: Sorter.NaturalOrderHelper<MediaItem>?,
+    helper: Sorter.NaturalOrderHelper<MediaItem>? = null,
     isSubFragment: Int? = null,
     allowDiffUtils: Boolean = false,
     rawOrderExposed: Sorter.Type? = if (isSubFragment == null) Sorter.Type.ByTitleAscending else null,
     isEdit: Boolean = false,
-    canChangeLayout: Boolean = true,
     val folder: Boolean = false
 ) : BaseAdapter<MediaItem>
     (
     fragment,
     liveData = songList,
-    sortHelper = MediaItemHelper(),
-    naturalOrderHelper = if (canSort) helper else null,
-    initialSortType = if (canSort)
-        (if (helper != null || rawOrderExposed == Sorter.Type.NaturalOrder) Sorter.Type.NaturalOrder else
-            (if (folder) Sorter.Type.ByFilePathAscending else Sorter.Type.ByTitleAscending))
+    sortHelper = MediaItemHelper,
+    naturalOrderHelper = if (!isEdit) helper else null,
+    initialSortType = if (!isEdit)
+        (if (helper != null) Sorter.Type.NaturalOrder else (rawOrderExposed ?:
+        if (folder) Sorter.Type.ByFilePathAscending else Sorter.Type.ByTitleAscending))
     else Sorter.Type.None,
-    canSort = canSort,
+    canSort = !isEdit,
     pluralStr = R.plurals.songs,
-    canChangeLayout = canChangeLayout,
     isEdit = isEdit,
     defaultLayoutType = LayoutType.COMPACT_LIST,
     isSubFragment = isSubFragment,
@@ -345,20 +342,21 @@ class SongAdapter(
         holder.nowPlaying.visibility = View.VISIBLE
     }
 
-    // TODO support album year sort
-    class MediaItemHelper(
-        types: Set<Sorter.Type> = setOf(
+    object MediaItemHelper : Sorter.Helper<MediaItem>(
+        setOf(
             Sorter.Type.ByTitleDescending, Sorter.Type.ByTitleAscending,
             Sorter.Type.ByArtistDescending, Sorter.Type.ByArtistAscending,
             Sorter.Type.ByAlbumTitleDescending, Sorter.Type.ByAlbumTitleAscending,
             Sorter.Type.ByAlbumArtistDescending, Sorter.Type.ByAlbumArtistAscending,
+            Sorter.Type.ByAlbumArtistYearDescending, Sorter.Type.ByAlbumArtistYearAscending,
+            Sorter.Type.ByAlbumYearDescending, Sorter.Type.ByAlbumYearAscending,
             Sorter.Type.ByAddDateDescending, Sorter.Type.ByAddDateAscending,
             Sorter.Type.ByReleaseDateDescending, Sorter.Type.ByReleaseDateAscending,
             Sorter.Type.ByModifiedDateDescending, Sorter.Type.ByModifiedDateAscending,
             Sorter.Type.ByFilePathDescending, Sorter.Type.ByFilePathAscending,
             Sorter.Type.ByDiscAndTrack
         )
-    ) : Sorter.Helper<MediaItem>(types) {
+    ) {
         override fun getId(item: MediaItem): String {
             return item.mediaId
         }
@@ -381,6 +379,10 @@ class SongAdapter(
 
         override fun getAlbumArtist(item: MediaItem): String {
             return item.mediaMetadata.albumArtist?.toString() ?: ""
+        }
+
+        override fun getAlbumYear(item: MediaItem): Long? {
+            return item.mediaMetadata.albumYear
         }
 
         override fun getCover(item: MediaItem): Uri? {

@@ -37,28 +37,38 @@
             android:title="@string/sort_by_album_artist"
             app:showAsAction="never" />
         <item
-            android:id="@+id/size"
+            android:id="@+id/album_artist_year"
             android:orderInCategory="5"
+            android:title="@string/sort_by_album_artist_year"
+            app:showAsAction="never" />
+        <item
+            android:id="@+id/album_year"
+            android:orderInCategory="6"
+            android:title="@string/sort_by_album_year"
+            app:showAsAction="never" />
+        <item
+            android:id="@+id/size"
+            android:orderInCategory="7"
             android:title="@string/sort_by_size"
             app:showAsAction="never" />
         <item
             android:id="@+id/add_date"
-            android:orderInCategory="6"
+            android:orderInCategory="8"
             android:title="@string/sort_by_add_date"
             app:showAsAction="never" />
         <item
             android:id="@+id/release_date"
-            android:orderInCategory="7"
+            android:orderInCategory="9"
             android:title="@string/sort_by_release_date"
             app:showAsAction="never" />
         <item
             android:id="@+id/mod_date"
-            android:orderInCategory="8"
+            android:orderInCategory="10"
             android:title="@string/sort_by_modified_date"
             app:showAsAction="never" />
         <item
             android:id="@+id/file_path"
-            android:orderInCategory="9"
+            android:orderInCategory="11"
             android:title="@string/sort_by_file_path"
             app:showAsAction="never" />
     </group>
@@ -80,8 +90,13 @@
                     android:title="@string/list"
                     app:showAsAction="never" />
                 <item
-                    android:id="@+id/grid"
+                    android:id="@+id/compact_grid"
                     android:orderInCategory="2"
+                    android:title="@string/compact_grid"
+                    app:showAsAction="never" />
+                <item
+                    android:id="@+id/grid"
+                    android:orderInCategory="3"
                     android:title="@string/grid"
                     app:showAsAction="never"
                     tools:checked="true" />

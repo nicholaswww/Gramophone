@@ -40,10 +40,13 @@ class CustomGridLayoutManager(
     constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int,
                 defStyleRes: Int) : this(context)
     companion object {
-        const val FULL_SPAN_COUNT = 4
-        const val LIST_PORTRAIT_SPAN_SIZE = 4
-        const val LIST_LANDSCAPE_GRID_PORTRAIT_SPAN_SIZE = 2
-        const val GRID_LANDSCAPE_SPAN_SIZE = 1
+        const val FULL_SPAN_COUNT = 12
+        const val LIST_PORTRAIT_SPAN_SIZE = 12 // 100%
+        const val LIST_LANDSCAPE_SPAN_SIZE = 6 // 50%
+        const val GRID_PORTRAIT_SPAN_SIZE = 6 // 50%
+        const val GRID_LANDSCAPE_SPAN_SIZE = 3 // 25%
+        const val COMPACT_GRID_PORTRAIT_SPAN_SIZE = 4 // 33%
+        const val COMPACT_GRID_LANDSCAPE_SPAN_SIZE = 2 // 16%
     }
     init {
         spanSizeLookup =

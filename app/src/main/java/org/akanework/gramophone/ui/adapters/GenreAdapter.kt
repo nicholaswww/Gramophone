@@ -24,6 +24,7 @@ import androidx.media3.common.MediaItem
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
+import uk.akane.libphonograph.items.Date
 import uk.akane.libphonograph.items.Genre
 
 /**
@@ -35,7 +36,7 @@ class GenreAdapter(
     (
     fragment,
     liveData = (fragment.requireActivity() as MainActivity).reader.genreListFlow,
-    sortHelper = StoreItemHelper(),
+    sortHelper = StoreGenreHelper,
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.items,
@@ -91,4 +92,6 @@ class GenreAdapter(
 
         }
     }
+
+    object StoreGenreHelper : StoreItemHelper<Genre>()
 }

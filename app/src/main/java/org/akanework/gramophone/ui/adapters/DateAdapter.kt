@@ -35,7 +35,7 @@ class DateAdapter(
     (
     fragment,
     liveData = (fragment.requireActivity() as MainActivity).reader.dateListFlow,
-    sortHelper = StoreItemHelper(),
+    sortHelper = StoreDateHelper,
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.items,
@@ -90,5 +90,7 @@ class DateAdapter(
             }
         }
     }
+
+    object StoreDateHelper : StoreItemHelper<Date>()
 
 }
