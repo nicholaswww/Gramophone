@@ -42,7 +42,6 @@
         <item quantity="one">%d Albums</item>
         <item quantity="other">%d Albumi</item>
     </plurals>
-    <string name="sort_by_album_artist">Albuma mākslinieks</string>
     <string name="settings_library">Bibliotēka</string>
     <string name="now_playing">Pašlaik atskaņo</string>
     <string name="filesystem">Failu sistēma</string>

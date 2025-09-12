@@ -249,7 +249,6 @@
     <string name="device_type_ble_speaker">Haut-parleur Bluetooth LE</string>
     <string name="device_type_ble_broadcast">Diffusion Bluetooth LE</string>
     <string name="settings_pixel_perfect_measurement_legacy_title">Mesure de texte au pixel près</string>
-    <string name="sort_by_album_artist">Artiste de l\'album</string>
     <string name="sort_by_file_path">Chemin d\'accès au fichiers</string>
     <string name="failed_to_parse_lyric">Impossible d\'analyser les paroles</string>
     <string name="spk_channel_out_5point1">5.1</string>

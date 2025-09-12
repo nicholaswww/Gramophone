@@ -179,7 +179,6 @@
     <string name="no">いいえ</string>
     <string name="delete">削除</string>
     <string name="yes">はい</string>
-    <string name="sort_by_album_artist">アルバムアーティスト</string>
     <string name="sort_by_file_path">ファイルパス</string>
     <string name="spk_encoding_pcm_16bit_big_endian">16 ビット PCM (ビッグエンディアン)</string>
     <string name="spk_channel_out_stereo">ステレオ</string>

@@ -227,7 +227,6 @@
     <string name="spk_channel_out_top_back_left">Верхний Нижний Левый</string>
     <string name="spk_channel_out_bottom_front_center">Нижний Верхний Центральный</string>
     <string name="sort_by_file_path">Путь к файлу</string>
-    <string name="sort_by_album_artist">Альбом исполнителя</string>
     <string name="spk_channel_out_front_left_of_center">Передний Левый или Центральный</string>
     <string name="spk_channel_out_front_right_of_center">Передний Правый или Центральный</string>
     <string name="spk_channel_out_top_front_center">Верхний Передний Центральный</string>

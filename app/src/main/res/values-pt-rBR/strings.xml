@@ -207,7 +207,6 @@
     <string name="spk_channel_out_top_back_right">Fundo superior direito</string>
     <string name="spk_channel_out_top_side_right">Lado superior direito</string>
     <string name="spk_channel_out_surround">Surround (4.0)</string>
-    <string name="sort_by_album_artist">Artista do álbum</string>
     <string name="sort_by_file_path">Caminho do arquivo</string>
     <string name="spk_channel_out_quad">Quad</string>
     <string name="settings_contributors_click">%s (clique para saber mais!)</string>

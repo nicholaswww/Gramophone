@@ -109,7 +109,6 @@
     <string name="dialog_edit_metadata">Muokkaa</string>
     <string name="deny_images"><![CDATA[Kiellä \"Kuvat ja videot\" -lupa]]></string>
     <string name="home_menu_shuffle">Sekoita kaikki</string>
-    <string name="sort_by_album_artist">Albumin artisti</string>
     <string name="dismiss">Hylkää</string>
     <string name="settings_contributors">Avustajat</string>
     <string name="dialog_title">Otsikko</string>

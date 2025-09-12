@@ -130,7 +130,6 @@
         <item quantity="one">پوشه</item>
         <item quantity="other">پوشه ها</item>
     </plurals>
-    <string name="sort_by_album_artist">خواننده ی البوم</string>
     <string name="settings_default_progress_bar_summary">فعال کردن نوار پخش بر اساس متریال دیزاین</string>
     <string name="opensource_info">اپن‌سورس و تحت گواهینامه ی GPL-3.0\nکپی‌رایت %s</string>
     <string name="playlist_favourite">مورد علاقه</string>

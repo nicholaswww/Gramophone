@@ -196,7 +196,6 @@
         <item quantity="other">%d รายการ</item>
     </plurals>
     <string name="unknown_genre">ไม่ทราบแนวเพลง</string>
-    <string name="sort_by_album_artist">ศิลปินอัลบั้ม</string>
     <string name="unknown_playlist">เพลย์ลิสต์ที่ไม่รู้จัก</string>
     <string name="album_artist">ศิลปินอัลบั้ม</string>
     <string name="settings_category_behavior">พฤติกรรม</string>

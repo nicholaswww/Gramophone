@@ -182,7 +182,6 @@
     <string name="lyric_widget_description">தற்போது விளையாடும் ஊடகங்களின் பாடல்களைக் காட்டும் விட்செட்</string>
     <string name="yes">ஆம்</string>
     <string name="no">இல்லை</string>
-    <string name="sort_by_album_artist">ஆல்பம் கலைஞர்</string>
     <string name="settings_contributors_click">%s (மேலும் சொடுக்கு செய்க!)</string>
     <string name="delete_really">நீங்கள் உண்மையில் \"%s\" நீக்க விரும்புகிறீர்களா? இந்த செயலை செயல்தவிர்க்க முடியாது.</string>
     <string name="sort_by_file_path">கோப்பு பாதை</string>

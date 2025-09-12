@@ -192,7 +192,6 @@
     <string name="spk_channel_out_back_right">Arka Sağ</string>
     <string name="device_type_usb_device">USB cihazı</string>
     <string name="device_type_usb_accessory">USB aksesuarı</string>
-    <string name="sort_by_album_artist">Albüm sanatçısı</string>
     <string name="delete">Sil</string>
     <string name="yes">Evet</string>
     <string name="sort_by_file_path">Dosya yolu</string>

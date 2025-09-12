@@ -188,7 +188,6 @@
     <string name="delete">Suprimeix</string>
     <string name="no">No</string>
     <string name="sort_by_file_path">Camí del fitxer</string>
-    <string name="sort_by_album_artist">Artista de l\'àlbum</string>
     <string name="spk_channel_out_quad">Quadrafònic</string>
     <string name="spk_channel_out_surround">Envoltant (4.0)</string>
     <string name="spk_channel_out_5point1">5.1</string>

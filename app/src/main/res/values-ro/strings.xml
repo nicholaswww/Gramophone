@@ -209,7 +209,6 @@
     <string name="spk_channel_out_top_front_right">Top front drept</string>
     <string name="spk_channel_out_6point1">6.1</string>
     <string name="spk_channel_invalid">Invalid</string>
-    <string name="sort_by_album_artist">Albumul artistului</string>
     <string name="settings_contributors_click">%s (apăsa pentru mai mult)</string>
     <string name="spk_channel_out_7point1_surround">Surround (7.1)</string>
     <string name="spk_channel_out_low_frequency">Frecvență joasă</string>

@@ -182,7 +182,6 @@
     <string name="delete">Elimina</string>
     <string name="yes">Sì</string>
     <string name="no">No</string>
-    <string name="sort_by_album_artist">Artista album</string>
     <string name="sort_by_file_path">Percorso file</string>
     <string name="mix_port_flag_none">Niente</string>
     <string name="mix_port_flag_tts">TTS</string>

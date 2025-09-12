@@ -192,7 +192,6 @@
     <string name="delete">Видалити</string>
     <string name="yes">Так</string>
     <string name="no">Ні</string>
-    <string name="sort_by_album_artist">Виконавець альбому</string>
     <string name="sort_by_file_path">Шлях до файлу</string>
     <string name="spk_channel_out_surround">Об\'ємне звучання (4.0)</string>
     <string name="spk_channel_out_7point1_surround">Об\'ємне звучання (7.1)</string>

@@ -31,7 +31,6 @@
     <string name="dark">Escuro</string>
     <string name="light">Claro</string>
     <string name="sort_by_size">Tamaño</string>
-    <string name="sort_by_album_artist">Artista do álbum</string>
     <string name="sort_by_name">Nome</string>
     <string name="sort_by_artist">Artista</string>
     <string name="dismiss">Desbotar</string>

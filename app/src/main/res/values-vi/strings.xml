@@ -161,7 +161,6 @@
     <string name="tab_order">Thiết lập trật tự tab</string>
     <string name="back">Trở về</string>
     <string name="play_all">Phát tất cả</string>
-    <string name="sort_by_album_artist">Album nghệ sĩ</string>
     <string name="cannot_play_file">Không thể phát file này</string>
     <string name="tab_order_summary">Ứng dụng sẽ hiển thị tab đầu tiên khi khởi chạy. Những tabs sau thanh chia màn hình sẽ bị ẩn.</string>
 </resources>

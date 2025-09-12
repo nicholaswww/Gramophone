@@ -320,7 +320,6 @@
     <string name="scroll_to_songs">Görgetés dalokhoz</string>
     <string name="play">Lejátszás</string>
     <string name="more">Több</string>
-    <string name="sort_by_album_artist">Album előadó</string>
     <string name="settings_lyrics_multiline_summary">A szinkronizációs pontok közötti szöveg egy dalszövegnek tekintendő</string>
     <string name="seekbar">Kereső sáv</string>
     <string name="divider">Elválasztó</string>

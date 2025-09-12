@@ -177,7 +177,6 @@
     <string name="device_type_usb_accessory">USB配件</string>
     <string name="device_type_usb_headset">USB耳機</string>
     <string name="device_type_ble_speaker">低功耗藍牙揚聲器</string>
-    <string name="sort_by_album_artist">專輯藝術家</string>
     <string name="seekbar">進度條</string>
     <string name="shuffle_all">全部隨機播放</string>
     <string name="sort">排序</string>

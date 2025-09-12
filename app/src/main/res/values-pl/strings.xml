@@ -192,7 +192,6 @@
     <string name="delete">Usuń</string>
     <string name="yes">Tak</string>
     <string name="no">Nie</string>
-    <string name="sort_by_album_artist">Wykonawca albumu</string>
     <string name="sort_by_file_path">Ścieżka do pliku</string>
     <string name="spk_channel_out_5point1">5.1</string>
     <string name="spk_channel_out_6point1">6.1</string>

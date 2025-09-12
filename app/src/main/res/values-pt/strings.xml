@@ -268,7 +268,6 @@
     <string name="device_type_ble_speaker">Auto-falante Bluetooth LE</string>
     <string name="device_type_ble_broadcast">Transmissão Bluetooth LE</string>
     <string name="settings_pixel_perfect_measurement_legacy_title">Medição de texto pixel perfect</string>
-    <string name="sort_by_album_artist">Artista do álbum</string>
     <string name="tab_order">Configurar ordem das guias</string>
     <string name="divider">Divisor</string>
     <string name="back">Voltar</string>
