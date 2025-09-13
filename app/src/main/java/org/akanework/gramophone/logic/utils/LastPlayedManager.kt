@@ -17,6 +17,7 @@
 
 package org.akanework.gramophone.logic.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
@@ -203,7 +204,12 @@ class LastPlayedManager(
                             val mediaId = if (version == 0) {
                                 "MediaStore:$versionStr" // used to be mediaId
                             } else b.readStringSafe()
-                            val uri = b.readUri()
+                            var uri = b.readUri()
+                            if (version == 0 && uri?.toString()?.let {
+                                it.startsWith("/storage/") || it.startsWith("/mnt/")
+                                        || (@SuppressLint("SdCardPath")
+                                it.startsWith("/sdcard/")) } == true)
+                                uri = uri.buildUpon().scheme("file").build()
                             val mimeType = b.readStringSafe()
                             val title = b.readStringSafe()
                             val artist = b.readStringSafe()
