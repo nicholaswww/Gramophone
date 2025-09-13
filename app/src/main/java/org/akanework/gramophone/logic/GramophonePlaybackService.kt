@@ -66,6 +66,7 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.source.LoadEventInfo
 import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.util.EventLogger
@@ -100,6 +101,7 @@ import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.ui.MeiZuLyricsMediaNotificationProvider
 import org.akanework.gramophone.logic.ui.isManualNotificationUpdate
+import org.akanework.gramophone.logic.utils.AfFormatInfo
 import org.akanework.gramophone.logic.utils.AfFormatTracker
 import org.akanework.gramophone.logic.utils.AudioTrackInfo
 import org.akanework.gramophone.logic.utils.BtCodecInfo
@@ -168,14 +170,16 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var lastSentHighlightedLyric: String? = null
     private lateinit var afFormatTracker: AfFormatTracker
     private var updatedLyricAtLeastOnce = false
-    private var downstreamFormat: Format? = null
+    private val downstreamFormat = hashSetOf<Pair<Any, Format>>()
+    private val pendingDownstreamFormat = hashSetOf<Pair<Any, Format>>()
+    private var afTrackFormat: Pair<Any, AfFormatInfo>? = null
+    private val pendingAfTrackFormats = hashMapOf<Any, AfFormatInfo>()
     private var audioSinkInputFormat: Format? = null
-    private var audioTrackInfo: AudioTrackInfo? = null
+    private var audioTrackInfo = arrayListOf<Pair<Any, AudioTrackInfo>>()
+    private var pendingAudioTrackInfo = arrayListOf<Pair<Any, AudioTrackInfo>>()
     private var bitrate: Long? = null
     private var btInfo: BtCodecInfo? = null
     private var proxy: BtCodecInfo.Companion.Proxy? = null
-    private var audioTrackInfoCounter = 0
-    private var audioTrackReleaseCounter = 0
     private val scope = CoroutineScope(Dispatchers.Default)
     private val lyricsFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
     private val bitrateFetcher = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
@@ -310,11 +314,25 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     .build(),
             )
         afFormatTracker = AfFormatTracker(this, playbackHandler, handler)
-        afFormatTracker.formatChangedCallback = {
-            mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
+        afFormatTracker.formatChangedCallback = { format, period ->
+            handler.post {
+                val currentPeriod = controller?.currentPeriodIndex?.let {
+                    controller!!.currentTimeline.getUidOfPeriod(it)
+                }
+                if (currentPeriod != period) {
+                    if (format != null) {
+                        pendingAfTrackFormats[period] = format
+                    } else {
+                        pendingAfTrackFormats.remove(period)
+                    }
+                } else {
+                    afTrackFormat = format?.let { period to it }
+                    mediaSession?.broadcastCustomCommand(
+                        SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                        Bundle.EMPTY
+                    )
+                }
+            }
         }
         val player = EndedWorkaroundPlayer(
             ExoPlayer.Builder(
@@ -679,13 +697,14 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
                 SERVICE_GET_AUDIO_FORMAT -> {
                     SessionResult(SessionResult.RESULT_SUCCESS).also {
-                        it.extras.putBundle("file_format", downstreamFormat?.toBundle())
+                        val ds = downstreamFormat.firstOrNull()?.second // TODO expose all of them
+                        it.extras.putBundle("file_format", ds?.toBundle())
                         it.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
-                        it.extras.putParcelable("track_format", audioTrackInfo)
-                        if (downstreamFormat?.sampleMimeType == MimeTypes.AUDIO_OPUS) {
+                        it.extras.putParcelable("track_format", audioTrackInfo.firstOrNull()?.second)
+                        if (ds?.sampleMimeType == MimeTypes.AUDIO_OPUS) {
                             bitrate?.let { value -> it.extras.putLong("bitrate", value) }
                         }
-                        it.extras.putParcelable("hal_format", afFormatTracker.format)
+                        it.extras.putParcelable("hal_format", afTrackFormat?.second)
                         if (afFormatTracker.format?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
                             it.extras.putParcelable("bt", btInfo)
                         }
@@ -865,22 +884,39 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        audioTrackInfoCounter++
-        audioTrackInfo = AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
-        mediaSession?.broadcastCustomCommand(
-            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-            Bundle.EMPTY
-        )
+        val currentPeriod = controller?.currentPeriodIndex?.let {
+            controller!!.currentTimeline.getUidOfPeriod(it)
+        }
+        val item = eventTime.mediaPeriodId!!.periodUid to
+                AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
+        if (currentPeriod != item.first) {
+            pendingAudioTrackInfo += item
+        } else {
+            audioTrackInfo += item
+            mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
+            )
+        }
     }
 
     override fun onAudioTrackReleased(
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        // Normally called after the replacement has been initialized, but if old track is released
-        // without replacement, we want to instantly know that instead of keeping stale data.
-        if (++audioTrackReleaseCounter == audioTrackInfoCounter) {
-            audioTrackInfo = null
+        val currentPeriod = controller?.currentPeriodIndex?.let {
+            controller!!.currentTimeline.getUidOfPeriod(it)
+        }
+        val item = eventTime.mediaPeriodId!!.periodUid to
+                AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
+        if (currentPeriod != item.first) {
+            if (!pendingAudioTrackInfo.remove(item)) {
+                throw IllegalStateException("missing audio track info $item")
+            }
+        } else {
+            if (!audioTrackInfo.remove(item)) {
+                throw IllegalStateException("missing audio track info $item")
+            }
             mediaSession?.broadcastCustomCommand(
                 SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
                 Bundle.EMPTY
@@ -892,11 +928,19 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         mediaLoadData: MediaLoadData
     ) {
-        downstreamFormat = mediaLoadData.trackFormat
-        mediaSession?.broadcastCustomCommand(
-            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-            Bundle.EMPTY
-        )
+        val currentPeriod = controller?.currentPeriodIndex?.let {
+            controller!!.currentTimeline.getUidOfPeriod(it)
+        }
+        val item = eventTime.mediaPeriodId!!.periodUid to mediaLoadData.trackFormat!!
+        if (currentPeriod != item.first) {
+            pendingDownstreamFormat += item
+        } else {
+            downstreamFormat += item
+            mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
+            )
+        }
     }
 
     private fun onAudioSinkInputFormatChanged(inputFormat: Format?) {
@@ -909,7 +953,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) {
         if (state == Player.STATE_IDLE) {
-            downstreamFormat = null
+            //downstreamFormat.clear() TODO is this needed
+            //pendingDownstreamFormat.clear()
             mediaSession?.broadcastCustomCommand(
                 SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
                 Bundle.EMPTY
@@ -1012,12 +1057,64 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
     }
 
+    override fun onLoadCanceled(
+        eventTime: AnalyticsListener.EventTime,
+        loadEventInfo: LoadEventInfo,
+        mediaLoadData: MediaLoadData
+    ) {
+        pendingDownstreamFormat.removeAll { eventTime.mediaPeriodId?.periodUid == it.first }
+    }
+
     override fun onPositionDiscontinuity(
         oldPosition: Player.PositionInfo,
         newPosition: Player.PositionInfo,
         reason: Int
     ) {
-        super<Player.Listener>.onPositionDiscontinuity(oldPosition, newPosition, reason)
+        if (oldPosition.periodUid != newPosition.periodUid) {
+            var changed = false
+            downstreamFormat.toSet().forEach {
+                if (newPosition.periodUid != it.first) {
+                    downstreamFormat.remove(it)
+                    changed = true
+                }
+            }
+            pendingDownstreamFormat.toSet().forEach {
+                if (newPosition.periodUid == it.first) {
+                    downstreamFormat.add(it)
+                    pendingDownstreamFormat.remove(it)
+                    changed = true
+                }
+            }
+            audioTrackInfo.toList().forEach {
+                if (newPosition.periodUid != it.first) {
+                    pendingAudioTrackInfo.add(it)
+                    audioTrackInfo.remove(it)
+                    changed = true
+                }
+            }
+            pendingAudioTrackInfo.toList().forEach {
+                if (newPosition.periodUid == it.first) {
+                    audioTrackInfo.add(it)
+                    pendingAudioTrackInfo.remove(it)
+                    changed = true
+                }
+            }
+            if (afTrackFormat?.first != newPosition.periodUid) {
+                afTrackFormat = null
+                changed = true
+            }
+            pendingAfTrackFormats[newPosition.periodUid]?.let { format ->
+                afTrackFormat = newPosition.periodUid!! to format
+                pendingAfTrackFormats.remove(newPosition.periodUid)
+                changed = true
+            }
+            if (changed) {
+                mediaSession?.broadcastCustomCommand(
+                    SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                    Bundle.EMPTY
+                )
+            }
+        }
         scheduleSendingLyrics(false)
     }
 
