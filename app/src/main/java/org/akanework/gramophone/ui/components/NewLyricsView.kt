@@ -384,10 +384,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                     lerp(
                         firstTs.toFloat(), lastTs.toFloat(),
                         0.5f
-                    ) - firstTs.toFloat(), firstTs.toFloat()
+                    ) - firstTs.toFloat(),
+                    max(firstTs.toFloat(), scaleInAnimTime)
                 )
             )
-            val fadeInStart = firstTs - timeOffsetForUse.toULong()
+            val fadeInStart = max(firstTs.toLong() - timeOffsetForUse.toLong(), 0L).toULong()
             val fadeInEnd = firstTs + timeOffsetForUse.toULong()
             val fadeOutStart = lastTs - timeOffsetForUse.toULong()
             val fadeOutEnd = lastTs + timeOffsetForUse.toULong()
