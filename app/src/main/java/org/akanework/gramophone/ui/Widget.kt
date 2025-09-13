@@ -190,9 +190,10 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
         ).apply {
             val sb = SpannableString(item?.text ?: itemUnsynced!!.first)
             if (isActive) {
-                val hlChar = item?.words?.findLast { it.timeRange.start <= cPos!!.toULong() }
-                    ?.charRange?.last?.plus(1) ?: sb.length
-                sb.setSpan(span, 0, hlChar, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
+                val hlChar = if (item?.words != null) item.words.findLast { it.timeRange.start <=
+                        cPos!!.toULong() }?.charRange?.last?.plus(1) ?: 0 else sb.length
+                if (hlChar > 0)
+                    sb.setSpan(span, 0, hlChar, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
             }
             setTextViewText(R.id.lyric_widget_item, sb)
             if (startTs >= 0L && item?.isClickable != false)
