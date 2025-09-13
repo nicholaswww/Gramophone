@@ -677,19 +677,19 @@ public class AlacDecodeUtils
 			int frame_type;
 			int outputsamples  = alac.setinfo_max_samples_per_frame;
 			int newoutputsize;
-			/*if (alac.input_buffer_bitaccumulator > 5) {
+			if (alac.input_buffer_bitaccumulator > 5) {
 				if (alac.ibIdx + 1 >= alac.input_buffer.length)
 					break;
 			} else {
 				if (alac.ibIdx >= alac.input_buffer.length)
 					break;
-			}*/
+			}
 			frame_type = readbits(alac, 3);
-			/*if (frame_type == 0 && channel_index >= alac.channel_map.length &&
+			if (frame_type == 0 && channel_index >= alac.channel_map.length &&
 					alac.ibIdx + 1 >= alac.input_buffer.length) {
 				// this file is missing an end frame and just has it zeroed out.
 				break;
-			}*/
+			}
 
 			if (frame_type == 0 || frame_type == 3) // 1 channel
 			{
@@ -702,9 +702,6 @@ public class AlacDecodeUtils
 
 				int tempPred;
 				int channel_index_a = alac.channel_map[channel_index];
-
-				if (channel_index + 1 > alac.numchannels)
-					throw new AlacDecoderException("too many chs");
 
 				readbits(alac, 4); // useless channel tag
 
@@ -877,9 +874,6 @@ public class AlacDecodeUtils
 				int interlacing_leftweight;
 				int channel_index_a = alac.channel_map[channel_index];
 				int channel_index_b = alac.channel_map[channel_index + 1];
-
-				if (channel_index + 2 > alac.numchannels)
-					throw new AlacDecoderException("too many chs at " + channel_index);
 
 				readbits(alac, 4); // useless channel tag
 
@@ -1064,8 +1058,6 @@ public class AlacDecodeUtils
 				int size = readbits(alac, 4);
 				if (size == 15)
 					size += readbits(alac, 8) - 1;
-				if (true)
-					throw new AlacDecoderException("dse" + size);
 				alac.ibIdx += size;
 			} else if (frame_type == 6) {
 				readbits(alac, 4);
@@ -1073,8 +1065,6 @@ public class AlacDecodeUtils
 				int size = readbits(alac, 8);
 				if (size == 255)
 					size += readbits(alac, 8);
-				if (true)
-					throw new AlacDecoderException("free" + size);
 				if (align && alac.input_buffer_bitaccumulator > 0) {
 					alac.input_buffer_bitaccumulator = 0;
 					alac.ibIdx++;
