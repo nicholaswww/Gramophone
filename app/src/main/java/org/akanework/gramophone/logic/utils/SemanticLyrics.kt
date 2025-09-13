@@ -118,12 +118,7 @@ private sealed class SyntacticLrc {
                     pendingBgNewLine = true
                 }
                 if (pos < text.length && pos + 1 < text.length && text.regionMatches(
-                        pos,
-                        "\r\n",
-                        0,
-                        2
-                    )
-                ) {
+                        pos, "\r\n", 0, 2)) {
                     out.add(NewLine())
                     pos += 2
                     continue
@@ -144,10 +139,13 @@ private sealed class SyntacticLrc {
                     // but hey, we tried. Can't do much about it.
                     // If you want to write something that looks like a timestamp into your lyrics,
                     // you'll probably have to delete the following three lines.
-                    if (!(out.lastOrNull() is NewLine? || out.lastOrNull() is SyncPoint))
+                    pos += tmMatch.value.length
+                    if (!(pos < text.length && ((pos + 1 < text.length && text.regionMatches(
+                            pos, "\r\n", 0, 2)) ||
+                                (text[pos] == '\n' || text[pos] == '\r'))) &&
+                        !(out.lastOrNull() is NewLine? || out.lastOrNull() is SyncPoint))
                         out.add(NewLine.SyntheticNewLine())
                     out.add(SyncPoint(parseTime(tmMatch)))
-                    pos += tmMatch.value.length
                     continue
                 }
                 // Skip spaces in between of compressed lyric sync points. They really are
