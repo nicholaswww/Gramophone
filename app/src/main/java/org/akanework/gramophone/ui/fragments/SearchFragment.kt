@@ -68,7 +68,9 @@ class SearchFragment : BaseFragment(true) {
         val searchTextFlow = MutableStateFlow("")
         val songAdapter =
             SongAdapter(
-                this, mainActivity.reader.songListFlow.combine(searchTextFlow) { list, text ->
+                this, mainActivity.reader.songListFlow.combine(searchTextFlow.map {
+                    it.trim()
+                }) { list, text ->
                     list.filter {
                         // TODO sort results by match quality? (using raw=natural order)
                         val isMatchingTitle =
