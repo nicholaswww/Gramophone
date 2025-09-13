@@ -677,19 +677,19 @@ public class AlacDecodeUtils
 			int frame_type;
 			int outputsamples  = alac.setinfo_max_samples_per_frame;
 			int newoutputsize;
-			if (alac.input_buffer_bitaccumulator > 5) {
+			/*if (alac.input_buffer_bitaccumulator > 5) {
 				if (alac.ibIdx + 1 >= alac.input_buffer.length)
 					break;
 			} else {
 				if (alac.ibIdx >= alac.input_buffer.length)
 					break;
-			}
+			}*/
 			frame_type = readbits(alac, 3);
-			if (frame_type == 0 && channel_index >= alac.channel_map.length &&
+			/*if (frame_type == 0 && channel_index >= alac.channel_map.length &&
 					alac.ibIdx + 1 >= alac.input_buffer.length) {
 				// this file is missing an end frame and just has it zeroed out.
 				break;
-			}
+			}*/
 
 			if (frame_type == 0 || frame_type == 3) // 1 channel
 			{
