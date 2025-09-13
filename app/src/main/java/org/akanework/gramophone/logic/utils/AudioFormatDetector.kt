@@ -313,23 +313,34 @@ object AudioFormatDetector {
 
     @OptIn(UnstableApi::class)
     data class AudioFormats(
-        val downstreamFormat: Format?, val audioSinkInputFormat: Format?,
-        val audioTrackInfo: AudioTrackInfo?, val halFormat: AfFormatInfo?,
-        val bitrate: Long?, val btCodecInfo: BtCodecInfo?
+        val downstreamFormat: List<Pair<Int, Format>>?, val audioSinkInputFormat: Format?,
+        val audioTrackInfo: List<AudioTrackInfo>?, val halFormat: AfFormatInfo?,
+        val btCodecInfo: BtCodecInfo?
     ) {
         fun prettyToString(context: Context): String? {
             if (downstreamFormat == null || audioSinkInputFormat == null || audioTrackInfo == null)
                 return null
             // TODO localization and handle nulls in data nicely
             return StringBuilder().apply {
-                append("== Downstream format ==\n")
-                prettyPrintFormat(context, downstreamFormat, bitrate)
-                append("\n")
+                downstreamFormat.forEachIndexed { i, it ->
+                    append("== Downstream format [$i] ==\n")
+                    prettyPrintFormat(context, it.second)
+                    append("\n")
+                }
                 append("== Audio sink input format ==\n")
-                prettyPrintFormat(context, audioSinkInputFormat, null)
+                prettyPrintFormat(context, audioSinkInputFormat)
                 append("\n")
-                append("== Audio track format ==\n")
-                prettyPrintAudioTrackInfo(context, audioTrackInfo)
+                if (audioTrackInfo.size == 1) {
+                    append("== Audio track format ==\n")
+                    prettyPrintAudioTrackInfo(context, audioTrackInfo.first())
+                } else {
+                    audioTrackInfo.forEachIndexed { i, it ->
+                        append("== Audio track format [$i] ==\n")
+                        prettyPrintAudioTrackInfo(context, it)
+                        append("\n")
+                    }
+                    append("== Audio track HAL format ==\n")
+                }
                 if (halFormat != null) {
                     append("Policy port/track ID: ${halFormat.policyPortId} (session: ${halFormat.audioSessionId})\n")
                     append("Granted flags: ${mixPortFlagsToString(context, halFormat.grantedFlags)}\n")
@@ -366,7 +377,7 @@ object AudioFormatDetector {
             }.toString()
         }
 
-        private fun StringBuilder.prettyPrintFormat(context: Context, format: Format, bitrate: Long?) {
+        private fun StringBuilder.prettyPrintFormat(context: Context, format: Format) {
             append("Sample rate: ")
             if (format.sampleRate != Format.NO_VALUE) {
                 append(format.sampleRate)
@@ -400,9 +411,9 @@ object AudioFormatDetector {
 
             if (format.sampleMimeType != MimeTypes.AUDIO_RAW) {
                 append("Bitrate: ")
-                if (format.bitrate != Format.NO_VALUE || bitrate != null) {
+                if (format.bitrate != Format.NO_VALUE) {
                     append("~")
-                    append((format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() ?: bitrate!!) / 1000)
+                    append(format.bitrate.toLong() / 1000)
                     append("kbps\n")
                 } else {
                     append("Unknown\n")
@@ -469,8 +480,9 @@ object AudioFormatDetector {
         f: AudioFormats?
     ): AudioFormatInfo? {
         if (f == null) return null
-        val format = f.downstreamFormat
-        if (format == null) return null
+        val formats = f.downstreamFormat?.filter { it.first == C.TRACK_TYPE_AUDIO }
+        if (formats?.size != 1) return null
+        val format = formats.first().second
         val sampleRate = format.sampleRate.takeIf { it != Format.NO_VALUE }
         val bitDepth = try {
             Util.getBitDepth(format.pcmEncoding)
@@ -479,7 +491,7 @@ object AudioFormatDetector {
         }
         val isLossless = isLosslessFormat(format.sampleMimeType)
         val bitrate = if (isLossless != true)
-            format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() ?: f.bitrate else null
+            format.bitrate.takeIf { it != Format.NO_VALUE }?.toLong() else null
         val spatialFormat = detectSpatialFormat(format)
         val sourceChannels = format.channelCount.takeIf { it != Format.NO_VALUE }
 

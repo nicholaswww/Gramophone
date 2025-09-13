@@ -170,14 +170,15 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var lastSentHighlightedLyric: String? = null
     private lateinit var afFormatTracker: AfFormatTracker
     private var updatedLyricAtLeastOnce = false
-    private val downstreamFormat = hashSetOf<Pair<Any, Format>>()
-    private val pendingDownstreamFormat = hashSetOf<Pair<Any, Format>>()
+    private val downstreamFormat = hashSetOf<Pair<Any, Pair<Int, Format>>>()
+    private val pendingDownstreamFormat = hashSetOf<Pair<Any, Pair<Int, Format>>>()
     private var afTrackFormat: Pair<Any, AfFormatInfo>? = null
     private val pendingAfTrackFormats = hashMapOf<Any, AfFormatInfo>()
     private var audioSinkInputFormat: Format? = null
     private var audioTrackInfo = arrayListOf<Pair<Any, AudioTrackInfo>>()
     private var pendingAudioTrackInfo = arrayListOf<Pair<Any, AudioTrackInfo>>()
-    private var bitrate: Long? = null
+    // only used for formats where this is significant for quality, but not in header
+    private var bitrate: Int? = null
     private var btInfo: BtCodecInfo? = null
     private var proxy: BtCodecInfo.Companion.Proxy? = null
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -697,12 +698,28 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
                 SERVICE_GET_AUDIO_FORMAT -> {
                     SessionResult(SessionResult.RESULT_SUCCESS).also {
-                        val ds = downstreamFormat.firstOrNull()?.second // TODO expose all of them
-                        it.extras.putBundle("file_format", ds?.toBundle())
+                        if (downstreamFormat.isNotEmpty()) {
+                            it.extras.putParcelableArrayList(
+                                "file_format",
+                                ArrayList(downstreamFormat.map { Bundle().apply {
+                                    putInt("type", it.second.first)
+                                    val bitrate = bitrate
+                                    // TODO: should this be done here? this will create a new format object every query
+                                    val format = if (it.second.first == C.TRACK_TYPE_AUDIO &&
+                                        bitrate != null &&
+                                        it.second.second.sampleMimeType == MimeTypes.AUDIO_OPUS) {
+                                        it.second.second.buildUpon().setAverageBitrate(bitrate).build()
+                                    } else it.second.second
+                                    putBundle("format", format.toBundle())
+                                } })
+                            )
+                        }
                         it.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
-                        it.extras.putParcelable("track_format", audioTrackInfo.firstOrNull()?.second)
-                        if (ds?.sampleMimeType == MimeTypes.AUDIO_OPUS) {
-                            bitrate?.let { value -> it.extras.putLong("bitrate", value) }
+                        if (audioTrackInfo.isNotEmpty()) {
+                            it.extras.putParcelableArrayList(
+                                "track_format",
+                                ArrayList(audioTrackInfo.map { it.second })
+                            )
                         }
                         it.extras.putParcelable("hal_format", afTrackFormat?.second)
                         if (afFormatTracker.format?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
@@ -918,7 +935,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val currentPeriod = controller?.currentPeriodIndex?.takeIf { it != C.INDEX_UNSET &&
                 (controller?.currentTimeline?.periodCount ?: 0) > it }
             ?.let { controller!!.currentTimeline.getUidOfPeriod(it) }
-        val item = eventTime.mediaPeriodId!!.periodUid to mediaLoadData.trackFormat!!
+        val item = eventTime.mediaPeriodId!!.periodUid to
+                (mediaLoadData.trackType to mediaLoadData.trackFormat!!)
         if (currentPeriod != item.first) {
             pendingDownstreamFormat += item
         } else {

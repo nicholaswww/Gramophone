@@ -116,13 +116,13 @@ fun MediaItem.requireMediaStoreId(): Long {
         ?: throw IllegalArgumentException("Media item with ID $mediaId doesn't appear to be media store item")
 }
 
-fun MediaItem.getBitrate(): Long? {
+fun MediaItem.getBitrate(): Int? {
     val retriever = MediaMetadataRetriever()
     return try {
         val filePath = getFile()?.path ?: return null
         retriever.setDataSource(filePath)
         retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
-            ?.toLongOrNull()
+            ?.toIntOrNull()
     } catch (e: Exception) {
         Log.w("getBitrate", Log.getStackTraceString(e))
         null
@@ -292,11 +292,14 @@ fun MediaController.getAudioFormat(): AudioFormatDetector.AudioFormats? =
         Bundle.EMPTY
     ).get().extras.let {
         AudioFormatDetector.AudioFormats(
-            it.getBundle("file_format")?.let { bundle -> Format.fromBundle(bundle) },
+            BundleCompat.getParcelableArrayList(it, "file_format",
+                Bundle::class.java)?.let { bundles -> bundles.map { bundle ->
+                        bundle.getInt("type", C.TRACK_TYPE_UNKNOWN) to
+                                Format.fromBundle(bundle.getBundle("format")!!) } },
             it.getBundle("sink_format")?.let { bundle -> Format.fromBundle(bundle) },
-            BundleCompat.getParcelable(it, "track_format", AudioTrackInfo::class.java),
+            BundleCompat.getParcelableArrayList(it, "track_format",
+                AudioTrackInfo::class.java),
             BundleCompat.getParcelable(it, "hal_format", AfFormatInfo::class.java),
-            if (it.containsKey("bitrate")) it.getLong("bitrate") else null,
             BundleCompat.getParcelable(it, "bt", BtCodecInfo::class.java)
         )
     }
