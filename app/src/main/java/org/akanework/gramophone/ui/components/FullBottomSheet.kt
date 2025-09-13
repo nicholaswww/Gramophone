@@ -9,6 +9,7 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
+import android.os.Build
 import android.provider.MediaStore
 import android.text.format.DateFormat
 import android.util.AttributeSet
@@ -305,8 +306,11 @@ class FullBottomSheet
                 GramophonePlaybackService.SERVICE_GET_AUDIO_FORMAT -> {
                     val format = instance?.getAudioFormat()
                     this.currentFormat = format
-                    handler.removeCallbacks(formatUpdateRunnable)
-                    handler.postDelayed(formatUpdateRunnable, 100)
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                        !handler.hasCallbacks(formatUpdateRunnable)) {
+                        // TODO: is 300ms long enough wait for stuff like bitrate? 100ms isn't.
+                        handler.postDelayed(formatUpdateRunnable, 300)
+                    }
                 }
 
                 else -> {

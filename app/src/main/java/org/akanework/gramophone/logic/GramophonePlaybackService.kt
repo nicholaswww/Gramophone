@@ -316,9 +316,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         afFormatTracker = AfFormatTracker(this, playbackHandler, handler)
         afFormatTracker.formatChangedCallback = { format, period ->
             handler.post {
-                val currentPeriod = controller?.currentPeriodIndex?.let {
-                    controller!!.currentTimeline.getUidOfPeriod(it)
-                }
+                val currentPeriod = controller?.currentPeriodIndex?.takeIf { it != C.INDEX_UNSET &&
+                        (controller?.currentTimeline?.periodCount ?: 0) > it }
+                    ?.let { controller!!.currentTimeline.getUidOfPeriod(it) }
                 if (currentPeriod != period) {
                     if (format != null) {
                         pendingAfTrackFormats[period] = format
@@ -745,7 +745,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onPlayWhenReadyChanged(
-        eventTime: AnalyticsListener.EventTime,
         playWhenReady: Boolean,
         reason: @Player.PlayWhenReadyChangeReason Int
     ) {
@@ -884,9 +883,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        val currentPeriod = controller?.currentPeriodIndex?.let {
-            controller!!.currentTimeline.getUidOfPeriod(it)
-        }
+        val currentPeriod = eventTime.currentMediaPeriodId!!.periodUid
         val item = eventTime.mediaPeriodId!!.periodUid to
                 AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
         if (currentPeriod != item.first) {
@@ -904,33 +901,23 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        val currentPeriod = controller?.currentPeriodIndex?.let {
-            controller!!.currentTimeline.getUidOfPeriod(it)
+        // BUG: media3's eventTime provided here is for the wrong period, it always returns for
+        // currently playing period, and hence can't ever match. hence we can only guess which
+        // config has to go.
+        val pendingIdx = pendingAudioTrackInfo.indexOfFirst { it.second == audioTrackConfig }
+        if (pendingIdx != -1) {
+            pendingAudioTrackInfo.removeAt(pendingIdx)
         }
-        val item = eventTime.mediaPeriodId!!.periodUid to
-                AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
-        if (currentPeriod != item.first) {
-            if (!pendingAudioTrackInfo.remove(item)) {
-                throw IllegalStateException("missing audio track info $item")
-            }
-        } else {
-            if (!audioTrackInfo.remove(item)) {
-                throw IllegalStateException("missing audio track info $item")
-            }
-            mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
-        }
+        // otherwise period probably already disappeared, if it didn't, it doesn't matter.
     }
 
     override fun onDownstreamFormatChanged(
         eventTime: AnalyticsListener.EventTime,
         mediaLoadData: MediaLoadData
     ) {
-        val currentPeriod = controller?.currentPeriodIndex?.let {
-            controller!!.currentTimeline.getUidOfPeriod(it)
-        }
+        val currentPeriod = controller?.currentPeriodIndex?.takeIf { it != C.INDEX_UNSET &&
+                (controller?.currentTimeline?.periodCount ?: 0) > it }
+            ?.let { controller!!.currentTimeline.getUidOfPeriod(it) }
         val item = eventTime.mediaPeriodId!!.periodUid to mediaLoadData.trackFormat!!
         if (currentPeriod != item.first) {
             pendingDownstreamFormat += item
@@ -951,18 +938,46 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         )
     }
 
-    override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) {
+    override fun onPlaybackStateChanged(state: Int) {
         if (state == Player.STATE_IDLE) {
-            //downstreamFormat.clear() TODO is this needed
-            //pendingDownstreamFormat.clear()
-            mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
+            var changed = false
+            if (audioTrackInfo.isNotEmpty()) {
+                Log.e(TAG, "leaked audio track infos: $audioTrackInfo")
+                audioTrackInfo.clear()
+                changed = true
+            }
+            if (pendingAudioTrackInfo.isNotEmpty()) {
+                Log.e(TAG, "leaked pending audio track infos: $pendingAudioTrackInfo")
+                pendingAudioTrackInfo.clear()
+            }
+            if (afTrackFormat != null) {
+                Log.e(TAG, "leaked track format: $afTrackFormat")
+                afTrackFormat = null
+                changed = true
+            }
+            if (pendingAfTrackFormats.isNotEmpty()) {
+                Log.e(TAG, "leaked pending track formats: $pendingAfTrackFormats")
+                pendingAfTrackFormats.clear()
+            }
+            if (downstreamFormat.isNotEmpty()) {
+                Log.e(TAG, "leaked downstream formats: $downstreamFormat")
+                downstreamFormat.clear()
+                changed = true
+            }
+            if (pendingDownstreamFormat.isNotEmpty()) {
+                Log.e(TAG, "leaked pending downstream formats: $pendingDownstreamFormat")
+                pendingDownstreamFormat.clear()
+            }
+            if (changed) {
+                mediaSession?.broadcastCustomCommand(
+                    SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                    Bundle.EMPTY
+                )
+            }
         }
     }
 
-    override fun onPlayerError(eventTime: AnalyticsListener.EventTime, error: PlaybackException) {
+    override fun onPlayerError(error: PlaybackException) {
         // TODO
     }
 
@@ -1042,6 +1057,24 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onTimelineChanged(timeline: Timeline, reason: @Player.TimelineChangeReason Int) {
         if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
             refreshMediaButtonCustomLayout()
+        }
+        pendingDownstreamFormat.toSet().forEach {
+            if (timeline.getIndexOfPeriod(it.first) == C.INDEX_UNSET) {
+                // This period is going away.
+                pendingDownstreamFormat.remove(it)
+            }
+        }
+        pendingAfTrackFormats.toMap().forEach { (key, _) ->
+            if (timeline.getIndexOfPeriod(key) == C.INDEX_UNSET) {
+                // This period is going away.
+                pendingAfTrackFormats.remove(key)
+            }
+        }
+        pendingAudioTrackInfo.toList().forEach {
+            if (timeline.getIndexOfPeriod(it.first) == C.INDEX_UNSET) {
+                // This period is going away.
+                pendingAudioTrackInfo.remove(it)
+            }
         }
     }
 
