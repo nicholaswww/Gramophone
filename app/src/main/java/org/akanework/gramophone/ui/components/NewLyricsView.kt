@@ -37,6 +37,7 @@ import org.akanework.gramophone.logic.utils.findBidirectionalBarriers
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.properties.Delegates
 
 private const val TAG = "NewLyricsView"
 
@@ -44,7 +45,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
     GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
     private val smallSizeFactor = 0.97f
-    private var lyricAnimTime = 750f
+    private var lyricAnimTime by Delegates.notNull<Float>()
     private var currentScrollTarget: Int? = null
 
     // TODO maybe reduce this to avoid really fast word skipping

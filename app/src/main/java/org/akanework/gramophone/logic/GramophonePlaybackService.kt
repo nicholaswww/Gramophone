@@ -900,7 +900,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        val currentPeriod = eventTime.currentMediaPeriodId!!.periodUid
+        val currentPeriod = eventTime.currentMediaPeriodId?.periodUid
         val item = eventTime.mediaPeriodId!!.periodUid to
                 AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
         if (currentPeriod != item.first) {
@@ -921,7 +921,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         // BUG: media3's eventTime provided here is for the wrong period, it always returns for
         // currently playing period, and hence can't ever match. hence we can only guess which
         // config has to go.
-        val pendingIdx = pendingAudioTrackInfo.indexOfFirst { it.second == audioTrackConfig }
+        val config = AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
+        val pendingIdx = pendingAudioTrackInfo.indexOfFirst { it.second == config }
         if (pendingIdx != -1) {
             pendingAudioTrackInfo.removeAt(pendingIdx)
         }
