@@ -387,18 +387,19 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                     ) - firstTs.toFloat(), firstTs.toFloat()
                 )
             )
-            val highlight = posForRender >= firstTs - timeOffsetForUse.toULong() &&
-                    posForRender <= lastTs + timeOffsetForUse.toULong()
+            val fadeInStart = firstTs - timeOffsetForUse.toULong()
+            val fadeInEnd = firstTs + timeOffsetForUse.toULong()
+            val fadeOutStart = lastTs - timeOffsetForUse.toULong()
+            val fadeOutEnd = lastTs + timeOffsetForUse.toULong()
+            val highlight = posForRender >= fadeInStart &&
+                    posForRender <= fadeOutEnd
             val scaleInProgress = if (it.line == null) 1f else lerpInv(
-                firstTs.toFloat() -
-                        timeOffsetForUse,
-                firstTs.toFloat() + timeOffsetForUse,
+                fadeInStart.toFloat(), fadeInEnd.toFloat(),
                 posForRender.toFloat()
             )
             val scaleOutProgress = if (it.line == null) 1f else lerpInv(
-                lastTs.toFloat() -
-                        timeOffsetForUse,
-                lastTs.toFloat() + timeOffsetForUse,
+                fadeOutStart.toFloat(),
+                fadeOutEnd.toFloat(),
                 posForRender.toFloat()
             )
             val hlScaleFactor = if (it.line == null) smallSizeFactor else {
@@ -436,7 +437,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                 firstHighlight = heightSoFarWithoutTranslated
                 determineTimeUntilNext = true
             }
-            if (posForRender >= firstTs - timeOffsetForUse.toULong() && it.line?.isTranslated != true
+            if (posForRender >= fadeInStart && it.line?.isTranslated != true
                 && it.speaker?.isBackground != true) {
                 lastHighlight = heightSoFar
                 if (firstHighlight == null)
@@ -458,13 +459,13 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                         val word = it.theWords[wordIdx]
                         spanEnd = word.charRange.last + 1 // get exclusive end
                         val gradientEndTime = min(
-                            lastTs.toFloat() - timeOffsetForUse,
+                            fadeOutEnd.toFloat(),
                             word.timeRange.last.toFloat()
                         )
                         val gradientStartTime = min(
                             max(
                                 word.timeRange.start.toFloat(),
-                                firstTs.toFloat() - timeOffsetForUse
+                                fadeInStart.toFloat()
                             ), gradientEndTime - 1f
                         )
                         gradientProgress = lerpInv(
@@ -617,7 +618,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             heightSoFar += ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor)
                 .also { canvas.translate(0f, it) }.toInt()
         }
-        heightSoFar += globalPaddingBottom
+        //heightSoFar += globalPaddingBottom
         canvas.restore()
         if (animating)
             invalidate()
