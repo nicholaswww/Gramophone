@@ -507,8 +507,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             if (gradientProgress >= -.1f && gradientProgress <= 1f)
                 animating = true
             val spanEndWithoutGradient = if (realGradientStart == -1) spanEnd else realGradientStart
-            val inColorAnim = (scaleInProgress >= 0f && scaleInProgress <= 1f && gradientProgress ==
-                    Float.NEGATIVE_INFINITY) || (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
+            val inColorAnim = ((scaleInProgress >= 0f
+                    && scaleInProgress <= 1f) || (scaleOutProgress >= 0f && scaleOutProgress <= 1f))
             var colorSpan = it.text.getSpans<MyForegroundColorSpan>().firstOrNull()
             val cachedEnd = colorSpan?.let { j -> it.text.getSpanEnd(j) } ?: -1
             val defaultColorForLine = when (it.speaker) {
@@ -538,16 +538,15 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             val col = if (inColorAnim) ColorUtils.blendARGB(
                 if (scaleOutProgress >= 0f &&
                     scaleOutProgress <= 1f
-                ) highlightColorForLine else defaultColorForLine, if (
-                    scaleInProgress >= 0f && scaleInProgress <= 1f && gradientProgress == Float
-                        .NEGATIVE_INFINITY
                 ) highlightColorForLine else defaultColorForLine,
+                if (scaleInProgress >= 0f && scaleInProgress <= 1f) highlightColorForLine
+                else defaultColorForLine,
                 scaleColorInterpolator.getInterpolation(
                     if (scaleOutProgress >= 0f &&
                         scaleOutProgress <= 1f
                     ) scaleOutProgress else scaleInProgress
                 )
-            ) else 0
+            ) else if (highlight) highlightColorForLine else defaultColorForLine
             if (cachedEnd != spanEndWithoutGradient || inColorAnim != (colorSpan != wordActiveSpanForLine)) {
                 if (cachedEnd != -1) {
                     it.text.removeSpan(colorSpan!!)
@@ -611,6 +610,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                 // same as paragraph direction.
                 gradientSpan.runToLineMappings = it.rlm!!
                 gradientSpan.progress = gradientProgress
+                gradientSpan.highlightColor = col
             }
             it.layout.draw(canvas)
             if (highlight || !alignmentNormal)

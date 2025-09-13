@@ -1,8 +1,10 @@
 package org.akanework.gramophone.logic.ui.spans
 
 import android.graphics.Color
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.LinearGradient
 import android.graphics.Matrix
+import android.graphics.RuntimeXfermode
 import android.graphics.Shader
 import android.text.TextPaint
 import android.text.style.CharacterStyle
@@ -15,16 +17,29 @@ import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
 
 // Hacks, hacks, hacks...
 private val gradientPathInterpolator = PathInterpolator(0.38f, 0.39f, 0f, 1f)
-class MyGradientSpan(grdWidth: Float, color: Int, highlightColor: Int,
+class MyGradientSpan(grdWidth: Float, val color: Int, highlightColor: Int,
     private val charScaling: Boolean) : CharacterStyle(), UpdateAppearance {
     private val matrix = Matrix()
     private val gradientWidth = grdWidth
-    private val shader = LinearGradient(
-        0f, 1f, gradientWidth, 1f,
-        highlightColor, color,
-        //Color.GREEN, Color.YELLOW,
-        Shader.TileMode.CLAMP
-    )
+    private lateinit var shader: LinearGradient
+    var highlightColor = highlightColor
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateShader() // TODO: can we avoid thrashing GC?
+            }
+        }
+    init {
+        invalidateShader()
+    }
+    fun invalidateShader() {
+        shader = LinearGradient(
+            0f, 1f, gradientWidth, 1f,
+            highlightColor, color,
+            //Color.GREEN, Color.YELLOW,
+            Shader.TileMode.CLAMP
+        )
+    }
     var progress = 1f
     lateinit var lineOffsets: List<Int>
     lateinit var runToLineMappings: List<Int>
