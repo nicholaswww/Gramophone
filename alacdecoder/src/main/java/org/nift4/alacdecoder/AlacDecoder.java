@@ -32,9 +32,7 @@ public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoder
         AlacDecodeUtils.alac_set_info(file, ByteBuffer.wrap(inputFormat.initializationData.get(0)));
         int mp4MaxSize = inputFormat.maxInputSize != Format.NO_VALUE ? inputFormat.maxInputSize
                 : ALAC_MAX_PACKET_SIZE;
-        // TODO: doesn't really make sense to set input buffer size by pcm expected size
-        setInitialInputBufferSize(Math.min(Math.ceilDiv(bitDepth * inputFormat.channelCount *
-                file.setinfo_max_samples_per_frame, 8), mp4MaxSize));
+        setInitialInputBufferSize(Math.min(file.max_frame_bytes, mp4MaxSize));
     }
 
     public Format getInputFormat() {

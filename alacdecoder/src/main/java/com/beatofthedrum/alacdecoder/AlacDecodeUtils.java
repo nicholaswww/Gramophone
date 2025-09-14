@@ -48,7 +48,7 @@ public class AlacDecodeUtils
 		  throw new AlacDecoderException("bad channel count " + channel_count);
 	  }
 	  // alac.max_run = inputbuffer.getShort();
-	  // alac.max_frame_bytes = inputbuffer.getInt();
+	  alac.max_frame_bytes = inputbuffer.getInt();
 	  // alac.average_bit_rate = inputbuffer.getInt();
 	  // alac.sample_rate = inputbuffer.getInt();
 	}

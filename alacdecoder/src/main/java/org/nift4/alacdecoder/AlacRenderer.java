@@ -35,6 +35,15 @@ public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
                 Util.getPcmFormat(pcmEncoding, format.channelCount, format.sampleRate))) {
             return C.FORMAT_UNSUPPORTED_SUBTYPE;
         }
+        if (bitDepth == 20) {
+            return C.FORMAT_UNSUPPORTED_SUBTYPE; // TODO: remove this and fix clipping instead
+        }
+        if (format.channelCount == 4) {
+            // TODO: when https://github.com/androidx/media/issues/1471 is done, remove this and
+            //  propagate correct channel mask instead. 4ch uses different channel set to work with
+            //  the default channel mask.
+            return C.FORMAT_UNSUPPORTED_SUBTYPE;
+        }
         return C.FORMAT_HANDLED;
     }
 
@@ -42,10 +51,6 @@ public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
     @Override
     protected AlacDecoder createDecoder(@NonNull Format format, CryptoConfig cryptoConfig) {
         try {
-            if (format.channelCount == 4) {
-                Log.w("AlacDecoder", "FIXME: File will play back with wrong channel " +
-                        "mask. Fix is blocked by https://github.com/androidx/media/issues/1471");
-            }
             Log.i("AlacDecoder", "Creating ALAC decoder: " +
                     format.initializationData.get(0)[5] + "bit " + format.sampleRate + "Hz " +
                     format.channelCount + "ch");

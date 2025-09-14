@@ -40,6 +40,7 @@ public class AlacFile
 	int setinfo_rice_historymult = 0; // 0x28
 	int setinfo_rice_initialhistory = 0; // 0x0a
 	int setinfo_rice_kmodifier = 0; // 0x0e
+	public int max_frame_bytes = 0;
 	/* end setinfo stuff */
 
     int[] predictor_coef_table_a = new int[1024];
