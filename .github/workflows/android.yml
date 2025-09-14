@@ -33,10 +33,8 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           echo "RANDOM_QUOTE=$(shuf -n1 <<<"$LIST_OF_QUOTES")" >> $GITHUB_ENV
-          echo "RANDOM_QUOTE_ERROR=$(shuf -n1 <<<"$LIST_OF_ERROR_QUOTES")" >> $GITHUB_ENV
         env:
           LIST_OF_QUOTES: ${{ secrets.LIST_OF_QUOTES }}
-          LIST_OF_ERROR_QUOTES: ${{ secrets.LIST_OF_ERROR_QUOTES }}
 
       - uses: actions/checkout@v4
         with:
@@ -84,13 +82,6 @@ jobs:
           APK_FILE=$(find app/build/outputs/apk/debug -name '*.apk')
           echo "APK_FILE=$APK_FILE" >> $GITHUB_ENV
           echo "APK_FILE_NAME=$(basename $APK_FILE .apk)" >> $GITHUB_ENV
-
-      - name: Notify about error in Telegram (failure)
-        if: github.event_name != 'pull_request' && failure()
-        uses: xz-dev/TelegramFileUploader@v1.1.1
-        with:
-          to-who: ${{ secrets.TG_CHAT_ID }}
-          message: ${{ env.RANDOM_QUOTE_ERROR }}
         env:
           API_ID: ${{ secrets.TG_APP_ID }}
           API_HASH: ${{ secrets.TG_APP_HASH }}
