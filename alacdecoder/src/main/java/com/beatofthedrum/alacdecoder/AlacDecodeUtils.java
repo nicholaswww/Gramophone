@@ -667,6 +667,7 @@ public class AlacDecodeUtils
 	public static int decode_frame(AlacFile alac, DecoderInputBuffer decinbuffer, SimpleDecoderOutputBuffer decoutbuffer) throws AlacDecoderException {
 		int outputsize = 0;
 		int channel_index = 0;
+		int[] tags = new int[3];
 
         /* setup the stream */
 		alac.input_buffer = Util.castNonNull(decinbuffer.data).array();
@@ -691,6 +692,18 @@ public class AlacDecodeUtils
 				break;
 			}*/
 
+			if (frame_type == 0 || frame_type == 1 || frame_type == 3) {
+				int tag = readbits(alac, 4);
+				int expected = tags[frame_type == 3 ? 2 : frame_type]++;
+				if (expected != tag) {
+					throw new AlacDecoderException("bad channel tag " + tag + ", wanted " + expected);
+				}
+				int data = readbits(alac, 12);
+				if (data != 0) {
+					throw new AlacDecoderException("hidden data " + data + ", wanted 0");
+				}
+			}
+
 			if (frame_type == 0 || frame_type == 3) // 1 channel
 			{
 				int hassize;
@@ -702,10 +715,6 @@ public class AlacDecodeUtils
 
 				int tempPred;
 				int channel_index_a = alac.channel_map[channel_index];
-
-				readbits(alac, 4); // useless channel tag
-
-				readbits(alac, 12); // unused, skip 12 bits
 
 				hassize = readbits(alac, 1); // the output sample size is stored soon
 
@@ -874,10 +883,6 @@ public class AlacDecodeUtils
 				int interlacing_leftweight;
 				int channel_index_a = alac.channel_map[channel_index];
 				int channel_index_b = alac.channel_map[channel_index + 1];
-
-				readbits(alac, 4); // useless channel tag
-
-				readbits(alac, 12); // unused, skip 12 bits
 
 				hassize = readbits(alac, 1); // the output sample size is stored soon
 
