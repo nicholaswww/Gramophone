@@ -750,8 +750,14 @@ public class AlacDecodeUtils
 					int i;
 
 					/* skip 16 bits only useful in two channel case */
-					readbits(alac, 8);
-					readbits(alac, 8);
+					int interlacing_shift = readbits(alac, 8);
+					if (interlacing_shift != 0) {
+						throw new AlacDecoderException("invalid interlacing shift for mono: " + interlacing_shift);
+					}
+					int interlacing_leftweight = readbits(alac, 8);
+					if (interlacing_leftweight != 0) {
+						throw new AlacDecoderException("invalid interlacing left weight for mono: " + interlacing_leftweight);
+					}
 
 					prediction_type = readbits(alac, 4);
 					prediction_quantitization = readbits(alac, 4);
@@ -1064,8 +1070,16 @@ public class AlacDecodeUtils
 				if (size == 15)
 					size += readbits(alac, 8) - 1;
 				alac.ibIdx += size;
+				if (size != 0) {
+					// TODO: but DEBUG(!) encoder does this sometimes
+					throw new AlacDecoderException("unsupported free element with size " + size);
+				}
 			} else if (frame_type == 6) {
-				readbits(alac, 4);
+				int tag = readbits(alac, 4);
+				if (tag != 0) {
+					// to add it just remove throw, but encoder doesn't do this and we're paranoid.
+					throw new AlacDecoderException("unsupported data stream element tag " + tag);
+				}
 				boolean align = readbit(alac) != 0;
 				int size = readbits(alac, 8);
 				if (size == 255)
@@ -1073,23 +1087,32 @@ public class AlacDecodeUtils
 				if (align && alac.input_buffer_bitaccumulator > 0) {
 					alac.input_buffer_bitaccumulator = 0;
 					alac.ibIdx++;
+					// TODO: but DEBUG(!) encoder does this sometimes
+					throw new AlacDecoderException("unsupported data stream element with align");
 				}
 				alac.ibIdx += size;
+				if (size != 0) {
+					// TODO: but DEBUG(!) encoder does this sometimes
+					throw new AlacDecoderException("unsupported data stream element with size " + size);
+				}
 			} else if (frame_type == 2 || frame_type == 5) {
 				throw new AlacDecoderException("refalac does not support tag " + frame_type + ", is this file corrupt? or is there a new version of ALAC?");
 			} else if (frame_type == 7) {
 				break; // stream ending
-			} else { // impossible to reach
-				throw new AlacDecoderException("impossible tag " + frame_type);
+			} else {
+				throw new AlacDecoderException("invalid tag " + frame_type);
 			}
 		}
 		if (alac.input_buffer_bitaccumulator > 0) {
-			alac.input_buffer_bitaccumulator = 0;
-			alac.ibIdx++;
+			int cnt = 8 - alac.input_buffer_bitaccumulator;
+			int bits = readbits(alac, cnt);
+			if (bits != 0) {
+				throw new AlacDecoderException("found trailing data " + bits + " in last " + cnt + " bits");
+			}
 		}
 		int length = decinbuffer.data.limit();
-		if (alac.ibIdx < length - 1) {
-			throw new AlacDecoderException("found " + (length - alac.ibIdx - 1) + " bytes trailing");
+		if (alac.ibIdx < length) {
+			throw new AlacDecoderException("found " + (length - alac.ibIdx) + " bytes trailing");
 		}
 		return outputsize;
 	}
