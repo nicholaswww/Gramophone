@@ -1081,16 +1081,15 @@ public class AlacDecodeUtils
 				int size = readbits(alac, 4);
 				if (size == 15)
 					size += readbits(alac, 8) - 1;
-				if (size == 0) {
-					throw new AlacDecoderException("unsupported filler size of zero");
-				}
-				int type = readbits(alac, 4);
-				if (type != 1) {
-					throw new AlacDecoderException("unsupported filler type " + type);
-				}
-				int fill_nibble = readbits(alac, 4);
-				if (fill_nibble != 0) {
-					throw new AlacDecoderException("unsupported filler nibble " + fill_nibble);
+				if (size > 0) {
+					int type = readbits(alac, 4);
+					if (type != 1) {
+						throw new AlacDecoderException("unsupported filler type " + type);
+					}
+					int fill_nibble = readbits(alac, 4);
+					if (fill_nibble != 0) {
+						throw new AlacDecoderException("unsupported filler nibble " + fill_nibble);
+					}
 				}
 				for (int i = 0; i < size - 1; i++) {
 					int data = readbits(alac, 8);
