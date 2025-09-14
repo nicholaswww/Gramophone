@@ -192,7 +192,7 @@ public class AlacDecodeUtils
 		int output  = 0;
 		int curbyte;
 
-        curbyte = input >> 24;
+		curbyte = input >> 24;
 		if (curbyte != 0)
 		{
 			count_leading_zeros_extra(curbyte, output, lz);
@@ -366,9 +366,9 @@ public class AlacDecodeUtils
 
 		if (predictor_coef_num == 0x1f) // 11111 - max value of predictor_coef_num
 		{
-		/* second-best case scenario for fir decompression,
-		   * error describes a small difference from the previous sample only
-		   */
+		    /* second-best case scenario for fir decompression,
+		     * error describes a small difference from the previous sample only
+		     */
 			if (output_size <= 1)
 				return;
 
@@ -678,19 +678,31 @@ public class AlacDecodeUtils
 			int frame_type;
 			int outputsamples  = alac.setinfo_max_samples_per_frame;
 			int newoutputsize;
-			/*if (alac.input_buffer_bitaccumulator > 5) {
-				if (alac.ibIdx + 1 >= alac.input_buffer.length)
-					break;
-			} else {
-				if (alac.ibIdx >= alac.input_buffer.length)
-					break;
-			}*/
-			frame_type = readbits(alac, 3);
-			/*if (frame_type == 0 && channel_index >= alac.channel_map.length &&
-					alac.ibIdx + 1 >= alac.input_buffer.length) {
-				// this file is missing an end frame and just has it zeroed out.
+			if (alac.ibIdx >= alac.input_buffer.length || (alac.input_buffer_bitaccumulator > 5 &&
+					alac.ibIdx + 1 >= alac.input_buffer.length)) {
+				Log.w("AlacDecoder", "no space for frame tag and no end tag yet!");
 				break;
-			}*/
+			}
+			frame_type = readbits(alac, 3);
+			if (frame_type == 0 && channel_index >= alac.channel_map.length) {
+				int idx = alac.ibIdx * 8 + alac.input_buffer_bitaccumulator;
+				if (alac.input_buffer_bitaccumulator > 0) {
+					int cnt = 8 - alac.input_buffer_bitaccumulator;
+					int bits = readbits(alac, cnt);
+					if (bits != 0) {
+						throw new AlacDecoderException("found data " + bits + " in align of " + cnt + " bits after zeroed frame");
+					}
+				}
+				for (int i = alac.ibIdx; i < alac.input_buffer.length; i++) {
+					int read = readbits(alac, 8);
+					if (read != 0) {
+						throw new AlacDecoderException("found data " + read + " at " + alac.ibIdx + " bytes, had zeroed frame");
+					}
+				}
+				Log.w("AlacDecoder", "missing end frame and " +
+						(alac.input_buffer.length * 8 - idx) + " zero bits, file is watermarked");
+				break;
+			}
 
 			if (frame_type == 0 || frame_type == 1 || frame_type == 3) {
 				int tag = readbits(alac, 4);
