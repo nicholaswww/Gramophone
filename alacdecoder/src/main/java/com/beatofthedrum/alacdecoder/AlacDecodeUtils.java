@@ -1069,15 +1069,27 @@ public class AlacDecodeUtils
 				int size = readbits(alac, 4);
 				if (size == 15)
 					size += readbits(alac, 8) - 1;
-				alac.ibIdx += size;
-				if (size != 0) {
-					// TODO: but DEBUG(!) encoder does this sometimes
-					throw new AlacDecoderException("unsupported free element with size " + size);
+				if (size == 0) {
+					throw new AlacDecoderException("unsupported filler size of zero");
 				}
+				int type = readbits(alac, 4);
+				if (type != 1) {
+					throw new AlacDecoderException("unsupported filler type " + type);
+				}
+				int fill_nibble = readbits(alac, 4);
+				if (fill_nibble != 0) {
+					throw new AlacDecoderException("unsupported filler nibble " + fill_nibble);
+				}
+				for (int i = 0; i < size - 1; i++) {
+					int data = readbits(alac, 8);
+					if (data != 0xa5) {
+						throw new AlacDecoderException("found non-filler data " + data);
+					}
+				}
+				Log.w("AlacDecoder", "got " + size + " bytes of filler");
 			} else if (frame_type == 6) {
 				int tag = readbits(alac, 4);
 				if (tag != 0) {
-					// to add it just remove throw, but encoder doesn't do this and we're paranoid.
 					throw new AlacDecoderException("unsupported data stream element tag " + tag);
 				}
 				boolean align = readbit(alac) != 0;
@@ -1085,16 +1097,22 @@ public class AlacDecodeUtils
 				if (size == 255)
 					size += readbits(alac, 8);
 				if (align && alac.input_buffer_bitaccumulator > 0) {
-					alac.input_buffer_bitaccumulator = 0;
-					alac.ibIdx++;
-					// TODO: but DEBUG(!) encoder does this sometimes
-					throw new AlacDecoderException("unsupported data stream element with align");
+					int cnt = 8 - alac.input_buffer_bitaccumulator;
+					int bits = readbits(alac, cnt);
+					if (bits != 0) {
+						throw new AlacDecoderException("found data " + bits + " in align of " + cnt + " bits");
+					}
+				} else if (!align) {
+					// encoder doesn't do this and we're paranoid.
+					throw new AlacDecoderException("found DSE data with align disabled");
 				}
-				alac.ibIdx += size;
-				if (size != 0) {
-					// TODO: but DEBUG(!) encoder does this sometimes
-					throw new AlacDecoderException("unsupported data stream element with size " + size);
+				for (int i = 0; i < size; i++) {
+					int data = readbits(alac, 8);
+					if (data != 0x5a) {
+						throw new AlacDecoderException("found non-filler DSE data " + data);
+					}
 				}
+				Log.w("AlacDecoder", "got " + size + " bytes of filler DSE");
 			} else if (frame_type == 2 || frame_type == 5) {
 				throw new AlacDecoderException("refalac does not support tag " + frame_type + ", is this file corrupt? or is there a new version of ALAC?");
 			} else if (frame_type == 7) {
