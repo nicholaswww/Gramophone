@@ -64,6 +64,20 @@ class TransformableImageView @JvmOverloads constructor(
         }
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (isAnimating) {
+            Choreographer.getInstance().postFrameCallback(this)
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        if (isAnimating) {
+            Choreographer.getInstance().removeFrameCallback(this)
+        }
+    }
+
     private var lastFrameTimeNanos: Long = 0L
     private var rotationSpeedDegPerFrame = 0.15f
 
