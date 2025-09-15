@@ -861,6 +861,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }*/
 
     override fun onTracksChanged(tracks: Tracks) {
+        if (!tracks.isTypeSelected(C.TRACK_TYPE_AUDIO)) {
+            Log.e(TAG, "No audio track selected.")
+            controller!!.stop()
+        }
         val mediaItem = controller?.currentMediaItem
 
         lyricsFetcher.launch {
