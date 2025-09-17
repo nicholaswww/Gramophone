@@ -97,6 +97,8 @@ typedef int32_t(*ZN7android10AudioTrack15getOutputDeviceEv_t)(void* thisptr);
 static ZN7android10AudioTrack15getOutputDeviceEv_t ZN7android10AudioTrack15getOutputDeviceEv = nullptr;
 typedef bool(*ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t_t)(audio_offload_info_t_v26 & offloadInfo);
 static ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t_t ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t = nullptr;
+typedef int32_t(*ZN7android11AudioSystem17getOffloadSupportERK20audio_offload_info_t_t)(audio_offload_info_t_v30 & offloadInfo);
+static ZN7android11AudioSystem17getOffloadSupportERK20audio_offload_info_t_t ZN7android11AudioSystem17getOffloadSupportERK20audio_offload_info_t = nullptr;
 typedef int32_t(*ZN7android10AudioTrack22addAudioDeviceCallbackERKNS_2spINS_11AudioSystem19AudioDeviceCallbackEEE_t)(void* thisptr, fake_sp& cb);
 static ZN7android10AudioTrack22addAudioDeviceCallbackERKNS_2spINS_11AudioSystem19AudioDeviceCallbackEEE_t ZN7android10AudioTrack22addAudioDeviceCallbackERKNS_2spINS_11AudioSystem19AudioDeviceCallbackEEE = nullptr;
 typedef int32_t(*ZN7android10AudioTrack25removeAudioDeviceCallbackERKNS_2spINS_11AudioSystem19AudioDeviceCallbackEEE_t)(void* thisptr, fake_sp& cb);
@@ -517,7 +519,9 @@ Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_initDlsym(JNIEnv* 
     DLSYM_OR_RETURN(libutils, ZNK7android7RefBase9decStrongEPKv, false)
     DLSYM_OR_RETURN(libutils, ZNK7android7RefBase10createWeakEPKv, false)
     DLSYM_OR_RETURN(libutils, ZN7android7RefBase12weakref_type7decWeakEPKv, false)
-    if (android_get_device_api_level() <= 30) {
+    if (android_get_device_api_level() >= 31) {
+	    DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem17getOffloadSupportERK20audio_offload_info_t, false)
+    } else {
         DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t, false)
     }
     if (android_get_device_api_level() >= 36) {
@@ -1160,14 +1164,10 @@ Java_org_nift4_gramophone_hificore_NativeTrack_dtor(
     delete holder;
 }
 
-extern "C" JNIEXPORT jboolean JNICALL
+extern "C" JNIEXPORT jint JNICALL
 Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_isOffloadSupported(
         JNIEnv*, jobject, jint sampleRate, jint format,
         jint channelMask, jint bitRate, jint bitWidth, jint offloadBufferSize) {
-    if (android_get_device_api_level() > 30) {
-        ALOGE("isOffloadSupported() should only be used on L-R");
-        return false;
-    }
     union {
         audio_offload_info_t_v30 newInfo = {};
         audio_offload_info_t_v26 oldInfo;
@@ -1209,7 +1209,11 @@ Java_org_nift4_gramophone_hificore_NativeTrack_00024Companion_isOffloadSupported
                 .use_small_bufs = false,
         };
     }
-    return ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t(offloadInfo.oldInfo);
+	if (android_get_device_api_level() >= 31) {
+		return ZN7android11AudioSystem17getOffloadSupportERK20audio_offload_info_t(offloadInfo.newInfo);
+	} else {
+		return ZN7android11AudioSystem18isOffloadSupportedERK20audio_offload_info_t(offloadInfo.oldInfo);
+	}
 }
 
 extern "C"

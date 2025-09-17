@@ -123,7 +123,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                     // Data point: either direct or offload port must exist.
                     val am = context.getSystemService<AudioManager>()!!
                     val profiles = am.getDirectProfilesForAttributes(attributes).toMutableList()
-                    if (profiles.isNotEmpty()) {
+                    return if (profiles.isNotEmpty()) {
                         // Data point: there is no non-offloadable effect.
                         profiles.removeIf { it.format != format.encoding ||
                                 !it.channelMasks.contains(format.channelMask) ||
@@ -140,25 +140,23 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                                     AudioManager.PLAYBACK_OFFLOAD_GAPLESS_SUPPORTED
                             val hasDirect = (AudioManager.getDirectPlaybackSupport(format, attributes)
                                     and AudioManager.DIRECT_PLAYBACK_BITSTREAM_SUPPORTED) != 0
-                            return DirectPlaybackSupport(!hasGaplessOffloadCurrently,
+                            DirectPlaybackSupport(!hasGaplessOffloadCurrently,
                                 hasGaplessOffloadCurrently, hasDirect)
-                        }
+                        } else
                         // Either offload is prevented by master mono or props, or it doesn't exist.
                         if (profiles.size > 1) {
                             // While possible, odds are that there is a direct port instead of two
                             // offload ports.
-                            return DirectPlaybackSupport.DIRECT
-                        }
-                        return DirectPlaybackSupport.DIRECT // TODO: low confidence flag
+                            DirectPlaybackSupport.DIRECT
+                        } else DirectPlaybackSupport.DIRECT // TODO: low confidence flag
                     } else {
                         // Data point: there's a non-offloadable effect present. But the port could
                         // still be unimpacted because it's direct.
-                        return DirectPlaybackSupport.DIRECT // TODO: low confidence flag
+                        DirectPlaybackSupport.DIRECT // TODO: low confidence flag
                     }
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    // be careful: both of these methods consider inactive routes on S
-                    return when ((@Suppress("deprecation") AudioManager.getPlaybackOffloadSupport(
-                        format, attributes))) {
+                } else {
+                    // be careful: both of these methods consider inactive routes
+                    return when (getPlaybackOffloadSupportPlatformCompat(format, attributes)) {
                         AudioManager.PLAYBACK_OFFLOAD_GAPLESS_SUPPORTED -> return DirectPlaybackSupport.GAPLESS_OFFLOAD
                         AudioManager.PLAYBACK_OFFLOAD_SUPPORTED -> return DirectPlaybackSupport.OFFLOAD
                         else -> {
@@ -171,128 +169,144 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                             else DirectPlaybackSupport.NONE
                         }
                     }
-                } else {
-                    // be careful: both of these methods consider inactive routes on Q/R
-                    if (AudioManager.isOffloadedPlaybackSupported(format, attributes))
-                        return DirectPlaybackSupport.OFFLOAD
-                    // isDirectPlaybackSupported does not care whether offload is possible,
-                    // and will happily return true if offload profile is found and pretend
-                    // it's direct. but we can't detect it.
-                    if ((@Suppress("deprecation")
-                        AudioTrack.isDirectPlaybackSupported(format, attributes)))
-                        return DirectPlaybackSupport.DIRECT // TODO: low confidence flag
-                    return DirectPlaybackSupport.NONE
                 }
             }
+            val bitWidth = bitsPerSampleForFormat(encoding)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // TODO implement native getDirectProfilesForAttributes
                 return DirectPlaybackSupport.NONE // TODO implement native getDirectPlaybackSupport
             }
             // TODO before T, inactive routes were considered in isDirectPlaybackSupported according to AOSP doc.
             //  does that apply to getPlaybackOffloadSupport and isOffloadSupported too?
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                return DirectPlaybackSupport.NONE // TODO implement native getPlaybackOffloadSupport
-            }
-            var hasDirect: Boolean? = null
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                hasDirect = false // TODO implement native isDirectOutputSupported
-            }
-            val bitWidth = bitsPerSampleForFormat(encoding)
-            var hasOffload: Boolean? = null
+            val bitrate = if (bitWidth != 0) {
+                bitWidth * Integer.bitCount(channelMask.toInt()) * sampleRate
+            } else 128 // arbitrary guess for compressed formats
+            val durationUs = 2100L /* 3.5min * 60 */ * 1000 * 1000 // must be >60s
             if (!(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
                         && Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1)
                 || !formatIsRawPcm(encoding) || bitWidth < 24
             ) {
                 // this cannot be trusted on N/O with 24+ bit PCM formats due to format confusion bug
                 // be careful: this considers inactive routes too
-                // TODO verify if this works on Q/R
-                hasOffload = try {
+                // TODO verify if this works on Q/R/S
+                when (try {
                     isOffloadSupported(sampleRate, encoding.toInt(), channelMask.toInt(), 0, bitWidth, 0)
                 } catch (t: Throwable) {
                     Log.e(TAG, Log.getStackTraceString(t))
-                    false
+                    0
+                }) {
+                    2 -> return DirectPlaybackSupport.GAPLESS_OFFLOAD
+                    1 -> return DirectPlaybackSupport.OFFLOAD
+                    0 -> {}
+                    else -> throw IllegalStateException()
                 }
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                return DirectPlaybackSupport(hasOffload!!, false, hasDirect!!)
-            val bitrate = if (bitWidth != 0) {
-                bitWidth * Integer.bitCount(channelMask.toInt()) * sampleRate
-            } else 128 // arbitrary guess for compressed formats
-            val durationUs = 2100L /* 3.5min * 60 */ * 1000 * 1000 // must be >60s
-            if (hasOffload == null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // TODO implement native isDirectOutputSupported
+                    // TODO low confidence flag
+                    return DirectPlaybackSupport.DIRECT
+                }
+            } else {
+                // check for offload on N/O with 24+ bit PCM formats by opening track...
                 // safeguard against bad direct track recycling on O by opening new session every time
                 val sessionId = context.getSystemService<AudioManager>()!!.generateAudioSessionId()
                 try {
                     val track = NativeTrack(
                         context, attributes, AudioManager.STREAM_MUSIC, sampleRate, encoding,
                         channelMask, null, 0x11, sessionId, 1.0f, null, bitrate, durationUs,
-	                    hasVideo = false,
-	                    smallBuf = false,
-	                    isStreaming = false,
-	                    offloadBufferSize = 0,
-	                    notificationFrames = 0,
-	                    doNotReconnect = true,
-	                    transferMode = TransferMode.Sync,
-	                    contentId = null,
-	                    syncId = null,
-	                    encapsulationMode = ENCAPSULATION_MODE_NONE,
-	                    sharedMem = null
+                        hasVideo = false,
+                        smallBuf = false,
+                        isStreaming = false,
+                        offloadBufferSize = 0,
+                        notificationFrames = 0,
+                        doNotReconnect = true,
+                        transferMode = TransferMode.Sync,
+                        contentId = null,
+                        syncId = null,
+                        encapsulationMode = ENCAPSULATION_MODE_NONE,
+                        sharedMem = null
                     )
                     val port = AudioTrackHiddenApi.getMixPortForThread(track.getOutput())
+                    val flags = track.flags()
+                    track.release()
                     if (port == null) {
                         Log.w(TAG, "port is null")
-                        hasOffload = false
-                    } else if (port.format != encoding) {
+                        return DirectPlaybackSupport.NONE
+                    }
+                    if (port.format != encoding) {
                         Log.e(
                             TAG,
                             "port ${port.name} was found, but is format ${port.format} instead of $encoding"
                         )
-                        hasOffload = false
-                    } else {
-                        val flags = track.flags()
-                        hasOffload = (flags and 0x11) == 0x11
-                        if ((flags and 0x11) == 0x1) {
-                            hasDirect = true
-                        }
+                        return DirectPlaybackSupport.NONE
                     }
-                    track.release()
+                    if ((flags and 0x11) == 0x11) {
+                        return DirectPlaybackSupport.OFFLOAD
+                    }
+                    if ((flags and 0x11) == 0x1) {
+                        return DirectPlaybackSupport.DIRECT
+                    }
                 } catch (t: Throwable) {
                     Log.e(TAG, Log.getStackTraceString(t)) // TODO don't stacktrace when set fails due to unsupported format
                 }
             }
-            if (hasDirect == null) {
-                // safeguard against bad direct track recycling on O by opening new session every time
-                val sessionId = context.getSystemService<AudioManager>()!!.generateAudioSessionId()
-                try {
-                    val track = NativeTrack(
-                        context, attributes, AudioManager.STREAM_MUSIC, sampleRate, encoding,
-                        channelMask, null, 0x1, sessionId, 1.0f, null, bitrate, durationUs, hasVideo = false, smallBuf = false,
-                        false, 0, 0, true, TransferMode.Sync, null, null, ENCAPSULATION_MODE_NONE, null
+            // check for direct output below Q by opening track...
+            val sessionId = context.getSystemService<AudioManager>()!!.generateAudioSessionId()
+            try {
+                val track = NativeTrack(
+                    context, attributes, AudioManager.STREAM_MUSIC, sampleRate, encoding,
+                    channelMask, null, 0x1, sessionId, 1.0f, null, bitrate, durationUs,
+                    hasVideo = false,
+                    smallBuf = false,
+                    isStreaming = false,
+                    offloadBufferSize = 0,
+                    notificationFrames = 0,
+                    doNotReconnect = true,
+                    transferMode = TransferMode.Sync,
+                    contentId = null,
+                    syncId = null,
+                    encapsulationMode = ENCAPSULATION_MODE_NONE,
+                    sharedMem = null
+                )
+                val port = AudioTrackHiddenApi.getMixPortForThread(track.getOutput())
+                val flags = track.flags()
+                track.release()
+                if (port == null) {
+                    Log.w(TAG, "port is null")
+                    return DirectPlaybackSupport.NONE
+                }
+                if (port.format != encoding) {
+                    Log.e(
+                        TAG,
+                        "port ${port.name} was found, but is format ${port.format} instead of $encoding"
                     )
-                    val port = AudioTrackHiddenApi.getMixPortForThread(track.getOutput())
-                    Log.i(TAG, "got port $port")
-                    if (port == null) {
-                        Log.w(TAG, "port is null")
-                        hasDirect = false
-                    } else if (port.format != encoding) {
-                        Log.e(
-                            TAG,
-                            "port ${port.name} was found, but is format ${port.format} instead of $encoding"
-                        )
-                        hasDirect = false
-                    } else {
-                        hasDirect = (track.flags() and 0x11) == 0x1
-                    }
-                    track.release()
-                } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t)) // TODO don't stacktrace when set fails due to unsupported format
+                    return DirectPlaybackSupport.NONE
                 }
+                if ((flags and 0x11) == 0x11) {
+                    return DirectPlaybackSupport.OFFLOAD
+                }
+                if ((flags and 0x11) == 0x1) {
+                    return DirectPlaybackSupport.DIRECT
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, Log.getStackTraceString(t)) // TODO don't stacktrace when set fails due to unsupported format
             }
-            return DirectPlaybackSupport(hasOffload == true, false, hasDirect == true)
+            return DirectPlaybackSupport.NONE
         }
         /*private external fun getDirectPlaybackSupport(usage: Int, contentType: Int, attrFlags: Int,
                                                       sampleRate: Int, format: Int, channelMask: Int,
                                                       bitRate: Int, bitWidth: Int, offloadBufferSize: Int) TODO*/
+        @RequiresApi(Build.VERSION_CODES.Q)
+        private fun getPlaybackOffloadSupportPlatformCompat(format: AudioFormat, attributes: AudioAttributes): Int {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                (@Suppress("deprecation") AudioManager.getPlaybackOffloadSupport(
+                    format, attributes))
+            } else {
+                @SuppressLint("InlinedApi") if (
+                    AudioManager.isOffloadedPlaybackSupported(format, attributes))
+                    AudioManager.PLAYBACK_OFFLOAD_SUPPORTED
+                else AudioManager.PLAYBACK_OFFLOAD_NOT_SUPPORTED
+            }
+        }
         fun getMinBufferSize(sampleRateInHz: Int, channelConfig: Int, audioFormat: UInt): Int {
             val minFrameCount = getMinFrameCount(-1, sampleRateInHz)
             val bps = bitsPerSampleForFormat(audioFormat)
@@ -310,8 +324,10 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
         }
         private external fun getMinFrameCountInternal(streamType: Int, sampleRateInHz: Int): Int
         private fun prepareForLib() {
+            if (!AudioTrackHiddenApi.canLoadLib())
+                throw NativeTrackException("this device is banned")
             if (!AudioTrackHiddenApi.libLoaded)
-                throw NativeTrackException("lib isn't loaded (maybe this device is banned?)")
+                throw NativeTrackException("lib isn't loaded but device isn't banned")
             if (!try {
                     initDlsym()
                 } catch (t: Throwable) {
@@ -363,7 +379,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             return formatBuilder.setChannelMask(channelMask).build()
         }
         private external fun isOffloadSupported(sampleRate: Int, format: Int, channelMask: Int, bitRate: Int,
-                                                bitWidth: Int, offloadBufferSize: Int): Boolean
+                                                bitWidth: Int, offloadBufferSize: Int): Int
         private external fun initDlsym(): Boolean
         fun forTest(context: Context): NativeTrack {
             return NativeTrack(
