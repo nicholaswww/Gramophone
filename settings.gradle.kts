@@ -1,8 +1,5 @@
 @file:Suppress("UnstableApiUsage")
 
-include(":alacdecoder")
-
-
 pluginManagement {
     repositories {
         google()
@@ -34,4 +31,10 @@ includeBuild(file("media3").toPath().toRealPath().toAbsolutePath().toString()) {
         substitute(module("androidx.media3:media3-session")).using(project(":lib-session"))
     }
 }
-include(":hificore", ":app", ":baselineprofile")
+
+include(":misc:audiofxfwd")
+include(":misc:audiofxstub")
+include(":misc:alacdecoder")
+include(":hificore")
+include(":app")
+include(":baselineprofile")

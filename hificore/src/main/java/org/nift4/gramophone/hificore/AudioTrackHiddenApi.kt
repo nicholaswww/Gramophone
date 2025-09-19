@@ -23,6 +23,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Parcel
 import android.util.Log
+import androidx.annotation.RequiresApi
 
 object AudioTrackHiddenApi {
     private const val TAG = "AudioTrackHiddenApi"
@@ -636,4 +637,19 @@ object AudioTrackHiddenApi {
         )
         return null
     }
+
+    data class AudioConfigBase(val sampleRate: Int, val channelMask: Int, val format: Int)
+
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    fun getEffectConfigs(ptr: Long): Pair<AudioConfigBase, AudioConfigBase> {
+        val out = IntArray(6)
+        val ret = getEffectConfigs(ptr, out)
+        if (ret != 0) {
+            throw IllegalStateException("getEffectConfigs() failed: $ret")
+        }
+        return AudioConfigBase(out[0], out[1], out[2]) to
+                AudioConfigBase(out[3], out[4], out[5])
+    }
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    private external fun getEffectConfigs(ptr: Long, out: IntArray): Int
 }

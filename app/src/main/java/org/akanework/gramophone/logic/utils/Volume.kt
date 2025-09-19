@@ -1,9 +1,19 @@
 package org.akanework.gramophone.logic.utils
 
+import android.media.audiofx.AudioEffect
+import android.util.Log
+import org.nift4.gramophone.hificore.ReflectionAudioEffect
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.UUID
 
 /**
  * Class constructor. See also OpenSL ES 1.1 specification, SLVolumeItf interface.
+ *
+ * The system will change the volume level stored in the effect without notifying the listener if:
+ * - The computed volume (sw master volume * stream volume * shaper volume) changes
+ * - An effect is started or stopped
+ * - Audio track paused (set to volume -96dB) / unpaused (set to former volume)
  *
  * @param priority the priority level requested by the application for
  *            controlling the effect engine. As the same effect engine can
@@ -52,4 +62,28 @@ class Volume(priority: Int, audioSession: Int) : ReflectionAudioEffect(
 		set(value) {
 			setParameter(4, value)
 		}
+
+	fun setParameterListener(listener: (Int, Int) -> Unit) {
+		setBaseParameterListener { _, status, param, value ->
+			val paramI = ByteBuffer.wrap(param).order(ByteOrder.nativeOrder())
+				.asIntBuffer().get()
+			if (status == AudioEffect.SUCCESS) {
+				when (paramI) {
+					0, 1, 4 -> {
+						val valueS = ByteBuffer.wrap(param)
+							.order(ByteOrder.nativeOrder()).asShortBuffer().get()
+						listener(paramI, valueS.toInt())
+					}
+					2, 3 -> {
+						val valueB = ByteBuffer.wrap(param)
+							.order(ByteOrder.nativeOrder()).asIntBuffer().get() != 0
+						listener(paramI, if (valueB) 1 else 0)
+					}
+					else -> Log.e("Volume", "unknown param $paramI changed")
+				}
+			} else {
+				Log.e("Volume", "param $paramI change failed? $status")
+			}
+		}
+	}
 }

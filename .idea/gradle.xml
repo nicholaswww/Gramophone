@@ -74,7 +74,6 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/alacdecoder" />
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/baselineprofile" />
             <option value="$PROJECT_DIR$/hificore" />
@@ -132,10 +131,13 @@
             <option value="$PROJECT_DIR$/media3/libraries/ui_compose" />
             <option value="$PROJECT_DIR$/media3/libraries/ui_leanback" />
             <option value="$PROJECT_DIR$/media3/testapps/controller" />
+            <option value="$PROJECT_DIR$/misc" />
+            <option value="$PROJECT_DIR$/misc/alacdecoder" />
+            <option value="$PROJECT_DIR$/misc/audiofxfwd" />
+            <option value="$PROJECT_DIR$/misc/audiofxstub" />
           </set>
         </option>
       </GradleProjectSettings>
     </option>
-    <option name="offlineMode" value="false" />
   </component>
 </project>

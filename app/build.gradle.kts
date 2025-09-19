@@ -7,7 +7,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
 import java.util.Properties
 
-val aboutLibsVersion = "13.0.0-b01" // keep in sync with plugin version
+val aboutLibsVersion = "13.0.0-rc01" // keep in sync with plugin version
 
 plugins {
     id("com.android.application")
@@ -268,7 +268,7 @@ aboutLibraries {
 
 dependencies {
     implementation(project(":hificore"))
-    implementation(project(":alacdecoder"))
+    implementation(project(":misc:alacdecoder"))
     val composeBom = platform("androidx.compose:compose-bom:2025.05.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
@@ -277,7 +277,7 @@ dependencies {
     implementation("androidx.compose.material3.adaptive:adaptive")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
-    implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.collection:collection-ktx:1.5.0")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0")
@@ -285,7 +285,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.core:core-splashscreen:1.2.0-rc01")
     implementation("androidx.fragment:fragment-ktx:1.8.9")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.3")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.mediarouter:mediarouter:1.8.1")
     val media3Version = "1.8.0"
     implementation("androidx.media3:media3-common-ktx:$media3Version")
@@ -297,7 +297,7 @@ dependencies {
     implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("androidx.transition:transition-ktx:1.6.0") // <-- for predictive back TODO can we remove explicit dep now?
     implementation("com.mikepenz:aboutlibraries-compose-m3:$aboutLibsVersion")
-    implementation("com.google.android.material:material:1.12.0")
+    implementation("com.google.android.material:material:1.13.0")
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")

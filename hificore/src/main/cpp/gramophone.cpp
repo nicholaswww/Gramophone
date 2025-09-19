@@ -78,6 +78,9 @@ static intptr_t gTrackFlagsOffset = 0;
 typedef bool(*ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi_t)(void* thisptr, uint32_t output);
 static ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi_t ZN7android18ExtendedMediaUtils26AudioTrackIsTrackOffloadedEi = nullptr;
 
+typedef int32_t(*ZN7android11AudioEffect10getConfigsEP17audio_config_baseS2__t)(void* thisptr, void* c1, void* c2);
+static ZN7android11AudioEffect10getConfigsEP17audio_config_baseS2__t ZN7android11AudioEffect10getConfigsEP17audio_config_baseS2_ = nullptr;
+
 bool initLib(JNIEnv *env) {
     if (init_done)
         return true;
@@ -696,4 +699,26 @@ Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getFlagsInternal(JNIEnv *
 #else
     return (int32_t)*(uint32_t*)((uintptr_t)audio_track_ptr + 0x1e8 + extra);
 #endif
+}
+
+struct audio_config_base {
+	uint32_t sample_rate;
+	uint32_t channel_mask;
+	uint32_t format;
+};
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_org_nift4_gramophone_hificore_AudioTrackHiddenApi_getEffectConfigs(JNIEnv *env, jobject,
+                                                                        jlong ptr, jintArray out) {
+	if (!initLib(env))
+		return 1;
+	audio_config_base c1 = {};
+	audio_config_base c2 = {};
+	DLSYM_OR_RETURN(libaudioclient, ZN7android11AudioEffect10getConfigsEP17audio_config_baseS2_, 1)
+	int32_t ret = ZN7android11AudioEffect10getConfigsEP17audio_config_baseS2_((void*) ptr, &c1, &c2);
+	env->SetIntArrayRegion(out, 0, sizeof(audio_config_base) / sizeof(int32_t), (int32_t*)&c1);
+	env->SetIntArrayRegion(out, sizeof(audio_config_base) / sizeof(int32_t),
+						   sizeof(audio_config_base) / sizeof(int32_t), (int32_t*)&c2);
+	return ret;
 }

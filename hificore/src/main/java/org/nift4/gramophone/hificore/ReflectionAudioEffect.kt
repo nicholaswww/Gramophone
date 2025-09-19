@@ -1,9 +1,11 @@
-package org.akanework.gramophone.logic.utils
+package org.nift4.gramophone.hificore
 
 import android.annotation.SuppressLint
 import android.media.audiofx.AudioEffect
-import android.media.audiofx.AudioEffect.OnControlStatusChangeListener
-import android.media.audiofx.AudioEffect.OnEnableStatusChangeListener
+import android.os.Build
+import androidx.annotation.RequiresApi
+import org.nift4.audiofxfwd.OnParameterChangeListener
+import java.lang.reflect.Method
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
@@ -11,7 +13,7 @@ import java.util.UUID
 /**
  * Class constructor.
  *
- * @param type type of effect engine created. See [AudioEffect.EFFECT_TYPE_ENV_REVERB],
+ * @param type type of effect engine created. See [android.media.audiofx.AudioEffect.EFFECT_TYPE_ENV_REVERB],
  *            [AudioEffect.EFFECT_TYPE_EQUALIZER]... Types corresponding to
  *            built-in effects are defined by AudioEffect class. Other types
  *            can be specified provided they correspond an existing OpenSL
@@ -40,10 +42,12 @@ import java.util.UUID
  * @throws java.lang.RuntimeException
  */
 @Suppress("unused")
+@SuppressLint("PrivateApi")
 open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSession: Int) {
 	companion object {
-		val EFFECT_TYPE_NULL by lazy { @SuppressLint("BlockedPrivateApi")
-		AudioEffect::class.java.getDeclaredField("EFFECT_TYPE_NULL").get(null) as UUID }
+		val EFFECT_TYPE_NULL by lazy {
+			AudioEffect::class.java.getDeclaredField("EFFECT_TYPE_NULL").get(null) as UUID
+		}
 		fun isEffectTypeAvailable(type: UUID?): Boolean {
 			val desc = AudioEffect.queryEffects()
 			if (desc == null) {
@@ -58,9 +62,20 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 		}
 	}
 	private val effect: AudioEffect = AudioEffect::class.java
-		.getDeclaredConstructor(UUID::class.java, UUID::class.java,
+		.getDeclaredConstructor(
+			UUID::class.java, UUID::class.java,
 			Int::class.java, Int::class.java)
 		.newInstance(type, uuid, priority, audioSession)
+	private val nativeEffectField by lazy {
+		AudioEffect::class.java.getDeclaredField("mNativeAudioEffect").apply {
+			isAccessible = true
+		}
+	}
+	private val adapterClazz by lazy {
+		Class.forName("org.nift4.audiofxfwd.OnParameterChangeListenerAdapter") }
+	private val setParameterListenerFn by lazy {
+		adapterClazz.getDeclaredMethod("getGetter").invoke(null) as Method
+	}
 	private val setParameterFn by lazy { AudioEffect::class.java.getDeclaredMethod(
 		"setParameter", ByteArray::class.java, ByteArray::class.java) }
 	private val getParameterFn by lazy { AudioEffect::class.java.getDeclaredMethod(
@@ -133,7 +148,7 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 	 *
 	 * @param listener
 	 */
-	fun setEnableStatusListener(listener: OnEnableStatusChangeListener?) {
+	fun setEnableStatusListener(listener: AudioEffect.OnEnableStatusChangeListener?) {
 		effect.setEnableStatusListener(listener)
 	}
 
@@ -143,11 +158,34 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 	 *
 	 * @param listener
 	 */
-	fun setControlStatusListener(listener: OnControlStatusChangeListener?) {
+	fun setControlStatusListener(listener: AudioEffect.OnControlStatusChangeListener?) {
 		effect.setControlStatusListener(listener)
 	}
 
-	// could maybe do setParameterChangeListener if needed
+	/**
+	 * Sets the listener AudioEffect notifies when a parameter is changed.
+	 *
+	 * @param listener
+	 */
+	fun setBaseParameterListener(listener: OnParameterChangeListener?) {
+		val adapter = listener?.let { adapterClazz.getDeclaredConstructor(
+			org.nift4.audiofxfwd.OnParameterChangeListener::class.java)
+			.newInstance(org.nift4.audiofxfwd.OnParameterChangeListener { e, i, b, b1 ->
+				listener.onParameterChange(effect, i, b, b1)
+			}) }
+		setParameterListenerFn.invoke(effect, adapter)
+	}
+
+	@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+	fun getConfigs(): Pair<AudioTrackHiddenApi.AudioConfigBase, AudioTrackHiddenApi.AudioConfigBase> {
+		try {
+			effect.getId()
+		} catch (_: IllegalStateException) {
+			throw IllegalStateException("getConfigs() called on released AudioEffect")
+		}
+		val ptr = nativeEffectField.getLong(effect)
+		return AudioTrackHiddenApi.getEffectConfigs(ptr)
+	}
 
 	/**
 	 * Set effect parameter. The setParameter method is provided in several
@@ -168,6 +206,8 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 			throw IllegalStateException("setParameter failed with code $ret")
 		}
 	}
+
+	// could do setParameterDeferred and setParameterCommit if needed, so far not needed
 
 	/**
 	 * Get effect parameter. The getParameter method is provided in several
@@ -257,5 +297,19 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 			1 -> true
 			else -> throw IllegalStateException("getBoolParameter(): invalid bool $ret")
 		}
+	}
+
+	fun interface OnParameterChangeListener {
+		/**
+		 * Called on the listener to notify it that a parameter value has changed.
+		 * @param effect the effect on which the interface is registered.
+		 * @param status status of the set parameter operation.
+		 * @param param ID of the modified parameter.
+		 * @param value the new parameter value.
+		 */
+		fun onParameterChange(
+			effect: AudioEffect, status: Int, param: ByteArray,
+			value: ByteArray
+		)
 	}
 }
