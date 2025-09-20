@@ -558,7 +558,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         lastPlayedManager.save()
         scope.cancel()
         mediaSession!!.player.stop()
-        broadcastAudioSessionClose()
         handler.removeCallbacks(timer)
         mediaSession!!.setOptOutOfMediaButtonPlaybackResumption(controller!!.currentTimeline.isEmpty)
         controller!!.release()
@@ -566,6 +565,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaSession!!.release()
         mediaSession!!.player.release()
         mediaSession = null
+        broadcastAudioSessionClose()
         internalPlaybackThread.quitSafely()
         proxy?.let {
             it.adapter.closeProfileProxy(BluetoothProfile.A2DP, it.a2dp)

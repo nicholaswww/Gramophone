@@ -23,6 +23,7 @@ import android.content.ContentUris
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -142,6 +143,10 @@ class MainActivity : BaseActivity() {
                     doAddToPlaylist(it.resultCode, req)
                 }
             }
+        // TODO: should Activity.setMediaController() or Activity.setVolumeControlStream() be
+        //  called? latter will probably not do particularly much, and former will
+        //  forward events to our session no matter whether it makes sense or not to currently
+        //  handle volume there... but it's still better than not getting the key events I guess?
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(object :
             FragmentLifecycleCallbacks() {

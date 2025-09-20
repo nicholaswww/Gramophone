@@ -15,6 +15,7 @@ import androidx.media3.exoplayer.audio.ForwardingAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.video.VideoRendererEventListener
+import org.akanework.gramophone.logic.utils.PostAmpAudioSink
 import org.nift4.alacdecoder.AlacRenderer
 
 @OptIn(UnstableApi::class)
@@ -86,15 +87,21 @@ class GramophoneRenderFactory(context: Context,
         enableFloatOutput: Boolean,
         enableAudioTrackPlaybackParams: Boolean
     ): AudioSink? {
+        val root = super.buildAudioSink(
+            context,
+            pcmEncodingRestrictionLifted,
+            enableFloatOutput,
+            enableAudioTrackPlaybackParams
+        )!! as DefaultAudioSink
+        audioSinkListener(root)
         return MyForwardingAudioSink(
-            super.buildAudioSink(context, pcmEncodingRestrictionLifted, enableFloatOutput, enableAudioTrackPlaybackParams)!!)
+            PostAmpAudioSink(
+                root, context
+            )
+        )
     }
 
     inner class MyForwardingAudioSink(sink: AudioSink) : ForwardingAudioSink(sink) {
-        init {
-            audioSinkListener(sink as DefaultAudioSink)
-        }
-
         override fun configure(
             inputFormat: Format,
             specifiedBufferSize: Int,
