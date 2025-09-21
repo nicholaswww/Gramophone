@@ -26,9 +26,9 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import android.os.Build
-import android.util.Log
 import androidx.core.content.IntentCompat
 import androidx.core.content.getSystemService
+import androidx.media3.common.util.Log
 
 class UacManager(private val context: Context) {
 	companion object {

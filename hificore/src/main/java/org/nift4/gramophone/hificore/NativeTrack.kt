@@ -33,9 +33,9 @@ import android.media.metrics.LogSessionId
 import android.os.Build
 import android.os.Parcel
 import android.os.PersistableBundle
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
+import androidx.media3.common.util.Log
 import java.nio.ByteBuffer
 
 /*
@@ -192,7 +192,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 when (try {
                     isOffloadSupported(sampleRate, encoding.toInt(), channelMask.toInt(), 0, bitWidth, 0)
                 } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t))
+                    Log.e(TAG, Log.getThrowableString(t)!!)
                     0
                 }) {
                     2 -> return DirectPlaybackSupport.GAPLESS_OFFLOAD
@@ -246,7 +246,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                         return DirectPlaybackSupport.DIRECT
                     }
                 } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t)) // TODO don't stacktrace when set fails due to unsupported format
+                    Log.e(TAG, Log.getThrowableString(t)!!) // TODO don't stacktrace when set fails due to unsupported format
                 }
             }
             // check for direct output below Q by opening track...
@@ -288,7 +288,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                     return DirectPlaybackSupport.DIRECT
                 }
             } catch (t: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(t)) // TODO don't stacktrace when set fails due to unsupported format
+                Log.e(TAG, Log.getThrowableString(t)!!) // TODO don't stacktrace when set fails due to unsupported format
             }
             return DirectPlaybackSupport.NONE
         }
@@ -366,14 +366,14 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                     field.isAccessible = true
                     field.set(formatBuilder, sampleRate)
                 } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t))
+                    Log.e(TAG, Log.getThrowableString(t)!!)
                     return null
                 }
             }
             try {
                 formatBuilder.setEncoding(encoding)
             } catch (e: IllegalArgumentException) {
-                Log.w(TAG, Log.getStackTraceString(e))
+                Log.w(TAG, Log.getThrowableString(e)!!)
                 return null
             }
             return formatBuilder.setChannelMask(channelMask).build()
@@ -516,7 +516,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                 dtor(ptr)
             } catch (t2: Throwable) {
                 throw NativeTrackException("dtor() threw exception after set() threw exception: " +
-                        Log.getStackTraceString(t2), t)
+                        Log.getThrowableString(t2)!!, t)
             }
             throw NativeTrackException("set() threw exception", t)
         }
@@ -540,7 +540,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                     dtor(ptr)
                 } catch (t2: Throwable) {
                     throw NativeTrackException("dtor() threw exception after getProxy() threw exception: " +
-                            Log.getStackTraceString(t2), t)
+                            Log.getThrowableString(t2)!!, t)
                 }
                 throw NativeTrackException("getProxy() threw exception", t)
             }

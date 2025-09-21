@@ -22,8 +22,8 @@ import android.media.AudioTrack
 import android.os.Build
 import android.os.IBinder
 import android.os.Parcel
-import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.media3.common.util.Log
 
 object AudioTrackHiddenApi {
     private const val TAG = "AudioTrackHiddenApi"
@@ -40,7 +40,7 @@ object AudioTrackHiddenApi {
                 libLoaded = true
                 Log.d(TRACE_TAG, "Done loading libhificore.so")
             } catch (e: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(e))
+                Log.e(TAG, Log.getThrowableString(e)!!)
             }
         }
     }
@@ -80,7 +80,7 @@ object AudioTrackHiddenApi {
             val ret = try {
                 getHalSampleRateInternal(getAudioTrackPtr(audioTrack))
             } catch (e: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(e))
+                Log.e(TAG, Log.getThrowableString(e)!!)
                 null
             }
             if (ret != null && ret != 0)
@@ -103,7 +103,7 @@ object AudioTrackHiddenApi {
             try {
                 af.transact(3, inParcel, outParcel, 0)
             } catch (e: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(e))
+                Log.e(TAG, Log.getThrowableString(e)!!)
                 return null
             }
             Log.d(TRACE_TAG, "done calling format() via binder")
@@ -134,7 +134,7 @@ object AudioTrackHiddenApi {
                 Log.d(TRACE_TAG, "calling native getHalChannelCountInternal/getAudioTrackPtr")
                 getHalChannelCountInternal(getAudioTrackPtr(audioTrack))
             } catch (e: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(e))
+                Log.e(TAG, Log.getThrowableString(e)!!)
                 null
             }.also { Log.d(TRACE_TAG, "native getHalChannelCountInternal/getAudioTrackPtr is done: $it") }
     }
@@ -152,7 +152,7 @@ object AudioTrackHiddenApi {
                 Log.d(TRACE_TAG, "calling native getHalFormatInternal/getAudioTrackPtr")
                 getHalFormatInternal(getAudioTrackPtr(audioTrack))
             } catch (e: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(e))
+                Log.e(TAG, Log.getThrowableString(e)!!)
                 null
             }.also { Log.d(TRACE_TAG, "native getHalChannelCountInternal/getAudioTrackPtr is done: $it") }
             if (ret != null && ret != 0)
@@ -178,7 +178,7 @@ object AudioTrackHiddenApi {
                     inParcel, outParcel, 0
                 )
             } catch (e: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(e))
+                Log.e(TAG, Log.getThrowableString(e)!!)
                 return null
             }
             Log.d(TRACE_TAG, "done calling format() via binder")
@@ -212,7 +212,7 @@ object AudioTrackHiddenApi {
                 "listAudioPorts", ArrayList::class.java, IntArray::class.java
             ).invoke(null, ports, generation) as Int
         } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
+            Log.e(TAG, Log.getThrowableString(e)!!)
             return null
         }
         if (ports.contains(null))
@@ -229,7 +229,7 @@ object AudioTrackHiddenApi {
                 it.isAccessible = true
             }.invoke(null, out) as Int
         } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
+            Log.e(TAG, Log.getThrowableString(e)!!)
             null
         }
     }
@@ -246,7 +246,7 @@ object AudioTrackHiddenApi {
             if (result == null) return null // something went wrong. native layer logged reason to logcat
             return result
         } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
+            Log.e(TAG, Log.getThrowableString(e)!!)
             null
         }
     }
@@ -289,7 +289,7 @@ object AudioTrackHiddenApi {
                 } else it
             }.also { Log.d(TRACE_TAG, "native findAfTrackFlagsInternal is done: $it") }
         } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
+            Log.e(TAG, Log.getThrowableString(e)!!)
             return null
         }
     }
@@ -306,7 +306,7 @@ object AudioTrackHiddenApi {
         return try {
             getOutputInternal(getAudioTrackPtr(audioTrack))
         } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
+            Log.e(TAG, Log.getThrowableString(e)!!)
             null
         }.also { Log.d(TRACE_TAG, "native getOutputInternal/getAudioTrackPtr is done: $it") }
     }
@@ -325,7 +325,7 @@ object AudioTrackHiddenApi {
                 else it
             }
         } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
+            Log.e(TAG, Log.getThrowableString(e)!!)
             null
         }.also { Log.d(TRACE_TAG, "native getOutputInternal/getAudioTrackPtr is done: $it") }
     }
@@ -341,7 +341,7 @@ object AudioTrackHiddenApi {
         return try {
             dumpInternal(getAudioTrackPtr(audioTrack))
         } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
+            Log.e(TAG, Log.getThrowableString(e)!!)
             null
         }.also { Log.d(TRACE_TAG, "native dump/getAudioTrackPtr is done: $it") }
     }
@@ -354,7 +354,7 @@ object AudioTrackHiddenApi {
                 "getService", String::class.java
             ).invoke(null, "media.audio_flinger") as IBinder?
         } catch (e: Throwable) {
-            Log.e(TAG, Log.getStackTraceString(e))
+            Log.e(TAG, Log.getThrowableString(e)!!)
             null
         }
     }
@@ -379,7 +379,7 @@ object AudioTrackHiddenApi {
                     if (ioHandle != oid) continue
                     return getMixPort(port)
                 } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t))
+                    Log.e(TAG, Log.getThrowableString(t)!!)
                 }
             }
         return null
@@ -396,7 +396,7 @@ object AudioTrackHiddenApi {
                     if (mixPort.flags != null && (mixPort.flags and 2 /* AUDIO_OUTPUT_FLAG_PRIMARY */) != 0)
                         return mixPort
                 } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t))
+                    Log.e(TAG, Log.getThrowableString(t)!!)
                 }
             }
         return null
