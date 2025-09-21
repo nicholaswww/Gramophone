@@ -154,6 +154,42 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                 .penaltyDeath()
                 .build()
         }
+        if (!android.util.Log.isLoggable(TAG, android.util.Log.DEBUG)) {
+            Log.setLogger(object : Log.Logger {
+                override fun d(
+                    tag: String,
+                    message: String,
+                    throwable: Throwable?
+                ) {
+                    android.util.Log.e(tag, "[DEBUG] $message", throwable)
+                }
+
+                override fun i(
+                    tag: String,
+                    message: String,
+                    throwable: Throwable?
+                ) {
+                    android.util.Log.e(tag, "[INFO] $message", throwable)
+                }
+
+                override fun w(
+                    tag: String,
+                    message: String,
+                    throwable: Throwable?
+                ) {
+                    android.util.Log.e(tag, "[WARN] $message", throwable)
+                }
+
+                override fun e(
+                    tag: String,
+                    message: String,
+                    throwable: Throwable?
+                ) {
+                    android.util.Log.e(tag, "[ERROR] $message", throwable)
+                }
+
+            })
+        }
         uacManager = UacManager(this)
         Flags.PLAYLIST_EDITING = prefs.getBooleanStrict("playlist_editing", false)
         reader = FlowReader(
