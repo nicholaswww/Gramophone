@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.media.audiofx.AudioEffect
 import android.os.Build
 import androidx.annotation.RequiresApi
-import org.nift4.audiofxfwd.OnParameterChangeListener
 import java.lang.reflect.Method
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -42,7 +41,7 @@ import java.util.UUID
  * @throws java.lang.RuntimeException
  */
 @Suppress("unused")
-@SuppressLint("PrivateApi")
+@SuppressLint("PrivateApi", "BlockedPrivateApi", "SoonBlockedPrivateApi")
 open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSession: Int) {
 	companion object {
 		val EFFECT_TYPE_NULL by lazy {

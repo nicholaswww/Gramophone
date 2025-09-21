@@ -361,7 +361,7 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
             } catch (_: IllegalArgumentException) {
                 formatBuilder.setSampleRate(48000)
                 try {
-                    @SuppressLint("PrivateApi")
+                    @SuppressLint("PrivateApi", "BlockedPrivateApi", "SoonBlockedPrivateApi")
                     val field = formatBuilder.javaClass.getDeclaredField("mSampleRate")
                     field.isAccessible = true
                     field.set(formatBuilder, sampleRate)

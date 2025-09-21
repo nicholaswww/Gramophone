@@ -1,6 +1,5 @@
 package uk.akane.libphonograph.items
 
-import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastFilterNotNull
 import androidx.media3.common.MediaItem
 import java.io.File
@@ -58,7 +57,7 @@ internal data class RawPlaylist(
         pathList?.forEach { value ->
             tmp.add(value?.let { pathMap!![value.absolutePath] })
         }
-	    idList.forEachIndexed { i, value ->
+        idList.forEachIndexed { i, value ->
             // if we have an id and it's not in the map, something's weird. but it's not a crash-worthy offense
             if (tmp[i] == null && value != null && idMap!!.containsKey(value)) {
                 tmp[i] = idMap[value]!!

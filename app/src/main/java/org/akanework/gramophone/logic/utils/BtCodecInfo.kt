@@ -55,7 +55,7 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                         else -> name
                     }
                 }
-                val sr = when (codecConfig.sampleRate) {
+                val sr = when ((@SuppressLint("NewApi") codecConfig.sampleRate)) {
                     BluetoothCodecConfig.SAMPLE_RATE_44100 -> 44100
                     BluetoothCodecConfig.SAMPLE_RATE_48000 -> 48000
                     BluetoothCodecConfig.SAMPLE_RATE_88200 -> 88200
@@ -63,25 +63,29 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                     BluetoothCodecConfig.SAMPLE_RATE_176400 -> 176400
                     BluetoothCodecConfig.SAMPLE_RATE_192000 -> 192000
                     else -> {
-                        Log.e(TAG, "unknown sample rate flag ${codecConfig.sampleRate}"); null
+                        Log.e(TAG, "unknown sample rate flag " +
+                                (@SuppressLint("NewApi") codecConfig.sampleRate)); null
                     }
                 }
                 return BtCodecInfo(
-                    codec, sr, when (codecConfig.channelMode) {
+                    codec, sr, when ((@SuppressLint("NewApi")
+                    codecConfig.channelMode)) {
                         BluetoothCodecConfig.CHANNEL_MODE_NONE -> AudioFormat.CHANNEL_INVALID
                         BluetoothCodecConfig.CHANNEL_MODE_MONO -> AudioFormat.CHANNEL_OUT_MONO
                         BluetoothCodecConfig.CHANNEL_MODE_STEREO -> AudioFormat.CHANNEL_OUT_STEREO
                         else -> {
-                            Log.e(TAG, "unknown channel mode flag ${codecConfig.channelMode}"); null
+                            Log.e(TAG, "unknown channel mode flag " +
+                                    (@SuppressLint("NewApi") codecConfig.channelMode)); null
                         }
-                    }, when (codecConfig.bitsPerSample) {
+                    }, when ((@SuppressLint("NewApi") codecConfig.bitsPerSample)) {
                         BluetoothCodecConfig.BITS_PER_SAMPLE_16 -> 16
                         BluetoothCodecConfig.BITS_PER_SAMPLE_24 -> 24
                         BluetoothCodecConfig.BITS_PER_SAMPLE_32 -> 32
                         else -> {
-                            Log.e(TAG, "unknown bit per sample flag flag ${codecConfig.bitsPerSample}"); null
+                            Log.e(TAG, "unknown bit per sample flag " +
+                                    (@SuppressLint("NewApi") codecConfig.bitsPerSample)); null
                         }
-                    }, if (codec == "LDAC") when {
+                    }, (@SuppressLint("NewApi") if (codec == "LDAC") when {
                         codecConfig.codecSpecific1 == 1000L || codecConfig.codecSpecific1 == 0L -> "Auto"
                         codecConfig.codecSpecific1 == 1002L && ((sr ?: 1) % 48000) == 0 -> "330kbps"
                         codecConfig.codecSpecific1 == 1001L && ((sr ?: 1) % 48000) == 0 -> "660kbps"
@@ -90,7 +94,7 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                         codecConfig.codecSpecific1 == 1001L && ((sr ?: 1) % 44100) == 0 -> "606kbps"
                         codecConfig.codecSpecific1 == 1003L && ((sr ?: 1) % 44100) == 0 -> "909kbps"
                         else -> "ERROR (${codecConfig.codecSpecific1})"
-                    } else null
+                    } else null)
                 )
             } catch (t: Throwable) {
                 Log.e(TAG, Log.getStackTraceString(t))
@@ -121,7 +125,7 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
             val adapter = ContextCompat.getSystemService(context, BluetoothManager::class.java)?.adapter
                 ?: return null
             val sl = Proxy(adapter, callback, context)
-            if (adapter.getProfileProxy(context, sl, BluetoothProfile.A2DP) != true) {
+            if (!adapter.getProfileProxy(context, sl, BluetoothProfile.A2DP)) {
                 Log.e(TAG, "getProfileProxy error")
                 callback(null)
                 return null

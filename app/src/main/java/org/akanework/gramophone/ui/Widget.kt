@@ -175,11 +175,11 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
         return RemoteViews(
             context.packageName, when {
                 isGroup && isTranslation && isBackground -> R.layout.lyric_widget_text_center_tlbg
-                isGroup && isTranslation -> R.layout.lyric_widget_text_center_tlbg
+                isGroup && isTranslation -> R.layout.lyric_widget_text_center_tl
                 isGroup && isBackground -> R.layout.lyric_widget_text_center_bg
                 isGroup -> R.layout.lyric_widget_text_center
                 isVoice2 && isTranslation && isBackground -> R.layout.lyric_widget_text_right_tlbg
-                isVoice2 && isTranslation -> R.layout.lyric_widget_text_right_tlbg
+                isVoice2 && isTranslation -> R.layout.lyric_widget_text_right_tl
                 isVoice2 && isBackground -> R.layout.lyric_widget_text_right_bg
                 isVoice2 -> R.layout.lyric_widget_text_right
                 isTranslation && isBackground -> R.layout.lyric_widget_text_left_tlbg

@@ -22,6 +22,7 @@
                   <project path="$PROJECT_DIR$/media3/demos/shortform" />
                   <project path="$PROJECT_DIR$/media3/demos/surface" />
                   <project path="$PROJECT_DIR$/media3/demos/transformer" />
+                  <project path="$PROJECT_DIR$/media3/docsamples" />
                   <project path="$PROJECT_DIR$/media3/libraries/cast" />
                   <project path="$PROJECT_DIR$/media3/libraries/common" />
                   <project path="$PROJECT_DIR$/media3/libraries/common_ktx" />
@@ -33,7 +34,6 @@
                   <project path="$PROJECT_DIR$/media3/libraries/datasource_rtmp" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder_av1" />
-                  <project path="$PROJECT_DIR$/media3/libraries/decoder_dav1d" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder_ffmpeg" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder_flac" />
                   <project path="$PROJECT_DIR$/media3/libraries/decoder_iamf" />
@@ -50,10 +50,12 @@
                   <project path="$PROJECT_DIR$/media3/libraries/exoplayer_smoothstreaming" />
                   <project path="$PROJECT_DIR$/media3/libraries/exoplayer_workmanager" />
                   <project path="$PROJECT_DIR$/media3/libraries/extractor" />
+                  <project path="$PROJECT_DIR$/media3/libraries/inspector" />
                   <project path="$PROJECT_DIR$/media3/libraries/muxer" />
                   <project path="$PROJECT_DIR$/media3/libraries/session" />
                   <project path="$PROJECT_DIR$/media3/libraries/test_data" />
                   <project path="$PROJECT_DIR$/media3/libraries/test_exoplayer_playback" />
+                  <project path="$PROJECT_DIR$/media3/libraries/test_proguard" />
                   <project path="$PROJECT_DIR$/media3/libraries/test_session_common" />
                   <project path="$PROJECT_DIR$/media3/libraries/test_session_current" />
                   <project path="$PROJECT_DIR$/media3/libraries/test_utils" />
@@ -61,6 +63,7 @@
                   <project path="$PROJECT_DIR$/media3/libraries/transformer" />
                   <project path="$PROJECT_DIR$/media3/libraries/ui" />
                   <project path="$PROJECT_DIR$/media3/libraries/ui_compose" />
+                  <project path="$PROJECT_DIR$/media3/libraries/ui_compose_material3" />
                   <project path="$PROJECT_DIR$/media3/libraries/ui_leanback" />
                   <project path="$PROJECT_DIR$/media3/testapps/controller" />
                 </projects>
@@ -90,6 +93,7 @@
             <option value="$PROJECT_DIR$/media3/demos/shortform" />
             <option value="$PROJECT_DIR$/media3/demos/surface" />
             <option value="$PROJECT_DIR$/media3/demos/transformer" />
+            <option value="$PROJECT_DIR$/media3/docsamples" />
             <option value="$PROJECT_DIR$/media3/libraries/cast" />
             <option value="$PROJECT_DIR$/media3/libraries/common" />
             <option value="$PROJECT_DIR$/media3/libraries/common_ktx" />
@@ -101,7 +105,6 @@
             <option value="$PROJECT_DIR$/media3/libraries/datasource_rtmp" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder_av1" />
-            <option value="$PROJECT_DIR$/media3/libraries/decoder_dav1d" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder_ffmpeg" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder_flac" />
             <option value="$PROJECT_DIR$/media3/libraries/decoder_iamf" />
@@ -118,10 +121,12 @@
             <option value="$PROJECT_DIR$/media3/libraries/exoplayer_smoothstreaming" />
             <option value="$PROJECT_DIR$/media3/libraries/exoplayer_workmanager" />
             <option value="$PROJECT_DIR$/media3/libraries/extractor" />
+            <option value="$PROJECT_DIR$/media3/libraries/inspector" />
             <option value="$PROJECT_DIR$/media3/libraries/muxer" />
             <option value="$PROJECT_DIR$/media3/libraries/session" />
             <option value="$PROJECT_DIR$/media3/libraries/test_data" />
             <option value="$PROJECT_DIR$/media3/libraries/test_exoplayer_playback" />
+            <option value="$PROJECT_DIR$/media3/libraries/test_proguard" />
             <option value="$PROJECT_DIR$/media3/libraries/test_session_common" />
             <option value="$PROJECT_DIR$/media3/libraries/test_session_current" />
             <option value="$PROJECT_DIR$/media3/libraries/test_utils" />
@@ -129,6 +134,7 @@
             <option value="$PROJECT_DIR$/media3/libraries/transformer" />
             <option value="$PROJECT_DIR$/media3/libraries/ui" />
             <option value="$PROJECT_DIR$/media3/libraries/ui_compose" />
+            <option value="$PROJECT_DIR$/media3/libraries/ui_compose_material3" />
             <option value="$PROJECT_DIR$/media3/libraries/ui_leanback" />
             <option value="$PROJECT_DIR$/media3/testapps/controller" />
             <option value="$PROJECT_DIR$/misc" />

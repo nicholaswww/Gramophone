@@ -17,6 +17,7 @@
 
 package org.akanework.gramophone.logic
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.app.NotificationManager
 import android.content.ContentUris
@@ -84,6 +85,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     }
 
     init {
+        @SuppressLint("DefaultUncaughtExceptionDelegation")
         Thread.setDefaultUncaughtExceptionHandler(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             LSPass.setHiddenApiExemptions("")

@@ -543,7 +543,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     ): ListenableFuture<SessionResult> {
         val mediaItemId = this.controller?.currentMediaItem?.mediaId
         if (mediaItemId == null)
-            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_INVALID_STATE))
+            return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
         return onSetRating(session, controller, mediaItemId, rating)
     }
 
