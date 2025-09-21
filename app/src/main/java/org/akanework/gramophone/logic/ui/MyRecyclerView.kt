@@ -19,7 +19,7 @@ package org.akanework.gramophone.logic.ui
 
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.view.View
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.coordinatorlayout.widget.CoordinatorLayout

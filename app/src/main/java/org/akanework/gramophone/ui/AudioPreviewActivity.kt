@@ -12,13 +12,12 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.system.ErrnoException
 import android.system.Os
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.ActivityCompat
@@ -30,7 +29,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -66,7 +64,6 @@ import java.io.File
 
 private const val TAG = "AudioPreviewActivity"
 
-@OptIn(UnstableApi::class)
 class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
 
     companion object {
@@ -341,7 +338,7 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
                                 || e.message?.contains("Missing file for") == true)
                                 Log.w(TAG, e.javaClass.name + ": " + e.message)
                             else
-                                Log.e(TAG, Log.getStackTraceString(e))
+                                Log.e(TAG, Log.getThrowableString(e)!!)
                             null
                         } ?: run {
                             val lp = Uri.decode(uri.lastPathSegment)
@@ -351,14 +348,14 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
                                 val pfd = try {
                                     contentResolver.openFileDescriptor(uri, "r")
                                 } catch (e: Exception) {
-                                    Log.e(TAG, Log.getStackTraceString(e))
+                                    Log.e(TAG, Log.getThrowableString(e)!!)
                                     null
                                 }
                                 if (pfd == null) return@run null
                                 val l = try {
                                     Os.readlink("/proc/self/fd/" + pfd.fd)
                                 } catch (e: ErrnoException) {
-                                    Log.w(TAG, e)
+                                    Log.w(TAG, "get fd ${pfd.fd} failed", e)
                                     return@run null
                                 } finally {
                                     pfd.close()

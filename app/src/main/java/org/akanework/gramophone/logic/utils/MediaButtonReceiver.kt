@@ -7,11 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
-import androidx.annotation.OptIn
+import androidx.media3.common.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaButtonReceiver
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService.Companion.NOTIFY_CHANNEL_ID
@@ -23,7 +21,6 @@ import org.akanework.gramophone.logic.mayThrowForegroundServiceStartNotAllowedMi
 import org.akanework.gramophone.logic.supportsNotificationPermission
 import org.akanework.gramophone.ui.MainActivity
 
-@OptIn(UnstableApi::class)
 class MediaButtonReceiver : MediaButtonReceiver() {
 
 	companion object {
@@ -46,11 +43,11 @@ class MediaButtonReceiver : MediaButtonReceiver() {
 		) {
 			if (supportsNotificationPermission() && !context.hasNotificationPermission()) {
 				Log.e(
-					TAG, Log.getStackTraceString(
+					TAG, Log.getThrowableString(
 						IllegalStateException(
 							"onForegroundServiceStartNotAllowedException shouldn't be called on T+"
 						)
-					)
+					)!!
 				)
 				return
 			}

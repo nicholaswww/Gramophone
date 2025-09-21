@@ -1,11 +1,9 @@
 package org.akanework.gramophone.logic.utils.exoplayer
 
-import androidx.annotation.OptIn
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaItem.SubtitleConfiguration
 import androidx.media3.common.util.Assertions
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.drm.DrmSessionManager
@@ -32,7 +30,6 @@ import com.google.common.base.Supplier
 import com.google.common.primitives.Ints
 import java.io.IOException
 
-@OptIn(UnstableApi::class)
 @Suppress("unused")
 class GramophoneMediaSourceFactory(
     private var dataSourceFactory: DataSource.Factory,
@@ -58,43 +55,36 @@ class GramophoneMediaSourceFactory(
         this.liveMaxSpeed = -3.4028235E38f
     }
 
-    @UnstableApi
     fun setExternalImageLoader(externalImageLoader: ExternalLoader?): GramophoneMediaSourceFactory {
         this.externalImageLoader = externalImageLoader
         return this
     }
 
-    @UnstableApi
     fun setLiveTargetOffsetMs(liveTargetOffsetMs: Long): GramophoneMediaSourceFactory {
         this.liveTargetOffsetMs = liveTargetOffsetMs
         return this
     }
 
-    @UnstableApi
     fun setLiveMinOffsetMs(liveMinOffsetMs: Long): GramophoneMediaSourceFactory {
         this.liveMinOffsetMs = liveMinOffsetMs
         return this
     }
 
-    @UnstableApi
     fun setLiveMaxOffsetMs(liveMaxOffsetMs: Long): GramophoneMediaSourceFactory {
         this.liveMaxOffsetMs = liveMaxOffsetMs
         return this
     }
 
-    @UnstableApi
     fun setLiveMinSpeed(minSpeed: Float): GramophoneMediaSourceFactory {
         this.liveMinSpeed = minSpeed
         return this
     }
 
-    @UnstableApi
     fun setLiveMaxSpeed(maxSpeed: Float): GramophoneMediaSourceFactory {
         this.liveMaxSpeed = maxSpeed
         return this
     }
 
-    @UnstableApi
     override fun setCmcdConfigurationFactory(cmcdConfigurationFactory: CmcdConfiguration.Factory): GramophoneMediaSourceFactory {
         delegateFactoryLoader.setCmcdConfigurationFactory(
             Assertions.checkNotNull(
@@ -108,7 +98,6 @@ class GramophoneMediaSourceFactory(
         throw UnsupportedOperationException("drm is not supported")
     }
 
-    @UnstableApi
     override fun setLoadErrorHandlingPolicy(loadErrorHandlingPolicy: LoadErrorHandlingPolicy): GramophoneMediaSourceFactory {
         this.loadErrorHandlingPolicy =
             Assertions.checkNotNull(
@@ -119,12 +108,10 @@ class GramophoneMediaSourceFactory(
         return this
     }
 
-    @UnstableApi
     override fun getSupportedTypes(): IntArray {
         return delegateFactoryLoader.getSupportedTypes()
     }
 
-    @UnstableApi
     override fun createMediaSource(inMediaItem: MediaItem): MediaSource {
         var mediaItem = inMediaItem
         Assertions.checkNotNull(mediaItem.localConfiguration)

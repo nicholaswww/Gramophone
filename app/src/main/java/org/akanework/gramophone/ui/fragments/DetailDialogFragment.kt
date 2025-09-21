@@ -6,8 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.annotation.OptIn
-import androidx.media3.common.util.UnstableApi
 import coil3.load
 import coil3.request.crossfade
 import coil3.request.error
@@ -33,7 +31,6 @@ import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTi
 
 class DetailDialogFragment : BaseFragment(false) {
 
-    @OptIn(UnstableApi::class)
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

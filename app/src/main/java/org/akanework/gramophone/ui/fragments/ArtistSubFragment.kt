@@ -22,7 +22,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
-import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.ConcatAdapter
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
@@ -47,7 +46,6 @@ import org.akanework.gramophone.ui.adapters.SongAdapter
  * @see BaseFragment
  * @see GeneralSubFragment
  */
-@androidx.annotation.OptIn(UnstableApi::class)
 class ArtistSubFragment : BaseFragment(true), PopupTextProvider {
     private lateinit var albumAdapter: AlbumAdapter
     private lateinit var songAdapter: SongAdapter

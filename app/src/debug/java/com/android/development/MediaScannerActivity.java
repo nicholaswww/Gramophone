@@ -36,7 +36,7 @@ import android.provider.MediaStore;
 import android.provider.MediaStore.Audio;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.Log;
+import androidx.media3.common.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -228,7 +228,7 @@ public class MediaScannerActivity extends Activity {
 	public void startScan(View v) {
 		SdScanner.Companion.scanEverything(getApplicationContext(), 250,
 				prog -> {
-			android.util.Log.e("test", prog.getStep() + " " + prog.getPercentage() + "% " + prog.getPath());
+			androidx.media3.common.util.Log.e("test", prog.getStep() + " " + prog.getPercentage() + "% " + prog.getPath());
 			mHandler.post(() -> {
 				if (prog.getStep() == SdScanner.SimpleProgress.Step.DONE) {
 					Toast.makeText(getApplicationContext(), "Done scanning :)", Toast.LENGTH_LONG).show();
@@ -245,7 +245,7 @@ public class MediaScannerActivity extends Activity {
 	 * syllables, and randomly inserts a modifier between the first
 	 * and last name.
 	 */
-	private String[] elements = new String[]{
+	private final String[] elements = new String[]{
 			"ab", "am",
 			"bra", "bri",
 			"ci", "co",

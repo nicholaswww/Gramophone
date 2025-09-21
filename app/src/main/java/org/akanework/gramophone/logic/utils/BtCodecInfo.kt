@@ -14,7 +14,7 @@ import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.os.Build
 import android.os.Parcelable
-import android.util.Log
+import androidx.media3.common.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import kotlinx.parcelize.Parcelize
@@ -97,7 +97,7 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                     } else null)
                 )
             } catch (t: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(t))
+                Log.e(TAG, Log.getThrowableString(t)!!)
                 return null
             }
         }
@@ -114,7 +114,7 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                         @Suppress("deprecation") codecConfig.codecType
                     ) as String
                 } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t))
+                    Log.e(TAG, Log.getThrowableString(t)!!)
                     return null
                 }
             }.takeIf { !it.startsWith("UNKNOWN CODEC") }
@@ -150,7 +150,7 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                 val device = if (cd.size <= 1) cd.firstOrNull() else try {
                     BluetoothA2dp::class.java.getMethod("getActiveDevice").invoke(a2dp) as BluetoothDevice?
                 } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t))
+                    Log.e(TAG, Log.getThrowableString(t)!!)
                     callback(null)
                     return
                 }
@@ -160,7 +160,7 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                     BluetoothA2dp::class.java.getMethod("getCodecStatus", BluetoothDevice::class.java)
                         .invoke(a2dp, device) as BluetoothCodecStatus?
                 } catch (t: Throwable) {
-                    Log.e(TAG, Log.getStackTraceString(t))
+                    Log.e(TAG, Log.getThrowableString(t)!!)
                     null
                 }?.codecConfig
                 callback(fromCodecConfig(codec))

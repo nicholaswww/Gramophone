@@ -20,7 +20,7 @@ package org.akanework.gramophone.ui.fragments.settings
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
+import androidx.media3.common.util.Log
 import androidx.core.content.FileProvider
 import androidx.preference.Preference
 import kotlinx.coroutines.CoroutineScope

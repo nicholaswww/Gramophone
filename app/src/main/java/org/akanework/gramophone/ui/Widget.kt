@@ -15,11 +15,9 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
-import androidx.annotation.OptIn
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -156,7 +154,6 @@ private class LyricRemoteViewsFactory(private val context: Context, private val 
         ForegroundColorSpan(ContextCompat.getColor(themeContext, R.color.sl_lyric_active))
 
     override fun getViewAt(position: Int): RemoteViews? {
-        @OptIn(UnstableApi::class)
         val cPos = runBlocking {
             withContext(Dispatchers.Main) {
                 service?.endedWorkaroundPlayer?.contentPosition

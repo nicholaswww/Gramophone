@@ -18,7 +18,7 @@
 package org.akanework.gramophone.ui.adapters
 
 import android.net.Uri
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
@@ -252,7 +252,7 @@ class SongAdapter(
                                                     )
                                                 }
                                             } catch (e: Exception) {
-                                                Log.e("SongAdapter", Log.getStackTraceString(e))
+                                                Log.e("SongAdapter", Log.getThrowableString(e)!!)
                                                 withContext(Dispatchers.Main) {
                                                     Toast.makeText(
                                                         context, context.getString(

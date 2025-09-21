@@ -1,9 +1,7 @@
 package org.akanework.gramophone.logic.utils
 
-import android.util.Log
-import androidx.annotation.OptIn
+import androidx.media3.common.util.Log
 import androidx.media3.common.C
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.source.ShuffleOrder
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
 import kotlin.random.Random
@@ -11,7 +9,6 @@ import kotlin.random.Random
 /**
  * This shuffle order will take "firstIndex" as first song and play all songs after it.
  */
-@OptIn(UnstableApi::class)
 class CircularShuffleOrder private constructor(
     private val listener: EndedWorkaroundPlayer,
     private val shuffled: IntArray,
@@ -108,7 +105,7 @@ class CircularShuffleOrder private constructor(
             if (nextShuffleOrder.length != shuffled.size + insertionCount)
                 throw IllegalStateException("next shuffle order size ${nextShuffleOrder.length} " +
                         "does not match requested ${shuffled.size + insertionCount}")
-                    .also { Log.e(TAG, Log.getStackTraceString(it)) }
+                    .also { Log.e(TAG, Log.getThrowableString(it)!!) }
             return nextShuffleOrder
         }
         // the original list: [0, 1, 2] shuffled: [2, 0, 1] indexInShuffled: [1, 2, 0]
@@ -181,7 +178,7 @@ class CircularShuffleOrder private constructor(
                     )
                 } catch (e: NumberFormatException) {
                     // might happen with some real bad luck?
-                    Log.e(TAG, "gave up trying to restore shuffle order: " + Log.getStackTraceString(e))
+                    Log.e(TAG, "gave up trying to restore shuffle order: " + Log.getThrowableString(e)!!)
                     Persistent(Random.nextLong(), null)
                 }
             }

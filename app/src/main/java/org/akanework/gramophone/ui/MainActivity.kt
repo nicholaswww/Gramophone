@@ -31,7 +31,7 @@ import android.os.Looper
 import android.os.PersistableBundle
 import android.provider.MediaStore
 import android.provider.Settings
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.view.Choreographer
 import android.view.ViewGroup
 import android.widget.TextView
@@ -40,7 +40,6 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.annotation.OptIn
 import androidx.core.app.ActivityCompat
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -49,7 +48,6 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks
 import androidx.fragment.app.commit
 import androidx.media3.common.C
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.DefaultMediaNotificationProvider
 import coil3.imageLoader
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -220,7 +218,7 @@ class MainActivity : BaseActivity() {
                             val f = try {
                                 ItemManipulator.createPlaylist(this@MainActivity, name)
                             } catch (e: Exception) {
-                                Log.e("MainActivity", Log.getStackTraceString(e))
+                                Log.e("MainActivity", Log.getThrowableString(e)!!)
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(this@MainActivity, getString(R.string.create_failed_playlist, e.javaClass.name + ": " + e.message), Toast.LENGTH_LONG).show()
                                 }
@@ -229,7 +227,7 @@ class MainActivity : BaseActivity() {
                             try {
                                 ItemManipulator.setPlaylistContent(this@MainActivity, f, listOf(song))
                             } catch (e: Exception) {
-                                Log.e("MainActivity", Log.getStackTraceString(e))
+                                Log.e("MainActivity", Log.getThrowableString(e)!!)
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, e.javaClass.name + ": " + e.message), Toast.LENGTH_LONG).show()
                                 }
@@ -281,7 +279,7 @@ class MainActivity : BaseActivity() {
                 else
                     ItemManipulator.setPlaylistContent(this@MainActivity, path, songs)
             } catch (e: Exception) {
-                Log.e("MainActivity", Log.getStackTraceString(e))
+                Log.e("MainActivity", Log.getThrowableString(e)!!)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, getString(R.string.edit_playlist_failed, e.javaClass.name + ": " + e.message), Toast.LENGTH_LONG).show()
                 }
@@ -342,7 +340,7 @@ class MainActivity : BaseActivity() {
                     // samsung SM-G570M on SDK 26: Permission Denial: broadcast from android asks to run as user
                     // -1 but is calling from user 0; this requires android.permission.INTERACT_ACROSS_USERS_FULL
                     // or android.permission.INTERACT_ACROSS_USERS
-                    Log.w("MainActivity", e)
+                    Log.w("MainActivity", "reportFullyDrawn failed", e)
                 }
             }
         }
@@ -399,7 +397,6 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    @OptIn(UnstableApi::class)
     override fun onDestroy() {
         // https://github.com/androidx/media/issues/805
         if (needsMissingOnDestroyCallWorkarounds()

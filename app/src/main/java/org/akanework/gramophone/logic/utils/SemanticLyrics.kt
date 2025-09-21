@@ -2,10 +2,8 @@ package org.akanework.gramophone.logic.utils
 
 import android.os.Parcel
 import android.os.Parcelable
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.util.Xml
-import androidx.annotation.OptIn
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.text.CuesWithTiming
 import androidx.media3.extractor.text.SubtitleParser
 import androidx.media3.extractor.text.subrip.SubripParser
@@ -924,7 +922,6 @@ private class TtmlParserState(private val parser: XmlPullParser, private val tim
     }
 }
 
-@OptIn(UnstableApi::class)
 fun parseTtml(lyricText: String): SemanticLyrics? {
     val formattedLyricText = lyricText
         .replace(Regex("&(?!#?[a-zA-Z0-9]+;)"), "&amp;")
@@ -1072,7 +1069,6 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
     }).also { splitBidirectionalWords(it) }
 }
 
-@OptIn(UnstableApi::class)
 fun parseSrt(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
     if (!lyricText.startsWith("1\n") && !lyricText.startsWith("1\r")) return null // invalid SubRip
     val cues = mutableListOf<CuesWithTiming>()
@@ -1083,7 +1079,7 @@ fun parseSrt(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
             SubtitleParser.OutputOptions.allCues()
         ) { cues.add(it) }
     } catch (e: Exception) {
-        Log.w(TAG, "Failed to parse something which looks like SRT: ${Log.getStackTraceString(e)}")
+        Log.w(TAG, "Failed to parse something which looks like SRT: ${Log.getThrowableString(e)}")
         return null
     }
     var lastTs: ULong? = null

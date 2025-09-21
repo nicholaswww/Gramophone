@@ -5,13 +5,11 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.os.Build
 import android.os.Parcelable
-import android.util.Log
-import androidx.annotation.OptIn
+import androidx.media3.common.util.Log
 import androidx.annotation.RequiresApi
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import kotlinx.parcelize.Parcelize
 import org.akanework.gramophone.R
@@ -124,7 +122,6 @@ object AudioFormatDetector {
         // TODO
     }
 
-    @OptIn(UnstableApi::class)
     enum class Encoding(val enc: Int?, val enc2: String?, val native: UInt?, val sdkRange: IntRange?, val res: Int) {
         ENCODING_INVALID(C.ENCODING_INVALID, null, 0xFFFFFFFFU, 0, R.string.spk_encoding_invalid),
         ENCODING_PCM_8BIT(C.ENCODING_PCM_8BIT, "AUDIO_FORMAT_PCM_8_BIT", 0x2U, 21, R.string.spk_encoding_pcm_8bit),
@@ -311,7 +308,6 @@ object AudioFormatDetector {
         }
     }
 
-    @OptIn(UnstableApi::class)
     data class AudioFormats(
         val downstreamFormat: List<Pair<Int, Format>>?, val audioSinkInputFormat: Format?,
         val audioTrackInfo: List<AudioTrackInfo>?, val halFormat: AfFormatInfo?,
@@ -475,7 +471,6 @@ object AudioFormatDetector {
         }
     }
 
-    @OptIn(UnstableApi::class)
     fun detectAudioFormat(
         f: AudioFormats?
     ): AudioFormatInfo? {
@@ -516,7 +511,6 @@ object AudioFormatDetector {
         )
     }
 
-    @OptIn(UnstableApi::class)
     private fun isLosslessFormat(mimeType: String?): Boolean? = when (mimeType) {
         MimeTypes.AUDIO_FLAC,
         MimeTypes.AUDIO_ALAC,
@@ -532,7 +526,6 @@ object AudioFormatDetector {
         else -> false
     }
 
-    @UnstableApi
     private fun detectSpatialFormat(format: Format): SpatialFormat {
         val mimeFormat = when (format.sampleMimeType) {
             MimeTypes.AUDIO_AC3 -> SpatialFormat.DOLBY_AC3
@@ -667,7 +660,6 @@ object AudioFormatDetector {
             }
         }
 
-	@OptIn(UnstableApi::class)
 	private fun determineQualityTier(
         sampleRate: Int?,
         bitDepth: Int?,

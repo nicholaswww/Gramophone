@@ -12,7 +12,7 @@ import android.text.Spanned
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View

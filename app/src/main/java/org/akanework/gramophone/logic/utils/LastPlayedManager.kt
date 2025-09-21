@@ -22,15 +22,13 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
-import android.util.Log
-import androidx.annotation.OptIn
+import androidx.media3.common.util.Log
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession.MediaItemsWithStartPosition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,7 +53,6 @@ import uk.akane.libphonograph.items.cdTrackNumber
 import uk.akane.libphonograph.items.modifiedDate
 import java.nio.charset.StandardCharsets
 
-@OptIn(UnstableApi::class)
 class LastPlayedManager(
     context: Context,
     private val controller: EndedWorkaroundPlayer
@@ -313,7 +310,7 @@ class LastPlayedManager(
                     this@LastPlayedManager.eraseShuffleOrder()
                 } catch (_: Exception) {
                 }
-                Log.e(TAG, Log.getStackTraceString(e))
+                Log.e(TAG, Log.getThrowableString(e)!!)
                 runCallback(callback, seed) { null }
                 return@withContext
             }
@@ -321,7 +318,6 @@ class LastPlayedManager(
     }
 }
 
-@OptIn(UnstableApi::class)
 private suspend inline fun runCallback(
     crossinline callback: (
         MediaItemsWithStartPosition?,

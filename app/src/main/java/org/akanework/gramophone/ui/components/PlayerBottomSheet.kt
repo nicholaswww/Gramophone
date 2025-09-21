@@ -25,7 +25,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.view.View
 import android.view.WindowInsets
 import android.widget.FrameLayout
@@ -240,7 +240,7 @@ class PlayerBottomSheet private constructor(
                         @SuppressLint("RestrictedApi")
                         lyricsBackHelper!!.finishBackProgressNotPersistent(backEvent, object : AnimatorListenerAdapter() {
                             override fun onAnimationEnd(animation: Animator) {
-                                fullPlayer.bottomSheetFullLyricView.visibility = View.INVISIBLE
+                                fullPlayer.bottomSheetFullLyricView.visibility = INVISIBLE
                             }
                         })
                     } else {

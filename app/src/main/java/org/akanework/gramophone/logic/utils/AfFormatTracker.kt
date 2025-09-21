@@ -7,9 +7,7 @@ import android.media.AudioTrack
 import android.os.Build
 import android.os.Handler
 import android.os.Parcelable
-import android.util.Log
-import androidx.annotation.OptIn
-import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Log
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig
 import androidx.media3.exoplayer.audio.DefaultAudioSink
@@ -33,7 +31,6 @@ data class AudioTrackInfo(
     val offload: Boolean
 ) : Parcelable {
     companion object {
-        @OptIn(UnstableApi::class)
         fun fromMedia3AudioTrackConfig(config: AudioTrackConfig) =
             AudioTrackInfo(
                 config.encoding, config.sampleRate, config.channelConfig,
@@ -42,7 +39,6 @@ data class AudioTrackInfo(
     }
 }
 
-@OptIn(UnstableApi::class)
 class AfFormatTracker(
     private val context: Context, private val playbackHandler: Handler,
     private val handler: Handler
@@ -185,7 +181,7 @@ class AfFormatTracker(
                 // this call writes to mAfLatency and mLatency fields, hence call dump after this
                 AudioTrack::class.java.getMethod("getLatency").invoke(audioTrack) as Int
             } catch (t: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(t))
+                Log.e(TAG, Log.getThrowableString(t)!!)
                 null
             }
             val dump = AudioTrackHiddenApi.dump(audioTrack)

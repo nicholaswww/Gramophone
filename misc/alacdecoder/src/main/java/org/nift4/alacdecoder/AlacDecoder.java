@@ -16,7 +16,6 @@ import com.beatofthedrum.alacdecoder.AlacFile;
 
 import java.nio.ByteBuffer;
 
-@OptIn(markerClass = UnstableApi.class)
 public class AlacDecoder extends SimpleDecoder<DecoderInputBuffer, SimpleDecoderOutputBuffer, AlacDecoderException> {
     private static final int ALAC_MAX_PACKET_SIZE = 16384;
 

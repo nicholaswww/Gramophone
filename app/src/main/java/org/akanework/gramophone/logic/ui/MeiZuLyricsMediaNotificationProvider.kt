@@ -2,9 +2,7 @@ package org.akanework.gramophone.logic.ui
 
 import android.content.Context
 import android.os.Bundle
-import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaNotification
@@ -17,7 +15,6 @@ var isManualNotificationUpdate = false
 private const val FLAG_ALWAYS_SHOW_TICKER = 0x01000000
 private const val FLAG_ONLY_UPDATE_TICKER = 0x02000000
 
-@OptIn(UnstableApi::class)
 private class InnerMeiZuLyricsMediaNotificationProvider(
     context: Context,
     private val tickerProvider: () -> CharSequence?
@@ -41,7 +38,6 @@ private class InnerMeiZuLyricsMediaNotificationProvider(
     }
 }
 
-@OptIn(UnstableApi::class)
 class MeiZuLyricsMediaNotificationProvider(
     context: MediaSessionService,
     private val tickerProvider: () -> CharSequence?

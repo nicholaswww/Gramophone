@@ -9,7 +9,7 @@ import android.media.MediaRoute2Info
 import android.media.MediaRouter2
 import android.os.Build
 import android.text.TextUtils
-import android.util.Log
+import androidx.media3.common.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.mediarouter.media.MediaRouter

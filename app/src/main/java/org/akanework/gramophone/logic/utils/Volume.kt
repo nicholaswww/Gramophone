@@ -1,7 +1,7 @@
 package org.akanework.gramophone.logic.utils
 
 import android.media.audiofx.AudioEffect
-import android.util.Log
+import androidx.media3.common.util.Log
 import org.nift4.gramophone.hificore.ReflectionAudioEffect
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

@@ -36,7 +36,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.os.Process
-import android.util.Log
+import androidx.media3.common.util.Log
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -59,7 +59,6 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.BitmapLoader
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util.isBitmapFactorySupportedMimeType
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -125,7 +124,6 @@ import kotlin.random.Random
  * [GramophonePlaybackService] is a server service.
  * It's using exoplayer2 as its player backend.
  */
-@androidx.annotation.OptIn(UnstableApi::class)
 class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Listener,
     MediaLibraryService.MediaLibrarySession.Callback, Player.Listener, AnalyticsListener {
 
@@ -491,7 +489,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                         )
                     } catch (e: IllegalSeekPositionException) {
                         // invalid data, whatever...
-                        Log.e(TAG, "failed to restore: " + Log.getStackTraceString(e))
+                        Log.e(TAG, "failed to restore: " + Log.getThrowableString(e)!!)
                         endedWorkaroundPlayer?.nextShuffleOrder = null
                     }
                     if (endedWorkaroundPlayer?.nextShuffleOrder != null)
@@ -526,8 +524,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaId: String,
         rating: Rating
     ): ListenableFuture<SessionResult> {
-        // TODO: implement setting rating.
-        return super.onSetRating(session, controller, mediaId, rating)
+        // TODO: implement this...
+        return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
     }
 
     override fun onSetRating(
@@ -776,7 +774,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     settable.setException(
                         NullPointerException(
                             "null MediaItemsWithStartPosition, see former logs for root cause"
-                        ).also { Log.e(TAG, Log.getStackTraceString(it)) }
+                        ).also { Log.e(TAG, Log.getThrowableString(it)!!) }
                     )
                 } else {
                     if (endedWorkaroundPlayer?.nextShuffleOrder != null)
@@ -1220,11 +1218,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         ) {
             if (supportsNotificationPermission() && !hasNotificationPermission()) {
                 Log.e(
-                    TAG, Log.getStackTraceString(
+                    TAG, Log.getThrowableString(
                         IllegalStateException(
                             "onForegroundServiceStartNotAllowedException shouldn't be called on T+"
                         )
-                    )
+                    )!!
                 )
                 return
             }

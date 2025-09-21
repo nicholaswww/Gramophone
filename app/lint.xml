@@ -6,4 +6,7 @@
 		<ignore regexp="tooltipText"/> - - backported in ViewCompatInflater - -
 	</issue>
 	-->
+	<issue id="UnsafeOptInUsageError">
+		<option name="opt-in" value="androidx.media3.common.util.UnstableApi" />
+	</issue>
 </lint>

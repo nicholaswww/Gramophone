@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.AttributeSet
 import android.widget.FrameLayout
-import androidx.annotation.OptIn
-import androidx.media3.common.util.UnstableApi
 import androidx.preference.PreferenceManager
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.GramophonePlaybackService
@@ -51,7 +49,6 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
             newView?.setPadding(oldPaddingLeft, oldPaddingTop, oldPaddingRight, oldPaddingBottom)
             newView?.instance = object : NewLyricsView.Callbacks {
                 // TODO https://github.com/androidx/media/issues/1578
-                @OptIn(UnstableApi::class)
                 override fun getCurrentPosition(): ULong =
                     GramophonePlaybackService.instanceForWidgetAndLyricsOnly
                         ?.endedWorkaroundPlayer?.currentPosition?.toULong()

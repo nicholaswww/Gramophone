@@ -13,7 +13,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.text.format.DateFormat
 import android.util.AttributeSet
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -41,7 +41,6 @@ import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
@@ -117,7 +116,6 @@ import java.util.LinkedList
 import kotlin.math.min
 
 @SuppressLint("NotifyDataSetChanged")
-@androidx.annotation.OptIn(UnstableApi::class)
 class FullBottomSheet
     (context: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) :
     ConstraintLayout(context, attrs, defStyleAttr, defStyleRes), Player.Listener,
@@ -1197,7 +1195,7 @@ class FullBottomSheet
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        //android.util.Log.e("hi","$keyCode") TODO this method is no-op, but why?
+        //androidx.media3.common.util.Log.e("hi","$keyCode") TODO this method is no-op, but why?
         return when (keyCode) {
             KeyEvent.KEYCODE_SPACE -> {
                 instance?.playOrPause(); true

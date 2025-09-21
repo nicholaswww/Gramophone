@@ -7,16 +7,14 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioDeviceInfo
 import android.media.AudioTrack
-import android.util.Log
+import androidx.media3.common.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.Format
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
 import java.nio.ByteBuffer
 
-@UnstableApi
 class PostAmpAudioSink(
 	val sink: DefaultAudioSink, val context: Context
 ) : ForwardingAudioSink(sink) {

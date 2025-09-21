@@ -6,12 +6,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Log
-import androidx.annotation.OptIn
+import androidx.media3.common.util.Log
 import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import org.akanework.gramophone.logic.hasAudioPermission
@@ -114,7 +112,6 @@ internal object Reader {
      * - Back-reference albums from the correct _album_ artist, not a song artist
      * without much hassle.
      */
-    @OptIn(UnstableApi::class)
     suspend fun readFromMediaStore(
         context: Context,
         minSongLengthSeconds: Long = 0,

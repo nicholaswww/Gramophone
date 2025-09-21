@@ -10,9 +10,7 @@
 */
 package com.beatofthedrum.alacdecoder;
 
-import androidx.annotation.OptIn;
 import androidx.media3.common.util.Log;
-import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.decoder.SimpleDecoderOutputBuffer;
@@ -21,7 +19,6 @@ import org.nift4.alacdecoder.AlacDecoderException;
 
 import java.nio.ByteBuffer;
 
-@OptIn(markerClass = UnstableApi.class)
 public class AlacDecodeUtils
 {
 	private static final int RICE_THRESHOLD = 8;

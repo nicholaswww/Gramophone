@@ -23,7 +23,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
-import androidx.media3.common.util.UnstableApi
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
@@ -53,7 +52,6 @@ import uk.akane.libphonograph.items.Playlist
  * @see BaseFragment
  * @author AkaneTan, nift4
  */
-@androidx.annotation.OptIn(UnstableApi::class)
 class GeneralSubFragment : BaseFragment(true) {
     override fun onCreateView(
         inflater: LayoutInflater,

@@ -36,7 +36,7 @@ import android.os.Looper
 import android.os.Message
 import android.os.StrictMode
 import android.os.ext.SdkExtensions
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.view.View
 import android.view.ViewGroup.MarginLayoutParams
 import android.view.ViewPropertyAnimator
@@ -45,7 +45,6 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -65,7 +64,6 @@ import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
@@ -124,7 +122,7 @@ fun MediaItem.getBitrate(): Int? {
         retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
             ?.toIntOrNull()
     } catch (e: Exception) {
-        Log.w("getBitrate", Log.getStackTraceString(e))
+        Log.w("MediaItem", "getBitrate failed", e)
         null
     } finally {
         retriever.release()
@@ -285,7 +283,6 @@ fun MediaController.getLyrics(): SemanticLyrics? =
         BundleCompat.getParcelable(it, "lyrics", SemanticLyrics::class.java)
     }
 
-@OptIn(UnstableApi::class)
 fun MediaController.getAudioFormat(): AudioFormatDetector.AudioFormats? =
     sendCustomCommand(
         SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
@@ -304,7 +301,6 @@ fun MediaController.getAudioFormat(): AudioFormatDetector.AudioFormats? =
         )
     }
 
-@OptIn(UnstableApi::class)
 @Suppress("UNCHECKED_CAST")
 fun MediaController.getSessionId(): Int? =
     sendCustomCommand(

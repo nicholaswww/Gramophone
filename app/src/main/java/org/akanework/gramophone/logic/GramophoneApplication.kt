@@ -29,13 +29,11 @@ import android.os.Debug
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.util.Size
 import android.webkit.MimeTypeMap
-import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.strictmode.FragmentStrictMode
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.preference.PreferenceManager
 import coil3.ImageLoader
@@ -104,7 +102,6 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
     lateinit var uacManager: UacManager
         private set
 
-    @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
         // disk read and write on first launch, but unavoidable as threads would race setDefaultNightMode
@@ -311,16 +308,24 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                             throwable: Throwable?
                         ) {
                             if (level < minLevel) return
-                            val priority = level.ordinal + 2 // obviously the best way to do it
+                            val println = { it: String ->
+                                when (level) {
+                                    Logger.Level.Verbose -> Log.d(tag, it)
+                                    Logger.Level.Debug -> Log.d(tag, it)
+                                    Logger.Level.Info -> Log.i(tag, it)
+                                    Logger.Level.Warn -> Log.w(tag, it)
+                                    Logger.Level.Error -> Log.e(tag, it)
+                                }
+                            }
                             if (message != null) {
-                                Log.println(priority, tag, message)
+                                println(message)
                             }
                             // Let's keep the log readable and ignore normal events' stack traces.
                             if (throwable != null && throwable !is NullRequestDataException
                                 && (throwable !is IOException
                                         || throwable.message != "No album art found")
                             ) {
-                                Log.println(priority, tag, Log.getStackTraceString(throwable))
+                                println(Log.getThrowableString(throwable)!!)
                             }
                         }
                     })
@@ -337,7 +342,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
         // TODO convert to notification that opens BugHandlerActivity on click, and let JVM
         //  go through the normal exception process (to get stats from play). disadvantage: we can't
         //  cheat the statistic that way
-        val exceptionMessage = Log.getStackTraceString(e)
+        val exceptionMessage = Log.getThrowableString(e)
         val threadName = Thread.currentThread().name
         Log.e(TAG, "Error on thread $threadName:\n $exceptionMessage")
         val intent = Intent(this, BugHandlerActivity::class.java)

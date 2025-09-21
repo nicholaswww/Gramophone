@@ -1,7 +1,7 @@
 package uk.akane.libphonograph.utils
 
 import android.net.Uri
-import android.util.Log
+import androidx.media3.common.util.Log
 import androidx.media3.common.MediaItem
 import uk.akane.libphonograph.ALLOWED_EXT
 import uk.akane.libphonograph.items.Album
@@ -81,7 +81,7 @@ object MiscUtils {
                 }
             }
         } catch (e: Exception) {
-            Log.e("libPhonograph", Log.getStackTraceString(e))
+            Log.e("libPhonograph", Log.getThrowableString(e)!!)
         }
         // allow .jpg or .png files with any name, but only permit more exotic
         // formats if name contains either cover or albumart

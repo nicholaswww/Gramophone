@@ -13,13 +13,11 @@ import android.view.View.VISIBLE
 import android.view.ViewGroup
 import android.view.animation.PathInterpolator
 import android.widget.TextView
-import androidx.annotation.OptIn
 import androidx.core.animation.doOnEnd
 import androidx.core.graphics.TypefaceCompat
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.doOnLayout
-import androidx.media3.common.util.UnstableApi
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -345,7 +343,6 @@ class LegacyLyricsAdapter(
     }
 
     // https://github.com/androidx/media/issues/1578
-    @OptIn(UnstableApi::class)
     private fun updateNewIndex(): Int {
         val filteredList = lyricList.filterIndexed { _, lyric ->
             (lyric.timeStamp ?: 0) <= (GramophonePlaybackService.instanceForWidgetAndLyricsOnly

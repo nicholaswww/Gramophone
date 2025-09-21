@@ -3,9 +3,7 @@ package org.akanework.gramophone.logic.utils.exoplayer
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import androidx.annotation.OptIn
 import androidx.media3.common.Format
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.audio.AudioRendererEventListener
@@ -18,7 +16,6 @@ import androidx.media3.exoplayer.video.VideoRendererEventListener
 import org.akanework.gramophone.logic.utils.PostAmpAudioSink
 import org.nift4.alacdecoder.AlacRenderer
 
-@OptIn(UnstableApi::class)
 class GramophoneRenderFactory(context: Context,
                               private val configurationListener: (Format?) -> Unit,
                               private val audioSinkListener: (DefaultAudioSink) -> Unit) :

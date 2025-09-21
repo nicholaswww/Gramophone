@@ -25,7 +25,7 @@ import android.content.DialogInterface
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Log
+import androidx.media3.common.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
@@ -154,7 +154,7 @@ class PlaylistAdapter(
                                             )
                                         }
                                     } catch (e: Exception) {
-                                        Log.e("PlaylistAdapter", Log.getStackTraceString(e))
+                                        Log.e("PlaylistAdapter", Log.getThrowableString(e)!!)
                                         withContext(Dispatchers.Main) {
                                             Toast.makeText(context, context.getString(
                                                 R.string.delete_failed_playlist, e.javaClass.name + ": " + e.message),
@@ -226,7 +226,7 @@ class PlaylistAdapter(
                         )
                     }
                 } catch (e: Exception) {
-                    Log.e("PlaylistAdapter", Log.getStackTraceString(e))
+                    Log.e("PlaylistAdapter", Log.getThrowableString(e)!!)
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, context.getString(
                             R.string.rename_failed_playlist, e.javaClass.name + ": " + e.message),
@@ -262,7 +262,7 @@ class PlaylistAdapter(
                         try {
                             ItemManipulator.createPlaylist(context, name)
                         } catch (e: Exception) {
-                            Log.e("PlaylistAdapter", Log.getStackTraceString(e))
+                            Log.e("PlaylistAdapter", Log.getThrowableString(e)!!)
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(context, context.getString(
                                     R.string.create_failed_playlist, e.javaClass.name + ": " + e.message),

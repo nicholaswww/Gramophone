@@ -2,9 +2,7 @@ package org.akanework.gramophone.logic.utils.exoplayer
 
 import android.net.Uri
 import androidx.annotation.GuardedBy
-import androidx.annotation.OptIn
 import androidx.media3.common.FileTypes
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.Extractor
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.flac.FlacExtractor
@@ -23,7 +21,6 @@ import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Suppress("unused")
-@OptIn(UnstableApi::class)
 class GramophoneExtractorsFactory : ExtractorsFactory {
     companion object {
         private val DEFAULT_EXTRACTOR_ORDER =

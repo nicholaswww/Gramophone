@@ -30,7 +30,6 @@ import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.AppBarLayout
@@ -64,7 +63,6 @@ import org.akanework.gramophone.ui.fragments.settings.MainSettingsActivity
  *
  * @author AkaneTan
  */
-@androidx.annotation.OptIn(UnstableApi::class)
 class ViewPagerFragment : BaseFragment(true) {
     lateinit var appBarLayout: AppBarLayout
         private set

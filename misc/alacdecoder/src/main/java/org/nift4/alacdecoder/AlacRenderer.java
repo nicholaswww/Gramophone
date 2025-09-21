@@ -1,7 +1,7 @@
 package org.nift4.alacdecoder;
 
 import android.os.Handler;
-import android.util.Log;
+import androidx.media3.common.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
@@ -15,7 +15,6 @@ import androidx.media3.exoplayer.audio.AudioRendererEventListener;
 import androidx.media3.exoplayer.audio.AudioSink;
 import androidx.media3.exoplayer.audio.DecoderAudioRenderer;
 
-@OptIn(markerClass = UnstableApi.class)
 public class AlacRenderer extends DecoderAudioRenderer<AlacDecoder> {
     public AlacRenderer(Handler eventHandler, AudioRendererEventListener eventListener, AudioSink audioSink) {
         super(eventHandler, eventListener, audioSink);

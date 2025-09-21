@@ -13,7 +13,7 @@ import android.os.Build
 import android.os.Environment
 import android.os.Process
 import android.provider.MediaStore
-import android.util.Log
+import androidx.media3.common.util.Log
 import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.RequiresApi
 import kotlinx.coroutines.withContext
@@ -194,12 +194,12 @@ object ItemManipulator {
                 PlaylistSerializer.write(context.applicationContext, out.resolveSibling(
                     "${out.nameWithoutExtension}_NEW_${System.currentTimeMillis()}.m3u"), songs)
             } catch (t: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(t))
+                Log.e(TAG, Log.getThrowableString(t)!!)
             }
             try {
                 out.resolveSibling("${out.nameWithoutExtension}_BAK_${System.currentTimeMillis()}.${out.extension}").writeBytes(backup)
             } catch (t: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(t))
+                Log.e(TAG, Log.getThrowableString(t)!!)
             }
             throw t
         }

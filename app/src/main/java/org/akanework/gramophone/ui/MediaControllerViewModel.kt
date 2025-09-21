@@ -3,7 +3,7 @@ package org.akanework.gramophone.ui
 import android.app.Application
 import android.content.ComponentName
 import android.os.Bundle
-import android.util.Log
+import androidx.media3.common.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.DefaultLifecycleObserver
