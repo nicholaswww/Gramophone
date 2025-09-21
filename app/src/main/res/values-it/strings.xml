@@ -156,7 +156,6 @@
     <string name="fgs_failed_text">Fai click qui per aprire l\'app e continuare la riproduzione</string>
     <string name="sort_by_release_date">Data di pubblicazione</string>
     <string name="timer_expiry">Timer riposo fermerà la musica a %s</string>
-    <string name="separator_dot">•</string>
     <string name="grant_audio">Per favore consenti l\'autorizzazione \"Musica e audio\"</string>
     <string name="skip_next">Salta al prossimo</string>
     <string name="expand_less">Chiudi</string>
