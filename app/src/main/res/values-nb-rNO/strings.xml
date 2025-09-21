@@ -45,7 +45,7 @@
     <string name="album_artist">Albumsartist</string>
     <string name="sort_by_album">Album</string>
     <string name="category_albums">Album</string>
-    <string name="refreshed_songs">Gjenoppfrisket %1$s spor</string>
+    <string name="refreshed_songs">Gjenoppfrisket %1$d spor</string>
     <string name="dark">Mørk</string>
     <string name="sort_by_name">Navn</string>
     <string name="shuffle">Omstokking</string>
