@@ -245,7 +245,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onCreate() {
-        Log.i(TAG, "onCreate()")
+        Log.i(TAG, "+onCreate()")
         super.onCreate()
         instanceForWidgetAndLyricsOnly = this
         internalPlaybackThread.start()
@@ -516,6 +516,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 }
             }
         }
+        Log.i(TAG, "-onCreate()")
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.i(TAG, "onStartCommand(): $intent")
+        return super.onStartCommand(intent, flags, startId)
     }
 
     override fun onSetRating(
@@ -542,7 +548,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     // When destroying, we should release server side player
     // alongside with the mediaSession.
     override fun onDestroy() {
-        Log.i(TAG, "onDestroy()")
+        Log.i(TAG, "+onDestroy()")
         instanceForWidgetAndLyricsOnly = null
         unregisterReceiver(seekReceiver)
         unregisterReceiver(btReceiver)
@@ -552,18 +558,19 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         mediaSession!!.player.stop()
         handler.removeCallbacks(timer)
         mediaSession!!.setOptOutOfMediaButtonPlaybackResumption(controller!!.currentTimeline.isEmpty)
+        proxy?.let {
+            it.adapter.closeProfileProxy(BluetoothProfile.A2DP, it.a2dp)
+        }
         controller!!.release()
         controller = null
         mediaSession!!.release()
         mediaSession!!.player.release()
         mediaSession = null
         broadcastAudioSessionClose()
-        internalPlaybackThread.quitSafely()
-        proxy?.let {
-            it.adapter.closeProfileProxy(BluetoothProfile.A2DP, it.a2dp)
-        }
         LyricWidgetProvider.update(this)
+        internalPlaybackThread.quitSafely()
         super.onDestroy()
+        Log.i(TAG, "-onDestroy()")
     }
 
     // This onGetSession is a necessary method override needed by
@@ -574,6 +581,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     // Configure commands available to the controller in onConnect()
     override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo)
             : MediaSession.ConnectionResult {
+        Log.i(TAG, "onConnect(): $controller")
         val builder = MediaSession.ConnectionResult.AcceptedResultBuilder(session)
         val availableSessionCommands =
             MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
@@ -601,19 +609,25 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         availableSessionCommands.add(SessionCommand(SERVICE_QUERY_TIMER, Bundle.EMPTY))
         availableSessionCommands.add(SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY))
         availableSessionCommands.add(SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY))
-
-        handler.post {
-            session.sendCustomCommand(
-                controller,
-                SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
-            mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
-        }
         return builder.setAvailableSessionCommands(availableSessionCommands.build()).build()
+    }
+
+    override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+        Log.i(TAG, "onPostConnect(): $controller")
+        session.sendCustomCommand(
+            controller,
+            SessionCommand(SERVICE_GET_LYRICS, Bundle.EMPTY),
+            Bundle.EMPTY
+        )
+        session.sendCustomCommand(
+            controller,
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+            Bundle.EMPTY
+        )
+    }
+
+    override fun onDisconnected(session: MediaSession, controller: MediaSession.ControllerInfo) {
+        Log.i(TAG, "onDisconnected(): $controller")
     }
 
     override fun onAudioSessionIdChanged(audioSessionId: Int) {

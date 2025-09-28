@@ -27,9 +27,17 @@ class MediaButtonReceiver : MediaButtonReceiver() {
 		private const val TAG = "MediaButtonReceiver"
 	}
 
+	override fun onReceive(context: Context, intent: Intent?) {
+		Log.i(TAG, "+onReceive(): $intent")
+		super.onReceive(context, intent)
+		Log.i(TAG, "-onReceive(): $intent")
+	}
+
 	override fun shouldStartForegroundService(context: Context, intent: Intent): Boolean {
 		val prefs = context.getSharedPreferences("LastPlayedManager", 0)
-		return !prefs.getString("last_played_grp", null).isNullOrEmpty()
+		val ret = !prefs.getString("last_played_grp", null).isNullOrEmpty()
+		Log.i(TAG, "shouldStartForegroundService()=$ret: $intent")
+		return ret
 	}
 
 	override fun onForegroundServiceStartNotAllowedException(
@@ -37,7 +45,7 @@ class MediaButtonReceiver : MediaButtonReceiver() {
 		intent: Intent,
 		e: ForegroundServiceStartNotAllowedException
 	) {
-		Log.w(TAG, "Failed to resume playback :/")
+		Log.w(TAG, "Failed to resume playback :/", e)
 		if (mayThrowForegroundServiceStartNotAllowed()
 			|| mayThrowForegroundServiceStartNotAllowedMiui()
 		) {

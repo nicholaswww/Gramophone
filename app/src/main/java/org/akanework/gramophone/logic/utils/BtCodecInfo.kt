@@ -137,6 +137,10 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
                     private val context: Context) : BluetoothProfile.ServiceListener {
             var a2dp: BluetoothA2dp? = null
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                if (profile != BluetoothProfile.A2DP) {
+                    Log.e(TAG, "wrong profile $profile connected")
+                    return
+                }
                 a2dp = proxy as BluetoothA2dp
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(
                         context,
@@ -167,6 +171,10 @@ data class BtCodecInfo(val codec: String?, val sampleRateHz: Int?, val channelCo
             }
 
             override fun onServiceDisconnected(profile: Int) {
+                if (profile != BluetoothProfile.A2DP) {
+                    Log.e(TAG, "wrong profile $profile disconnected")
+                    return
+                }
                 a2dp = null
             }
         }
