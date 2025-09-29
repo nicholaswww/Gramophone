@@ -520,8 +520,19 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.i(TAG, "onStartCommand(): $intent")
-        return super.onStartCommand(intent, flags, startId)
+        var extras = intent?.extras
+        // Deserialize all extras to be able to log them.
+	    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            extras = extras?.deepCopy()
+	    } else {
+            if (extras != null) {
+                for (i in extras.keySet()) {
+                    @Suppress("deprecation") extras.get(i)
+                }
+            }
+        }
+        Log.i(TAG, "onStartCommand(): $intent, ${extras?.toString()}")
+	    return super.onStartCommand(intent, flags, startId)
     }
 
     override fun onSetRating(
