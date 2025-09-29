@@ -75,6 +75,7 @@ If it's still not visible, your system version may not support scanning this fil
 **My song isn't playing! / My song is playing, but it's completely silent, yet the volume is turned up!**
 Please note that Gramophone relys on system media codecs to make the app smaller. This means
 - int32 (32-bit) FLAC files will only work on Android 14 or later
+- FLAC files often do work on all supported versions, but are only officially required on Android 8 or later
 - xHE-AAC files in general will only work on Android 9 or later
 - Dolby Digital (AC-3) / Dolby Digital Plus (E-AC-3) requires a device that has licensed decoders for these formats
 
