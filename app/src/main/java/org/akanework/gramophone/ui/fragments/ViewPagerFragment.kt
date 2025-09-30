@@ -17,7 +17,6 @@
 
 package org.akanework.gramophone.ui.fragments
 
-import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.media.audiofx.AudioEffect
@@ -70,7 +69,6 @@ class ViewPagerFragment : BaseFragment(true) {
     private lateinit var viewPager2: ViewPager2
     private lateinit var adapter: ViewPager2Adapter
 
-    @SuppressLint("StringFormatInvalid", "StringFormatMatches")
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,

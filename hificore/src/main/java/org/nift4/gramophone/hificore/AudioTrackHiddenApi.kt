@@ -409,6 +409,7 @@ object AudioTrackHiddenApi {
         val mixPortData = getMixPortMetadata(id, ioHandle)
         // flags exposed to app process since below commit which first appeared in T release.
         // https://cs.android.com/android/_/android/platform/frameworks/av/+/99809024b36b243ad162c780c1191bb503a8df47
+        // https://cs.android.com/android/_/android/platform/frameworks/av/+/0805de160715e82fcf59f9367a43b96a352abd11
         return MixPort(id, ioHandle, name, flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
             mixPortData?.get(3) else null, channelMask = mixPortData?.get(2),
             format = mixPortData?.get(1)?.toUInt(), sampleRate = mixPortData?.get(0)?.toUInt(),
