@@ -1022,7 +1022,7 @@ class FullBottomSheet
                 addColorScheme()
             }
             bottomSheetFullTitle.setTextAnimation(
-                mediaItem?.mediaMetadata?.title,
+                mediaItem?.mediaMetadata?.title ?: "",
                 skipAnimation = firstTime
             )
             bottomSheetFullSubtitle.setTextAnimation(
@@ -1056,7 +1056,7 @@ class FullBottomSheet
         if ((duration?.toInt() ?: 0) != bottomSheetFullSeekBar.max) {
             bottomSheetFullDuration.setTextAnimation(duration?.let {
                 CalculationUtils.convertDurationToTimeStamp(it)
-            })
+            } ?: "")
             val position =
                 CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
             if (duration != null && !isUserTracking) {

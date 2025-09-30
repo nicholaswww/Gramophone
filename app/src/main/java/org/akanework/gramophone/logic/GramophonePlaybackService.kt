@@ -74,6 +74,7 @@ import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaBrowser
 import androidx.media3.session.MediaConstants
+import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSession.MediaItemsWithStartPosition
@@ -118,7 +119,6 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.akanework.gramophone.ui.MainActivity
 import kotlin.random.Random
-
 
 /**
  * [GramophonePlaybackService] is a server service.
@@ -313,19 +313,17 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     .build(),
             )
         afFormatTracker = AfFormatTracker(this, playbackHandler, handler)
-        afFormatTracker.formatChangedCallback = { format, period ->
+        afFormatTracker.formatChangedCallback = { format, window ->
             handler.post {
-                val currentPeriod = controller?.currentPeriodIndex?.takeIf { it != C.INDEX_UNSET &&
-                        (controller?.currentTimeline?.periodCount ?: 0) > it }
-                    ?.let { controller!!.currentTimeline.getUidOfPeriod(it) }
-                if (currentPeriod != period) {
+                val currentWindow = controller?.getWindowUid(Timeline.Window())
+                if (currentWindow != window) {
                     if (format != null) {
-                        pendingAfTrackFormats[period] = format
+                        pendingAfTrackFormats[window] = format
                     } else {
-                        pendingAfTrackFormats.remove(period)
+                        pendingAfTrackFormats.remove(window)
                     }
                 } else {
-                    afTrackFormat = format?.let { period to it }
+                    afTrackFormat = format?.let { window to it }
                     mediaSession?.broadcastCustomCommand(
                         SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
                         Bundle.EMPTY
@@ -921,10 +919,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        val currentPeriod = eventTime.currentMediaPeriodId?.periodUid
-        val item = eventTime.mediaPeriodId!!.periodUid to
-                AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
-        if (currentPeriod != item.first) {
+        val w = Timeline.Window()
+        val currentWindow = controller?.getWindowUid(w)
+        val item = eventTime.timeline.getWindow(eventTime.windowIndex, w)
+            .uid to AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
+        if (currentWindow != item.first) {
             pendingAudioTrackInfo += item
         } else {
             audioTrackInfo += item
@@ -954,12 +953,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         mediaLoadData: MediaLoadData
     ) {
-        val currentPeriod = controller?.currentPeriodIndex?.takeIf { it != C.INDEX_UNSET &&
-                (controller?.currentTimeline?.periodCount ?: 0) > it }
-            ?.let { controller!!.currentTimeline.getUidOfPeriod(it) }
-        val item = eventTime.mediaPeriodId!!.periodUid to
-                (mediaLoadData.trackType to mediaLoadData.trackFormat!!)
-        if (currentPeriod != item.first) {
+        val w = Timeline.Window()
+        val currentWindow = controller?.getWindowUid(w)
+        val item = eventTime.timeline.getWindow(eventTime.windowIndex, w)
+            .uid to (mediaLoadData.trackType to mediaLoadData.trackFormat!!)
+        if (currentWindow != item.first) {
             pendingDownstreamFormat += item
         } else {
             downstreamFormat += item
@@ -1099,20 +1097,20 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             refreshMediaButtonCustomLayout()
         }
         pendingDownstreamFormat.toSet().forEach {
-            if (timeline.getIndexOfPeriod(it.first) == C.INDEX_UNSET) {
-                // This period is going away.
+            if (timeline.getIndexOfWindow(it.first) == C.INDEX_UNSET) {
+                // This window is going away.
                 pendingDownstreamFormat.remove(it)
             }
         }
         pendingAfTrackFormats.toMap().forEach { (key, _) ->
-            if (timeline.getIndexOfPeriod(key) == C.INDEX_UNSET) {
-                // This period is going away.
+            if (timeline.getIndexOfWindow(key) == C.INDEX_UNSET) {
+                // This window is going away.
                 pendingAfTrackFormats.remove(key)
             }
         }
         pendingAudioTrackInfo.toList().forEach {
-            if (timeline.getIndexOfPeriod(it.first) == C.INDEX_UNSET) {
-                // This period is going away.
+            if (timeline.getIndexOfWindow(it.first) == C.INDEX_UNSET) {
+                // This window is going away.
                 pendingAudioTrackInfo.remove(it)
             }
         }
@@ -1135,7 +1133,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         loadEventInfo: LoadEventInfo,
         mediaLoadData: MediaLoadData
     ) {
-        pendingDownstreamFormat.removeAll { eventTime.mediaPeriodId?.periodUid == it.first }
+        pendingDownstreamFormat.removeAll { eventTime.getWindowUid(Timeline.Window()) == it.first }
     }
 
     override fun onPositionDiscontinuity(
@@ -1143,42 +1141,42 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         newPosition: Player.PositionInfo,
         reason: Int
     ) {
-        if (oldPosition.periodUid != newPosition.periodUid) {
+        if (oldPosition.windowUid != newPosition.windowUid) {
             var changed = false
             downstreamFormat.toSet().forEach {
-                if (newPosition.periodUid != it.first) {
+                if (newPosition.windowUid != it.first) {
                     downstreamFormat.remove(it)
                     changed = true
                 }
             }
             pendingDownstreamFormat.toSet().forEach {
-                if (newPosition.periodUid == it.first) {
+                if (newPosition.windowUid == it.first) {
                     downstreamFormat.add(it)
                     pendingDownstreamFormat.remove(it)
                     changed = true
                 }
             }
             audioTrackInfo.toList().forEach {
-                if (newPosition.periodUid != it.first) {
+                if (newPosition.windowUid != it.first) {
                     pendingAudioTrackInfo.add(it)
                     audioTrackInfo.remove(it)
                     changed = true
                 }
             }
             pendingAudioTrackInfo.toList().forEach {
-                if (newPosition.periodUid == it.first) {
+                if (newPosition.windowUid == it.first) {
                     audioTrackInfo.add(it)
                     pendingAudioTrackInfo.remove(it)
                     changed = true
                 }
             }
-            if (afTrackFormat?.first != newPosition.periodUid) {
+            if (afTrackFormat?.first != newPosition.windowUid) {
                 afTrackFormat = null
                 changed = true
             }
-            pendingAfTrackFormats[newPosition.periodUid]?.let { format ->
-                afTrackFormat = newPosition.periodUid!! to format
-                pendingAfTrackFormats.remove(newPosition.periodUid)
+            pendingAfTrackFormats[newPosition.windowUid]?.let { format ->
+                afTrackFormat = newPosition.windowUid!! to format
+                pendingAfTrackFormats.remove(newPosition.windowUid)
                 changed = true
             }
             if (changed) {
@@ -1189,6 +1187,22 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             }
         }
         scheduleSendingLyrics(false)
+    }
+
+    private fun Timeline.getIndexOfWindow(uid: Any): Int {
+        val w = Timeline.Window()
+        for (i in 0..<windowCount) {
+            if (getWindow(i, w).uid == uid) {
+                return i
+            }
+        }
+        return C.INDEX_UNSET
+    }
+
+    private fun MediaController.getWindowUid(w: Timeline.Window): Any? {
+        return currentMediaItemIndex.takeIf { it != C.INDEX_UNSET &&
+                currentTimeline.windowCount > it }
+            ?.let { currentTimeline.getWindow(it, w).uid }
     }
 
     private fun scheduleSendingLyrics(new: Boolean) {

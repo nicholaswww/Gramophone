@@ -64,6 +64,8 @@ import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat
@@ -80,6 +82,7 @@ import org.akanework.gramophone.logic.utils.AfFormatInfo
 import org.akanework.gramophone.logic.utils.AudioFormatDetector
 import org.akanework.gramophone.logic.utils.AudioTrackInfo
 import org.akanework.gramophone.logic.utils.BtCodecInfo
+import org.akanework.gramophone.logic.utils.CalculationUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.ui.MainActivity
 import org.jetbrains.annotations.Contract
@@ -155,24 +158,26 @@ fun Drawable.startAnimation() {
 }
 
 fun TextView.setTextAnimation(
-    text: CharSequence?,
+    text: CharSequence,
     duration: Long = 300,
     completion: (() -> Unit)? = null,
     skipAnimation: Boolean = false
 ) {
-    (getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
-    (getTag(R.id.fade_in_animation) as ViewPropertyAnimator?)?.cancel()
-    val oldText = (getTag(androidx.core.R.id.text) as String?)
-    if (oldText != null)
-        this.text = oldText
-    if (oldText != null || text != null)
-        setTag(androidx.core.R.id.text, if (skipAnimation) null else text)
+    val oldTargetText = (getTag(androidx.core.R.id.text) as String?)
+    if (oldTargetText == text)
+        return // effectively, correct text is/will be set soon.
+    // if still fading out, just replace target text. otherwise set target for new anim.
+    setTag(androidx.core.R.id.text, if (skipAnimation) null else text)
     if (skipAnimation) {
+        (getTag(R.id.fade_in_animation) as ViewPropertyAnimator?)?.cancel()
+        (getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
         this.text = text
+        this.alpha = 1f
+        this.visibility = View.VISIBLE
         completion?.let { it() }
     } else if (this.text != text) {
         fadOutAnimation(duration) {
-            this.text = text
+            this.text = (getTag(androidx.core.R.id.text) as String?)
             setTag(androidx.core.R.id.text, null)
             fadInAnimation(duration) {
                 completion?.let {
@@ -192,10 +197,18 @@ fun View.fadOutAnimation(
     visibility: Int = View.INVISIBLE,
     completion: (() -> Unit)? = null
 ) {
+    if (this.visibility != View.VISIBLE) {
+        this.visibility = visibility
+        completion?.let {
+            it()
+        }
+        return
+    }
+    (getTag(R.id.fade_in_animation) as ViewPropertyAnimator?)?.cancel()
     (getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
     setTag(R.id.fade_out_animation, animate()
         .alpha(0f)
-        .setDuration(duration)
+        .setDuration(CalculationUtils.lerpInv(0f, duration.toFloat(), this.alpha).toLong())
         .withEndAction {
             this.visibility = visibility
             setTag(R.id.fade_out_animation, null)
@@ -207,11 +220,12 @@ fun View.fadOutAnimation(
 
 fun View.fadInAnimation(duration: Long = 300, completion: (() -> Unit)? = null) {
     (getTag(R.id.fade_in_animation) as ViewPropertyAnimator?)?.cancel()
+    (getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
     alpha = 0f
     visibility = View.VISIBLE
     setTag(R.id.fade_in_animation, animate()
         .alpha(1f)
-        .setDuration(duration)
+        .setDuration(CalculationUtils.lerpInv(duration.toFloat(), 0f, this.alpha).toLong())
         .withEndAction {
             setTag(R.id.fade_in_animation, null)
             completion?.let {
@@ -606,3 +620,9 @@ operator fun PaddingValues.plus(other: PaddingValues): PaddingValues = PaddingVa
             other.calculateEndPadding(LayoutDirection.Ltr),
     bottom = this.calculateBottomPadding() + other.calculateBottomPadding(),
 )
+
+fun AnalyticsListener.EventTime.getWindowUid(w: Timeline.Window): Any? {
+    return windowIndex.takeIf { it != C.INDEX_UNSET && timeline.windowCount > it }?.let {
+        timeline.getWindow(it, w).uid
+    }
+}
