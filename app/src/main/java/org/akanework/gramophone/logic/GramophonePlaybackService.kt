@@ -522,7 +522,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         var extras = intent?.extras
         // Deserialize all extras to be able to log them.
-	    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             extras = extras?.deepCopy()
 	    } else {
             if (extras != null) {
