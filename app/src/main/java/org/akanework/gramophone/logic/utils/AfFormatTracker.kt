@@ -72,7 +72,7 @@ class AfFormatTracker(
         )).getAudioTrack()
         if (router !== audioTrack) return // stale callback
         // reaching here implies router == lastAudioTrack
-        buildFormat(audioTrack, lastPeriodUid!!)
+        buildFormat(audioTrack, lastPeriodUid)
     }
 
     // TODO why do we have to reflect on app code, there must be a better solution
