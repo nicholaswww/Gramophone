@@ -15,6 +15,8 @@
  */
 package org.akanework.gramophone.logic.ui.spans
 
+import android.annotation.SuppressLint
+import android.graphics.text.LineBreaker
 import android.os.Build
 import android.text.Layout
 import android.text.StaticLayout
@@ -218,6 +220,12 @@ class StaticLayoutBuilderCompat private constructor(
             builder.setTextDirection(textDirectionHeuristic)
             if (ellipsize != null) {
                 builder.setEllipsize(ellipsize)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                builder.setBreakStrategy(LineBreaker.BREAK_STRATEGY_HIGH_QUALITY)
+            } else {
+                @SuppressLint("WrongConstant")
+                builder.setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE)
             }
             builder.setMaxLines(maxLines)
             if (lineSpacingAdd != DEFAULT_LINE_SPACING_ADD
