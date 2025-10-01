@@ -72,8 +72,6 @@ class AfFormatTracker(
         )).getAudioTrack()
         if (router !== audioTrack) return // stale callback
         // reaching here implies router == lastAudioTrack
-        if (lastPeriodUid == null)
-            throw NullPointerException("expected to have last period uid")
         buildFormat(audioTrack, lastPeriodUid!!)
     }
 

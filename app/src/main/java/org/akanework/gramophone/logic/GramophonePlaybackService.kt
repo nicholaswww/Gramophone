@@ -1085,8 +1085,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 it.exoPlayer.setShuffleOrder(
                     CircularShuffleOrder(
                         it,
-                        controller!!.currentMediaItemIndex,
-                        controller!!.mediaItemCount,
+                        it.exoPlayer.currentMediaItemIndex,
+                        it.exoPlayer.mediaItemCount,
                         Random.nextLong()
                     )
                 )
