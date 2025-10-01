@@ -398,6 +398,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     // Coil-based bitmap loader to reuse Coil's caching and to make sure we use
                     // the same cover art as the rest of the app, ie MediaStore's cover
 
+                    private val limit by lazy { MediaSession.getBitmapDimensionLimit(this@GramophonePlaybackService) }
+
                     override fun decodeBitmap(data: ByteArray) =
                         throw UnsupportedOperationException("decodeBitmap() not supported")
 
@@ -408,6 +410,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                             imageLoader.enqueue(
                                 ImageRequest.Builder(this@GramophonePlaybackService)
                                     .data(uri)
+                                    .size(limit, limit)
                                     .allowHardware(false)
                                     .target(
                                         onStart = { _ ->

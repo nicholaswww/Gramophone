@@ -29,6 +29,7 @@ import android.os.Debug
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
+import android.provider.MediaStore
 import androidx.media3.common.util.Log
 import android.util.Size
 import android.webkit.MimeTypeMap
@@ -47,7 +48,6 @@ import coil3.decode.ImageSource
 import coil3.fetch.Fetcher
 import coil3.fetch.ImageFetchResult
 import coil3.fetch.SourceFetchResult
-import coil3.key.Keyer
 import coil3.request.NullRequestDataException
 import coil3.size.pxOrElse
 import coil3.toCoilUri
@@ -80,6 +80,9 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
 
     companion object {
         private const val TAG = "GramophoneApplication"
+        // not actually defined in API, but CTS tested
+        // https://cs.android.com/android/platform/superproject/main/+/main:packages/providers/MediaProvider/src/com/android/providers/media/LocalUriMatcher.java;drc=ddf0d00b2b84b205a2ab3581df8184e756462e8d;l=182
+        private const val MEDIA_ALBUM_ART = "albumart"
     }
 
     init {
@@ -255,28 +258,23 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
         return ImageLoader.Builder(context)
             .diskCache(null)
             .components {
-                add(Keyer<Pair<*, *>> { data, options ->
-                    val uri = data.second
-                    if (uri !is android.net.Uri?) return@Keyer null
-                    val file = data.first
-                    if (file !is File?) return@Keyer null
-                    return@Keyer uri?.toString() ?: file?.toString()
-                })
                 add(Fetcher.Factory { data, options, _ ->
-                    if (data !is Pair<*, *>) return@Factory null
-                    val uri = data.second
-                    if (uri !is android.net.Uri?) return@Factory null
-                    val file = data.first
-                    if (file !is File?) return@Factory null
+                    if (data !is Uri) return@Factory null
+                    if (data.scheme != "gramophoneSongCover") return@Factory null
                     return@Factory Fetcher {
-                        val bmp = try {
-                            if (hasScopedStorageV1() && file != null) {
+                        val file = File(data.path!!)
+                        val uri = ContentUris.appendId(
+                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI.buildUpon(), data.authority!!.toLong()
+                        ).appendPath(MEDIA_ALBUM_ART).build()
+                        val bmp = if (options.size.width.pxOrElse { 0 } > 300
+                            && options.size.height.pxOrElse { 0 } > 300) try {
+                            if (hasScopedStorageV1()) {
                                 ThumbnailUtils.createAudioThumbnail(file, options.size.let {
                                     Size(
                                         it.width.pxOrElse { throw IllegalArgumentException("missing required size") },
                                         it.height.pxOrElse { throw IllegalArgumentException("missing required size") })
                                 }, null)
-                            } else null
+                            } else null // TODO: fallback for <Q?
                         } catch (e: IOException) {
                             if (e.message != "No embedded album art found" &&
                                 e.message != "No thumbnails in Downloads directories" &&
@@ -284,7 +282,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                                 e.message != "No album art found")
                                 throw e
                             null
-                        }
+                        } else null
                         if (bmp != null) {
                             ImageFetchResult(
                                 bmp.asImage(), true, DataSource.DISK

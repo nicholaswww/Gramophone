@@ -654,11 +654,10 @@ class FullBottomSheet
         val job = CoroutineScope(Dispatchers.Default)
         currentJob = job
         val mediaItem = instance?.currentMediaItem
-        val file = mediaItem?.getFile()
         job.launch {
             currentDisposable = context.imageLoader.enqueue(
                 ImageRequest.Builder(context).apply {
-                    data(Pair(file, mediaItem?.mediaMetadata?.artworkUri))
+                    data(mediaItem?.mediaMetadata?.artworkUri)
                     val colorAccuracy = prefs.getBoolean("color_accuracy", false)
                     if (colorAccuracy) {
                         size(256, 256)
@@ -1098,7 +1097,7 @@ class FullBottomSheet
             val file = mediaItem?.getFile()
             lastDisposable = context.imageLoader.enqueue(
                 ImageRequest.Builder(context).apply {
-                    data(Pair(file, mediaItem?.mediaMetadata?.artworkUri))
+                    data(mediaItem?.mediaMetadata?.artworkUri)
                     size(bottomSheetFullCover.width, bottomSheetFullCover.height)
                     scale(Scale.FILL)
                     target(onSuccess = {
