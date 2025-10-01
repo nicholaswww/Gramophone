@@ -400,8 +400,41 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
                     private val limit by lazy { MediaSession.getBitmapDimensionLimit(this@GramophonePlaybackService) }
 
-                    override fun decodeBitmap(data: ByteArray) =
-                        throw UnsupportedOperationException("decodeBitmap() not supported")
+                    override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> {
+                        return CallbackToFutureAdapter.getFuture { completer ->
+                            imageLoader.enqueue(
+                                ImageRequest.Builder(this@GramophonePlaybackService)
+                                    .data(data)
+                                    .memoryCacheKey(data.hashCode().toString())
+                                    .size(limit, limit)
+                                    .allowHardware(false)
+                                    .target(
+                                        onStart = { _ ->
+                                            // We don't need or want a placeholder.
+                                        },
+                                        onSuccess = { result ->
+                                            completer.set((result as BitmapImage).bitmap)
+                                        },
+                                        onError = { _ ->
+                                            completer.setException(
+                                                Exception(
+                                                    "coil onError called for byte array"
+                                                )
+                                            )
+                                        }
+                                    )
+                                    .build())
+                                .also {
+                                    completer.addCancellationListener(
+                                        { it.dispose() },
+                                        ContextCompat.getMainExecutor(
+                                            this@GramophonePlaybackService
+                                        )
+                                    )
+                                }
+                            "coil load for ${data.hashCode()}"
+                        }
+                    }
 
                     override fun loadBitmap(
                         uri: Uri
@@ -446,6 +479,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     }
 
                     override fun loadBitmapFromMetadata(metadata: MediaMetadata): ListenableFuture<Bitmap>? {
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                            // allow using exoplayer's copy extracted here on P- for now
+                            // refer to the TO DO in GramophoneApplication
+                            return super.loadBitmapFromMetadata(metadata)
+                        }
                         return metadata.artworkUri?.let { loadBitmap(it) }
                     }
                 }))
