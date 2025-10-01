@@ -225,7 +225,7 @@ class StaticLayoutBuilderCompat private constructor(
                 builder.setBreakStrategy(LineBreaker.BREAK_STRATEGY_HIGH_QUALITY)
             } else {
                 @SuppressLint("WrongConstant")
-                builder.setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE)
+                builder.setBreakStrategy(Layout.BREAK_STRATEGY_HIGH_QUALITY)
             }
             builder.setMaxLines(maxLines)
             if (lineSpacingAdd != DEFAULT_LINE_SPACING_ADD
