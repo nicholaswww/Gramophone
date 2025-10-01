@@ -7,13 +7,11 @@ import android.media.AudioTrack
 import android.os.Build
 import android.os.Handler
 import android.os.Parcelable
-import androidx.media3.common.Timeline
 import androidx.media3.common.util.Log
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import kotlinx.parcelize.Parcelize
-import org.akanework.gramophone.logic.getWindowUid
 import org.nift4.gramophone.hificore.AudioTrackHiddenApi
 
 @Parcelize
@@ -51,11 +49,11 @@ class AfFormatTracker(
     }
     // only access sink or track on PlaybackThread
     private var lastAudioTrack: AudioTrack? = null
-    private var lastWindowUid: Any? = null
+    private var lastPeriodUid: Any? = null
     private var audioSink: DefaultAudioSink? = null
     var format: AfFormatInfo? = null
         private set
-    var formatChangedCallback: ((AfFormatInfo?, Any) -> Unit)? = null
+    var formatChangedCallback: ((AfFormatInfo?, Any?) -> Unit)? = null
 
     private val routingChangedListener = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         AudioRouting.OnRoutingChangedListener {
@@ -74,9 +72,9 @@ class AfFormatTracker(
         )).getAudioTrack()
         if (router !== audioTrack) return // stale callback
         // reaching here implies router == lastAudioTrack
-        if (lastWindowUid == null)
-            throw NullPointerException("expected to have last window uid")
-        buildFormat(audioTrack, lastWindowUid!!)
+        if (lastPeriodUid == null)
+            throw NullPointerException("expected to have last period uid")
+        buildFormat(audioTrack, lastPeriodUid!!)
     }
 
     // TODO why do we have to reflect on app code, there must be a better solution
@@ -111,9 +109,9 @@ class AfFormatTracker(
                         routingChangedListener as AudioTrack.OnRoutingChangedListener
                     )
                 }
-                lastWindowUid?.let { formatChangedCallback?.invoke(null, it) }
+                lastPeriodUid?.let { formatChangedCallback?.invoke(null, it) }
                 this.lastAudioTrack = audioTrack
-                this.lastWindowUid = eventTime.getWindowUid(Timeline.Window())
+                this.lastPeriodUid = eventTime.mediaPeriodId?.periodUid
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     audioTrack?.addOnRoutingChangedListener(
                         routingChangedListener as AudioRouting.OnRoutingChangedListener,
@@ -127,7 +125,7 @@ class AfFormatTracker(
                     )
                 }
             }
-            buildFormat(audioTrack, lastWindowUid!!)
+            buildFormat(audioTrack, eventTime.mediaPeriodId?.periodUid)
         }
     }
 
@@ -148,14 +146,14 @@ class AfFormatTracker(
                     )
                 }
                 lastAudioTrack = null
-                formatChangedCallback?.invoke(null, lastWindowUid!!)
-                lastWindowUid = null
+                formatChangedCallback?.invoke(null, lastPeriodUid)
+                lastPeriodUid = null
                 format = null
             }
         }
     }
 
-    private fun buildFormat(audioTrack: AudioTrack?, windowUid: Any) {
+    private fun buildFormat(audioTrack: AudioTrack?, periodUid: Any?) {
         audioTrack?.let {
             if (audioTrack.state == AudioTrack.STATE_UNINITIALIZED) return@let null
             val rd = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
@@ -206,7 +204,7 @@ class AfFormatTracker(
             if (LOG_EVENTS)
                 Log.d(TAG, "audio hal format changed to: $it")
             format = it
-            formatChangedCallback?.invoke(it, windowUid)
+            formatChangedCallback?.invoke(it, periodUid)
         }
     }
 

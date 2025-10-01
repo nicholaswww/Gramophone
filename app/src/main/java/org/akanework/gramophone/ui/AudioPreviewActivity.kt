@@ -28,6 +28,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -35,6 +36,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.preference.PreferenceManager
+import coil3.load
+import coil3.request.error
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
@@ -52,6 +55,7 @@ import org.akanework.gramophone.logic.hasScopedStorageWithMediaTypes
 import org.akanework.gramophone.logic.playOrPause
 import org.akanework.gramophone.logic.startAnimation
 import org.akanework.gramophone.logic.ui.BaseActivity
+import org.akanework.gramophone.logic.ui.placeholderScaleToFit
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
 import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneExtractorsFactory
@@ -92,16 +96,6 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
     private var askedForPermissionInSettings = false
     private val updateSliderRunnable = object : Runnable {
         override fun run() {
-            // TODO we may no longer need to poll duration because midi audio sink bugfix is released
-            val duration = player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
-                ?: player.mediaMetadata.durationMs
-            if (duration != null) {
-                timeSlider.valueTo = duration.toFloat().coerceAtLeast(1f)
-                timeSeekbar.max = duration.toInt()
-                durationTextView.text = convertDurationToTimeStamp(
-                    player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
-                        ?: player.mediaMetadata.durationMs ?: 0)
-            }
             val currentPosition = player.currentPosition.toFloat().coerceAtMost(timeSlider.valueTo)
                 .coerceAtLeast(timeSlider.valueFrom)
             if (!isUserTracking) {
@@ -224,6 +218,13 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
             }
 
             override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+                updateMediaMetadata(player)
+            }
+
+            override fun onTimelineChanged(
+                timeline: Timeline,
+                reason: @Player.TimelineChangeReason Int
+            ) {
                 updateMediaMetadata(player)
             }
         })
@@ -520,11 +521,19 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
     private fun updateMediaMetadata(player: Player) {
         audioTitle.text = player.mediaMetadata.title ?: getString(R.string.unknown_title)
         artistTextView.text = player.mediaMetadata.artist ?: getString(R.string.unknown_artist)
-        player.mediaMetadata.artworkData?.let {
-            val bitmap = BitmapFactory.decodeByteArray(it, 0, it.size)
-            albumArt.setImageBitmap(bitmap)
-        } ?: run {
-            albumArt.setImageResource(R.drawable.ic_default_cover)
+        albumArt.load(player.mediaMetadata.artworkData) {
+            placeholderScaleToFit(R.drawable.ic_default_cover)
+            error(R.drawable.ic_default_cover)
+            memoryCacheKey(player.mediaMetadata.artworkData.hashCode().toString())
+        }
+        val duration = player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
+            ?: player.mediaMetadata.durationMs
+        if (duration != null) {
+            timeSlider.valueTo = duration.toFloat().coerceAtLeast(1f)
+            timeSeekbar.max = duration.toInt()
+            durationTextView.text = convertDurationToTimeStamp(
+                player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
+                    ?: player.mediaMetadata.durationMs ?: 0)
         }
     }
 }

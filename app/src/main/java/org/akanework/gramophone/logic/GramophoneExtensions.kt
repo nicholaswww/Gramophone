@@ -208,7 +208,7 @@ fun View.fadOutAnimation(
     (getTag(R.id.fade_out_animation) as ViewPropertyAnimator?)?.cancel()
     setTag(R.id.fade_out_animation, animate()
         .alpha(0f)
-        .setDuration(CalculationUtils.lerpInv(0f, duration.toFloat(), this.alpha).toLong())
+        .setDuration(CalculationUtils.lerp(0f, duration.toFloat(), this.alpha).toLong())
         .withEndAction {
             this.visibility = visibility
             setTag(R.id.fade_out_animation, null)
@@ -225,7 +225,7 @@ fun View.fadInAnimation(duration: Long = 300, completion: (() -> Unit)? = null) 
     visibility = View.VISIBLE
     setTag(R.id.fade_in_animation, animate()
         .alpha(1f)
-        .setDuration(CalculationUtils.lerpInv(duration.toFloat(), 0f, this.alpha).toLong())
+        .setDuration(CalculationUtils.lerp(duration.toFloat(), 0f, this.alpha).toLong())
         .withEndAction {
             setTag(R.id.fade_in_animation, null)
             completion?.let {
@@ -620,9 +620,3 @@ operator fun PaddingValues.plus(other: PaddingValues): PaddingValues = PaddingVa
             other.calculateEndPadding(LayoutDirection.Ltr),
     bottom = this.calculateBottomPadding() + other.calculateBottomPadding(),
 )
-
-fun AnalyticsListener.EventTime.getWindowUid(w: Timeline.Window): Any? {
-    return windowIndex.takeIf { it != C.INDEX_UNSET && timeline.windowCount > it }?.let {
-        timeline.getWindow(it, w).uid
-    }
-}

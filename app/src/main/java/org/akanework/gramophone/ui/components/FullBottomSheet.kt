@@ -41,6 +41,7 @@ import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
@@ -524,6 +525,9 @@ class FullBottomSheet
             onRepeatModeChanged(instance?.repeatMode ?: Player.REPEAT_MODE_OFF)
             onShuffleModeEnabledChanged(instance?.shuffleModeEnabled == true)
             onPlaybackStateChanged(instance?.playbackState ?: Player.STATE_IDLE)
+	        instance?.currentTimeline?.let {
+		        onTimelineChanged(it, Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
+	        }
             onMediaItemTransition(
                 instance?.currentMediaItem,
                 Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
@@ -1037,6 +1041,7 @@ class FullBottomSheet
                     error(R.drawable.ic_default_cover)
                 }
             }
+            updateDuration()
         } else {
             lastDisposable?.dispose()
             lastDisposable = null
@@ -1052,14 +1057,23 @@ class FullBottomSheet
                 (mediaMetadata.userRating as? HeartRating)?.isHeart == true
             bottomSheetFavoriteButton.addOnCheckedChangeListener(this)
         }
-        val duration = instance?.mediaMetadata?.durationMs
-        if ((duration?.toInt() ?: 0) != bottomSheetFullSeekBar.max) {
-            bottomSheetFullDuration.setTextAnimation(duration?.let {
-                CalculationUtils.convertDurationToTimeStamp(it)
-            } ?: "")
+    }
+
+    override fun onTimelineChanged(timeline: Timeline, reason: @Player.TimelineChangeReason Int) {
+        if (reason == Player.TIMELINE_CHANGE_REASON_SOURCE_UPDATE) {
+            updateDuration()
+        }
+    }
+
+    private fun updateDuration() {
+        val duration = instance?.contentDuration?.let { if (it == C.TIME_UNSET) null else it }
+            ?: instance?.currentMediaItem?.mediaMetadata?.durationMs
+        if (duration != null && duration.toInt() != bottomSheetFullSeekBar.max) {
+            bottomSheetFullDuration.setTextAnimation(
+                CalculationUtils.convertDurationToTimeStamp(duration))
             val position =
                 CalculationUtils.convertDurationToTimeStamp(instance?.currentPosition ?: 0)
-            if (duration != null && !isUserTracking) {
+            if (!isUserTracking) {
                 bottomSheetFullSeekBar.max = duration.toInt()
                 bottomSheetFullSeekBar.progress = instance?.currentPosition?.toInt() ?: 0
                 bottomSheetFullSlider.valueTo = duration.toFloat().coerceAtLeast(1f)

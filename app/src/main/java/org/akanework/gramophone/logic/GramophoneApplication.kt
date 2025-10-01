@@ -154,7 +154,9 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                 .penaltyDeath()
                 .build()
         }
-        if (!android.util.Log.isLoggable(TAG, android.util.Log.DEBUG)) {
+        android.util.Log.d(TAG, "GramophoneApplication.onCreate()")
+        // TODO does info return false on problematic devices?
+        if (!android.util.Log.isLoggable(TAG, android.util.Log.INFO)) {
             Log.setLogger(object : Log.Logger {
                 override fun d(
                     tag: String,
