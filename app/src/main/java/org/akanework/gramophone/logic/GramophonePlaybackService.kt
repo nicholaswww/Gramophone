@@ -1278,7 +1278,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             lastSentHighlightedLyric = highlightedLyric
             mediaSession?.let {
                 handler.post {
-                    // This will accesses the media notification controller's getters. But because
+                    // This will access the media notification controller's getters. But because
                     // controller callback ordering is undefined and in practice our service
                     // controller sometimes gets called first, this would cause us to access a stale
                     // PlaybackInfo in the media notification controller which causes wrong decision
