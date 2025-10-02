@@ -3,6 +3,7 @@ package uk.akane.libphonograph.items
 import androidx.compose.ui.util.fastFilterNotNull
 import androidx.media3.common.MediaItem
 import java.io.File
+import kotlin.math.max
 
 open class Playlist protected constructor(
     override val id: Long?,
@@ -53,18 +54,14 @@ internal data class RawPlaylist(
 ) {
     // idMap may be null if and only if all playlists are empty
     fun toPlaylist(idMap: Map<Long, MediaItem>?, pathMap: Map<String, MediaItem>?): Playlist {
-        val tmp = ArrayList<MediaItem?>(idList.size)
-        pathList?.forEach { value ->
-            tmp.add(value?.let { pathMap!![value.absolutePath] })
-        }
-        idList.forEachIndexed { i, value ->
+        val tmp = arrayOfNulls<MediaItem?>(max(idList.size, pathList?.size ?: 0))
+        for (i in 0..<tmp.size) {
             // if we have an id and it's not in the map, something's weird. but it's not a crash-worthy offense
-            if (tmp[i] == null && value != null && idMap!!.containsKey(value)) {
-                tmp[i] = idMap[value]!!
-            }
+            tmp[i] = pathList?.getOrNull(i)?.let { pathMap!![it.absolutePath] }
+                ?: if (idList.getOrNull(i) != null) idMap!![idList[i]!!] else null
         }
-        val result = if (tmp.contains(null)) tmp.fastFilterNotNull() else
-            @Suppress("UNCHECKED_CAST") (tmp as ArrayList<MediaItem>)
+        val result = if (tmp.contains(null)) tmp.filterNotNull() else
+                (@Suppress("UNCHECKED_CAST") (tmp as Array<MediaItem>)).toList()
         return Playlist(id, title, path, dateAdded, dateModified, result.size != tmp.size, result)
     }
 }
