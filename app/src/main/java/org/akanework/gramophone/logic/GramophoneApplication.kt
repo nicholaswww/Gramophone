@@ -34,6 +34,8 @@ import androidx.media3.common.util.Log
 import android.util.Size
 import android.webkit.MimeTypeMap
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.runtime.Composer
+import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.fragment.app.strictmode.FragmentStrictMode
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.preference.PreferenceManager
@@ -91,8 +93,11 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             LSPass.setHiddenApiExemptions("")
         }
-        if (BuildConfig.DEBUG)
+        if (BuildConfig.DEBUG) {
             System.setProperty("kotlinx.coroutines.debug", "on")
+            @OptIn(ExperimentalComposeRuntimeApi::class)
+            Composer.setDiagnosticStackTraceEnabled(true)
+        }
     }
 
     val minSongLengthSecondsFlow = MutableSharedFlow<Long>(replay = 1)

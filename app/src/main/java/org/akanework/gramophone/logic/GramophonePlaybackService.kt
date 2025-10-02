@@ -592,6 +592,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
     }
 
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        Log.d(TAG, "onUpdateNotification($startInForegroundRequired)", RuntimeException())
+        super.onUpdateNotification(session, startInForegroundRequired)
+    }
+
     override fun onSetRating(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
