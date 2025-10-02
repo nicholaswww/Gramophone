@@ -497,10 +497,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 )
                 .setSystemUiPlaybackResumptionOptIn(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                 .build()
-        // Ensure session is added to service before we connect our controller. This allows service
-        // media notification controller to be connected before ours, hence receive callbacks before
-        // ours, hence service will not operate on stale data when calling methods like
-        // triggerNotificationUpdate() in a controller callback.
         addSession(mediaSession!!)
         controller = MediaBrowser.Builder(this, mediaSession!!.token).buildAsync().get()
         controller!!.addListener(this)
@@ -1281,11 +1277,18 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (lastSentHighlightedLyric != highlightedLyric) {
             lastSentHighlightedLyric = highlightedLyric
             mediaSession?.let {
-                if (Looper.myLooper() != it.player.applicationLooper)
-                    throw UnsupportedOperationException("wrong looper for triggerNotificationUpdate")
-                isManualNotificationUpdate = true
-                triggerNotificationUpdate()
-                isManualNotificationUpdate = false
+                handler.post {
+                    // This will accesses the media notification controller's getters. But because
+                    // controller callback ordering is undefined and in practice our service
+                    // controller sometimes gets called first, this would cause us to access a stale
+                    // PlaybackInfo in the media notification controller which causes wrong decision
+                    // for startInForegroundRequired and that leads to crash.
+                    if (Looper.myLooper() != it.player.applicationLooper)
+                        throw UnsupportedOperationException("wrong looper for triggerNotificationUpdate")
+                    isManualNotificationUpdate = true
+                    triggerNotificationUpdate()
+                    isManualNotificationUpdate = false
+                }
             }
         }
     }
