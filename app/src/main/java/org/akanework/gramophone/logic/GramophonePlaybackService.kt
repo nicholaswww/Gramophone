@@ -497,6 +497,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 )
                 .setSystemUiPlaybackResumptionOptIn(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                 .build()
+        // Ensure session is added to service before we connect our controller. This allows service
+        // media notification controller to be connected before ours, hence receive callbacks before
+        // ours, hence service will not operate on stale data when calling methods like
+        // triggerNotificationUpdate() in a controller callback.
+        addSession(mediaSession!!)
         controller = MediaBrowser.Builder(this, mediaSession!!.token).buildAsync().get()
         controller!!.addListener(this)
         ContextCompat.registerReceiver(
@@ -590,11 +595,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     ): ListenableFuture<SessionResult> {
         // TODO: implement this...
         return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
-    }
-
-    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
-        Log.d(TAG, "onUpdateNotification($startInForegroundRequired)", RuntimeException())
-        super.onUpdateNotification(session, startInForegroundRequired)
     }
 
     override fun onSetRating(
