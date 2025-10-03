@@ -66,7 +66,9 @@ object LrcUtils {
             if (meta is BinaryFrame && meta.id == "SYLT") {
                 val syltData = UsltFrameDecoder.decodeSylt(sampleRate, ParsableByteArray(meta.data))
                 if (syltData != null) {
-                    out.add(syltData.toSyncedLyrics(parserOptions.trim))
+                    if (syltData.contentType == 1 || syltData.contentType == 2) {
+                        out.add(syltData.toSyncedLyrics(parserOptions.trim))
+                    }
                     continue
                 }
             }
