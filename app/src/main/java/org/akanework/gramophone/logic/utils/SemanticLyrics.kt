@@ -682,7 +682,7 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                     else lastWordSyncPoint ?: lastSyncPoint!!
                     // use last word sync point (even if last word was whitespace only or something)
                     // if present as end time, otherwise we will fill it later.
-                    out.add(LyricLine(text, start, lastWordSyncPoint ?: 0uL, words, speaker, false /* filled later */))
+                    out.add(LyricLine(text, start, lastWordSyncPoint?.let { it - 1uL } ?: 0uL, words, speaker, false /* filled later */))
                     compressed.forEach {
                         val diff = it - start
                         out.add(out.last().copy(start = it, words = words?.map {
@@ -990,7 +990,7 @@ fun UsltFrameDecoder.Result.Sylt.toSyncedLyrics(trimEnabled: Boolean): SyncedLyr
         out.add(
             LyricLine(
                 string, text[i].timestamp.toULong(),
-                if (text[j - 1].text.isBlank()) text[j - 1].timestamp.toULong() else 0uL,
+                if (text[j - 1].text.isBlank()) text[j - 1].timestamp.toULong() - 1uL else 0uL,
                 if (wout.size > 1) wout else null, null, false /* filled later */
             )
         )

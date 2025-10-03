@@ -355,7 +355,7 @@ class LrcUtilsTest {
 		assertEquals(2, lrc!!.size)
 		assertEquals("hello", lrc[0].text)
 		assertEquals("hello2", lrc[1].text)
-		assertEquals(lrc[0].timeRange, 0UL..<1000UL)
-		assertEquals(lrc[1].timeRange, 2000UL..<3000UL)
+		assertEquals(0UL..<1000UL, lrc[0].timeRange)
+		assertEquals(2000UL..<3000UL, lrc[1].timeRange)
 	}
 }
