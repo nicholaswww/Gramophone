@@ -940,14 +940,19 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 trim = trim, multiLine = multiLine,
                 errorText = getString(R.string.failed_to_parse_lyric)
             )
+            // TODO: allow multiple lyric files/tags combining them for translations...maybe?
             var lrc = loadAndParseLyricsFile(mediaItem?.getFile(), options)
             if (lrc == null) {
                 loop@ for (i in tracks.groups) {
+                    if (i.type != C.TRACK_TYPE_AUDIO) continue
                     for (j in 0 until i.length) {
                         if (!i.isTrackSelected(j)) continue
                         // note: wav files can have null metadata
-                        val trackMetadata = i.getTrackFormat(j).metadata ?: continue
-                        lrc = extractAndParseLyrics(trackMetadata, options) ?: continue
+                        val format = i.getTrackFormat(j)
+                        val trackMetadata = format.metadata ?: continue
+                        lrc = extractAndParseLyrics(format.sampleRate
+                            .takeIf { it != Format.NO_VALUE } ?: 0,
+                            trackMetadata, options).firstOrNull() ?: continue
                         break@loop
                     }
                 }
