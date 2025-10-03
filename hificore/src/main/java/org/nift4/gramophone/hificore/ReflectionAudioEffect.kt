@@ -207,6 +207,8 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 	}
 
 	// could do setParameterDeferred and setParameterCommit if needed, so far not needed
+	// TODO: impl https://cs.android.com/android/_/android/platform/frameworks/av/+/de8caf42b35fcd4ef24eac5396ec6e813b0e1bea
+	//  if it turns out to be useful
 
 	/**
 	 * Get effect parameter. The getParameter method is provided in several

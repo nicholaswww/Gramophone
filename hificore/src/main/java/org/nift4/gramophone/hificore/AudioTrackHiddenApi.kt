@@ -258,6 +258,8 @@ object AudioTrackHiddenApi {
             return null
         // First exposure to client process was below commit, which first appeared in U QPR2.
         // https://cs.android.com/android/_/android/platform/frameworks/av/+/94ed47c6b6ca5a69b90238f6ae97af2ce7df9be0
+        // Offload is added here only since V:
+        // https://cs.android.com/android/_/android/platform/frameworks/av/+/2b51523207689cfa3047e0ca45451f3068a545c0
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
             return null
         try {

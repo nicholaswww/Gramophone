@@ -144,6 +144,9 @@ class NativeTrack(context: Context, attributes: AudioAttributes, streamType: Int
                                 hasGaplessOffloadCurrently, hasDirect)
                         } else
                         // Either offload is prevented by master mono or props, or it doesn't exist.
+                        // TODO: use AudioSystem.getMasterMono, getprop(audio.offload.disable),
+                        //  getprop(audio.offload.min.duration.secs) to report that offload is
+                        //  probably not working.
                         if (profiles.size > 1) {
                             // While possible, odds are that there is a direct port instead of two
                             // offload ports.

@@ -15,6 +15,24 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
 import java.nio.ByteBuffer
 
+/*
+ * some notes:
+ * - https://developer.android.com/reference/android/media/AudioManager#getStreamVolumeDb(int,%20int,%20int)
+ *   - problems: sdk 28 required; I read on SO that samsung broke it and it returns values 0~1
+ *   - on O you can use it via AudioSystem C++; on O MR1 you can use it via AudioSystem java reflection
+ * - AudioSystem::getStreamVolume() in C++
+ *   - it was removed recently but exists everywhere I need it https://cs.android.com/android/_/android/platform/frameworks/av/+/38c45a4438915c73434558be9ffc2d4f73516cf2
+ *   - interpretation of data changed in M https://android.googlesource.com/platform/frameworks/av/+/ffbc80f5908eaf67a033c6e93a343c39dd6894eb%5E!/
+ *
+ *
+ * if boost is <=3dB, could also use https://cs.android.com/android/platform/superproject/main/+/main:system/media/audio/include/system/audio.h;l=561;drc=8063e42c30fdde36835c1862cf413d8faeadcf45
+ * but that has risk of clipping when system volume is high so maybe that's a bad idea?
+ *
+ * also need to investigate LoudnessController and MPEG-4/MPEG-D DRC and normalization
+ * https://github.com/androidx/media/tree/media_codec_param
+ * prototype upstream to edit these kind of things ^^^
+ */
+// TODO: what is com.lge.media.EXTRA_VOLUME_STREAM_HIFI_VALUE
 class PostAmpAudioSink(
 	val sink: DefaultAudioSink, val context: Context
 ) : ForwardingAudioSink(sink) {
@@ -130,6 +148,8 @@ class PostAmpAudioSink(
 				volumeEffect = null*/
 			}
 			if (id != 0) {
+				// TODO: make sure Volume effect is disabled if it can't be offloaded, to prevent
+				//  false negatives in offload detection.
 				/*volumeEffect = Volume(99999, id)
 				volumeEffect?.enabled = true*/
 			}
