@@ -379,7 +379,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             var wordIdx: Int? = null
             var gradientProgress = Float.NEGATIVE_INFINITY
             val firstTs = it.line?.start ?: ULong.MIN_VALUE
-            val lastTs = it.line?.end ?: ULong.MAX_VALUE
+            val lastTs = it.line?.end ?: Long.MAX_VALUE.toULong()
             val timeOffsetForUse = min(
                 scaleInAnimTime, min(
                     lerp(
