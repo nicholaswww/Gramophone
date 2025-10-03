@@ -790,10 +790,14 @@ object UsltFrameDecoder {
         val description = decodeStringIfValid(rest, 0, descriptionEndIndex, charset)
         var processed = descriptionEndIndex + delimiterLength(encoding)
         val syltLines = mutableListOf<Result.Sylt.Line>()
-        while (rest.size - processed >= 4 + delimiterLength(encoding)) {
+        while (rest.size - processed > 1) {
             val textEndIndex = indexOfEos(rest, processed, encoding)
             val text = decodeStringIfValid(rest, processed, textEndIndex, charset)
             processed = textEndIndex + delimiterLength(encoding) + 4
+            if (processed > rest.size) {
+                // Frame is malformed. Maybe this is a USLT frame?
+                return null
+            }
             val timestamp = decodeTimestamp(rest, processed - 4, timestampFormat, sampleRate)
             syltLines.add(Result.Sylt.Line(timestamp, text))
         }
