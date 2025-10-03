@@ -404,7 +404,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
                 fadeOutEnd.toFloat(),
                 posForRender.toFloat()
             )
-            val hlScaleFactor = if (it.line == null) smallSizeFactor else {
+            val hlScaleFactor = if (it.line == null) 1f else {
                 // lerp() argument order is swapped because we divide by this factor
                 if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
                     lerp(
