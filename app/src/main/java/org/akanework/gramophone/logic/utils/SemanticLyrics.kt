@@ -4,6 +4,7 @@ import android.os.Parcel
 import android.os.Parcelable
 import androidx.media3.common.util.Log
 import android.util.Xml
+import androidx.compose.runtime.key
 import androidx.media3.common.util.ParsableByteArray
 import androidx.media3.extractor.text.CuesWithTiming
 import androidx.media3.extractor.text.SubtitleParser
@@ -1147,7 +1148,7 @@ private class TtmlTimeTracker(private val parser: XmlPullParser, private val isA
 private class TtmlParserState(private val parser: XmlPullParser, private val timer: TtmlTimeTracker) {
     data class Text(val text: String, val time: ULongRange?, val role: String?)
     data class P(val texts: List<Text>, val time: ULongRange, val agent: String?,
-        val songPart: String?, val key: String?, val role: String?)
+        val songPart: String?, val key: String?, val role: String?, val translated: Boolean = false)
     private var texts: MutableList<Text>? = null
     val paragraphs = mutableListOf<P>()
 
@@ -1240,6 +1241,7 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
     }
     val peopleToType = hashMapOf<String, String>()
     val people = hashMapOf<String, MutableList<String>>()
+    val itunesTranslations = hashMapOf<String, HashMap<String, String>>()
     val timer = TtmlTimeTracker(parser, hasItunesNamespace)
     parser.nextTag()
     parser.require(XmlPullParser.START_TAG, tt, "head")
@@ -1287,7 +1289,42 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
                             // timer.audioOffset = timer.parseTimestampMs(parser.getAttributeValue(null, "lyricOffset"), 0L, true)
                             // val role = parser.getAttributeValue(null, "role")
                             parser.nextAndThrowIfNotEnd()
-                        } else parser.skipToEndOfTag() // <translations> or other
+                        } else if (parser.name == "translations") {
+                            while (parser.nextTag() != XmlPullParser.END_TAG) {
+                                if (parser.name == "translation") {
+                                    val type = parser.getAttributeValue(null, "type")
+                                    if (type != "subtitle") {
+                                        throw XmlPullParserException("unsupported translation type $type")
+                                    }
+                                    val lang = parser.getAttributeValue("http://www.w3.org/XML/1998/namespace", "lang")
+                                    val out = hashMapOf<String, String>()
+                                    while (parser.nextTag() != XmlPullParser.END_TAG) {
+                                        if (parser.name == "text") {
+                                            val `for` = parser.getAttributeValue(null, "for")
+                                            if (`for` == null) {
+                                                throw XmlPullParserException("missing attribute for at $parser")
+                                            }
+                                            parser.nextAndThrowIfNotText()
+                                            out[`for`] = parser.text
+                                            parser.nextAndThrowIfNotEnd()
+                                        } else {
+                                            throw XmlPullParserException(
+                                                "expected <text>, got " +
+                                                        "<${(parser.prefix?.plus(":") ?: "") + parser.name}> " +
+                                                        "in <translation> in <translations> in <iTunesMetadata>"
+                                            )
+                                        }
+                                    }
+                                    itunesTranslations[lang] = out
+                                } else {
+                                    throw XmlPullParserException(
+                                        "expected <translation>, got " +
+                                                "<${(parser.prefix?.plus(":") ?: "") + parser.name}> " +
+                                                "in <translations> in <iTunesMetadata>"
+                                    )
+                                }
+                            }
+                        } else parser.skipToEndOfTag() // there are some others
                     }
                 } else parser.skipToEndOfTag()
             }
@@ -1299,6 +1336,16 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
     parser.require(XmlPullParser.START_TAG, tt, "body")
     val state = TtmlParserState(parser, timer)
     state.parse()
+    itunesTranslations.forEach { lang ->
+        lang.value.forEach { line ->
+            val lastIdx = state.paragraphs.indexOfLast { it.key == line.key }
+            if (lastIdx != -1) {
+                state.paragraphs.add(lastIdx + 1, state.paragraphs
+                    .find { it.key == line.key }!!.copy(texts = listOf(TtmlParserState.Text(
+                        line.value, time = null, role = null)), translated = true))
+            }
+        }
+    }
     return SyncedLyrics(state.paragraphs.flatMap {
         /* x-bg can be anywhere in a line, let's split it out into
          * separate lines for now, that looks better */
@@ -1357,8 +1404,7 @@ fun parseTtml(lyricText: String): SemanticLyrics? {
             isBg -> SpeakerEntity.Background
             else -> SpeakerEntity.Voice1
         }
-        // TODO translations for ttml? does anyone actually do that? how could that work?
-        LyricLine(text.toString(), it.time.first, it.time.last, theWords, speaker, false)
+        LyricLine(text.toString(), it.time.first, it.time.last, theWords, speaker, it.translated)
     }).also { splitBidirectionalWords(it) }
 }
 
