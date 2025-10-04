@@ -4,7 +4,6 @@ import android.os.Parcel
 import android.os.Parcelable
 import androidx.media3.common.util.Log
 import android.util.Xml
-import androidx.compose.runtime.key
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.ParsableByteArray
 import androidx.media3.extractor.text.CuesWithTiming
@@ -18,7 +17,6 @@ import org.akanework.gramophone.logic.utils.SemanticLyrics.LyricLine
 import org.akanework.gramophone.logic.utils.SemanticLyrics.SyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.UnsyncedLyrics
 import org.akanework.gramophone.logic.utils.SemanticLyrics.Word
-import org.akanework.gramophone.logic.utils.UsltFrameDecoder
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 import java.io.StringReader
@@ -1369,24 +1367,32 @@ fun parseTtml(audioMimeType: String?, lyricText: String): SemanticLyrics? {
                         (it.texts.firstOrNull()?.role ?: it.role) == "x-bg"))
                 out.add(it.copy(role = it.texts.firstOrNull()?.role ?: it.role))
             else {
-                val t = it.texts.subList(cur, idx.let { i -> if (i == -1) it.texts.size else i })
-                    .toMutableList()
-                if (t.firstOrNull()?.text?.startsWith('(') == true
-                    && t.lastOrNull()?.text?.endsWith(')') == true) {
-                    t[0] = t.first().copy(text = t.first().text.substring(1))
-                    t[t.size - 1] = t.last().copy(text = t.last().text.substring(0, t.last().text.length - 1))
+                while ((cur < idx || (idx == -1 && cur < it.texts.size)) && it.texts[cur].text.isBlank())
+                    cur++
+                if (cur < idx || (idx == -1 && cur < it.texts.size)) {
+                    val t =
+                        it.texts.subList(cur, idx.let { i -> if (i == -1) it.texts.size else i })
+                            .toMutableList()
+                    if (t.firstOrNull()?.text?.startsWith('(') == true
+                        && t.lastOrNull()?.text?.endsWith(')') == true
+                    ) {
+                        t[0] = t.first().copy(text = t.first().text.substring(1))
+                        t[t.size - 1] = t.last()
+                            .copy(text = t.last().text.substring(0, t.last().text.length - 1))
+                    }
+                    out.add(
+                        it.copy(
+                            t,
+                            time = t.lastOrNull()?.time?.last?.let { other ->
+                                t.firstOrNull()?.time?.first?.rangeTo(other)
+                            } ?: it.time, role = t.firstOrNull()?.role ?: it.role))
                 }
-                out.add(
-                    it.copy(
-                        t,
-                        time = t.lastOrNull()?.time?.last?.let { other ->
-                            t.firstOrNull()?.time?.first?.rangeTo(other)
-                        } ?: it.time, role = t.firstOrNull()?.role ?: it.role))
             }
             cur = idx
             if (cur != -1)
                 idx = it.texts.subList(cur, it.texts.size)
                     .indexOfFirst { i -> i.role != it.texts[cur].role }
+            if (idx != -1) idx += cur
         } while (cur != -1)
         out
     }
