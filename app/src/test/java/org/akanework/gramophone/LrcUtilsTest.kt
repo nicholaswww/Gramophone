@@ -1,5 +1,6 @@
 package org.akanework.gramophone
 
+import androidx.media3.common.MimeTypes
 import org.akanework.gramophone.logic.utils.LrcUtils
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.junit.Assert.assertEquals
@@ -36,7 +37,7 @@ class LrcUtilsTest {
 				assertEquals("multiline false and true should result in same list for this string (trim=$trim)", a?.unsyncedText, b?.unsyncedText)
 			return a
 		}
-		val a = LrcUtils.parseLyrics(lrcContent, LrcUtils.LrcParserOptions(trim, multiline, null), null)
+		val a = LrcUtils.parseLyrics(lrcContent, MimeTypes.AUDIO_FLAC, LrcUtils.LrcParserOptions(trim, multiline, null), null)
 		if (mustSkip != null) {
 			if (mustSkip) {
 				assertTrue("excepted skip (trim=$trim multiline=$multiline)", a is SemanticLyrics.UnsyncedLyrics)

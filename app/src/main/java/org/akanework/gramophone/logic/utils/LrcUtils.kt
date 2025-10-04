@@ -27,10 +27,10 @@ object LrcUtils {
     data class LrcParserOptions(val trim: Boolean, val multiLine: Boolean, val errorText: String?)
 
     @VisibleForTesting
-    fun parseLyrics(lyrics: String, parserOptions: LrcParserOptions, format: LyricFormat?): SemanticLyrics? {
+    fun parseLyrics(lyrics: String, audioMimeType: String?, parserOptions: LrcParserOptions, format: LyricFormat?): SemanticLyrics? {
         for (i in listOf({
             if (format == null || format == LyricFormat.TTML)
-                parseTtml(lyrics)
+                parseTtml(audioMimeType, lyrics)
             else null
         }, {
             if (format == null || format == LyricFormat.SRT)
@@ -57,6 +57,7 @@ object LrcUtils {
     // returns best lyrics first
     fun extractAndParseLyrics(
         sampleRate: Int,
+        audioMimeType: String?,
         metadata: Metadata,
         parserOptions: LrcParserOptions
     ): List<SemanticLyrics> {
@@ -81,7 +82,7 @@ object LrcUtils {
                     meta.values.joinToString("\n")
                 else null
             if (plainTextData != null) {
-                parseLyrics(plainTextData, parserOptions, null)?.let {
+                parseLyrics(plainTextData, audioMimeType, parserOptions, null)?.let {
                     out.add(it)
                     continue
                 }
@@ -98,19 +99,19 @@ object LrcUtils {
         return out
     }
 
-    fun loadAndParseLyricsFile(musicFile: File?, parserOptions: LrcParserOptions): SemanticLyrics? {
+    fun loadAndParseLyricsFile(musicFile: File?, audioMimeType: String?, parserOptions: LrcParserOptions): SemanticLyrics? {
         return loadTextFile(
             musicFile?.let { File(it.parentFile, it.nameWithoutExtension + ".ttml") },
             parserOptions.errorText
-        )?.let { parseLyrics(it, parserOptions, LyricFormat.TTML) }
+        )?.let { parseLyrics(it, audioMimeType, parserOptions, LyricFormat.TTML) }
             ?: loadTextFile(
                 musicFile?.let { File(it.parentFile, it.nameWithoutExtension + ".srt") },
                 parserOptions.errorText
-            )?.let { parseLyrics(it, parserOptions, LyricFormat.SRT) }
+            )?.let { parseLyrics(it, audioMimeType, parserOptions, LyricFormat.SRT) }
             ?: loadTextFile(
                 musicFile?.let { File(it.parentFile, it.nameWithoutExtension + ".lrc") },
                 parserOptions.errorText
-            )?.let { parseLyrics(it, parserOptions, LyricFormat.LRC) }
+            )?.let { parseLyrics(it, audioMimeType, parserOptions, LyricFormat.LRC) }
     }
 
     private fun loadTextFile(lrcFile: File?, errorText: String?): String? {
