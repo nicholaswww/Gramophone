@@ -15,13 +15,11 @@ import android.util.AttributeSet
 import androidx.media3.common.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
-import android.view.View
 import android.view.animation.PathInterpolator
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.TypefaceCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.text.getSpans
-import androidx.core.widget.NestedScrollView
 import androidx.preference.PreferenceManager
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.dpToPx
@@ -41,14 +39,13 @@ import kotlin.properties.Delegates
 
 private const val TAG = "NewLyricsView"
 
-class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attrs),
+class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(context, attrs),
     GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
 
     private val smallSizeFactor = 0.97f
     private var lyricAnimTime by Delegates.notNull<Float>()
     private var currentScrollTarget: Int? = null
 
-    // TODO maybe reduce this to avoid really fast word skipping
     private val scaleInAnimTime
         get() = lyricAnimTime / 2f
     private val isElegantTextHeight = false // TODO this was causing issues, but target 36 can't turn this off anymore... needs rework
@@ -71,8 +68,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
     private var lyrics: SemanticLyrics? = null
     private var posForRender = 0uL
     lateinit var instance: Callbacks
-    private val scrollView
-        get() = (parent ?: throw NullPointerException("parent is null")) as NestedScrollView
     private val gestureDetector = GestureDetector(context, this)
 
     // -/M/F/D insanity starts here
@@ -352,7 +347,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             translationTextPaintD.value.typeface = typeface
     }
 
-    override fun onDraw(canvas: Canvas) {
+    override fun onDrawForChild(canvas: Canvas) {
         posForRender = instance.getCurrentPosition().also {
             if (posForRender > it && posForRender - it < 1000uL)
                 Log.w(TAG, "regressing position by ${posForRender - it}ms from $posForRender to $it!")
@@ -369,6 +364,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
         var firstHighlight: Int? = null
         var lastHighlight: Int? = null
         canvas.save()
+        // TODO: culling
         canvas.translate(globalPaddingHorizontal, heightSoFar.toFloat())
         val width = width - globalPaddingHorizontal * 2
         spForRender!!.forEach {
@@ -626,29 +622,27 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : View(context, attr
             invalidate()
         val scrollTarget = firstHighlight ?: lastHighlight ?: 0
         if (scrollTarget != currentScrollTarget) {
-            scrollView.smoothScrollTo(0, max(0, scrollTarget - paddingTop),
+            smoothScrollTo(0, max(0, scrollTarget - paddingTop),
                 min(timeUntilNext, lyricAnimTime.toULong()).toInt())
             currentScrollTarget = scrollTarget
         }
     }
 
-    // I don't think accessibility support for a lyric view makes sense.
-    @SuppressLint("ClickableViewAccessibility")
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        return gestureDetector.onTouchEvent(event) || super.onTouchEvent(event)
+    override fun onTouchEventForChild(event: MotionEvent): Boolean {
+        return gestureDetector.onTouchEvent(event)
     }
 
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    override fun onMeasureForChild(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val myWidth = getDefaultSize(minimumWidth, widthMeasureSpec)
         if (spForMeasure == null || spForMeasure!!.first.first != myWidth)
             spForMeasure = buildSpForMeasure(lyrics, myWidth)
-        setMeasuredDimension(
+        setChildMeasuredDimension(
             myWidth,
             getDefaultSize(spForMeasure!!.first.second, heightMeasureSpec)
         )
     }
 
-    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+    override fun onLayoutForChild(left: Int, top: Int, right: Int, bottom: Int) {
         if (spForMeasure == null || spForMeasure!!.first.first != right - left
             || spForMeasure!!.first.second != bottom - top)
             spForMeasure = buildSpForMeasure(lyrics, right - left)
