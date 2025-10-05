@@ -57,9 +57,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
     private val translationTextSize = context.resources.getDimension(R.dimen.lyric_tl_text_size)
     private val translationBackgroundTextSize =
         context.resources.getDimension(R.dimen.lyric_tl_bg_text_size)
-    private val globalPaddingTop = context.resources.getDimensionPixelSize(R.dimen.lyric_top_padding)
-    private val globalPaddingBottom =
-        context.resources.getDimensionPixelSize(R.dimen.lyric_bottom_padding)
+    private val globalPaddingTop
+        get() = measuredHeight / 6
     private val globalPaddingHorizontal = 28.5f.dpToPx(context)
     private var colorSpanPool = mutableListOf<MyForegroundColorSpan>()
     private var spForRender: List<SbItem>? = null
@@ -794,6 +793,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                 }, speaker, syncedLine)
         }
         val heights = spLines.map { it.layout.height + it.paddingTop + it.paddingBottom }
+        val globalPaddingBottom = (measuredHeight * (1f - 1f/6f)).toInt() - (heights.lastOrNull() ?: 0) - globalPaddingTop
         return Pair(
             Pair(
                 width,
