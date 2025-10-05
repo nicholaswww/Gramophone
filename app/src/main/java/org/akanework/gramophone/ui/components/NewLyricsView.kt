@@ -1,6 +1,5 @@
 package org.akanework.gramophone.ui.components
 
-import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
@@ -18,7 +17,6 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.animation.AnimationUtils
 import android.view.animation.PathInterpolator
-import androidx.core.animation.doOnEnd
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.TypefaceCompat
 import androidx.core.graphics.createBitmap
@@ -30,7 +28,6 @@ import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.ui.spans.MyForegroundColorSpan
 import org.akanework.gramophone.logic.ui.spans.MyGradientSpan
 import org.akanework.gramophone.logic.ui.spans.StaticLayoutBuilderCompat
-import org.akanework.gramophone.logic.utils.CalculationUtils
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerp
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
 import org.akanework.gramophone.logic.utils.SemanticLyrics
@@ -53,8 +50,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
     private val isElegantTextHeight = false // TODO this was causing issues, but target 36 can't turn this off anymore... needs rework
     private var charScaling: Boolean
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
-    private val delayedInInterpolator = PathInterpolator(0.96f, 0.43f, 0.72f, 1f)
-    private val delayedOutInterpolator = PathInterpolator(0.17f, 0f, -0.15f, 1f)
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private lateinit var typeface: Typeface
     private val grdWidth = context.resources.getDimension(R.dimen.lyric_gradient_size)
@@ -71,7 +66,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
     lateinit var instance: Callbacks
     private val gestureDetector = GestureDetector(context, this)
     private var currentScrollTarget: Int? = null
-    private var delayedScrollAnimation: Pair<Long, Int>? = null
     private var isCallbackQueued = false
     private val invalidateCallback = Runnable { isCallbackQueued = false; invalidate() }
 
@@ -362,20 +356,18 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             return
         }
         var animating = false
-        var delayedScrollDoneForFrame = false
         val globalPaddingTop = spForRender!!.first[2]
         var heightSoFar = globalPaddingTop
         var heightSoFarUnscaled = globalPaddingTop
         var heightSoFarWithoutTranslated = heightSoFarUnscaled
         var determineTimeUntilNext = false
         var timeUntilNext = 0uL // TODO: remove if useless
-        var firstScrollTarget: Pair<Int, Int>? = null
-        var lastScrollTarget: Pair<Int, Int>? = null
+        var firstScrollTarget: Int? = null
+        var lastScrollTarget: Int? = null
         canvas.save()
         canvas.translate(globalPaddingHorizontal, heightSoFarUnscaled.toFloat())
         val width = width - globalPaddingHorizontal * 2
-        val cat = AnimationUtils.currentAnimationTimeMillis().toFloat()
-        spForRender!!.second.forEachIndexed { i, it ->
+        spForRender!!.second.forEach {
             var spanEnd = -1
             var spanStartGradient = -1
             var realGradientStart = -1
@@ -442,58 +434,22 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                 heightSoFarWithoutTranslated = heightSoFarUnscaled
             }
             if (scrollTarget && firstScrollTarget == null) {
-                firstScrollTarget = heightSoFarWithoutTranslated to i
+                firstScrollTarget = heightSoFarWithoutTranslated
                 determineTimeUntilNext = true
             }
             if (posForRender >= fadeInStart && it.line?.isTranslated != true
                 && it.speaker?.isBackground != true) {
-                lastScrollTarget = heightSoFarUnscaled to i
+                lastScrollTarget = heightSoFarUnscaled
                 if (firstScrollTarget == null)
                     determineTimeUntilNext = true
             }
-            heightSoFar += (it.paddingTop.toFloat() / hlScaleFactor).toInt()
-            val culledDown = heightSoFar > scrollY + height
-            var delayedScrollOffset = 0
-            if (delayedScrollAnimation != null && delayedScrollAnimation!!.second + 1 < i &&
-                !delayedScrollDoneForFrame) {
-                //val ii = spForRender!!.second.subList(delayedScrollAnimation!!.second + 1, i)
-                //    .sumOf { if (it.line?.isTranslated == true) 0 else 1 } TODO
-                val ii = i - (delayedScrollAnimation!!.second + 1) -
-                        if (it.line?.isTranslated == true) 1 else 0
-                val duration = (lyricAnimTime * 0.278).toLong()
-                val durationReturn = (lyricAnimTime * 0.722).toLong()
-                val durationStep = (lyricAnimTime * 0.1).toLong()
-                val start = delayedScrollAnimation!!.first.toFloat()
-                val end = start + duration + durationReturn + ii * durationStep
-                if (end > cat) { // animation is still ongoing
-                    if (!culledDown) {
-                        val middle = start + duration
-                        val depth = 15.dpToPx(context).toFloat()
-                        delayedScrollOffset = if (middle <= cat) {
-                            val progress = lerpInv(middle, end, cat)
-                            val p = delayedOutInterpolator.getInterpolation(progress)
-                            Log.i("hi", "delayed lyric progress step2 [$i] = $progress -> $p")
-                            lerp(depth, 0f, p)
-                        } else {
-                            val progress = lerpInv(start, middle, cat)
-                            val p = delayedInInterpolator.getInterpolation(progress)
-                            Log.i("hi", "delayed lyric progress step1 [$i] = $progress -> $p")
-                            lerp(0f, depth, p)
-                        }.toInt()
-                        animating = true
-                    } else {
-                        delayedScrollDoneForFrame = true
-                    }
-                } else if (culledDown) {
-                    delayedScrollAnimation = null
-                }
-            }
             canvas.translate(
                 0f,
-                it.paddingTop.toFloat() / hlScaleFactor + delayedScrollOffset
+                it.paddingTop.toFloat() / hlScaleFactor
             )
+            heightSoFar += (it.paddingTop.toFloat() / hlScaleFactor).toInt()
             heightSoFarUnscaled += it.paddingTop
-            val culled = culledDown || scrollY - paddingTop > heightSoFar +
+            val culled = heightSoFar > scrollY + height || scrollY - paddingTop > heightSoFar +
                     ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor).toInt()
             if (!culled) {
                 if (highlight) {
@@ -669,7 +625,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             }
             canvas.translate(
                 0f,
-                (it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor - delayedScrollOffset
+                (it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor
             )
             heightSoFarUnscaled += it.layout.height + it.paddingBottom
             heightSoFar += ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor).toInt()
@@ -685,16 +641,13 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             if (spForRender!!.first[3] == 1)
                 currentScrollTarget = null
         } else if (!isCallbackQueued && !isScrolling) {
-            val scrollTarget = max(0, (firstScrollTarget?.first ?: lastScrollTarget?.first ?: 0) - height / 6)
-            val scrollTargetIndex = firstScrollTarget?.second ?: lastScrollTarget?.second
+            val scrollTarget = max(0, (firstScrollTarget ?: lastScrollTarget ?: 0) - height / 6)
             if (scrollTarget != currentScrollTarget) {
                 smoothScrollTo(
                     0, scrollTarget,
                     lyricAnimTime.toInt()
                 )
                 currentScrollTarget = scrollTarget
-                delayedScrollAnimation = if (scrollTargetIndex != null)
-                    AnimationUtils.currentAnimationTimeMillis() to scrollTargetIndex else null
             }
         }
     }
