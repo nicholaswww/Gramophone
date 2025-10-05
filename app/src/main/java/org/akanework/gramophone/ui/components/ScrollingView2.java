@@ -63,8 +63,6 @@ import org.jspecify.annotations.Nullable;
  */
 @SuppressWarnings("unused")
 public abstract class ScrollingView2 extends View implements NestedScrollingChild3, ScrollingView {
-	static final int ANIMATED_SCROLL_GAP = 250;
-
 	static final float MAX_SCROLL_FACTOR = 0.5f;
 
 	private static final String TAG = "NestedScrollView";
@@ -106,8 +104,6 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 		void onScrollChange(@NonNull ScrollingView2 v, int scrollX, int scrollY,
 		                    int oldScrollX, int oldScrollY);
 	}
-
-	private long mLastScroll;
 
 	private final Rect mTempRect = new Rect();
 	private OverScroller mScroller;
@@ -1400,23 +1396,18 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 	 * @param withNestedScrolling whether to include nested scrolling operations.
 	 */
 	private void smoothScrollBy(int dx, int dy, int scrollDurationMs, boolean withNestedScrolling) {
-		long duration = AnimationUtils.currentAnimationTimeMillis() - mLastScroll;
 		mIsUserFlinging = false;
-		if (duration > ANIMATED_SCROLL_GAP) {
-			int childSize = mChildHeight;
-			int parentSpace = getHeight() - getPaddingTop() - getPaddingBottom();
-			final int scrollY = getScrollY();
-			final int maxY = Math.max(0, childSize - parentSpace);
-			dy = Math.max(0, Math.min(scrollY + dy, maxY)) - scrollY;
-			mScroller.startScroll(getScrollX(), scrollY, 0, dy, scrollDurationMs);
-			runAnimatedScroll(withNestedScrolling);
-		} else {
-			if (!mScroller.isFinished()) {
-				abortAnimatedScroll();
-			}
-			scrollBy(dx, dy);
-		}
-		mLastScroll = AnimationUtils.currentAnimationTimeMillis();
+		int childSize = mChildHeight;
+		int parentSpace = getHeight() - getPaddingTop() - getPaddingBottom();
+		final int scrollY = getScrollY();
+		final int maxY = Math.max(0, childSize - parentSpace);
+		dy = Math.max(0, Math.min(scrollY + dy, maxY)) - scrollY;
+		mScroller.startScroll(getScrollX(), scrollY, 0, dy, scrollDurationMs);
+		runAnimatedScroll(withNestedScrolling);
+	}
+
+	public boolean isScrolling() {
+		return !mScroller.isFinished();
 	}
 
 	/**

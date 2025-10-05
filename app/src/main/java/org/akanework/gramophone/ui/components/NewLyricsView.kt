@@ -41,6 +41,9 @@ private const val TAG = "NewLyricsView"
 
 class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(context, attrs),
     GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
+    companion object {
+        private const val DEBUG = false
+    }
 
     private val smallSizeFactor = 0.97f
     private var lyricAnimTime by Delegates.notNull<Float>()
@@ -362,8 +365,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         var heightSoFarWithoutTranslated = heightSoFar
         var determineTimeUntilNext = false
         var timeUntilNext = 0uL
-        var firstHighlight: Int? = null
-        var lastHighlight: Int? = null
+        var firstScrollTarget: Int? = null
+        var lastScrollTarget: Int? = null
         canvas.save()
         // TODO: culling
         canvas.translate(globalPaddingHorizontal, heightSoFar.toFloat())
@@ -392,6 +395,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             val fadeOutEnd = lastTs + timeOffsetForUse.toULong()
             val highlight = posForRender >= fadeInStart &&
                     posForRender <= fadeOutEnd
+            val scrollTarget = posForRender >= fadeInStart &&
+                    posForRender <= fadeOutStart
             val scaleInProgress = if (it.line == null) 1f else lerpInv(
                 fadeInStart.toFloat(), fadeInEnd.toFloat(),
                 posForRender.toFloat()
@@ -432,22 +437,21 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                 }
                 heightSoFarWithoutTranslated = heightSoFar
             }
-            if (highlight && firstHighlight == null) {
-                firstHighlight = heightSoFarWithoutTranslated
+            if (scrollTarget && firstScrollTarget == null) {
+                firstScrollTarget = heightSoFarWithoutTranslated
                 determineTimeUntilNext = true
             }
             if (posForRender >= fadeInStart && it.line?.isTranslated != true
                 && it.speaker?.isBackground != true) {
-                lastHighlight = heightSoFar
-                if (firstHighlight == null)
+                lastScrollTarget = heightSoFar
+                if (firstScrollTarget == null)
                     determineTimeUntilNext = true
             }
-            heightSoFar += (it.paddingTop.toFloat() / hlScaleFactor).also {
-                canvas.translate(
-                    0f,
-                    it
-                )
-            }.toInt()
+            canvas.translate(
+                0f,
+                it.paddingTop.toFloat() / hlScaleFactor
+            )
+            heightSoFar += it.paddingTop
             if (highlight) {
                 canvas.save()
                 canvas.scale(1f / hlScaleFactor, 1f / hlScaleFactor)
@@ -614,25 +618,30 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             it.layout.draw(canvas)
             if (highlight || !alignmentNormal)
                 canvas.restore()
-            heightSoFar += ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor)
-                .also { canvas.translate(0f, it) }.toInt()
+            canvas.translate(0f, (it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor)
+            heightSoFar += it.layout.height + it.paddingBottom
         }
         //heightSoFar += globalPaddingBottom
         canvas.restore()
         if (animating)
             invalidate()
+        if (DEBUG) Log.d("hi", "scroll is $scrollY")
         if (isUserInteractingWithScrollView) {
             handler.removeCallbacks(invalidateCallback)
             handler.postDelayed(invalidateCallback, 5000)
             isCallbackQueued = true
             currentScrollTarget = null
-        } else if (!isCallbackQueued) {
-            val scrollTarget = firstHighlight ?: lastHighlight ?: 0
+        } else if (!isCallbackQueued && !isScrolling) {
+            val scrollTarget = max(0, (firstScrollTarget ?: lastScrollTarget ?: 0) - height / 6)
             if (scrollTarget != currentScrollTarget) {
+                if (DEBUG) Log.i("hi", "scroll to $scrollTarget from $currentScrollTarget. rn = $scrollY)")
                 smoothScrollTo(
-                    0, max(0, scrollTarget - height / 6),
-                    min(timeUntilNext, lyricAnimTime.toULong()).toInt()
+                    0, scrollTarget,
+                    lyricAnimTime.toInt()
                 )
+                if (DEBUG) Log.i("hi", "scroll is then $scrollY")
+                computeScroll()
+                if (DEBUG) Log.i("hi", "scroll is now $scrollY")
                 currentScrollTarget = scrollTarget
             }
         }
