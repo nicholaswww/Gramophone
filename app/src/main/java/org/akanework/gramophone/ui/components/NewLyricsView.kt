@@ -62,7 +62,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         context.resources.getDimension(R.dimen.lyric_tl_bg_text_size)
     private val globalPaddingHorizontal = 28.5f.dpToPx(context)
     private var colorSpanPool = mutableListOf<MyForegroundColorSpan>()
-    private var spForRender: Pair<Int, List<SbItem>>? = null
+    private var spForRender: Pair<IntArray, List<SbItem>>? = null
     private var spForMeasure: Pair<IntArray, List<SbItem>>? = null
     private var lyrics: SemanticLyrics? = null
     private var posForRender = 0uL
@@ -359,7 +359,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             return
         }
         var animating = false
-        val globalPaddingTop = spForRender!!.first
+        val globalPaddingTop = spForRender!!.first[2]
         var heightSoFar = globalPaddingTop
         var heightSoFarUnscaled = globalPaddingTop
         var heightSoFarWithoutTranslated = heightSoFarUnscaled
@@ -643,7 +643,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             handler.postDelayed(invalidateCallback, 5000)
             isCallbackQueued = true
             currentScrollTarget = null
-        } else if (!isCallbackQueued && !isScrolling) {
+        } else if (!isCallbackQueued && !isScrolling && spForRender!!.first[3] == 1) {
             val scrollTarget = max(0, (firstScrollTarget ?: lastScrollTarget ?: 0) - height / 6)
             if (scrollTarget != currentScrollTarget) {
                 if (DEBUG) Log.i("hi", "scroll to $scrollTarget from $currentScrollTarget. rn = $scrollY)")
@@ -677,7 +677,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         if (spForMeasure == null || spForMeasure!!.first[0] != right - left
             || spForMeasure!!.first[1] != bottom - top)
             spForMeasure = buildSpForMeasure(lyrics, right - left)
-        spForRender = spForMeasure!!.first[2] to spForMeasure!!.second
+        spForRender = spForMeasure!!
         invalidate()
     }
 
@@ -818,14 +818,15 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             context.resources.getDimensionPixelSize(R.dimen.lyric_top_padding)
         val globalPaddingBottom = if (lyrics is SemanticLyrics.SyncedLyrics)
                 (measuredHeight * (1f - 1f/6f)).toInt() - (heights.lastOrNull() ?: 0) - globalPaddingTop
-        else 0
+        else context.resources.getDimensionPixelSize(R.dimen.lyric_bottom_padding)
         return Pair(
             intArrayOf(
                 width,
                 (if (heights.isNotEmpty())
                 (heights.max() * (1 - (1 / smallSizeFactor)) + heights.sum()).toInt()
                         else 0) + globalPaddingTop + globalPaddingBottom,
-                globalPaddingTop
+                globalPaddingTop,
+                if (lyrics is SemanticLyrics.SyncedLyrics) 1 else 0
             ), spLines
         )
     }
@@ -838,7 +839,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         val y = e.y
         var foundItem: SemanticLyrics.LyricLine? = null
         if (lyrics is SemanticLyrics.SyncedLyrics) {
-            var heightSoFar = spForRender!!.first
+            var heightSoFar = spForRender!!.first[2]
             spForRender!!.second.forEach {
                 val firstTs = it.line!!.start.toFloat()
                 val lastTs = it.line.end.toFloat()
