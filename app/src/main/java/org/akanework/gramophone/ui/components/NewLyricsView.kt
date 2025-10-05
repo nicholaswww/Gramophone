@@ -362,14 +362,14 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         }
         var animating = false
         var heightSoFar = globalPaddingTop
-        var heightSoFarWithoutTranslated = heightSoFar
+        var heightSoFarUnscaled = globalPaddingTop
+        var heightSoFarWithoutTranslated = heightSoFarUnscaled
         var determineTimeUntilNext = false
-        var timeUntilNext = 0uL
+        var timeUntilNext = 0uL // TODO: remove if useless
         var firstScrollTarget: Int? = null
         var lastScrollTarget: Int? = null
         canvas.save()
-        // TODO: culling
-        canvas.translate(globalPaddingHorizontal, heightSoFar.toFloat())
+        canvas.translate(globalPaddingHorizontal, heightSoFarUnscaled.toFloat())
         val width = width - globalPaddingHorizontal * 2
         spForRender!!.forEach {
             var spanEnd = -1
@@ -435,7 +435,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                     determineTimeUntilNext = false
                     timeUntilNext = max(0uL, (it.line?.start ?: 0uL) - posForRender)
                 }
-                heightSoFarWithoutTranslated = heightSoFar
+                heightSoFarWithoutTranslated = heightSoFarUnscaled
             }
             if (scrollTarget && firstScrollTarget == null) {
                 firstScrollTarget = heightSoFarWithoutTranslated
@@ -443,7 +443,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             }
             if (posForRender >= fadeInStart && it.line?.isTranslated != true
                 && it.speaker?.isBackground != true) {
-                lastScrollTarget = heightSoFar
+                lastScrollTarget = heightSoFarUnscaled
                 if (firstScrollTarget == null)
                     determineTimeUntilNext = true
             }
@@ -451,105 +451,106 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                 0f,
                 it.paddingTop.toFloat() / hlScaleFactor
             )
-            heightSoFar += it.paddingTop
-            if (highlight) {
-                canvas.save()
-                canvas.scale(1f / hlScaleFactor, 1f / hlScaleFactor)
-                if (it.theWords != null) {
-                    wordIdx = it.theWords.indexOfLast { it.timeRange.start <= posForRender }
-                    if (wordIdx == -1) wordIdx = null
-                    if (wordIdx != null) {
-                        val word = it.theWords[wordIdx]
-                        spanEnd = word.charRange.last + 1 // get exclusive end
-                        val gradientEndTime = min(
-                            fadeOutEnd.toFloat(),
-                            word.timeRange.last.toFloat()
-                        )
-                        val gradientStartTime = min(
-                            max(
-                                word.timeRange.start.toFloat(),
-                                fadeInStart.toFloat()
-                            ), gradientEndTime - 1f
-                        )
-                        gradientProgress = lerpInv(
-                            gradientStartTime, gradientEndTime,
-                            posForRender.toFloat()
-                        )
-                        if (gradientProgress >= 0f && gradientProgress <= 1f) {
-                            spanStartGradient = word.charRange.first
-                            // be greedy and eat as much as the line as can be eaten (text that is
-                            // same line + is in same text direction). improves font rendering for
-                            // japanese if font rendering renders whole text in one pass
-                            val wordStartLine = it.layout.getLineForOffset(word.charRange.first)
-                            val wordEndLine =
-                                it.layout.getLineForOffset(word.charRange.endInclusive)
-                            val firstCharOnStartLine = it.layout.getLineStart(wordStartLine)
-                            val lastCharOnEndLineExcl = it.layout.getLineEnd(wordEndLine)
-                            realGradientStart = it.theWords.lastOrNull {
-                                it.charRange.first >= firstCharOnStartLine && it.charRange.last <
-                                        word.charRange.first && it.isRtl != word.isRtl
-                            }?.charRange?.last?.plus(1) ?: firstCharOnStartLine
-                            realGradientEnd = it.theWords.firstOrNull {
-                                it.charRange.first > word.charRange.last && it.charRange.last <
-                                        lastCharOnEndLineExcl && it.isRtl != word.isRtl
-                            }?.charRange?.first ?: lastCharOnEndLineExcl
-                        }
-                    }
-                } else {
-                    spanEnd = it.text.length
-                }
-            }
-            if (!alignmentNormal) {
-                if (!highlight)
+            heightSoFar += (it.paddingTop.toFloat() / hlScaleFactor).toInt()
+            heightSoFarUnscaled += it.paddingTop
+            val culled = heightSoFar > scrollY + height || scrollY > heightSoFar +
+                    ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor).toInt()
+            if (!culled) {
+                if (highlight) {
                     canvas.save()
-                if (it.layout.alignment != Layout.Alignment.ALIGN_CENTER)
-                    canvas.translate(width * (1 - smallSizeFactor / hlScaleFactor), 0f)
-                else // Layout.Alignment.ALIGN_CENTER
-                    canvas.translate(width * ((1 - smallSizeFactor / hlScaleFactor) / 2), 0f)
+                    canvas.scale(1f / hlScaleFactor, 1f / hlScaleFactor)
+                    if (it.theWords != null) {
+                        wordIdx = it.theWords.indexOfLast { it.timeRange.start <= posForRender }
+                        if (wordIdx == -1) wordIdx = null
+                        if (wordIdx != null) {
+                            val word = it.theWords[wordIdx]
+                            spanEnd = word.charRange.last + 1 // get exclusive end
+                            val gradientEndTime = min(
+                                fadeOutEnd.toFloat(),
+                                word.timeRange.last.toFloat()
+                            )
+                            val gradientStartTime = min(
+                                max(
+                                    word.timeRange.start.toFloat(),
+                                    fadeInStart.toFloat()
+                                ), gradientEndTime - 1f
+                            )
+                            gradientProgress = lerpInv(
+                                gradientStartTime, gradientEndTime,
+                                posForRender.toFloat()
+                            )
+                            if (gradientProgress >= 0f && gradientProgress <= 1f) {
+                                spanStartGradient = word.charRange.first
+                                // be greedy and eat as much as the line as can be eaten (text that is
+                                // same line + is in same text direction). improves font rendering for
+                                // japanese if font rendering renders whole text in one pass
+                                val wordStartLine = it.layout.getLineForOffset(word.charRange.first)
+                                val wordEndLine =
+                                    it.layout.getLineForOffset(word.charRange.endInclusive)
+                                val firstCharOnStartLine = it.layout.getLineStart(wordStartLine)
+                                val lastCharOnEndLineExcl = it.layout.getLineEnd(wordEndLine)
+                                realGradientStart = it.theWords.lastOrNull {
+                                    it.charRange.first >= firstCharOnStartLine && it.charRange.last <
+                                            word.charRange.first && it.isRtl != word.isRtl
+                                }?.charRange?.last?.plus(1) ?: firstCharOnStartLine
+                                realGradientEnd = it.theWords.firstOrNull {
+                                    it.charRange.first > word.charRange.last && it.charRange.last <
+                                            lastCharOnEndLineExcl && it.isRtl != word.isRtl
+                                }?.charRange?.first ?: lastCharOnEndLineExcl
+                            }
+                        }
+                    } else {
+                        spanEnd = it.text.length
+                    }
+                }
+                if (!alignmentNormal) {
+                    if (!highlight)
+                        canvas.save()
+                    if (it.layout.alignment != Layout.Alignment.ALIGN_CENTER)
+                        canvas.translate(width * (1 - smallSizeFactor / hlScaleFactor), 0f)
+                    else // Layout.Alignment.ALIGN_CENTER
+                        canvas.translate(width * ((1 - smallSizeFactor / hlScaleFactor) / 2), 0f)
+                }
+                if (gradientProgress >= -.1f && gradientProgress <= 1f)
+                    animating = true
             }
-            if (gradientProgress >= -.1f && gradientProgress <= 1f)
-                animating = true
             val spanEndWithoutGradient = if (realGradientStart == -1) spanEnd else realGradientStart
             val inColorAnim = ((scaleInProgress >= 0f
                     && scaleInProgress <= 1f) || (scaleOutProgress >= 0f && scaleOutProgress <= 1f))
             var colorSpan = it.text.getSpans<MyForegroundColorSpan>().firstOrNull()
             val cachedEnd = colorSpan?.let { j -> it.text.getSpanEnd(j) } ?: -1
-            val defaultColorForLine = when (it.speaker) {
-                SpeakerEntity.Male -> defaultTextColorM
-                SpeakerEntity.Female -> defaultTextColorF
-                SpeakerEntity.Duet -> defaultTextColorD
-                else -> defaultTextColor
-            }
-            val highlightColorForLine = when (it.speaker) {
-                SpeakerEntity.Male -> highlightTextColorM
-                SpeakerEntity.Female -> highlightTextColorF
-                SpeakerEntity.Duet -> highlightTextColorD
-                else -> highlightTextColor
-            }
             val wordActiveSpanForLine = when (it.speaker) {
                 SpeakerEntity.Male -> wordActiveSpanM.value
                 SpeakerEntity.Female -> wordActiveSpanF.value
                 SpeakerEntity.Duet -> wordActiveSpanD.value
                 else -> wordActiveSpan
             }
-            val gradientSpanPoolForLine = when (it.speaker) {
-                SpeakerEntity.Male -> gradientSpanPoolM.value
-                SpeakerEntity.Female -> gradientSpanPoolF.value
-                SpeakerEntity.Duet -> gradientSpanPoolD.value
-                else -> gradientSpanPool
-            }
-            val col = if (inColorAnim) ColorUtils.blendARGB(
-                if (scaleOutProgress >= 0f &&
-                    scaleOutProgress <= 1f
-                ) highlightColorForLine else defaultColorForLine,
-                if (scaleInProgress >= 0f && scaleInProgress <= 1f) highlightColorForLine
-                else defaultColorForLine,
-                scaleColorInterpolator.getInterpolation(
+            val col = if (!culled) {
+                val defaultColorForLine = when (it.speaker) {
+                    SpeakerEntity.Male -> defaultTextColorM
+                    SpeakerEntity.Female -> defaultTextColorF
+                    SpeakerEntity.Duet -> defaultTextColorD
+                    else -> defaultTextColor
+                }
+                val highlightColorForLine = when (it.speaker) {
+                    SpeakerEntity.Male -> highlightTextColorM
+                    SpeakerEntity.Female -> highlightTextColorF
+                    SpeakerEntity.Duet -> highlightTextColorD
+                    else -> highlightTextColor
+                }
+                if (inColorAnim) ColorUtils.blendARGB(
                     if (scaleOutProgress >= 0f &&
                         scaleOutProgress <= 1f
-                    ) scaleOutProgress else scaleInProgress
-                )
-            ) else if (highlight) highlightColorForLine else defaultColorForLine
+                    ) highlightColorForLine else defaultColorForLine,
+                    if (scaleInProgress >= 0f && scaleInProgress <= 1f) highlightColorForLine
+                    else defaultColorForLine,
+                    scaleColorInterpolator.getInterpolation(
+                        if (scaleOutProgress >= 0f &&
+                            scaleOutProgress <= 1f
+                        ) scaleOutProgress else scaleInProgress
+                    )
+                ) else if (highlight) highlightColorForLine else defaultColorForLine
+            } else Color.RED
             if (cachedEnd != spanEndWithoutGradient || inColorAnim != (colorSpan != wordActiveSpanForLine)) {
                 if (cachedEnd != -1) {
                     it.text.removeSpan(colorSpan!!)
@@ -581,6 +582,12 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             val gradientSpanStart = gradientSpan?.let { j -> it.text.getSpanStart(j) } ?: -1
             val gradientSpanEnd = gradientSpan?.let { j -> it.text.getSpanEnd(j) } ?: -1
             if (gradientSpanStart != realGradientStart || gradientSpanEnd != realGradientEnd) {
+                val gradientSpanPoolForLine = when (it.speaker) {
+                    SpeakerEntity.Male -> gradientSpanPoolM.value
+                    SpeakerEntity.Female -> gradientSpanPoolF.value
+                    SpeakerEntity.Duet -> gradientSpanPoolD.value
+                    else -> gradientSpanPool
+                }
                 if (gradientSpanStart != -1) {
                     it.text.removeSpan(gradientSpan!!)
                     if (realGradientStart == -1) {
@@ -604,22 +611,28 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                     )
                 }
             }
-            if (gradientSpan != null) {
-                gradientSpan.runCount = 0
-                gradientSpan.lastLineCount = -1
-                gradientSpan.lineOffsets = it.words!![wordIdx!!]
-                gradientSpan.totalCharsForProgress = spanEnd - spanStartGradient
-                // We get called once per run + one additional time per run if run direction isn't
-                // same as paragraph direction.
-                gradientSpan.runToLineMappings = it.rlm!!
-                gradientSpan.progress = gradientProgress
-                gradientSpan.highlightColor = col
+            if (!culled) {
+                if (gradientSpan != null) {
+                    gradientSpan.runCount = 0
+                    gradientSpan.lastLineCount = -1
+                    gradientSpan.lineOffsets = it.words!![wordIdx!!]
+                    gradientSpan.totalCharsForProgress = spanEnd - spanStartGradient
+                    // We get called once per run + one additional time per run if run direction isn't
+                    // same as paragraph direction.
+                    gradientSpan.runToLineMappings = it.rlm!!
+                    gradientSpan.progress = gradientProgress
+                    gradientSpan.highlightColor = col
+                }
+                it.layout.draw(canvas)
+                if (highlight || !alignmentNormal)
+                    canvas.restore()
             }
-            it.layout.draw(canvas)
-            if (highlight || !alignmentNormal)
-                canvas.restore()
-            canvas.translate(0f, (it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor)
-            heightSoFar += it.layout.height + it.paddingBottom
+            canvas.translate(
+                0f,
+                (it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor
+            )
+            heightSoFarUnscaled += it.layout.height + it.paddingBottom
+            heightSoFar += ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor).toInt()
         }
         //heightSoFar += globalPaddingBottom
         canvas.restore()
