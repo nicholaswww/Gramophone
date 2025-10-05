@@ -642,8 +642,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             handler.removeCallbacks(invalidateCallback)
             handler.postDelayed(invalidateCallback, 5000)
             isCallbackQueued = true
-            currentScrollTarget = null
-        } else if (!isCallbackQueued && !isScrolling && spForRender!!.first[3] == 1) {
+            if (spForRender!!.first[3] == 1)
+                currentScrollTarget = null
+        } else if (!isCallbackQueued && !isScrolling) {
             val scrollTarget = max(0, (firstScrollTarget ?: lastScrollTarget ?: 0) - height / 6)
             if (scrollTarget != currentScrollTarget) {
                 if (DEBUG) Log.i("hi", "scroll to $scrollTarget from $currentScrollTarget. rn = $scrollY)")
