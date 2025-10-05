@@ -145,6 +145,8 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 	 */
 	private boolean mIsBeingDragged = false;
 
+	private boolean mIsUserFlinging = false;
+
 	/**
 	 * Determines speed during touch scrolling
 	 */
@@ -716,7 +718,7 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 					if (!edgeEffectFling(initialVelocity)
 							&& !dispatchNestedPreFling(0, -initialVelocity)) {
 						dispatchNestedFling(0, -initialVelocity, true);
-						fling(-initialVelocity);
+						fling(-initialVelocity, true);
 					}
 				} else if (mScroller.springBack(getScrollX(), getScrollY(), 0, 0, 0,
 						getScrollRange())) {
@@ -1040,13 +1042,13 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 			if (shouldAbsorb(mEdgeGlowTop, velocityY)) {
 				mEdgeGlowTop.onAbsorb(velocityY);
 			} else {
-				fling(-velocityY);
+				fling(-velocityY, true);
 			}
 		} else if (EdgeEffectCompat.getDistance(mEdgeGlowBottom) != 0) {
 			if (shouldAbsorb(mEdgeGlowBottom, -velocityY)) {
 				mEdgeGlowBottom.onAbsorb(-velocityY);
 			} else {
-				fling(-velocityY);
+				fling(-velocityY, true);
 			}
 		} else {
 			consumed = false;
@@ -1399,6 +1401,7 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 	 */
 	private void smoothScrollBy(int dx, int dy, int scrollDurationMs, boolean withNestedScrolling) {
 		long duration = AnimationUtils.currentAnimationTimeMillis() - mLastScroll;
+		mIsUserFlinging = false;
 		if (duration > ANIMATED_SCROLL_GAP) {
 			int childSize = mChildHeight;
 			int parentSpace = getHeight() - getPaddingTop() - getPaddingBottom();
@@ -1580,6 +1583,10 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 		}
 	}
 
+	public boolean isUserInteractingWithScrollView() {
+		return mIsBeingDragged || (!mScroller.isFinished() && mIsUserFlinging);
+	}
+
 	/**
 	 * If either of the vertical edge glows are currently active, this consumes part or all of
 	 * deltaY on the edge glow.
@@ -1626,6 +1633,7 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 
 	private void abortAnimatedScroll() {
 		mScroller.abortAnimation();
+		mIsUserFlinging = false;
 		stopNestedScroll(ViewCompat.TYPE_NON_TOUCH);
 	}
 
@@ -1774,6 +1782,11 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 	 *                  which means we want to scroll towards the top.
 	 */
 	public void fling(int velocityY) {
+		fling(velocityY, false);
+	}
+
+	private void fling(int velocityY, boolean fromUser) {
+		mIsUserFlinging = fromUser;
 		mScroller.fling(getScrollX(), getScrollY(), // start
 				0, velocityY, // velocities
 				0, 0, // x
@@ -1794,7 +1807,6 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 	@Override
 	public void scrollTo(int x, int y) {
 		// we rely on the fact the View.scrollBy calls scrollTo.
-		Log.i("hi", "scrollTo = " + y);
 		int parentSpaceHorizontal = getWidth() - getPaddingLeft() - getPaddingRight();
 		int childSizeHorizontal = mChildWidth;
 		int parentSpaceVertical = getHeight() - getPaddingTop() - getPaddingBottom();
@@ -2041,12 +2053,13 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 				return false;
 			}
 			stopDifferentialMotionFling();
-			fling((int) velocity);
+			fling((int) velocity, true);
 			return true;
 		}
 
 		@Override
 		public void stopDifferentialMotionFling() {
+			mIsUserFlinging = false;
 			mScroller.abortAnimation();
 		}
 

@@ -44,7 +44,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
 
     private val smallSizeFactor = 0.97f
     private var lyricAnimTime by Delegates.notNull<Float>()
-    private var currentScrollTarget: Int? = null
 
     private val scaleInAnimTime
         get() = lyricAnimTime / 2f
@@ -69,6 +68,9 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
     private var posForRender = 0uL
     lateinit var instance: Callbacks
     private val gestureDetector = GestureDetector(context, this)
+    private var currentScrollTarget: Int? = null
+    private var isCallbackQueued = false
+    private val invalidateCallback = Runnable { isCallbackQueued = false; invalidate() }
 
     // -/M/F/D insanity starts here
     private var defaultTextColor = 0
@@ -620,11 +622,20 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         canvas.restore()
         if (animating)
             invalidate()
-        val scrollTarget = firstHighlight ?: lastHighlight ?: 0
-        if (scrollTarget != currentScrollTarget) {
-            smoothScrollTo(0, max(0, scrollTarget - paddingTop),
-                min(timeUntilNext, lyricAnimTime.toULong()).toInt())
-            currentScrollTarget = scrollTarget
+        if (isUserInteractingWithScrollView) {
+            handler.removeCallbacks(invalidateCallback)
+            handler.postDelayed(invalidateCallback, 5000)
+            isCallbackQueued = true
+            currentScrollTarget = null
+        } else if (!isCallbackQueued) {
+            val scrollTarget = firstHighlight ?: lastHighlight ?: 0
+            if (scrollTarget != currentScrollTarget) {
+                smoothScrollTo(
+                    0, max(0, scrollTarget),
+                    min(timeUntilNext, lyricAnimTime.toULong()).toInt()
+                )
+                currentScrollTarget = scrollTarget
+            }
         }
     }
 
