@@ -631,7 +631,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             val scrollTarget = firstHighlight ?: lastHighlight ?: 0
             if (scrollTarget != currentScrollTarget) {
                 smoothScrollTo(
-                    0, max(0, scrollTarget),
+                    0, max(0, scrollTarget - height / 4),
                     min(timeUntilNext, lyricAnimTime.toULong()).toInt()
                 )
                 currentScrollTarget = scrollTarget
