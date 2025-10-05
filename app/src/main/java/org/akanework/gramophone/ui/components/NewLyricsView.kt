@@ -60,12 +60,10 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
     private val translationTextSize = context.resources.getDimension(R.dimen.lyric_tl_text_size)
     private val translationBackgroundTextSize =
         context.resources.getDimension(R.dimen.lyric_tl_bg_text_size)
-    private val globalPaddingTop
-        get() = measuredHeight / 6
     private val globalPaddingHorizontal = 28.5f.dpToPx(context)
     private var colorSpanPool = mutableListOf<MyForegroundColorSpan>()
-    private var spForRender: List<SbItem>? = null
-    private var spForMeasure: Pair<Pair<Int, Int>, List<SbItem>>? = null
+    private var spForRender: Pair<Int, List<SbItem>>? = null
+    private var spForMeasure: Pair<IntArray, List<SbItem>>? = null
     private var lyrics: SemanticLyrics? = null
     private var posForRender = 0uL
     lateinit var instance: Callbacks
@@ -260,7 +258,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             (1..3).forEach { gradientSpanPoolD.value.add(makeGradientSpanD()) }
         }
         if (changed || changedM || changedF || changedD) {
-            spForRender?.forEach {
+            spForRender?.second?.forEach {
                 it.text.getSpans<MyGradientSpan>()
                     .forEach { s -> it.text.removeSpan(s) }
             }
@@ -320,7 +318,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                 gradientSpanPoolD.value.clear()
                 (1..3).forEach { gradientSpanPoolD.value.add(makeGradientSpanD()) }
             }
-            spForRender?.forEach {
+            spForRender?.second?.forEach {
                 it.text.getSpans<MyGradientSpan>()
                     .forEach { s -> it.text.removeSpan(s) }
             }
@@ -361,6 +359,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             return
         }
         var animating = false
+        val globalPaddingTop = spForRender!!.first
         var heightSoFar = globalPaddingTop
         var heightSoFarUnscaled = globalPaddingTop
         var heightSoFarWithoutTranslated = heightSoFarUnscaled
@@ -371,7 +370,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         canvas.save()
         canvas.translate(globalPaddingHorizontal, heightSoFarUnscaled.toFloat())
         val width = width - globalPaddingHorizontal * 2
-        spForRender!!.forEach {
+        spForRender!!.second.forEach {
             var spanEnd = -1
             var spanStartGradient = -1
             var realGradientStart = -1
@@ -666,23 +665,23 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
 
     override fun onMeasureForChild(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val myWidth = getDefaultSize(minimumWidth, widthMeasureSpec)
-        if (spForMeasure == null || spForMeasure!!.first.first != myWidth)
+        if (spForMeasure == null || spForMeasure!!.first[0] != myWidth)
             spForMeasure = buildSpForMeasure(lyrics, myWidth)
         setChildMeasuredDimension(
             myWidth,
-            getDefaultSize(spForMeasure!!.first.second, heightMeasureSpec)
+            getDefaultSize(spForMeasure!!.first[1], heightMeasureSpec)
         )
     }
 
     override fun onLayoutForChild(left: Int, top: Int, right: Int, bottom: Int) {
-        if (spForMeasure == null || spForMeasure!!.first.first != right - left
-            || spForMeasure!!.first.second != bottom - top)
+        if (spForMeasure == null || spForMeasure!!.first[0] != right - left
+            || spForMeasure!!.first[1] != bottom - top)
             spForMeasure = buildSpForMeasure(lyrics, right - left)
-        spForRender = spForMeasure!!.second
+        spForRender = spForMeasure!!.first[2] to spForMeasure!!.second
         invalidate()
     }
 
-    fun buildSpForMeasure(lyrics: SemanticLyrics?, width: Int): Pair<Pair<Int, Int>, List<SbItem>> {
+    fun buildSpForMeasure(lyrics: SemanticLyrics?, width: Int): Pair<IntArray, List<SbItem>> {
         val lines = lyrics?.unsyncedText ?: listOf(context.getString(R.string.no_lyric_found) to null)
         val syncedLines = (lyrics as? SemanticLyrics.SyncedLyrics?)?.text
         val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
@@ -815,13 +814,18 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                 }, speaker, syncedLine)
         }
         val heights = spLines.map { it.layout.height + it.paddingTop + it.paddingBottom }
-        val globalPaddingBottom = (measuredHeight * (1f - 1f/6f)).toInt() - (heights.lastOrNull() ?: 0) - globalPaddingTop
+        val globalPaddingTop = if (lyrics is SemanticLyrics.SyncedLyrics) measuredHeight / 6 else
+            context.resources.getDimensionPixelSize(R.dimen.lyric_top_padding)
+        val globalPaddingBottom = if (lyrics is SemanticLyrics.SyncedLyrics)
+                (measuredHeight * (1f - 1f/6f)).toInt() - (heights.lastOrNull() ?: 0) - globalPaddingTop
+        else 0
         return Pair(
-            Pair(
+            intArrayOf(
                 width,
                 (if (heights.isNotEmpty())
                 (heights.max() * (1 - (1 / smallSizeFactor)) + heights.sum()).toInt()
-                        else 0) + globalPaddingTop + globalPaddingBottom
+                        else 0) + globalPaddingTop + globalPaddingBottom,
+                globalPaddingTop
             ), spLines
         )
     }
@@ -832,10 +836,10 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             return true
         }
         val y = e.y
-        var heightSoFar = globalPaddingTop
         var foundItem: SemanticLyrics.LyricLine? = null
         if (lyrics is SemanticLyrics.SyncedLyrics) {
-            spForRender!!.forEach {
+            var heightSoFar = spForRender!!.first
+            spForRender!!.second.forEach {
                 val firstTs = it.line!!.start.toFloat()
                 val lastTs = it.line.end.toFloat()
                 val pos = posForRender.toFloat()
