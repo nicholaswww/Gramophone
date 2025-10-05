@@ -1514,10 +1514,13 @@ public abstract class ScrollingView2 extends View implements NestedScrollingChil
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+		// TODO: is this a good idea?
+		setMeasuredDimension(getDefaultSize(getSuggestedMinimumWidth(), widthMeasureSpec),
+				getDefaultSize(getSuggestedMinimumHeight(), heightMeasureSpec));
 		onMeasureForChild(widthMeasureSpec,
 				MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
 		setMeasuredDimension(getChildMeasuredWidth(),
-				getDefaultSize(getSuggestedMinimumWidth(), heightMeasureSpec));
+				getDefaultSize(getSuggestedMinimumHeight(), heightMeasureSpec));
 	}
 
 	@Override
