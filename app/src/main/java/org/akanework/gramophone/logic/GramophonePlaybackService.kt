@@ -36,6 +36,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.os.Process
+import android.os.SystemClock
 import androidx.media3.common.util.Log
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.core.app.NotificationChannelCompat
@@ -210,7 +211,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         set(value) {
             field = value
             if (value != null && value > 0) {
-                handler.postDelayed(timer, value - System.currentTimeMillis())
+                handler.postDelayed(timer, value - SystemClock.elapsedRealtime())
             } else {
                 handler.removeCallbacks(timer)
             }
@@ -743,7 +744,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     val pauseOnEnd = customCommand.customExtras.getBoolean("pauseOnEnd")
                     if (duration > 0) {
                         timerPauseOnEnd = pauseOnEnd
-                        timerDuration = System.currentTimeMillis() + duration
+                        timerDuration = SystemClock.elapsedRealtime() + duration
                     } else {
                         timerDuration = null
                         this.endedWorkaroundPlayer!!.exoPlayer.pauseAtEndOfMediaItems = pauseOnEnd
@@ -754,7 +755,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 SERVICE_QUERY_TIMER -> {
                     SessionResult(SessionResult.RESULT_SUCCESS).also {
                         timerDuration?.let { td ->
-                            it.extras.putInt("duration", (td - System.currentTimeMillis()).toInt())
+                            it.extras.putInt("duration", (td - SystemClock.elapsedRealtime()).toInt())
                             it.extras.putBoolean("pauseOnEnd", timerPauseOnEnd)
                         } ?: it.extras.putBoolean("pauseOnEnd",
                             this.endedWorkaroundPlayer!!.exoPlayer.pauseAtEndOfMediaItems)

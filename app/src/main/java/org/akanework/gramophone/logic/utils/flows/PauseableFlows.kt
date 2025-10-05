@@ -1,5 +1,6 @@
 package org.akanework.gramophone.logic.utils.flows
 
+import android.os.SystemClock
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -196,9 +197,9 @@ fun repeatPausingWithLifecycle(source: LifecycleOwner,
                                minimumStateForUnpause: Lifecycle.State = Lifecycle.State.RESUMED,
                                initialUnpauseUntilResumeTimeoutMs: ULong = 2000U,
                                block: suspend () -> Unit) {
-    val maxForceUnpausedTimestamp = System.currentTimeMillis() + initialUnpauseUntilResumeTimeoutMs.toLong()
+    val maxForceUnpausedTimestamp = SystemClock.elapsedRealtime() + initialUnpauseUntilResumeTimeoutMs.toLong()
     val bypass = flow {
-        val timeLeft = maxForceUnpausedTimestamp - System.currentTimeMillis()
+        val timeLeft = maxForceUnpausedTimestamp - SystemClock.elapsedRealtime()
         if (timeLeft > 0) {
             emit(true)
             delay(timeLeft)

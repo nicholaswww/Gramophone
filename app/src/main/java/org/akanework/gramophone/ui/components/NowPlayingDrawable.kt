@@ -14,6 +14,7 @@ import android.graphics.PorterDuffColorFilter
 import android.graphics.Rect
 import android.graphics.Region
 import android.graphics.drawable.Drawable
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.annotation.ColorInt
 import kotlinx.coroutines.CoroutineScope
@@ -61,7 +62,7 @@ class NowPlayingDrawable(context: Context) : Drawable() {
                 Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
             withContext(Dispatchers.Main) {
                 this@NowPlayingDrawable.animationsEnabled = animationsEnabled
-                if (animationsEnabled) ts = System.currentTimeMillis()
+                if (animationsEnabled) ts = SystemClock.elapsedRealtime()
                 invalidateSelf()
             }
         }
@@ -77,9 +78,9 @@ class NowPlayingDrawable(context: Context) : Drawable() {
         val rd = if (rc == rt && level == 1) {
             rt = rng.nextInt(barHeight - barHeightMin).toFloat() + barHeightMin; ri = rc; true
         } else false
-        if ((ld || md || rd) && animationsEnabled == true) ts = System.currentTimeMillis()
+        if ((ld || md || rd) && animationsEnabled == true) ts = SystemClock.elapsedRealtime()
         val scale = if (animationsEnabled == true)
-                ((System.currentTimeMillis() - ts) / animDuration).coerceAtMost(1f)
+                ((SystemClock.elapsedRealtime() - ts) / animDuration).coerceAtMost(1f)
         else if (animationsEnabled == false) 1f else 0f
 
         // Left bar
@@ -152,7 +153,7 @@ class NowPlayingDrawable(context: Context) : Drawable() {
 
             else -> throw IllegalStateException()
         }
-        ts = System.currentTimeMillis()
+        ts = SystemClock.elapsedRealtime()
         invalidateSelf()
         return true
     }

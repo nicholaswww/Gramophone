@@ -5,6 +5,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import android.os.storage.StorageManager
 import android.provider.MediaStore
 import androidx.media3.common.util.Log
@@ -27,7 +28,7 @@ class SdScanner(private val context: Context, var progressFrequencyMs: Int = 250
 	fun scan(inRoots: Set<File>, inIgnoreDb: Boolean) {
 		roots = inRoots
 		this.ignoreDb = inIgnoreDb
-		lastUpdate = System.currentTimeMillis()
+		lastUpdate = SystemClock.elapsedRealtime()
 		for (root in roots!!) {
 			progress.set(SimpleProgress.Step.DIR_SCAN, root.path, null)
 			recursiveAddFiles(root)
@@ -47,7 +48,7 @@ class SdScanner(private val context: Context, var progressFrequencyMs: Int = 250
 			val totalSize = cursor.count
 			while (cursor.moveToNext()) {
 				val mediaFile = File(cursor.getString(dataColumn)).getCanonicalFile()
-				System.currentTimeMillis().apply {
+				SystemClock.elapsedRealtime().apply {
 					if (lastUpdate + progressFrequencyMs/*ms*/ < this) {
 						lastUpdate = this
 						progress.set(
@@ -76,7 +77,7 @@ class SdScanner(private val context: Context, var progressFrequencyMs: Int = 250
 				if (!pathsToProcess.remove(path)) {
 					Log.w("SdScanner", "Android scanned $path but we never asked it to do so")
 				}
-				System.currentTimeMillis().apply {
+				SystemClock.elapsedRealtime().apply {
 					if (lastUpdate + progressFrequencyMs/*ms*/ < this) {
 						lastUpdate = this
 						progress.set(
@@ -103,7 +104,7 @@ class SdScanner(private val context: Context, var progressFrequencyMs: Int = 250
 
 	@Throws(IOException::class)
 	private fun recursiveAddFiles(file: File) {
-		System.currentTimeMillis().apply {
+		SystemClock.elapsedRealtime().apply {
 			if (lastUpdate + progressFrequencyMs/*ms*/ < this) {
 				lastUpdate = this
 				progress.set(

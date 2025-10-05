@@ -15,6 +15,7 @@ import android.util.AttributeSet
 import androidx.media3.common.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.animation.AnimationUtils
 import android.view.animation.PathInterpolator
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.TypefaceCompat
@@ -41,10 +42,6 @@ private const val TAG = "NewLyricsView"
 
 class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(context, attrs),
     GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
-    companion object {
-        private const val DEBUG = false
-    }
-
     private val smallSizeFactor = 0.97f
     private var lyricAnimTime by Delegates.notNull<Float>()
 
@@ -637,7 +634,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         canvas.restore()
         if (animating)
             invalidate()
-        if (DEBUG) Log.d("hi", "scroll is $scrollY")
         if (isUserInteractingWithScrollView) {
             handler.removeCallbacks(invalidateCallback)
             handler.postDelayed(invalidateCallback, 5000)
@@ -647,14 +643,10 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         } else if (!isCallbackQueued && !isScrolling) {
             val scrollTarget = max(0, (firstScrollTarget ?: lastScrollTarget ?: 0) - height / 6)
             if (scrollTarget != currentScrollTarget) {
-                if (DEBUG) Log.i("hi", "scroll to $scrollTarget from $currentScrollTarget. rn = $scrollY)")
                 smoothScrollTo(
                     0, scrollTarget,
                     lyricAnimTime.toInt()
                 )
-                if (DEBUG) Log.i("hi", "scroll is then $scrollY")
-                computeScroll()
-                if (DEBUG) Log.i("hi", "scroll is now $scrollY")
                 currentScrollTarget = scrollTarget
             }
         }
