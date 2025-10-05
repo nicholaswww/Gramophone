@@ -452,7 +452,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             )
             heightSoFar += (it.paddingTop.toFloat() / hlScaleFactor).toInt()
             heightSoFarUnscaled += it.paddingTop
-            val culled = heightSoFar > scrollY + height || scrollY > heightSoFar +
+            val culled = heightSoFar > scrollY + height || scrollY - paddingTop > heightSoFar +
                     ((it.layout.height.toFloat() + it.paddingBottom) / hlScaleFactor).toInt()
             if (!culled) {
                 if (highlight) {

@@ -96,6 +96,7 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
     private var askedForPermissionInSettings = false
     private val updateSliderRunnable = object : Runnable {
         override fun run() {
+            updateMediaMetadata(player, true) // TODO: figure out in which callback this needs to go.
             val currentPosition = player.currentPosition.toFloat().coerceAtMost(timeSlider.valueTo)
                 .coerceAtLeast(timeSlider.valueFrom)
             if (!isUserTracking) {
@@ -518,13 +519,15 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
         }
     }
 
-    private fun updateMediaMetadata(player: Player) {
-        audioTitle.text = player.mediaMetadata.title ?: getString(R.string.unknown_title)
-        artistTextView.text = player.mediaMetadata.artist ?: getString(R.string.unknown_artist)
-        albumArt.load(player.mediaMetadata.artworkData) {
-            placeholderScaleToFit(R.drawable.ic_default_cover)
-            error(R.drawable.ic_default_cover)
-            memoryCacheKey(player.mediaMetadata.artworkData.hashCode().toString())
+    private fun updateMediaMetadata(player: Player, onlyDuration: Boolean = false) {
+        if (!onlyDuration) {
+            audioTitle.text = player.mediaMetadata.title ?: getString(R.string.unknown_title)
+            artistTextView.text = player.mediaMetadata.artist ?: getString(R.string.unknown_artist)
+            albumArt.load(player.mediaMetadata.artworkData) {
+                placeholderScaleToFit(R.drawable.ic_default_cover)
+                error(R.drawable.ic_default_cover)
+                memoryCacheKey(player.mediaMetadata.artworkData.hashCode().toString())
+            }
         }
         val duration = player.contentDuration.let { if (it == C.TIME_UNSET) null else it }
             ?: player.mediaMetadata.durationMs
