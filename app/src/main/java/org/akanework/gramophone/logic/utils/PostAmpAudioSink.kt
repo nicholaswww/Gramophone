@@ -169,7 +169,6 @@ class PostAmpAudioSink(
 				// TODO: make sure Volume effect is disabled if it can't be offloaded, to prevent
 				//  false negatives in offload detection.
 				volumeEffect = Volume(99999, id)
-				volumeEffect!!.level = -3000
 				volumeEffect!!.enabled = true
 			}
 		}
