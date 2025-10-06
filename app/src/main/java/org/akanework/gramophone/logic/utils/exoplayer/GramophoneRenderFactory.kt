@@ -92,9 +92,9 @@ class GramophoneRenderFactory(context: Context,
         )!! as DefaultAudioSink
         audioSinkListener(root)
         return MyForwardingAudioSink(
-            PostAmpAudioSink(
-                root, context
-            )
+            //PostAmpAudioSink(
+                root//, context
+            //)
         )
     }
 
