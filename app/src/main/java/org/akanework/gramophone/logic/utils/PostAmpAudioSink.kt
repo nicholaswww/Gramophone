@@ -6,14 +6,22 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.media.AudioTrack
+import android.os.Build
 import androidx.media3.common.util.Log
 import androidx.core.content.ContextCompat
+import androidx.core.content.getSystemService
 import androidx.media3.common.Format
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
+import kotlin.math.log10
+import kotlin.math.max
 
 /*
  * some notes:
@@ -49,6 +57,7 @@ class PostAmpAudioSink(
 			}
 		}
 	}
+	private val audioManager = context.getSystemService<AudioManager>()!!
 	private var volumeEffect: Volume? = null
 	private var format: Format? = null
 	private var pendingFormat: Format? = null
@@ -72,6 +81,7 @@ class PostAmpAudioSink(
 	override fun setListener(listener: AudioSink.Listener) {
 		super.setListener(object : AudioSink.Listener by listener {
 			override fun onPositionAdvancing(playoutStartSystemTimeMs: Long) {
+				onAudioTrackPlayStateChanging()
 				listener.onPositionAdvancing(playoutStartSystemTimeMs)
 			}
 
@@ -126,41 +136,78 @@ class PostAmpAudioSink(
 	}
 
 	private fun myOnReceiveBroadcast(intent: Intent) {
+		Log.i("hi", "got $intent")
+		onAudioTrackPlayStateChanging()
 		// TODO
 	}
 
 	private fun myApplyPendingConfig() {
+		onAudioTrackPlayStateChanging()
 		format = pendingFormat
 		Log.i(TAG, "set format to $format")
 		// TODO
+	}
+
+	override fun setAudioSessionId(audioSessionId: Int) {
+		mySetAudioSessionId(audioSessionId)
+		super.setAudioSessionId(audioSessionId)
 	}
 
 	private fun mySetAudioSessionId(id: Int) {
 		if (id != audioSessionId) {
 			Log.i(TAG, "set session id to $id")
 			if (audioSessionId != 0) {
-				/*volumeEffect!!.let {
+				volumeEffect!!.let {
 					CoroutineScope(Dispatchers.Default).launch {
 						it.enabled = false
 						it.release()
 					}
 				}
-				volumeEffect = null*/
+				volumeEffect = null
 			}
 			if (id != 0) {
 				// TODO: make sure Volume effect is disabled if it can't be offloaded, to prevent
 				//  false negatives in offload detection.
-				/*volumeEffect = Volume(99999, id)
-				volumeEffect?.enabled = true*/
+				volumeEffect = Volume(99999, id)
+				volumeEffect!!.level = -3000
+				volumeEffect!!.enabled = true
 			}
 		}
 	}
 
 	private fun myOnRoutingChanged(router: AudioTrack, routedDevice: AudioDeviceInfo?) {
+		onAudioTrackPlayStateChanging()
 		// TODO
 	}
 
 	private fun onAudioTrackPlayStateChanging() {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+			val minIndex = audioManager.getStreamMinVolume(AudioManager.STREAM_MUSIC)
+			val maxIndex = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+			val curIndex = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+			val minVolume =
+				max(audioManager.getStreamVolumeDb(
+					AudioManager.STREAM_MUSIC, minIndex,
+					AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+				), -96f)
+			val maxVolume =
+				audioManager.getStreamVolumeDb(
+					AudioManager.STREAM_MUSIC, maxIndex,
+					AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+				)
+			val curVolume =
+				audioManager.getStreamVolumeDb(
+					AudioManager.STREAM_MUSIC, curIndex,
+					AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+				)
+			val curVolumeS = if (maxVolume - minVolume == 1f) {
+				if (curVolume <= 0f) -9600 else (2000 * log10(curVolume)).toInt().toShort()
+			} else if (curVolume < -96) -9600 else (curVolume.toInt() * 100).toShort()
+			Log.i("hi", "min=$minVolume max=$maxVolume cur=$curVolume --> $curVolumeS")
+			for (i in 0..20) {
+				volumeEffect?.level = maxOf(curVolumeS, (-5300).toShort())
+			}
+		}
 		// TODO
 	}
 
