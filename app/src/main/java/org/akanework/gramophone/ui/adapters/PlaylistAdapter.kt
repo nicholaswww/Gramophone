@@ -41,6 +41,7 @@ import androidx.core.view.iterator
 import androidx.core.widget.addTextChangedListener
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -297,14 +298,22 @@ class PlaylistAdapter(
                 .show()
             val et = DialogCompat.requireViewById(d, R.id.editText) as TextInputEditText
             val b = d.getButton(DialogInterface.BUTTON_POSITIVE)
+            val inL = DialogCompat.requireViewById(d, R.id.inputLayout) as TextInputLayout
             et.editableText.append(initialValue)
             b.isEnabled = !initialValue.isBlank()
+            inL.error = null
             d.window!!.decorView.measure(View.MeasureSpec.UNSPECIFIED,View.MeasureSpec.UNSPECIFIED)
             // TODO: why on earth is this even needed? "Small Phone" emu otherwise cant type
             d.window!!.setLayout(ViewGroup.LayoutParams.WRAP_CONTENT, d.window!!.decorView.measuredHeight)
             et.addTextChangedListener(afterTextChanged = {
-                val name = et.editableText.toString()
-                b.isEnabled = !name.isBlank()
+                val tmp = et.editableText.toString()
+                val hasForbidden = tmp.any { it in "/\\:*?\"<>|" || it.code <= 0x1F || it.code == 0x7F }
+                if (hasForbidden) {
+                    inL.error = context.getString(R.string.forbidden_symbol_error)
+                } else {
+                    inL.error = null
+                }
+                b.isEnabled = !tmp.isBlank() && !hasForbidden
             })
             et.requestFocus()
             et.post {
