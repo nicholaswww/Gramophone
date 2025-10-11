@@ -37,7 +37,8 @@ class Volume(priority: Int, audioSession: Int) : ReflectionAudioEffect(
 			UUID.fromString("09e8ede0-ddde-11db-b4f6-0002a5d5c51b")
 		private val EFFECT_UUID_SWVOLUME =
 			UUID.fromString("119341a0-8469-11df-81f9-0002a5d5c51b")
-		fun isAvailable() = isEffectTypeAvailable(EFFECT_TYPE_VOLUME)
+		fun isAvailable() = isEffectTypeAvailable(EFFECT_TYPE_VOLUME, EFFECT_UUID_SWVOLUME)
+		fun isOffloadable() = isEffectTypeOffloadable(EFFECT_TYPE_VOLUME, EFFECT_UUID_SWVOLUME)
 	}
 
 	var level: Short // SLmillibel

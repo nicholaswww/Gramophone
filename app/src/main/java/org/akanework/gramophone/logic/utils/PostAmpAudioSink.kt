@@ -39,6 +39,51 @@ import kotlin.math.max
  * also need to investigate LoudnessController and MPEG-4/MPEG-D DRC and normalization
  * https://github.com/androidx/media/tree/media_codec_param
  * prototype upstream to edit these kind of things ^^^
+ *
+ * Boost has two primary purposes: make ReplayGain sound louder to make it more enjoyable, and free
+ * up headroom for advanced EQ (DSP plugins or AudioEffect DPE/Equalizer/BassBoost/etc both). For
+ * practical reasons boost is all or nothing - the boost value does not change between songs for any
+ * reason!! Songs that shouldn't be boosted instead get negative boost gain before volume control
+ * stage. For one, doing that prevents bugs blasting away user ears. And doing it differently is
+ * useless for RG because we can't increase volume if gain is positive but clipping-safe through low
+ * peaks, and also useless for EQ because we can either apply negative boost gain through
+ * DPE/Equalizer or we don't have any EQ available anyway... (with BassBoost being the only possible
+ * exception, but if there is BassBoost but not DPE/Equalizer then either they're busy because
+ * external EQ app in which case our BassBoost should be disabled, or the SoC vendor is really weird
+ * and decided we only need BassBoost but no Equalizer or DPE, but afaik none of them did).
+ *
+ * TODO: UX problem I see is that we can't nicely handle if there's boost set for non-offloaded
+ *  playback and we switch to offloaded in the middle.
+ *
+ * for ReplayGain non-offload:
+ * - if non-RG track, boost gain but inverted, hence negative, should be applied via GainProcessor
+ * - negative RG gain could be applied either via GainProcessor
+ *     setVolume() would mean I'd need to consider it in boost calculations, so let's skip that
+ * - positive RG gain would be applied via GainProcessor
+ *     if gain is positive and peaks are so high that it'd clip, reduce gain or use DIY DRC
+ *
+ * offload ReplayGain (volume+equalizer or DPE effect is offloadable):
+ * - if non-RG track, set Equalizer/DPE effect with even bands to apply inverted boost gain
+ * - negative RG gain should be applied either via setVolume()
+ * - positive RG gain could be applied via Equalizer/DPE.Limiter.postGain/LoudnessEnhancer effect
+ *     if gain is positive and peaks are so high that it'd clip, reduce gain or use the effect's DRC
+ *     TODO: can we avoid DRC on Equalizer? we can avoid on DPE and can't on LoudnessEnhancer
+ * - boost would be added via Volume effect
+ *
+ * TODO: another problem with using Equalizer/DPE/LoudnessEnhancer is that they could be busy. Well
+ *  LoudnessEnhancer usually not, but the other ones are often used by EQ apps. Those could work in
+ *  offload as long as there's no conflict between apps. Hence we should try both DPE and Equalizer
+ *  and use whatever is currently free. But what to do if none of them is free?
+ * LoudnessEnhancer shouldn't be used without user consent due to it's aggressive DRC starting at
+ * -8dBFS in the best case, and DRC in Gramophone should be opt in always.
+ *
+ * offload ReplayGain (volume but no equalizer, DPE or LoudnessEnhancer effect available):
+ * Problem: can't increase volume if there is unused headroom (low peak) but positive RG gain.
+ * Problem: Volume effect for supporting RG gain is hard/impossible to synchronize with audio.
+ * Hence we can't use Volume effect alone if offloaded, proceed below.
+ *
+ * offload ReplayGain (no effects): just use setVolume() for negative gain, and give up on
+ * everything else (boost, positive gain). TODO: that's very bad UX though.
  */
 // TODO: what is com.lge.media.EXTRA_VOLUME_STREAM_HIFI_VALUE
 class PostAmpAudioSink(
@@ -62,6 +107,8 @@ class PostAmpAudioSink(
 	private var format: Format? = null
 	private var pendingFormat: Format? = null
 	private var audioSessionId = 0
+	private var volume = 1f
+	private var rgVolume = 1f
 
 	init {
 		ContextCompat.registerReceiver(
@@ -135,6 +182,15 @@ class PostAmpAudioSink(
 		super.configure(inputFormat, specifiedBufferSize, outputChannels)
 	}
 
+	override fun setVolume(volume: Float) {
+		this.volume = volume
+		setVolumeInternal()
+	}
+
+	private fun setVolumeInternal() {
+		super.setVolume(volume * rgVolume)
+	}
+
 	private fun myOnReceiveBroadcast(intent: Intent) {
 		Log.i("hi", "got $intent")
 		onAudioTrackPlayStateChanging()
@@ -142,9 +198,9 @@ class PostAmpAudioSink(
 	}
 
 	private fun myApplyPendingConfig() {
-		onAudioTrackPlayStateChanging()
 		format = pendingFormat
 		Log.i(TAG, "set format to $format")
+		onAudioTrackPlayStateChanging()
 		// TODO
 	}
 
@@ -169,6 +225,8 @@ class PostAmpAudioSink(
 				// TODO: make sure Volume effect is disabled if it can't be offloaded, to prevent
 				//  false negatives in offload detection.
 				volumeEffect = Volume(99999, id)
+				// TODO: is enabling actually needed to change volume? if not, can we keep effect in
+				//  disabled state to avoid offload detection false negatives?
 				volumeEffect!!.enabled = true
 			}
 		}
