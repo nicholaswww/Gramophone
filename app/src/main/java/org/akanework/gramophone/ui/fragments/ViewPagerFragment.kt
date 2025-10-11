@@ -209,8 +209,10 @@ class ViewPagerFragment : BaseFragment(true) {
 
         if (adapter.itemCount < 2) {
             tabLayout.visibility = View.GONE
+            viewPager2.isUserInputEnabled = false
         } else {
             tabLayout.visibility = View.VISIBLE
+            viewPager2.isUserInputEnabled = true
         }
 
         return rootView
