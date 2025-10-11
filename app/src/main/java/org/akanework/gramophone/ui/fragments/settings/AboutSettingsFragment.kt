@@ -30,6 +30,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.utils.ColorUtils
+import org.akanework.gramophone.logic.utils.data.Contributors
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
 import org.akanework.gramophone.ui.fragments.BaseSettingsActivity
 
@@ -46,7 +47,7 @@ class AboutSettingsFragment : BasePreferenceFragment() {
         releaseType!!.summary = BuildConfig.RELEASE_TYPE
         contributorsPref!!.summary =
             requireContext().getString(R.string.settings_contributors_click,
-                requireContext().getString(R.string.settings_contributors_detail))
+                Contributors.LIST.subList(0, 5).joinToString { it.login })
     }
 
     override fun onPreferenceTreeClick(preference: Preference): Boolean {

@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -45,6 +46,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -108,7 +110,8 @@ class ContributorsSettingsActivity : BaseActivity() {
     }
 
     @Composable
-    fun ContributorCard(shape: Shape, contributor: GitHubUser) {
+    fun SimpleCard(shape: Shape, url: String, icon: @Composable () -> Unit,
+                   name: String?, login: String?, subtitle: String) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -116,7 +119,6 @@ class ContributorsSettingsActivity : BaseActivity() {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = shape,
             onClick = {
-                val url = "https://github.com/${contributor.login}"
                 val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                 try {
                     startActivity(intent)
@@ -126,28 +128,20 @@ class ContributorsSettingsActivity : BaseActivity() {
             }
         ) {
             Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.padding(12.dp)
             ) {
-                AsyncImage(
-                    model = contributor.avatar,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                )
+                icon()
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = contributor.name ?: contributor.login,
+                            text = name ?: login ?: "",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleSmall
                         )
-                        if (contributor.name != null && contributor.name != contributor.login)
+                        if (name != null && name != login && login != null)
                             Text(
-                                text = "@${contributor.login}",
+                                text = "@$login",
                                 modifier = Modifier.padding(start = 8.dp),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Normal,
@@ -156,7 +150,7 @@ class ContributorsSettingsActivity : BaseActivity() {
                             )
                     }
                     Text(
-                        text = stringResource(contributor.contributed),
+                        text = subtitle,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Normal,
                         color = LocalContentColor.current.copy(alpha = 0.8f)
@@ -164,6 +158,27 @@ class ContributorsSettingsActivity : BaseActivity() {
                 }
             }
         }
+    }
+
+    @Composable
+    fun ContributorCard(shape: Shape, contributor: GitHubUser) {
+        SimpleCard(
+            shape,
+            url = "https://github.com/${contributor.login}",
+            icon = {
+                AsyncImage(
+                    model = contributor.avatar,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                )
+            },
+            name = contributor.name,
+            login = contributor.login,
+            subtitle = stringResource(contributor.contributed)
+        )
     }
 
     @Composable
@@ -182,11 +197,27 @@ class ContributorsSettingsActivity : BaseActivity() {
             itemsIndexed(Contributors.LIST) { i, contributor ->
                 val top = if (i == 0) CornerSize(16.dp) else
                     CornerSize(8.dp)
-                val bottom = if (i == Contributors.LIST.size - 1) CornerSize(16.dp) else
-                    CornerSize(8.dp)
+                val bottom = CornerSize(8.dp)
                 ContributorCard(RoundedCornerShape(
                     top, top, bottom, bottom
                 ), contributor)
+            }
+            item {
+                val top = CornerSize(8.dp)
+                val bottom = CornerSize(16.dp)
+                SimpleCard(RoundedCornerShape(
+                    top, top, bottom, bottom
+                ), "https://hosted.weblate.org/engage/gramophone/", icon = {
+                    AsyncImage(
+                        model = R.drawable.outline_translate_24,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .padding(6.dp)
+                    )
+                }, name = stringResource(R.string.translators), login = null,
+                    subtitle = remember { Contributors.TRANSLATORS.joinToString() })
             }
         }
     }
