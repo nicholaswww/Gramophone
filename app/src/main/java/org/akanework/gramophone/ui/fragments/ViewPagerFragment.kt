@@ -186,6 +186,7 @@ class ViewPagerFragment : BaseFragment(true) {
                 viewPager2
             )
         viewPager2.adapter = adapter
+
         TabLayoutMediator(tabLayout, viewPager2) { tab, position ->
             tab.text = getString(adapter.getLabelResId(position))
             tab.view.post {
@@ -205,6 +206,12 @@ class ViewPagerFragment : BaseFragment(true) {
                 }
             }
         }.attach()
+
+        if (adapter.itemCount < 2) {
+            tabLayout.visibility = View.GONE
+        } else {
+            tabLayout.visibility = View.VISIBLE
+        }
 
         return rootView
     }
