@@ -32,11 +32,10 @@ import kotlin.math.max
  *   - it was removed recently but exists everywhere I need it https://cs.android.com/android/_/android/platform/frameworks/av/+/38c45a4438915c73434558be9ffc2d4f73516cf2
  *   - interpretation of data changed in M https://android.googlesource.com/platform/frameworks/av/+/ffbc80f5908eaf67a033c6e93a343c39dd6894eb%5E!/
  *
- *
  * if boost is <=3dB, could also use https://cs.android.com/android/platform/superproject/main/+/main:system/media/audio/include/system/audio.h;l=561;drc=8063e42c30fdde36835c1862cf413d8faeadcf45
- * but that has risk of clipping when system volume is high so maybe that's a bad idea?
+ * but that has risk of clipping when system volume is high so that's a bad idea.
  *
- * also need to investigate LoudnessController and MPEG-4/MPEG-D DRC and normalization
+ * also need to disable LoudnessController and MPEG-4/MPEG-D DRC and normalization
  * https://github.com/androidx/media/tree/media_codec_param
  * prototype upstream to edit these kind of things ^^^
  *
@@ -51,39 +50,76 @@ import kotlin.math.max
  * exception, but if there is BassBoost but not DPE/Equalizer then either they're busy because
  * external EQ app in which case our BassBoost should be disabled, or the SoC vendor is really weird
  * and decided we only need BassBoost but no Equalizer or DPE, but afaik none of them did).
+ * The entire Boost feature will not be possible to enable in combination with offload, unless of
+ * course Boost during offload (means both Volume and DPE or LoudnessEnhancer) is supported on this
+ * device, i.e. you can't set Boost to apply just during non-offload while offload is enabled.
  *
- * TODO: UX problem I see is that we can't nicely handle if there's boost set for non-offloaded
- *  playback and we switch to offloaded in the middle.
+ * A negative-gain-only ReplayGain in offload is allowed, if so desired. The user will be shown a
+ * warning dialog when enabling the later of two settings.
+ *
+ * Also, it turns out Boost can be influenced with Equalizer/BassBoost/Virtualizer, because if at
+ * max volume or if volume control isn't granted to LVM, the added energy by these effects will be
+ * compensated through gain correction that will instead just make the signal less loud
+ * (no DRC, yay! at least in AOSP impl). So using Boost while someone else is setting Equalizer to
+ * high values can also lead to reduced gain. That however isn't a problem and hence can be safely
+ * ignored, everything's WAI.
  *
  * for ReplayGain non-offload:
  * - if non-RG track, boost gain but inverted, hence negative, should be applied via GainProcessor
  * - negative RG gain could be applied either via GainProcessor
  *     setVolume() would mean I'd need to consider it in boost calculations, so let's skip that
  * - positive RG gain would be applied via GainProcessor
- *     if gain is positive and peaks are so high that it'd clip, reduce gain or use DIY DRC
- *
- * offload ReplayGain (volume+equalizer or DPE effect is offloadable):
- * - if non-RG track, set Equalizer/DPE effect with even bands to apply inverted boost gain
- * - negative RG gain should be applied either via setVolume()
- * - positive RG gain could be applied via Equalizer/DPE.Limiter.postGain/LoudnessEnhancer effect
- *     if gain is positive and peaks are so high that it'd clip, reduce gain or use the effect's DRC
- *     TODO: can we avoid DRC on Equalizer? we can avoid on DPE and can't on LoudnessEnhancer
+ *     if gain is positive and peaks are so high that it'd clip, reduce gain or use DRC like DPE can
  * - boost would be added via Volume effect
  *
- * TODO: another problem with using Equalizer/DPE/LoudnessEnhancer is that they could be busy. Well
- *  LoudnessEnhancer usually not, but the other ones are often used by EQ apps. Those could work in
- *  offload as long as there's no conflict between apps. Hence we should try both DPE and Equalizer
- *  and use whatever is currently free. But what to do if none of them is free?
- * LoudnessEnhancer shouldn't be used without user consent due to it's aggressive DRC starting at
- * -8dBFS in the best case, and DRC in Gramophone should be opt in always.
+ * offload ReplayGain (DPE effect is offloadable):
+ * - if non-RG track, set DPE effect to apply inverted boost gain
+ * - negative RG gain should be applied either via setVolume()
+ * - positive RG gain could be applied via DPE.Limiter.postGain/LoudnessEnhancer effect
+ *     if gain is positive and peaks are so high that it'd clip, reduce gain or use the effect's DRC
+ *     DPE has optional DRC via Limiter stage (MBC is not suitable)
+ * - boost would be added via Volume effect (if volume isn't offloadable, boost can't be enabled)
+ * TODO: another problem with using DPE is that it can be busy. EQ apps could work in offload as
+ *  long as there's no conflict between apps. So what to do if DPE and LoudnessEnhancer+Volume are
+ *  both not free? Just fall back to no boost and setVolume()? Or hide our session ID from EQ apps?
+ *  Or can we use priority constructor arg to win against EQ apps?
+ * LoudnessEnhancer shouldn't be used due to it's aggressive DRC starting at -8dBFS in the best
+ * case. Useless DRC defeats much of ReplayGain in the first place. Equalizer can't be used because
+ * a 5 or 10-band biquad filter is not suitable to increase gain linearly, and distortions defeat
+ * much of the purpose of ReplayGain.
  *
- * offload ReplayGain (volume but no equalizer, DPE or LoudnessEnhancer effect available):
+ * offload ReplayGain (LoudnessEnhancer+Volume is offloadable):
+ * LoudnessEnhancer target gain may at most be -8dBFS unless DRC is desired. If we FORCE operation
+ * similar to boost mode using additional headroom gain (16dB should be very safe), we can still do
+ * RG adjustment.
+ * - if non-RG track, set LoudnessEnhancer effect to apply inverted boost gain
+ * - negative RG gain should be applied via LoudnessEnhancer, set lower than -8dBFS
+ * - positive RG gain should still be applied via LoudnessEnhancer, set close to but at most -8dBFS
+ * - positive RG gain with desired DRC is applied via LoudnessEnhancer, but set higher than -8dBFS
+ * - boost and additional headroom gain would be added via Volume effect
+ * The big advantage of this weird scheme is wide compatibility with equalizer apps. But whether
+ * it's worth implementing would be decided by how often LoudnessEnhancer+Volume combo is
+ * offloadable.
+ *
+ * offload ReplayGain (volume but no DPE or LoudnessEnhancer effect available):
  * Problem: can't increase volume if there is unused headroom (low peak) but positive RG gain.
- * Problem: Volume effect for supporting RG gain is hard/impossible to synchronize with audio.
+ *          that defeats much of the purpose of RG.
  * Hence we can't use Volume effect alone if offloaded, proceed below.
  *
  * offload ReplayGain (no effects): just use setVolume() for negative gain, and give up on
- * everything else (boost, positive gain). TODO: that's very bad UX though.
+ * positive gain (has to be acknowledged by user when enabling RG+offload combination on those
+ * devices).
+ *
+ * For "smart album/track gain selection": the used gain is always determined at audio track init.
+ * Album gain will be used if track from same album is either prev or next in playlist. If user adds
+ * same album track after we started playing we shall hold onto chosen gain until seek or next
+ * track happens. Also that implies that if there are two songs that could be played gaplessly, they
+ * should NOT be played gaplessly unless RG gain is also same. (TODO: for offload only, or always?)
+ * That effectively avoids audible volume jumps, and allows to change effect settings for offloaded
+ * RG in synchronized way as well, avoiding wrong gain applied to audio frame.
+ *
+ * ID3 variations to support: RVA2 (ID3v2.4), XRVA (ID3v2.3), RGAD (ID3v2.3), TXXX with ReplayGain
+ * info. see https://wiki.hydrogenaudio.org/index.php?title=ReplayGain_2.0_specification#ID3v2
  */
 // TODO: what is com.lge.media.EXTRA_VOLUME_STREAM_HIFI_VALUE
 class PostAmpAudioSink(
