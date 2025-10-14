@@ -162,9 +162,7 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
         player = ExoPlayer.Builder(
             this,
             GramophoneRenderFactory(this, {}, {})
-                .setPcmEncodingRestrictionLifted(
-                    prefs.getBooleanStrict("floatoutput", false)
-                )
+                .setPcmEncodingRestrictionLifted(true)
                 .setEnableDecoderFallback(true)
                 .setEnableAudioTrackPlaybackParams(true)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),

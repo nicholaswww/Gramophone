@@ -3,17 +3,22 @@ package org.akanework.gramophone.logic.utils.exoplayer
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import androidx.media3.common.C
 import androidx.media3.common.Format
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessorChain
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.audio.AudioRendererEventListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
+import androidx.media3.exoplayer.audio.ToFloatPcmAudioProcessor
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.video.VideoRendererEventListener
-import org.akanework.gramophone.logic.utils.PostAmpAudioSink
+import org.akanework.gramophone.logic.utils.ReplayGainAudioProcessor
 import org.nift4.alacdecoder.AlacRenderer
 
 class GramophoneRenderFactory(context: Context,
@@ -84,12 +89,39 @@ class GramophoneRenderFactory(context: Context,
         enableFloatOutput: Boolean,
         enableAudioTrackPlaybackParams: Boolean
     ): AudioSink? {
-        val root = super.buildAudioSink(
-            context,
-            pcmEncodingRestrictionLifted,
-            enableFloatOutput,
-            enableAudioTrackPlaybackParams
-        )!! as DefaultAudioSink
+        val builder = DefaultAudioSink.Builder(context)
+        if (pcmEncodingRestrictionLifted || !enableFloatOutput) {
+            builder.setPcmEncodingRestrictionLifted(pcmEncodingRestrictionLifted)
+        } else {
+            @Suppress("deprecation")
+            builder.setEnableFloatOutput(true)
+        }
+        builder.setAudioProcessorChain(object : AudioProcessorChain {
+            override fun getAudioProcessors(inputFormat: Format): Array<out AudioProcessor> {
+                if (inputFormat.pcmEncoding == C.ENCODING_PCM_FLOAT) {
+                    return arrayOf(ReplayGainAudioProcessor())
+                }
+                // TODO: do i wish to hardcode float conversion always?
+                return arrayOf(ToFloatPcmAudioProcessor(), ReplayGainAudioProcessor())
+            }
+
+            override fun applyPlaybackParameters(playbackParameters: PlaybackParameters): PlaybackParameters {
+                return PlaybackParameters.DEFAULT
+            }
+
+            override fun applySkipSilenceEnabled(skipSilenceEnabled: Boolean): Boolean {
+                return false
+            }
+
+            override fun getMediaDuration(playoutDuration: Long): Long {
+                return playoutDuration
+            }
+
+            override fun getSkippedOutputFrameCount(): Long {
+                return 0
+            }
+        })
+        val root = builder.setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams).build()
         audioSinkListener(root)
         return MyForwardingAudioSink(
             //PostAmpAudioSink(

@@ -347,9 +347,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     this, this::onAudioSinkInputFormatChanged,
                     afFormatTracker::setAudioSink
                 )
-                    .setPcmEncodingRestrictionLifted(
-                        prefs.getBooleanStrict("floatoutput", false)
-                    )
+                    .setPcmEncodingRestrictionLifted(true)
                     .setEnableDecoderFallback(true)
                     .setEnableAudioTrackPlaybackParams(true)
                     .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),

@@ -50,14 +50,14 @@ namespace le_fx {
 #define INSTANTIATE_COMPRESS(CHANNEL_COUNT) \
 case CHANNEL_COUNT: \
     if constexpr (CHANNEL_COUNT <= FCC_LIMIT) { \
-        Compress(inputAmp, kneeThresholdDb, postAmp, \
+        Compress(inputAmp, kneeThreshold, postAmp, \
                 reinterpret_cast<internal_array_t<float, CHANNEL_COUNT>*>(in), \
 				reinterpret_cast<internal_array_t<float, CHANNEL_COUNT>*>(out), frameCount); \
         return; \
     } \
     break;
 
-	void AdaptiveDynamicRangeCompression::Compress(size_t channelCount, float inputAmp, float kneeThresholdDb,
+	void AdaptiveDynamicRangeCompression::Compress(size_t channelCount, float inputAmp, float kneeThreshold,
 												   float postAmp, float* in, float* out, size_t frameCount) {
 		using android::audio_utils::intrinsics::internal_array_t;
 		switch (channelCount) {
@@ -108,8 +108,8 @@ Java_org_nift4_gramophone_hificore_AdaptiveDynamicRangeCompression_create(JNIEnv
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_org_nift4_gramophone_hificore_AdaptiveDynamicRangeCompression_releaseNative(JNIEnv *env,
-                                                                                 jobject thiz,
+Java_org_nift4_gramophone_hificore_AdaptiveDynamicRangeCompression_releaseNative(JNIEnv *,
+                                                                                 jobject,
                                                                                  jlong ptr) {
 	auto obj = (le_fx::AdaptiveDynamicRangeCompression*) ptr;
 	delete obj;
@@ -131,11 +131,11 @@ Java_org_nift4_gramophone_hificore_AdaptiveDynamicRangeCompression_initNative(JN
 extern "C"
 JNIEXPORT void JNICALL
 Java_org_nift4_gramophone_hificore_AdaptiveDynamicRangeCompression_compressNative(JNIEnv *env,
-                                                                                  jobject thiz,
+                                                                                  jobject,
                                                                                   jlong ptr,
                                                                                   jint channel_count,
                                                                                   jfloat input_amp,
-                                                                                  jfloat knee_threshold_db,
+                                                                                  jfloat knee_threshold,
                                                                                   jfloat post_amp,
                                                                                   jobject in_buf,
                                                                                   jobject out_buf,
@@ -143,6 +143,6 @@ Java_org_nift4_gramophone_hificore_AdaptiveDynamicRangeCompression_compressNativ
 	auto obj = (le_fx::AdaptiveDynamicRangeCompression*) ptr;
 	auto in = (float*) env->GetDirectBufferAddress(in_buf);
 	auto out = (float*) env->GetDirectBufferAddress(out_buf);
-	obj->Compress(channel_count, input_amp, knee_threshold_db,
+	obj->Compress(channel_count, input_amp, knee_threshold,
 				  post_amp, in, out, frame_count);
 }

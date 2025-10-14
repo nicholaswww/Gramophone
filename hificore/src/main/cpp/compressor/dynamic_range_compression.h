@@ -62,13 +62,11 @@ namespace le_fx {
 
 		// Templated Compress routine.
 		template <typename V>
-		void Compress(float inputAmp, float kneeThresholdDb, float postAmp, V* in, V* out, size_t frameCount) {
+		void Compress(float inputAmp, float kneeThreshold, float postAmp, V* in, V* out, size_t frameCount) {
 			// GRAMOPHONE: move scale into Compress()
 			constexpr float scale = 1 << 15; // power of 2 is lossless conversion to int16_t range
 			constexpr float inverseScale = 1.f / scale;
-			// Converts to 1og-base
-			float knee_threshold = 0.1151292546497023061569109358970308676362037658691406250f *
-					kneeThresholdDb + 10.39717719035538401328722102334722876548767089843750f;
+			float knee_threshold = kneeThreshold + 10.39717719035538401328722102334722876548767089843750f;
 			for (size_t i = 0; i < frameCount; ++i) {
 				auto v = android::audio_utils::intrinsics::vmul(in[i], inputAmp * scale);
 				const float max_abs_x = android::audio_utils::intrinsics::vmaxv(

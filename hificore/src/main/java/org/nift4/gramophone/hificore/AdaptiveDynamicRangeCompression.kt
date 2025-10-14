@@ -11,6 +11,10 @@ class AdaptiveDynamicRangeCompression {
 	}
 	private var ptr: Long
 	private var inited = false
+	private var samplingRate: Int? = null
+	private var tauAttack: Float? = null
+	private var tauRelease: Float? = null
+	private var compressionRatio: Float? = null
 	init {
 		if (!AudioTrackHiddenApi.libLoaded) {
 			try {
@@ -38,21 +42,33 @@ class AdaptiveDynamicRangeCompression {
 	private external fun initNative(ptr: Long, samplingRate: Float, tauAttack: Float,
 	                                tauRelease: Float, compressionRatio: Float)
 	private external fun compressNative(ptr: Long, channelCount: Int, inputAmp: Float,
-	                                    kneeThresholdDb: Float, postAmp: Float, `in`: ByteBuffer,
+	                                    kneeThresholdLog: Float, postAmp: Float, `in`: ByteBuffer,
 	                                    `out`: ByteBuffer, frameCount: Int)
 	// (re-)init, resets cached state such as current energy. should be done when switching songs
-	fun init(samplingRate: Float, tauAttack: Float, tauRelease: Float, compressionRatio: Float) {
+	fun init(samplingRate: Int, tauAttack: Float, tauRelease: Float, compressionRatio: Float) {
+		this.samplingRate = samplingRate
+		this.tauAttack = tauAttack
+		this.tauRelease = tauRelease
+		this.compressionRatio = compressionRatio
 		if (ptr == 0L) {
 			throw IllegalStateException("called release() before init()")
 		}
 		try {
-			initNative(ptr, samplingRate, tauAttack, tauRelease, compressionRatio)
+			initNative(ptr, samplingRate.toFloat(), tauAttack, tauRelease, compressionRatio)
 		} catch (e: Throwable) {
 			throw IllegalStateException("initNative failed", e)
 		}
 		inited = true
 	}
-	fun compress(channelCount: Int, inputAmp: Float, kneeThresholdDb: Float,
+	fun flush() {
+		if (samplingRate == null || tauAttack == null || tauRelease == null ||
+			compressionRatio == null) {
+			throw IllegalStateException("flush() called before init()")
+		}
+		init(samplingRate!!, tauAttack!!, tauRelease!!,
+			compressionRatio!!)
+	}
+	fun compress(channelCount: Int, inputAmp: Float, kneeThresholdLog: Float,
 	             postAmp: Float, `in`: ByteBuffer, `out`: ByteBuffer, frameCount: Int) {
 		if (!`in`.isDirect) {
 			throw IllegalArgumentException("in buffer not direct")
@@ -70,8 +86,8 @@ class AdaptiveDynamicRangeCompression {
 			throw IllegalStateException("called compress() before init()")
 		}
 		try {
-			compressNative(ptr, channelCount, inputAmp, kneeThresholdDb, postAmp, `in`,
-				`out`, frameCount)
+			compressNative(ptr, channelCount, inputAmp, kneeThresholdLog, postAmp,
+				`in`, `out`, frameCount)
 		} catch (e: Throwable) {
 			throw IllegalStateException("compressNative failed", e)
 		}
