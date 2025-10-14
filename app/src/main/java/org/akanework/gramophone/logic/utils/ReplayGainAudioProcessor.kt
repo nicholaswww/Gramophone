@@ -7,9 +7,7 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.Log
 import org.nift4.gramophone.hificore.AdaptiveDynamicRangeCompression
 import java.nio.ByteBuffer
-import kotlin.math.exp
 import kotlin.math.log10
-import kotlin.math.max
 import kotlin.math.min
 
 class ReplayGainAudioProcessor : BaseAudioProcessor() {
@@ -17,8 +15,12 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		private const val TAG = "ReplayGainAP"
 	}
 	private var compressor: AdaptiveDynamicRangeCompression? = null
+	private var waitingForFlush = false
 	private var nonRgGain = 1f
+	private var reduceGain = false
 	private var gain = 1f
+	private var tagPeak = 1f
+	private var tagGain = 1f
 	private var postGainPeak = 1f
 	private var kneeThresholdDb = 0f
 	private val ratio = 2f
@@ -28,12 +30,9 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		val frameCount = inputBuffer.remaining() / inputAudioFormat.bytesPerFrame
 		val outputBuffer = replaceOutputBuffer(frameCount * outputAudioFormat.bytesPerFrame)
 		if (compressor != null) {
-			// TODO: make the math make sense? :D
-			val freeHeadroom = 1f / min(1f, postGainPeak) - 1f
-			val gainReduction = gain - max(0f, gain - freeHeadroom)
 			compressor!!.compress(inputAudioFormat.channelCount,
-				gain - gainReduction,
-				kneeThresholdDb, 1f + gainReduction, inputBuffer,
+				gain,
+				kneeThresholdDb, 1f, inputBuffer,
 				outputBuffer, frameCount)
 			inputBuffer.position(inputBuffer.limit())
 			outputBuffer.position(frameCount * outputAudioFormat.bytesPerFrame)
@@ -56,6 +55,9 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 			)
 		}
 		if (nonRgGain != 1f && false) { // TODO: check if rg metadata present.
+			this.tagGain = 1f
+			this.tagPeak = 1f
+			waitingForFlush = true // don't call computeGain() as old data should apply until flush.
 			return inputAudioFormat
 		}
 		// if there's no RG metadata and no non-RG-gain set, we can skip all work.
@@ -63,19 +65,24 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 	}
 
 	fun setGain(gain: Float, peak: Float) {
-		this.gain = gain
-		this.postGainPeak = peak * gain
-		if (postGainPeak == 0f) {
-			Log.e(TAG, "Nonsense post gain peak, peak=$peak * gain=$gain")
-			postGainPeak = 1f
-		}
-		val gainDb = 20 * log10(gain)
-		kneeThresholdDb = gainDb - gainDb * ratio / (ratio - 1f)
+		this.tagGain = gain
+		this.tagPeak = peak
+		if (!waitingForFlush) computeGain()
 	}
 
-	override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
-		val needsCompressor = postGainPeak > 1f
-		if (needsCompressor) {
+	fun computeGain() {
+		gain = if (reduceGain) {
+			min(tagGain, if (tagPeak == 0f) 1f else 1f / tagPeak)
+		} else {
+			tagGain
+		}
+		postGainPeak = (if (tagPeak == 0f) 1f else tagPeak) * (if (gain == 0f) 0.001f else gain)
+		val postGainPeakDb = 20 * log10(postGainPeak)
+		val targetDb = 0
+		kneeThresholdDb = postGainPeakDb - (postGainPeakDb - targetDb) * ratio / (ratio - 1f)
+		if (postGainPeakDb + targetDb > 0f) {
+			if (reduceGain)
+				throw IllegalStateException("reduceGain true but postGainPeak > 1f")
 			if (compressor == null)
 				compressor = AdaptiveDynamicRangeCompression()
 			Log.w(TAG, "using dynamic range compression")
@@ -86,6 +93,11 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		} else {
 			onReset() // delete compressor
 		}
+	}
+
+	override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
+		waitingForFlush = false
+		computeGain()
 	}
 
 	override fun onReset() {
