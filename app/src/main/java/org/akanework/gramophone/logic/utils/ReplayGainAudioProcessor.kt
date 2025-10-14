@@ -20,7 +20,7 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 	private var nonRgGain = 1f
 	private var gain = 1f
 	private var postGainPeak = 1f
-	private var kneeThresholdLog = 0f
+	private var kneeThresholdDb = 0f
 	private val ratio = 2f
 	private val tauAttack = 0.0014f
 	private val tauRelease = 0.093f
@@ -33,7 +33,7 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 			val gainReduction = gain - max(0f, gain - freeHeadroom)
 			compressor!!.compress(inputAudioFormat.channelCount,
 				gain - gainReduction,
-				kneeThresholdLog, 1f + gainReduction, inputBuffer,
+				kneeThresholdDb, 1f + gainReduction, inputBuffer,
 				outputBuffer, frameCount)
 			inputBuffer.position(inputBuffer.limit())
 			outputBuffer.position(frameCount * outputAudioFormat.bytesPerFrame)
@@ -70,8 +70,7 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 			postGainPeak = 1f
 		}
 		val gainDb = 20 * log10(gain)
-		val kneeThresholdDb = gainDb - gainDb * ratio / (ratio - 1f)
-		kneeThresholdLog = exp(kneeThresholdDb * log10(20f) / 10f)
+		kneeThresholdDb = gainDb - gainDb * ratio / (ratio - 1f)
 	}
 
 	override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {

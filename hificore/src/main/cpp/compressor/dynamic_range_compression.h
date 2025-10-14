@@ -66,7 +66,9 @@ namespace le_fx {
 			// GRAMOPHONE: move scale into Compress()
 			constexpr float scale = 1 << 15; // power of 2 is lossless conversion to int16_t range
 			constexpr float inverseScale = 1.f / scale;
-			float knee_threshold = kneeThreshold + 10.39717719035538401328722102334722876548767089843750f;
+			// Converts from dB to 1og-base
+			float knee_threshold = 0.1151292546497023061569109358970308676362037658691406250f *
+					kneeThreshold + 10.39717719035538401328722102334722876548767089843750f;
 			for (size_t i = 0; i < frameCount; ++i) {
 				auto v = android::audio_utils::intrinsics::vmul(in[i], inputAmp * scale);
 				const float max_abs_x = android::audio_utils::intrinsics::vmaxv(
