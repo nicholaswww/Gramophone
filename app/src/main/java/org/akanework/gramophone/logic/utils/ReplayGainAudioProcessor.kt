@@ -1,6 +1,7 @@
 package org.akanework.gramophone.logic.utils
 
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.AudioProcessor.UnhandledAudioFormatException
 import androidx.media3.common.audio.BaseAudioProcessor
@@ -14,13 +15,19 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 	companion object {
 		private const val TAG = "ReplayGainAP"
 	}
+	enum class Mode {
+		None, Track, Album
+	}
 	private var compressor: AdaptiveDynamicRangeCompression? = null
 	private var waitingForFlush = false
+	private var mode = Mode.None
 	private var nonRgGain = 1f
 	private var reduceGain = false
 	private var gain = 1f
-	private var tagPeak = 1f
-	private var tagGain = 1f
+	private var tagTrackPeak: Float? = null
+	private var tagTrackGain: Float? = null
+	private var tagAlbumPeak: Float? = null
+	private var tagAlbumGain: Float? = null
 	private var postGainPeak = 1f
 	private var kneeThresholdDb = 0f
 	private val ratio = 2f
@@ -54,23 +61,30 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 				"Invalid PCM encoding. Expected float PCM.", inputAudioFormat
 			)
 		}
-		if (nonRgGain != 1f && false) { // TODO: check if rg metadata present.
-			this.tagGain = 1f
-			this.tagPeak = 1f
-			waitingForFlush = true // don't call computeGain() as old data should apply until flush.
-			return inputAudioFormat
+		if ((tagTrackGain == null && tagAlbumGain == null && nonRgGain != 1f)
+			|| (tagTrackGain != null && tagTrackGain != 1f)
+			|| (tagAlbumGain != null && tagAlbumGain != 1f)) {
+			//return inputAudioFormat TODO
 		}
 		// if there's no RG metadata and no non-RG-gain set, we can skip all work.
 		return AudioProcessor.AudioFormat.NOT_SET
 	}
 
-	fun setGain(gain: Float, peak: Float) {
-		this.tagGain = gain
-		this.tagPeak = peak
-		if (!waitingForFlush) computeGain()
+	fun setRootFormat(inputFormat: Format) {
+		inputFormat
 	}
 
 	fun computeGain() {
+		val tagGain = when (mode) {
+			Mode.Track -> tagTrackGain ?: tagAlbumGain ?: nonRgGain
+			Mode.Album -> tagAlbumGain ?: tagTrackGain ?: nonRgGain
+			Mode.None -> nonRgGain // TODO: does nonRgGain make sense here
+		}
+		val tagPeak = when (mode) {
+			Mode.Track -> tagTrackPeak ?: tagAlbumPeak ?: 1f
+			Mode.Album -> tagAlbumPeak ?: tagTrackPeak ?: 1f
+			Mode.None -> 1f
+		}
 		gain = if (reduceGain) {
 			min(tagGain, if (tagPeak == 0f) 1f else 1f / tagPeak)
 		} else {

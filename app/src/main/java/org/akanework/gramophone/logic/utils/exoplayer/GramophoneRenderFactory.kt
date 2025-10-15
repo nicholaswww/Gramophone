@@ -96,13 +96,16 @@ class GramophoneRenderFactory(context: Context,
             @Suppress("deprecation")
             builder.setEnableFloatOutput(true)
         }
+        val rgAp = ReplayGainAudioProcessor()
+        val float = ToFloatPcmAudioProcessor()
         builder.setAudioProcessorChain(object : AudioProcessorChain {
             override fun getAudioProcessors(inputFormat: Format): Array<out AudioProcessor> {
+                rgAp.setRootFormat(inputFormat)
                 if (inputFormat.pcmEncoding == C.ENCODING_PCM_FLOAT) {
-                    return arrayOf(ReplayGainAudioProcessor())
+                    return arrayOf(rgAp)
                 }
                 // TODO: do i wish to hardcode float conversion always?
-                return arrayOf(ToFloatPcmAudioProcessor(), ReplayGainAudioProcessor())
+                return arrayOf(float, rgAp)
             }
 
             override fun applyPlaybackParameters(playbackParameters: PlaybackParameters): PlaybackParameters {
