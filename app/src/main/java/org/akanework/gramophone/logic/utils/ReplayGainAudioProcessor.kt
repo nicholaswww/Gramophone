@@ -79,17 +79,15 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		inputFormat.metadata?.getMatchingEntries(TextInformationFrame::class.java)
 			{ it.id == "TXXX" &&
 					it.description?.startsWith("REPLAYGAIN_", ignoreCase = true) == true }
-			?.let { metadata.addAll(ReplayGainUtil.parseTxxx(it)) }
+			?.let { metadata.addAll(it.mapNotNull { frame ->
+				ReplayGainUtil.parseTxxx(frame.description, frame.values)
+			}) }
 		inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-			{ it.id == "RVA2" }?.let {
+			{ it.id == "RVA2" || it.id == "XRV" || it.id == "XRVA" }?.let {
 				metadata.addAll(it.map { frame ->
 					ReplayGainUtil.parseRva2(frame)
 				})
 			}
-		inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-			{ it.id == "XRV" || it.id == "XRVA" }?.let { metadata.addAll(it.map { frame ->
-				ReplayGainUtil.parseRva2(frame)
-		}) }
 		inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
 			{ it.id == "RGAD" }?.let { metadata.addAll(it.map { frame ->
 				ReplayGainUtil.parseRgad(frame)
