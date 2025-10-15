@@ -2,14 +2,10 @@ package org.akanework.gramophone.logic.utils
 
 import androidx.media3.common.C
 import androidx.media3.common.Format
-import androidx.media3.common.Metadata
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.AudioProcessor.UnhandledAudioFormatException
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.Log
-import androidx.media3.extractor.metadata.id3.BinaryFrame
-import androidx.media3.extractor.metadata.id3.TextInformationFrame
-import androidx.media3.extractor.mp3.Mp3InfoReplayGain
 import org.nift4.gramophone.hificore.AdaptiveDynamicRangeCompression
 import java.nio.ByteBuffer
 import kotlin.math.log10
@@ -75,27 +71,11 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 	}
 
 	fun setRootFormat(inputFormat: Format) {
-		val metadata = arrayListOf<ReplayGainUtil>()
-		inputFormat.metadata?.getMatchingEntries(TextInformationFrame::class.java)
-			{ it.id == "TXXX" &&
-					it.description?.startsWith("REPLAYGAIN_", ignoreCase = true) == true }
-			?.let { metadata.addAll(it.mapNotNull { frame ->
-				ReplayGainUtil.parseTxxx(frame.description, frame.values)
-			}) }
-		inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-			{ it.id == "RVA2" || it.id == "XRV" || it.id == "XRVA" }?.let {
-				metadata.addAll(it.map { frame ->
-					ReplayGainUtil.parseRva2(frame)
-				})
-			}
-		inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-			{ it.id == "RGAD" }?.let { metadata.addAll(it.map { frame ->
-				ReplayGainUtil.parseRgad(frame)
-		}) }
-		inputFormat.metadata?.getEntriesOfType(Mp3InfoReplayGain::class.java)
-			?.let { metadata.addAll(it.map { info -> ReplayGainUtil.Mp3Info(info) }) }
-		//tagAlbumPeak = TODO
-		//TODO
+		val rg = ReplayGainUtil.parse(inputFormat)
+		tagTrackGain = rg.trackGain
+		tagTrackPeak = rg.trackPeak
+		tagAlbumGain = rg.albumGain
+		tagAlbumPeak = rg.albumPeak
 	}
 
 	fun computeGain() {
