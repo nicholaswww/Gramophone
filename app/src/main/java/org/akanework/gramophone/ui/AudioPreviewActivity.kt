@@ -168,7 +168,8 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
             GramophoneMediaSourceFactory(DefaultDataSource.Factory(this), GramophoneExtractorsFactory().also {
                 it.setConstantBitrateSeekingEnabled(true)
-                it.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+                if (prefs.getBooleanStrict("mp3_index_seeking", false))
+                    it.setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
             })
         )
             .setWakeMode(C.WAKE_MODE_LOCAL)
