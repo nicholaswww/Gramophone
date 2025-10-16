@@ -1,15 +1,20 @@
 package org.akanework.gramophone.logic.utils
 
 import androidx.media3.common.Format
+import androidx.media3.common.util.Log
 import androidx.media3.common.util.ParsableByteArray
+import androidx.media3.common.util.Util
 import androidx.media3.extractor.metadata.id3.BinaryFrame
 import androidx.media3.extractor.metadata.id3.CommentFrame
 import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import androidx.media3.extractor.mp3.Mp3InfoReplayGain
+import java.math.BigDecimal
 import java.math.BigInteger
+import java.math.MathContext
 import kotlin.math.ceil
+import kotlin.math.ln
 import kotlin.math.log10
 import kotlin.math.max
 
@@ -27,7 +32,7 @@ sealed class ReplayGainUtil {
 			Subwoofer
 		}
 		data class Channel(val channel: ChannelEnum, val volumeAdjustment: Float,
-		                   val peakVolume: BigInteger?) // peak volume can be up to 255-bit number
+		                   val peakVolume: Float?)
 	}
 	data class Rvad(val channels: List<Channel>) : ReplayGainUtil() {
 		enum class ChannelEnum {
@@ -38,8 +43,8 @@ sealed class ReplayGainUtil {
 			Center,
 			Bass
 		}
-		data class Channel(val channel: ChannelEnum, val volumeAdjustment: BigInteger,
-		                   val peakVolume: BigInteger?) // peak volume can be up to 255-bit number
+		data class Channel(val channel: ChannelEnum, val volumeAdjustment: Float,
+		                   val peakVolume: Float?)
 	}
 	sealed class Txxx : ReplayGainUtil()
 	data class TxxxTrackGain(val value: Float) : Txxx()
@@ -50,12 +55,7 @@ sealed class ReplayGainUtil {
 	data class TxxxAlbumPeak(val value: Float) : Txxx()
 	data class SoundCheck(val gainL: Float, val gainR: Float, val gainAltL: Float,
 	                      val gainAltR: Float, val unk1: Int, val unk2: Int, val peakL: Float,
-	                      val peakR: Float, val unk3: Int, val unk4: Int) : ReplayGainUtil() {
-		val gain: Float
-			get() = max(gainL, gainR)
-		val peak: Float
-			get() = max(peakL, peakR)
-	}
+	                      val peakR: Float, val unk3: Int, val unk4: Int) : ReplayGainUtil()
 	data class Mp3Info(val peak: Float, val field1Name: Byte, val field1Originator: Byte,
 	                val field1Value: Float, val field2Name: Byte, val field2Originator: Byte,
 	                val field2Value: Float) : ReplayGainUtil() {
@@ -66,10 +66,38 @@ sealed class ReplayGainUtil {
 	data class Rgad(val peak: Float, val field1Name: Byte, val field1Originator: Byte,
 	                val field1Value: Float, val field2Name: Byte, val field2Originator: Byte,
 	                val field2Value: Float) : ReplayGainUtil()
-	data class ReplayGainInfo(val trackGain: Float, val trackPeak: Float, val albumGain: Float,
-	                          val albumPeak: Float)
+	sealed class RgInfo(val value: Float) {
+		class TrackGain(gain: Float) : RgInfo(gain)
+		class TrackPeak(peak: Float) : RgInfo(peak)
+		class AlbumGain(gain: Float) : RgInfo(gain)
+		class AlbumPeak(peak: Float) : RgInfo(peak)
+	}
+	data class ReplayGainInfo(val trackGain: Float?, val trackPeak: Float?, val albumGain: Float?,
+	                          val albumPeak: Float?)
 	companion object {
-		private fun parseRva2(frame: BinaryFrame): Rva2 {
+		private const val TAG = "ReplayGainUtil"
+
+		private fun adjustVolume(bytes: ByteArray, sign: Boolean): Float {
+			val peak = BigInteger(bytes)
+				.let { if (sign) it.multiply(BigInteger.valueOf(-1)) else it }
+				.toLong()
+			// iTunes uses a range of -255 to 255 to be -100% (silent) to 100% (+6dB)
+			return if (peak == -255L) -96f else 20f * ln((peak + 255) / 255f) / ln(10f)
+		}
+
+		private fun adjustPeak(bytes: ByteArray, bitDepth: Int): Float? {
+			val peak = BigInteger(bytes)
+			if (peak.toInt() == 0) return null
+			val min = BigDecimal(BigInteger.ONE.shiftLeft(bitDepth - 1).negate())
+			val max = BigInteger.ONE.shiftLeft(bitDepth - 1).subtract(BigInteger.ONE)
+			val range = BigDecimal(max).subtract(min)
+			return BigDecimal(peak).subtract(min)
+				.divide(range, MathContext.DECIMAL128)
+				.multiply(BigDecimal(2))
+				.subtract(BigDecimal(1)).toFloat()
+		}
+
+		private fun parseRva2(frame: BinaryFrame, bitDepth: Int): Rva2 {
 			if (frame.id != "RVA2" && frame.id != "XRV" && frame.id != "XRVA")
 				throw IllegalStateException("parseRva2() but frame isn't RVA2, it's $frame")
 			val frame = ParsableByteArray(frame.data)
@@ -84,14 +112,13 @@ sealed class ReplayGainUtil {
 				val len = ceil(frame.readUnsignedByte() / 8f).toInt()
 				val peakBytes = ByteArray(len)
 				frame.readBytes(peakBytes, 0, len)
-				val peak = BigInteger(peakBytes)
 				channels += Rva2.Channel(Rva2.ChannelEnum.entries[channel],
-					volumeAdjustment, peak)
+					volumeAdjustment, adjustPeak(peakBytes, bitDepth))
 			}
 			return Rva2(identification, channels)
 		}
 
-		private fun parseRvad(frame: BinaryFrame): Rvad {
+		private fun parseRvad(frame: BinaryFrame, bitDepth: Int): Rvad {
 			if (frame.id != "RVAD" && frame.id != "RVA")
 				throw IllegalStateException("parseRvad() but frame isn't RVAD, it's $frame")
 			val frame = ParsableByteArray(frame.data)
@@ -106,18 +133,16 @@ sealed class ReplayGainUtil {
 			val buf = ByteArray(len)
 			val channels = arrayListOf<Rvad.Channel>()
 			frame.readBytes(buf, 0, len)
-			val volumeAdjFR = BigInteger(buf)
-				.let { if (signFR) it.multiply(BigInteger.valueOf(-1)) else it }
+			val volumeAdjFR = adjustVolume(buf, signFR)
 			frame.readBytes(buf, 0, len)
-			val volumeAdjFL = BigInteger(buf)
-				.let { if (signFL) it.multiply(BigInteger.valueOf(-1)) else it }
-			val peakVolFR: BigInteger?
-			val peakVolFL: BigInteger?
+			val volumeAdjFL = adjustVolume(buf, signFL)
+			val peakVolFR: Float?
+			val peakVolFL: Float?
 			if (frame.bytesLeft() > 0) {
 				frame.readBytes(buf, 0, len)
-				peakVolFR = BigInteger(buf)
+				peakVolFR = adjustPeak(buf, bitDepth)
 				frame.readBytes(buf, 0, len)
-				peakVolFL = BigInteger(buf)
+				peakVolFL = adjustPeak(buf, bitDepth)
 			} else {
 				peakVolFR = null
 				peakVolFL = null
@@ -128,18 +153,16 @@ sealed class ReplayGainUtil {
 				volumeAdjFL, peakVolFL)
 			if (frame.bytesLeft() > 0) {
 				frame.readBytes(buf, 0, len)
-				val volumeAdjBR = BigInteger(buf)
-					.let { if (signBR) it.multiply(BigInteger.valueOf(-1)) else it }
+				val volumeAdjBR = adjustVolume(buf, signBR)
 				frame.readBytes(buf, 0, len)
-				val volumeAdjBL = BigInteger(buf)
-					.let { if (signBL) it.multiply(BigInteger.valueOf(-1)) else it }
-				val peakVolBR: BigInteger?
-				val peakVolBL: BigInteger?
+				val volumeAdjBL = adjustVolume(buf, signBL)
+				val peakVolBR: Float?
+				val peakVolBL: Float?
 				if (frame.bytesLeft() > 0) {
 					frame.readBytes(buf, 0, len)
-					peakVolBR = BigInteger(buf)
+					peakVolBR = adjustPeak(buf, bitDepth)
 					frame.readBytes(buf, 0, len)
-					peakVolBL = BigInteger(buf)
+					peakVolBL = adjustPeak(buf, bitDepth)
 				} else {
 					peakVolBR = null
 					peakVolBL = null
@@ -149,26 +172,24 @@ sealed class ReplayGainUtil {
 				channels += Rvad.Channel(Rvad.ChannelEnum.BackLeft,
 					volumeAdjBL, peakVolBL)
 				if (frame.bytesLeft() > 0) {
-					val volumeAdjC = BigInteger(buf)
-						.let { if (signC) it.multiply(BigInteger.valueOf(-1)) else it }
 					frame.readBytes(buf, 0, len)
-					val peakVolC: BigInteger?
+					val volumeAdjC = adjustVolume(buf, signC)
+					val peakVolC: Float?
 					if (frame.bytesLeft() > 0) {
 						frame.readBytes(buf, 0, len)
-						peakVolC = BigInteger(buf)
+						peakVolC = adjustPeak(buf, bitDepth)
 					} else {
 						peakVolC = null
 					}
 					channels += Rvad.Channel(Rvad.ChannelEnum.Center,
 						volumeAdjC, peakVolC)
 					if (frame.bytesLeft() > 0) {
-						val volumeAdjB = BigInteger(buf)
-							.let { if (signB) it.multiply(BigInteger.valueOf(-1)) else it }
 						frame.readBytes(buf, 0, len)
-						val peakVolB: BigInteger?
+						val volumeAdjB = adjustVolume(buf, signB)
+						val peakVolB: Float?
 						if (frame.bytesLeft() > 0) {
 							frame.readBytes(buf, 0, len)
-							peakVolB = BigInteger(buf)
+							peakVolB = adjustPeak(buf, bitDepth)
 						} else {
 							peakVolB = null
 						}
@@ -183,27 +204,32 @@ sealed class ReplayGainUtil {
 		private fun parseTxxx(description: String?, values: List<String>): Txxx? {
 			val description = description?.uppercase()
 			return when (description) {
-				"REPLAYGAIN_TRACK_GAIN", "REPLAYGAIN_ALBUM_GAIN" -> {
+				"REPLAYGAIN_TRACK_GAIN", "REPLAYGAIN_ALBUM_GAIN", "RVA", "RVA_ALBUM", "RVA_RADIO",
+				"RVA_MIX", "RVA_AUDIOPHILE", "RVA_USER", "REPLAY GAIN",
+				"MEDIA JUKEBOX: REPLAY GAIN", "MEDIA JUKEBOX: ALBUM GAIN" -> {
 					var value = values.firstOrNull()?.trim()
 					if (value?.endsWith(" dB", ignoreCase = true) == true
 						|| value?.endsWith(" LU", ignoreCase = true) == true) {
 						value = value.substring(0, value.length - 3)
 					}
-					value?.toFloatOrNull()?.let {
-						if (description == "REPLAYGAIN_ALBUM_GAIN") TxxxAlbumGain(it)
+					value?.replace(',', '.')?.toFloatOrNull()?.let {
+						if (description.contains("ALBUM") ||
+							description == "RVA_AUDIOPHILE" ||
+							description == "RVA_USER") TxxxAlbumGain(it)
 						else TxxxTrackGain(it)
 					}
 				}
-				"REPLAYGAIN_TRACK_PEAK", "REPLAYGAIN_ALBUM_PEAK" -> {
+				"REPLAYGAIN_TRACK_PEAK", "REPLAYGAIN_ALBUM_PEAK", "PEAK LEVEL",
+				"MEDIA JUKEBOX: PEAK LEVEL" -> {
 					val value = values.firstOrNull()?.trim()
-					value?.toFloatOrNull()?.let {
+					value?.replace(',', '.')?.toFloatOrNull()?.let {
 						if (description == "REPLAYGAIN_ALBUM_PEAK") TxxxAlbumPeak(it)
 						else TxxxTrackPeak(it)
 					}
 				}
 				"R128_TRACK_GAIN", "R128_ALBUM_GAIN" -> {
 					val value = values.first().trim()
-					value.toFloatOrNull()?.let {
+					value.replace(',', '.').toFloatOrNull()?.let {
 						if (description == "R128_ALBUM_GAIN") R128AlbumGain(it)
 						else R128TrackGain(it)
 					}
@@ -265,58 +291,229 @@ sealed class ReplayGainUtil {
 					it.description.startsWith("REPLAYGAIN_", ignoreCase = true) }
 				?.let {
 					metadata.addAll(it.mapNotNull { frame ->
-						parseTxxx(frame.description, listOf(frame.text))
+						try {
+							parseTxxx(frame.description, listOf(frame.text))
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
 					})
-				}
+				} // agreed standard for ReplayGain in MP$
 			inputFormat.metadata?.getMatchingEntries(VorbisComment::class.java)
-			{ it.key.startsWith("REPLAYGAIN_", ignoreCase = true)
-					|| it.key.startsWith("R128_", ignoreCase = true) }
+			{ it.key.startsWith("REPLAYGAIN_", ignoreCase = true) /* OggVorbis/Flac */
+					|| it.key.startsWith("R128_", ignoreCase = true) /* OggOpus */
+					|| it.key.equals("REPLAY GAIN", ignoreCase = true) /* JRiver */
+					|| it.key.equals("PEAK LEVEL", ignoreCase = true) /* also JRiver */ }
 				?.let {
 					metadata.addAll(it.mapNotNull { frame ->
-						parseTxxx(frame.key, listOf(frame.value))
+						try {
+							parseTxxx(frame.key, listOf(frame.value))
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
 					})
 				}
 			inputFormat.metadata?.getMatchingEntries(TextInformationFrame::class.java)
-			{ (it.id == "TXXX" || it.id == "TXX") &&
-					it.description?.startsWith("REPLAYGAIN_", ignoreCase = true) == true }
+			{ (it.id == "TXXX" || it.id == "TXX") && (
+					it.description?.startsWith("REPLAYGAIN_", ignoreCase = true) == true ||
+							// MEDIA JUKEBOX = JRiver
+					it.description?.equals("MEDIA JUKEBOX: REPLAY GAIN", ignoreCase = true) == true ||
+					it.description?.equals("MEDIA JUKEBOX: ALBUM GAIN", ignoreCase = true) == true ||
+					it.description?.equals("MEDIA JUKEBOX: PEAK LEVEL", ignoreCase = true) == true) }
 				?.let {
 					metadata.addAll(it.mapNotNull { frame ->
-						parseTxxx(frame.description, frame.values)
+						try {
+							parseTxxx(frame.description, frame.values)
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
+					})
+				} // Modern-day ReplayGain for ID3
+			inputFormat.metadata?.getMatchingEntries(CommentFrame::class.java)
+			{ it.description.startsWith("RVA", ignoreCase = true) }
+				?.let {
+					metadata.addAll(it.mapNotNull { frame ->
+						try {
+							parseTxxx(frame.description, listOf(frame.text))
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
+					})
+				} // proposed by author of and supported in mpg123
+			if (inputFormat.pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
+				inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
+				{ it.id == "RVA2" || it.id == "XRV" || it.id == "XRVA" }?.let {
+					metadata.addAll(it.mapNotNull { frame ->
+						try {
+							parseRva2(frame, Util.getBitDepth(inputFormat.pcmEncoding))
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
 					})
 				}
+			} // ID3v2.4 RVA2 frame and backport to ID3v2.2/2.3 by normalize
+			if (inputFormat.pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
+				inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
+				{ it.id == "RVAD" || it.id == "RVA" }?.let {
+					metadata.addAll(it.mapNotNull { frame ->
+						try {
+							parseRvad(frame, Util.getBitDepth(inputFormat.pcmEncoding))
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
+					})
+				}
+			} // ID3v2.2 RVA frame and ID3v2.3 RVAD frame
 			inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-			{ it.id == "RVA2" || it.id == "XRV" || it.id == "XRVA" }?.let {
-				metadata.addAll(it.map { frame ->
-					parseRva2(frame)
-				})
-			}
-			inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-			{ it.id == "RVAD" || it.id == "RVA" }?.let {
-				metadata.addAll(it.map { frame ->
-					parseRvad(frame)
-				})
-			}
-			inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-			{ it.id == "RGAD" }?.let { metadata.addAll(it.map { frame ->
-				parseRgad(frame)
-			}) }
+			{ it.id == "RGAD" }?.let { metadata.addAll(it.mapNotNull { frame ->
+				try {
+					parseRgad(frame)
+				} catch (e: Exception) {
+					Log.e(TAG, "failed to parse $frame", e)
+					null
+				}
+			}) } // Classic ReplayGain proposed ID3 tag
 			inputFormat.metadata?.getEntriesOfType(Mp3InfoReplayGain::class.java)
-				?.let { metadata.addAll(it.map { info -> Mp3Info(info) }) }
+				?.let { metadata.addAll(it.map { info -> Mp3Info(info) }) } // LAME
+			// TODO: should I follow this? https://github.com/LMS-Community/slimserver/commit/c404768e06df4700dddade848d1135353a6fb79f
 			inputFormat.metadata?.getMatchingEntries(CommentFrame::class.java)
 			{ it.description == "iTunNORM" }
 				?.let {
 					metadata.addAll(it.mapNotNull { frame ->
-						parseITunNORM(frame.text)
+						try {
+							parseITunNORM(frame.text)
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
 					})
-				}
+				} // iTunes SoundCheck (MP3)
 			inputFormat.metadata?.getMatchingEntries(InternalFrame::class.java)
 			{ it.domain == "com.apple.iTunes" && it.description == "iTunNORM" }
 				?.let {
 					metadata.addAll(it.mapNotNull { frame ->
-						parseITunNORM(frame.text)
+						try {
+							parseITunNORM(frame.text)
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
 					})
+				} // iTunes SoundCheck (MP4)
+			val infos = metadata.flatMap {
+				when (it) {
+					is Mp3Info -> {
+						val out = mutableListOf<RgInfo>()
+						if ((it.field1Name == 1.toByte() || it.field1Name == 2.toByte()
+									|| it.field2Name == 1.toByte() || it.field2Name == 2.toByte())
+							&& it.peak != 0f)
+							out += RgInfo.TrackPeak(it.peak)
+						if (it.field1Name == 1.toByte()) {
+							out += RgInfo.TrackGain(it.field1Value)
+						} else if (it.field1Name == 2.toByte()) {
+							out.add(RgInfo.AlbumGain(it.field1Value))
+						}
+						if (it.field2Name == 1.toByte()) {
+							out += RgInfo.TrackGain(it.field2Value)
+						} else if (it.field2Name == 2.toByte()) {
+							out.add(RgInfo.AlbumGain(it.field2Value))
+						}
+						out
+					}
+					is Rgad -> {
+						val out = mutableListOf<RgInfo>()
+						if ((it.field1Name == 1.toByte() || it.field1Name == 2.toByte()
+									|| it.field2Name == 1.toByte() || it.field2Name == 2.toByte())
+							&& it.peak != 0f)
+							out += RgInfo.TrackPeak(it.peak)
+						if (it.field1Name == 1.toByte()) {
+							out += RgInfo.TrackGain(it.field1Value)
+						} else if (it.field1Name == 2.toByte()) {
+							out.add(RgInfo.AlbumGain(it.field1Value))
+						}
+						if (it.field2Name == 1.toByte()) {
+							out += RgInfo.TrackGain(it.field2Value)
+						} else if (it.field2Name == 2.toByte()) {
+							out.add(RgInfo.AlbumGain(it.field2Value))
+						}
+						out
+					}
+					is Rva2 -> {
+						val out = mutableListOf<RgInfo>()
+						if (it.identification.startsWith("track", ignoreCase = true)
+							|| it.identification.startsWith("mix", ignoreCase = true)
+							|| it.identification.startsWith("radio", ignoreCase = true)) {
+							val masterVolume = it.channels.find { ch ->
+								ch.channel == Rva2.ChannelEnum.MasterVolume }
+							if (masterVolume != null) {
+								out += RgInfo.TrackGain(masterVolume.volumeAdjustment)
+								if (masterVolume.peakVolume != null)
+									out += RgInfo.TrackPeak(masterVolume.peakVolume)
+								else
+									it.channels.maxOf { ch -> ch.peakVolume ?: 0f }
+										.takeIf { peak -> peak != 0f }?.let { peak ->
+											out += RgInfo.TrackPeak(peak)
+										}
+							} else {
+								out += RgInfo.TrackGain(it.channels.maxOf { it.volumeAdjustment })
+								it.channels.maxOf { ch -> ch.peakVolume ?: 0f }
+									.takeIf { peak -> peak != 0f }?.let { peak ->
+									out += RgInfo.TrackPeak(peak)
+								}
+							}
+						} else if (it.identification.startsWith("album", ignoreCase = true)
+							|| it.identification.startsWith("audiophile", ignoreCase = true)
+							|| it.identification.startsWith("user", ignoreCase = true)) {
+							val masterVolume = it.channels.find { ch ->
+								ch.channel == Rva2.ChannelEnum.MasterVolume }
+							if (masterVolume != null) {
+								out += RgInfo.AlbumGain(masterVolume.volumeAdjustment)
+								if (masterVolume.peakVolume != null)
+									out += RgInfo.AlbumPeak(masterVolume.peakVolume)
+								else
+									it.channels.maxOf { ch -> ch.peakVolume ?: 0f }
+										.takeIf { peak -> peak != 0f }?.let { peak ->
+											out += RgInfo.AlbumPeak(peak)
+										}
+							} else {
+								out += RgInfo.AlbumGain(it.channels.maxOf { it.volumeAdjustment })
+								it.channels.maxOf { ch -> ch.peakVolume ?: 0f }
+									.takeIf { peak -> peak != 0f }?.let { peak ->
+										out += RgInfo.AlbumPeak(peak)
+									}
+							}
+						}
+						out
+					}
+					is Rvad -> {
+						val out = mutableListOf<RgInfo>()
+						out += RgInfo.TrackGain(it.channels.maxOf { it.volumeAdjustment })
+						it.channels.maxOf { ch -> ch.peakVolume ?: 0f }
+							.takeIf { peak -> peak != 0f }?.let { peak ->
+								out += RgInfo.AlbumPeak(peak)
+							}
+						out
+					}
+					is SoundCheck -> listOf(RgInfo.TrackGain(max(it.gainL, it.gainR)),
+						RgInfo.TrackPeak(max(it.peakL, it.peakR)))
+					is R128AlbumGain -> listOf(RgInfo.AlbumGain(it.value + 5))
+					is R128TrackGain -> listOf(RgInfo.TrackGain(it.value + 5))
+					is TxxxAlbumGain -> listOf(RgInfo.AlbumGain(it.value))
+					is TxxxAlbumPeak -> listOf(RgInfo.AlbumPeak(it.value))
+					is TxxxTrackGain -> listOf(RgInfo.TrackGain(it.value))
+					is TxxxTrackPeak -> listOf(RgInfo.TrackPeak(it.value))
 				}
-			TODO("combine above data into ReplayGainInfo")
+			}
+			val trackGain = infos.find { it is RgInfo.TrackGain }?.value
+			val trackPeak = infos.find { it is RgInfo.TrackPeak }?.value
+			val albumGain = infos.find { it is RgInfo.AlbumGain }?.value
+			val albumPeak = infos.find { it is RgInfo.AlbumPeak }?.value
+			return ReplayGainInfo(trackGain, trackPeak, albumGain, albumPeak)
 		}
 
 		// this is copied from ExoPlayer's Id3Decoder
