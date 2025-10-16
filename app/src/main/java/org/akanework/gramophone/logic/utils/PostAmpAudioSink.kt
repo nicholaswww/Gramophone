@@ -77,7 +77,7 @@ import kotlin.math.max
  * - negative RG gain should be applied either via setVolume()
  * - positive RG gain could be applied via DPE.Limiter.postGain/LoudnessEnhancer effect
  *     if gain is positive and peaks are so high that it'd clip, reduce gain or use the effect's DRC
- *     DPE has optional DRC via MBC stage, but using single band (Limiter alone is not suitable)
+ *     DPE has DRC via MBC stage, but we shall use single band (Limiter alone is not suitable)
  * - boost would be added via Volume effect (if volume isn't offloadable, boost can't be enabled)
  * TODO: another problem with using DPE is that it can be busy. EQ apps could work in offload as
  *  long as there's no conflict between apps. So what to do if DPE and LoudnessEnhancer+Volume are

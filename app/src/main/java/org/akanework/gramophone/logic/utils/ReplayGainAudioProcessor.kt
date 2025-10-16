@@ -8,6 +8,8 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.Log
 import org.nift4.gramophone.hificore.AdaptiveDynamicRangeCompression
 import java.nio.ByteBuffer
+import kotlin.math.exp
+import kotlin.math.ln
 import kotlin.math.log10
 import kotlin.math.min
 
@@ -21,7 +23,8 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 	private var compressor: AdaptiveDynamicRangeCompression? = null
 	private var waitingForFlush = false
 	private var mode = Mode.None
-	private var nonRgGain = 1f
+	private var rgGain = 0 // dB
+	private var nonRgGain = 0 // dB
 	private var reduceGain = false
 	private var gain = 1f
 	private var tagTrackPeak: Float? = null
@@ -48,7 +51,7 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 				outputBuffer.put(inputBuffer)
 			} else {
 				while (inputBuffer.hasRemaining()) {
-					outputBuffer.putFloat((inputBuffer.getFloat() * gain).coerceIn(-1f, 1f))
+					outputBuffer.putFloat(inputBuffer.getFloat() * gain)
 				}
 			}
 		}
@@ -61,13 +64,34 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 				"Invalid PCM encoding. Expected float PCM.", inputAudioFormat
 			)
 		}
-		if ((tagTrackGain == null && tagAlbumGain == null && nonRgGain != 1f)
+		// TODO: if setMode and setNonRgGain required reconfiguration, we could be a lot lazier.
+		if ((tagTrackGain == null && tagAlbumGain == null)
 			|| (tagTrackGain != null && tagTrackGain != 1f)
 			|| (tagAlbumGain != null && tagAlbumGain != 1f)) {
-			//return inputAudioFormat TODO
+			return inputAudioFormat
 		}
-		// if there's no RG metadata and no non-RG-gain set, we can skip all work.
+		// if there's RG metadata but it says we don't need to do anything, we can skip all work.
 		return AudioProcessor.AudioFormat.NOT_SET
+	}
+
+	@Synchronized
+	fun setMode(mode: Mode) {
+		this.mode = mode
+	}
+
+	@Synchronized
+	fun setRgGain(rgGain: Int) {
+		this.rgGain = rgGain
+	}
+
+	@Synchronized
+	fun setNonRgGain(nonRgGain: Int) {
+		this.nonRgGain = nonRgGain
+	}
+
+	@Synchronized
+	fun setReduceGain(reduceGain: Boolean) {
+		this.reduceGain = reduceGain
 	}
 
 	fun setRootFormat(inputFormat: Format) {
@@ -78,10 +102,21 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		tagAlbumPeak = rg.albumPeak
 	}
 
-	fun computeGain() {
+	private fun computeGain() {
+		val mode: Mode
+		val rgGain: Int
+		val nonRgGain: Int
+		val reduceGain: Boolean
+		synchronized(this) {
+			mode = this.mode
+			rgGain = this.rgGain
+			nonRgGain = this.nonRgGain
+			reduceGain = this.reduceGain
+		}
+		val rgGainAmpl = dbToAmpl(rgGain)
 		val tagGain = when (mode) {
-			Mode.Track -> tagTrackGain ?: tagAlbumGain ?: nonRgGain
-			Mode.Album -> tagAlbumGain ?: tagTrackGain ?: nonRgGain
+			Mode.Track -> (tagTrackGain ?: tagAlbumGain)?.times(rgGainAmpl) ?: dbToAmpl(nonRgGain)
+			Mode.Album -> (tagAlbumGain?: tagTrackGain)?.times(rgGainAmpl) ?: dbToAmpl(nonRgGain)
 			Mode.None -> 1f
 		}
 		val tagPeak = when (mode) {
@@ -100,7 +135,8 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		kneeThresholdDb = postGainPeakDb - (postGainPeakDb - targetDb) * ratio / (ratio - 1f)
 		if (postGainPeakDb + targetDb > 0f) {
 			if (reduceGain)
-				throw IllegalStateException("reduceGain true but postGainPeak > 1f")
+				throw IllegalStateException("reduceGain true but ($postGainPeak)" +
+						"$postGainPeakDb > 0f")
 			if (compressor == null)
 				compressor = AdaptiveDynamicRangeCompression()
 			Log.w(TAG, "using dynamic range compression")
@@ -111,6 +147,13 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		} else {
 			onReset() // delete compressor
 		}
+	}
+
+	private fun dbToAmpl(db: Int): Float {
+		if (db <= -758) {
+			return 0f
+		}
+		return exp(db * ln(10f) / 20f)
 	}
 
 	override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {

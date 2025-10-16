@@ -111,6 +111,7 @@ import org.akanework.gramophone.logic.utils.LastPlayedManager
 import org.akanework.gramophone.logic.utils.LrcUtils.LrcParserOptions
 import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyrics
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFile
+import org.akanework.gramophone.logic.utils.ReplayGainAudioProcessor
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneExtractorsFactory
@@ -118,6 +119,7 @@ import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFacto
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
 import org.akanework.gramophone.ui.LyricWidgetProvider
 import org.akanework.gramophone.ui.MainActivity
+import uk.akane.libphonograph.items.albumId
 import kotlin.random.Random
 
 
@@ -126,7 +128,8 @@ import kotlin.random.Random
  * It's using exoplayer2 as its player backend.
  */
 class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Listener,
-    MediaLibraryService.MediaLibrarySession.Callback, Player.Listener, AnalyticsListener {
+    MediaLibraryService.MediaLibrarySession.Callback, Player.Listener, AnalyticsListener,
+    SharedPreferences.OnSharedPreferenceChangeListener {
 
     companion object {
         private const val TAG = "GramoPlaybackService"
@@ -168,6 +171,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private lateinit var prefs: SharedPreferences
     private var lastSentHighlightedLyric: String? = null
     private lateinit var afFormatTracker: AfFormatTracker
+    private lateinit var rgAp: ReplayGainAudioProcessor
+    private var rgMode = 0 // 0 = disabled, 1 = track, 2 = album, 3 = smart
     private var updatedLyricAtLeastOnce = false
     private val downstreamFormat = hashSetOf<Pair<Any, Pair<Int, Format>>>()
     private val pendingDownstreamFormat = hashSetOf<Pair<Any, Pair<Int, Format>>>()
@@ -340,11 +345,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 Log.e(TAG, "mediaPeriodId is NULL in formatChangedCallback!!")
             }
         }
+        rgAp = ReplayGainAudioProcessor()
         val player = EndedWorkaroundPlayer(
             ExoPlayer.Builder(
                 this,
                 GramophoneRenderFactory(
-                    this, this::onAudioSinkInputFormatChanged,
+                    this, rgAp, this::onAudioSinkInputFormatChanged,
                     afFormatTracker::setAudioSink
                 )
                     .setPcmEncodingRestrictionLifted(true)
@@ -499,6 +505,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         addSession(mediaSession!!)
         controller = MediaBrowser.Builder(this, mediaSession!!.token).buildAsync().get()
         controller!!.addListener(this)
+        prefs.registerOnSharedPreferenceChangeListener(this)
+        onSharedPreferenceChanged(prefs, null) // read initial values
         ContextCompat.registerReceiver(
             this,
             seekReceiver,
@@ -541,6 +549,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     }
                     if (endedWorkaroundPlayer?.nextShuffleOrder != null)
                         throw IllegalStateException("shuffleFactory was not consumed during restore")
+                    if (mediaSession?.connectedControllers?.find { it.connectionHints
+                        .getBoolean("PrepareWhenReady", false) } != null) {
+                        handler.post { controller?.prepare() }
+                    }
                 }
                 lastPlayedManager.allowSavingState = true
             }
@@ -606,6 +618,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         instanceForWidgetAndLyricsOnly = null
         unregisterReceiver(seekReceiver)
         unregisterReceiver(btReceiver)
+        prefs.unregisterOnSharedPreferenceChangeListener(this)
         // Important: this must happen before sending stop() as that changes state ENDED -> IDLE
         lastPlayedManager.save()
         scope.cancel()
@@ -658,6 +671,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 )
             }
         }
+        if (controller.connectionHints.getBoolean("PrepareWhenReady", false) &&
+            this.controller?.currentTimeline?.isEmpty == false) {
+            handler.post { this.controller?.prepare() }
+        }
         availableSessionCommands.add(SessionCommand(SERVICE_SET_TIMER, Bundle.EMPTY))
         availableSessionCommands.add(SessionCommand(SERVICE_GET_SESSION, Bundle.EMPTY))
         availableSessionCommands.add(SessionCommand(SERVICE_QUERY_TIMER, Bundle.EMPTY))
@@ -682,6 +699,47 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     override fun onDisconnected(session: MediaSession, controller: MediaSession.ControllerInfo) {
         Log.i(TAG, "onDisconnected(): $controller")
+    }
+
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
+        if (key == null || key == "rg_mode") {
+            rgMode = prefs.getStringStrict("rg_mode", "0")!!.toInt()
+            computeRgMode()
+        }
+        if (key == null || key == "rg_drc") {
+            val drc = prefs.getBooleanStrict("rg_drc", true)
+            rgAp.setReduceGain(!drc)
+        }
+        if (key == null || key == "rg_rg_preamp") {
+            val rgGain = prefs.getIntStrict("rg_rg_preamp", 15) - 15
+            rgAp.setRgGain(-rgGain)
+        }
+        if (key == null || key == "rg_non_rg_preamp") {
+            val nonRgGain = prefs.getIntStrict("rg_non_rg_preamp", 0)
+            rgAp.setNonRgGain(nonRgGain)
+        }
+    }
+
+    private fun computeRgMode() {
+        rgAp.setMode(when (rgMode) {
+            0 -> ReplayGainAudioProcessor.Mode.None
+            1 -> ReplayGainAudioProcessor.Mode.Track
+            2 -> ReplayGainAudioProcessor.Mode.Album
+            3 -> {
+                val item = controller?.currentMediaItem
+                val idx = controller?.currentMediaItemIndex ?: 0
+                val count = controller?.mediaItemCount
+                val next = if (idx + 1 >= (count ?: 0)) null else
+                    controller?.getMediaItemAt(idx + 1)
+                val prev = if (idx - 1 < 0 || (count ?: 0) == 0) null else
+                    controller?.getMediaItemAt(idx - 1)
+                if (item != null && (item.mediaMetadata.albumId == next?.mediaMetadata?.albumId ||
+                    item.mediaMetadata.albumId == prev?.mediaMetadata?.albumId))
+                    ReplayGainAudioProcessor.Mode.Album
+                else ReplayGainAudioProcessor.Mode.Track
+            }
+            else -> throw IllegalArgumentException("invalid rg mode $rgMode")
+        })
     }
 
     override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -1155,6 +1213,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onTimelineChanged(timeline: Timeline, reason: @Player.TimelineChangeReason Int) {
         if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
             refreshMediaButtonCustomLayout()
+            computeRgMode()
         }
         pendingDownstreamFormat.toSet().forEach {
             if (timeline.getIndexOfPeriod(it.first) == C.INDEX_UNSET) {

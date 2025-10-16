@@ -58,6 +58,7 @@ import org.akanework.gramophone.logic.ui.BaseActivity
 import org.akanework.gramophone.logic.ui.placeholderScaleToFit
 import org.akanework.gramophone.logic.utils.CalculationUtils.convertDurationToTimeStamp
 import org.akanework.gramophone.logic.utils.Flags
+import org.akanework.gramophone.logic.utils.ReplayGainAudioProcessor
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneExtractorsFactory
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneMediaSourceFactory
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneRenderFactory
@@ -161,7 +162,8 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
         // TODO de-dupe
         player = ExoPlayer.Builder(
             this,
-            GramophoneRenderFactory(this, {}, {})
+            GramophoneRenderFactory(this,
+                ReplayGainAudioProcessor(), {}, {})
                 .setPcmEncodingRestrictionLifted(true)
                 .setEnableDecoderFallback(true)
                 .setEnableAudioTrackPlaybackParams(true)

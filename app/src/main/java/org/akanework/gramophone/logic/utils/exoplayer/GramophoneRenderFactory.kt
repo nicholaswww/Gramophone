@@ -22,6 +22,7 @@ import org.akanework.gramophone.logic.utils.ReplayGainAudioProcessor
 import org.nift4.alacdecoder.AlacRenderer
 
 class GramophoneRenderFactory(context: Context,
+                              private val rgAp: ReplayGainAudioProcessor,
                               private val configurationListener: (Format?) -> Unit,
                               private val audioSinkListener: (DefaultAudioSink) -> Unit) :
     DefaultRenderersFactory(context) {
@@ -96,14 +97,10 @@ class GramophoneRenderFactory(context: Context,
             @Suppress("deprecation")
             builder.setEnableFloatOutput(true)
         }
-        val rgAp = ReplayGainAudioProcessor()
         val float = ToFloatPcmAudioProcessor()
         builder.setAudioProcessorChain(object : AudioProcessorChain {
             override fun getAudioProcessors(inputFormat: Format): Array<out AudioProcessor> {
                 rgAp.setRootFormat(inputFormat)
-                if (inputFormat.pcmEncoding == C.ENCODING_PCM_FLOAT) {
-                    return arrayOf(rgAp)
-                }
                 // TODO: do i wish to hardcode float conversion always?
                 return arrayOf(float, rgAp)
             }
