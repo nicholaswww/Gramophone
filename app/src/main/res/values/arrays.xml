@@ -37,7 +37,4 @@
         <item>2</item>
         <item>1</item>
     </string-array>
-    <string name="track_gain">Track gain</string>
-    <string name="album_gain">Album gain</string>
-    <string name="smart">Smart</string>
 </resources>
