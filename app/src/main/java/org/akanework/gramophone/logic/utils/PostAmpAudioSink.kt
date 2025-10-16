@@ -8,11 +8,14 @@ import android.content.IntentFilter
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.media.audiofx.DynamicsProcessing
+import android.media.audiofx.LoudnessEnhancer
 import android.os.Build
 import androidx.media3.common.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.media3.common.Format
+import androidx.media3.common.MimeTypes
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
@@ -74,33 +77,22 @@ import kotlin.math.max
  *
  * offload ReplayGain (DPE effect is offloadable):
  * - if non-RG track, set DPE effect to apply inverted boost gain
- * - negative RG gain should be applied either via setVolume()
- * - positive RG gain could be applied via DPE.Limiter.postGain/LoudnessEnhancer effect
+ * - negative RG gain should be applied via setVolume()
+ * - positive RG gain could be applied via DPE.Limiter.postGain
  *     if gain is positive and peaks are so high that it'd clip, reduce gain or use the effect's DRC
- *     DPE has DRC via MBC stage, but we shall use single band (Limiter alone is not suitable)
+ *     DPE has DRC via MBC stage (but we would only use a single band), or linked Limiters
+ *     both are RMS limiters btw, while my built-in DRC is peak DRC for now TODO
  * - boost would be added via Volume effect (if volume isn't offloadable, boost can't be enabled)
  * TODO: another problem with using DPE is that it can be busy. EQ apps could work in offload as
- *  long as there's no conflict between apps. So what to do if DPE and LoudnessEnhancer+Volume are
- *  both not free? Just fall back to no boost and setVolume()? Or hide our session ID from EQ apps?
- *  Or can we use priority constructor arg to win against EQ apps?
+ *  long as there's no conflict between apps. So what to do if DPE is not free? Just fall back to
+ *  no boost and setVolume()? Or hide our session ID from EQ apps? Or can we use priority
+ *  constructor arg to win against EQ apps?
  *
- * offload ReplayGain (LoudnessEnhancer+Volume is offloadable):
- * LoudnessEnhancer target gain may at most be -8dBFS unless DRC is desired. If we FORCE operation
- * similar to boost mode using additional headroom gain (16dB should be very safe), we can still do
- * RG adjustment.
- * - if non-RG track, set LoudnessEnhancer effect to apply inverted boost gain
- * - negative RG gain should be applied via LoudnessEnhancer, set lower than -8dBFS
- * - positive RG gain should still be applied via LoudnessEnhancer, set close to but at most -8dBFS
- * - DRC is not supported, LoudnessEnhancer does DRC when gain >= -8dBFS but it's heavily tuned to
- *   speech, must avoid at all costs
- * - boost and additional headroom gain would be added via Volume effect
- * The big advantage of this weird scheme is wide compatibility with equalizer apps. But whether
- * it's worth implementing would be decided by how often LoudnessEnhancer+Volume combo is
- * offloadable.
- *
- * offload ReplayGain (volume but no DPE or LoudnessEnhancer effect available):
+ * offload ReplayGain (volume but no DPE effect available):
  * Problem: can't increase volume if there is unused headroom (low peak) but positive RG gain.
  *          that defeats much of the purpose of RG.
+ *          This applies to LoudnessEnhancer too, because it can only be used for reducing gain if
+ *          music quality is desired (it is originally designed for speech).
  * Equalizer can't be used because a 5 or 10-band biquad filter is not suitable to increase gain
  * linearly, and distortions defeat much of the purpose of ReplayGain (-> enjoyable music listening)
  * Hence we can't use Volume effect alone if offloaded, proceed below.
@@ -116,13 +108,10 @@ import kotlin.math.max
  * should NOT be played gaplessly unless RG gain is also same. (TODO: for offload only, or always?)
  * That effectively avoids audible volume jumps, and allows to change effect settings for offloaded
  * RG in synchronized way as well, avoiding wrong gain applied to audio frame.
- *
- * ID3 variations to support: RVA2 (ID3v2.4), XRVA (ID3v2.3), RGAD (ID3v2.3), TXXX with ReplayGain
- * info. see https://wiki.hydrogenaudio.org/index.php?title=ReplayGain_2.0_specification#ID3v2
  */
 // TODO: what is com.lge.media.EXTRA_VOLUME_STREAM_HIFI_VALUE
 class PostAmpAudioSink(
-	val sink: DefaultAudioSink, val context: Context
+	val sink: DefaultAudioSink, val rgAp: ReplayGainAudioProcessor, val context: Context
 ) : ForwardingAudioSink(sink) {
 	companion object {
 		private const val TAG = "PostAmpAudioSink"
@@ -139,8 +128,10 @@ class PostAmpAudioSink(
 	}
 	private val audioManager = context.getSystemService<AudioManager>()!!
 	private var volumeEffect: Volume? = null
+	private var dpeEffect: DynamicsProcessing? = null
 	private var format: Format? = null
 	private var pendingFormat: Format? = null
+	private var tags: ReplayGainUtil.ReplayGainInfo? = null
 	private var audioSessionId = 0
 	private var volume = 1f
 	private var rgVolume = 1f
@@ -233,8 +224,24 @@ class PostAmpAudioSink(
 	}
 
 	private fun myApplyPendingConfig() {
+		val wasOffload = format?.let { it.sampleMimeType != MimeTypes.AUDIO_RAW } == true
 		format = pendingFormat
+		tags = ReplayGainUtil.parse(format)
+		// Nonchalantly borrow settings from ReplayGainAudioProcessor
+		val mode: ReplayGainUtil.Mode
+		val rgGain: Int
+		val nonRgGain: Int
+		synchronized(rgAp) {
+			mode = rgAp.mode
+			rgGain = rgAp.rgGain
+			nonRgGain = rgAp.nonRgGain
+		}
+		val (gain, _) = ReplayGainUtil.calculateGain(tags, mode, rgGain, nonRgGain,
+			true, null)
+		val isOffload = format?.let { it.sampleMimeType != MimeTypes.AUDIO_RAW } == true
+		//dpeEffect.setLimiterAllChannelsTo(DynamicsProcessing.Limiter())
 		Log.i(TAG, "set format to $format")
+
 		onAudioTrackPlayStateChanging()
 		// TODO
 	}
@@ -255,6 +262,15 @@ class PostAmpAudioSink(
 					}
 				}
 				volumeEffect = null
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+					dpeEffect!!.let {
+						CoroutineScope(Dispatchers.Default).launch {
+							it.enabled = false
+							it.release()
+						}
+					}
+					dpeEffect = null
+				}
 			}
 			if (id != 0) {
 				// TODO: make sure Volume effect is disabled if it can't be offloaded, to prevent
@@ -263,6 +279,10 @@ class PostAmpAudioSink(
 				// TODO: is enabling actually needed to change volume? if not, can we keep effect in
 				//  disabled state to avoid offload detection false negatives?
 				volumeEffect!!.enabled = true
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+					dpeEffect = DynamicsProcessing(id)
+					dpeEffect!!.enabled = true
+				}
 			}
 		}
 	}
@@ -293,11 +313,11 @@ class PostAmpAudioSink(
 					AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
 				)
 			val curVolumeS = if (maxVolume - minVolume == 1f) {
-				if (curVolume <= 0f) -9600 else (2000 * log10(curVolume)).toInt().toShort()
+				if (curVolume <= 0f) -9600 else (100 * ReplayGainUtil.amplToDb(curVolume)).toInt().toShort()
 			} else if (curVolume < -96) -9600 else (curVolume.toInt() * 100).toShort()
 			Log.i("hi", "min=$minVolume max=$maxVolume cur=$curVolume --> $curVolumeS")
 			for (i in 0..20) {
-				volumeEffect?.level = maxOf(curVolumeS, (-5300).toShort())
+				volumeEffect?.level = curVolumeS
 			}
 		}
 		// TODO

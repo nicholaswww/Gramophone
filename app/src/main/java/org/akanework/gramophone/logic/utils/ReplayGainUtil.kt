@@ -16,11 +16,16 @@ import java.math.BigDecimal
 import java.math.BigInteger
 import java.math.MathContext
 import kotlin.math.ceil
+import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.log10
 import kotlin.math.max
+import kotlin.math.min
 
 sealed class ReplayGainUtil {
+	enum class Mode {
+		None, Track, Album
+	}
 	data class Rva2(val identification: String, val channels: List<Channel>) : ReplayGainUtil() {
 		enum class ChannelEnum {
 			Other,
@@ -103,7 +108,7 @@ sealed class ReplayGainUtil {
 			if (frame.id != "RVA2" && frame.id != "XRV" && frame.id != "XRVA")
 				throw IllegalStateException("parseRva2() but frame isn't RVA2, it's $frame")
 			val frame = ParsableByteArray(frame.data)
-			val identificationLen = indexOfZeroByte(frame.data, 0)
+			val identificationLen = indexOfZeroByte(frame.data)
 			val identification = String(frame.data, 0, identificationLen,
 				Charsets.ISO_8859_1)
 			frame.skipBytes(identificationLen + 1)
@@ -232,8 +237,8 @@ sealed class ReplayGainUtil {
 				"R128_TRACK_GAIN", "R128_ALBUM_GAIN" -> {
 					val value = values.first().trim()
 					value.replace(',', '.').toFloatOrNull()?.let {
-						if (description == "R128_ALBUM_GAIN") R128AlbumGain(it)
-						else R128TrackGain(it)
+						if (description == "R128_ALBUM_GAIN") R128AlbumGain(it / 256f)
+						else R128TrackGain(it / 256f)
 					}
 				}
 				else -> null
@@ -286,11 +291,19 @@ sealed class ReplayGainUtil {
 			return SoundCheck(gainL, gainR, gainAltL, gainAltR, unk1, unk2, peakL, peakR, unk3, unk4)
 		}
 
-		fun parse(inputFormat: Format): ReplayGainInfo {
-			if (inputFormat.metadata == null) {
+		fun parse(inputFormat: Format?): ReplayGainInfo {
+			if (inputFormat?.metadata == null) {
 				return ReplayGainInfo(null, null, null, null)
 			}
 			val metadata = arrayListOf<ReplayGainUtil>()
+			val pcmEncoding = inputFormat.pcmEncoding.takeIf { it != Format.NO_VALUE }
+				?: when (inputFormat.sampleMimeType) { // for offload, fill in likely values
+					MimeTypes.AUDIO_MPEG,
+					MimeTypes.AUDIO_VORBIS,
+					MimeTypes.AUDIO_AAC,
+					MimeTypes.AUDIO_OPUS -> C.ENCODING_PCM_16BIT
+					else -> Format.NO_VALUE
+				}
 			inputFormat.metadata!!.getMatchingEntries(InternalFrame::class.java)
 			{ it.domain == "com.apple.iTunes" &&
 					it.description.startsWith("REPLAYGAIN_", ignoreCase = true) }
@@ -348,12 +361,12 @@ sealed class ReplayGainUtil {
 						}
 					})
 				} // proposed by author of and supported in mpg123
-			if (inputFormat.pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
+			if (pcmEncoding != Format.NO_VALUE) {
 				inputFormat.metadata!!.getMatchingEntries(BinaryFrame::class.java)
 				{ it.id == "RVA2" || it.id == "XRV" || it.id == "XRVA" }.let {
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
-							parseRva2(frame, Util.getBitDepth(inputFormat.pcmEncoding))
+							parseRva2(frame, Util.getBitDepth(pcmEncoding))
 						} catch (e: Exception) {
 							Log.e(TAG, "failed to parse $frame", e)
 							null
@@ -373,13 +386,13 @@ sealed class ReplayGainUtil {
 						}
 					}
 				} // iTunes SoundCheck (MP3)
-			if (inputFormat.pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
+			if (pcmEncoding != Format.NO_VALUE) {
 				inputFormat.metadata!!.getMatchingEntries(BinaryFrame::class.java)
 				{ it.id == "RVAD" || it.id == "RVA" }.let {
 					val out = it.mapNotNull { frame ->
 						try {
 							parseRvad(frame,
-								Util.getBitDepth(inputFormat.pcmEncoding))
+								Util.getBitDepth(pcmEncoding))
 						} catch (e: Exception) {
 							Log.e(TAG, "failed to parse $frame", e)
 							null
@@ -388,8 +401,8 @@ sealed class ReplayGainUtil {
 					if (out.isNotEmpty()) {
 						// see https://bugs-archive.lyrion.org/bug-6890.html#c13
 						// RVAD/RVA + iTunNORM should be combined
-						metadata.addAll(out.map {
-							it.copy(it.channels.map { ch ->
+						metadata.addAll(out.map { frame ->
+							frame.copy(frame.channels.map { ch ->
 								ch.copy(volumeAdjustment = ch.volumeAdjustment + (iTunNorm
 									.firstOrNull()?.let { f -> max(f.gainL, f.gainR) } ?: 0f))
 							})
@@ -480,9 +493,9 @@ sealed class ReplayGainUtil {
 											out += RgInfo.TrackPeak(peak)
 										}
 							} else {
-								out += RgInfo.TrackGain(it.channels.maxOf { it.volumeAdjustment })
-								it.channels.maxOf { ch -> ch.peakVolume ?: 0f }
-									.takeIf { peak -> peak != 0f }?.let { peak ->
+								out += RgInfo.TrackGain(it.channels.maxOf { ch -> ch.volumeAdjustment })
+								it.channels.maxOfOrNull { ch -> ch.peakVolume ?: 0f }
+									?.takeIf { peak -> peak != 0f }?.let { peak ->
 									out += RgInfo.TrackPeak(peak)
 								}
 							}
@@ -501,9 +514,9 @@ sealed class ReplayGainUtil {
 											out += RgInfo.AlbumPeak(peak)
 										}
 							} else {
-								out += RgInfo.AlbumGain(it.channels.maxOf { it.volumeAdjustment })
-								it.channels.maxOf { ch -> ch.peakVolume ?: 0f }
-									.takeIf { peak -> peak != 0f }?.let { peak ->
+								out += RgInfo.AlbumGain(it.channels.maxOf { ch -> ch.volumeAdjustment })
+								it.channels.maxOfOrNull { ch -> ch.peakVolume ?: 0f }
+									?.takeIf { peak -> peak != 0f }?.let { peak ->
 										out += RgInfo.AlbumPeak(peak)
 									}
 							}
@@ -512,7 +525,7 @@ sealed class ReplayGainUtil {
 					}
 					is Rvad -> {
 						val out = mutableListOf<RgInfo>()
-						out += RgInfo.TrackGain(it.channels.maxOf { it.volumeAdjustment })
+						out += RgInfo.TrackGain(it.channels.maxOf { ch -> ch.volumeAdjustment })
 						it.channels.maxOf { ch -> ch.peakVolume ?: 0f }
 							.takeIf { peak -> peak != 0f }?.let { peak ->
 								out += RgInfo.AlbumPeak(peak)
@@ -536,14 +549,61 @@ sealed class ReplayGainUtil {
 			return ReplayGainInfo(trackGain, trackPeak, albumGain, albumPeak)
 		}
 
-		// this is copied from ExoPlayer's Id3Decoder
-		private fun indexOfZeroByte(data: ByteArray, fromIndex: Int): Int {
-			for (i in fromIndex until data.size) {
+		fun calculateGain(tags: ReplayGainInfo?, mode: Mode, rgGain: Int, nonRgGain: Int,
+		                  reduceGain: Boolean, ratio: Float?): Pair<Float, Float?> {
+			if (ratio == null && !reduceGain) {
+				throw IllegalArgumentException("compressor is enabled but no compression ratio")
+			}
+			val tagGain = when (mode) {
+				Mode.Track -> dbToAmpl((tags?.trackGain ?: tags?.albumGain)
+					?.plus(rgGain.toFloat()) ?: nonRgGain.toFloat())
+				Mode.Album -> dbToAmpl((tags?.albumGain ?: tags?.trackGain)
+					?.plus(rgGain.toFloat()) ?: nonRgGain.toFloat())
+				Mode.None -> 1f
+			}
+			val tagPeak = when (mode) {
+				Mode.Track -> tags?.trackPeak ?: tags?.albumPeak ?: 1f
+				Mode.Album -> tags?.albumPeak ?: tags?.trackPeak ?: 1f
+				Mode.None -> 1f
+			}
+			val gain = if (reduceGain) {
+				min(tagGain, if (tagPeak == 0f) 1f else 1f / tagPeak)
+			} else {
+				tagGain
+			}
+			val postGainPeakDb = amplToDb(
+				(if (tagPeak == 0f) 1f else tagPeak) * (if (gain == 0f) 0.001f else gain))
+			if (postGainPeakDb > 0f && reduceGain) {
+				throw IllegalStateException("reduceGain true but $postGainPeakDb > 0 (" +
+						"$tagPeak * $gain - from $tags)")
+			}
+			val kneeThresholdDb = if (postGainPeakDb > 0f)
+				postGainPeakDb - postGainPeakDb * ratio!! / (ratio - 1f) else null
+			return gain to kneeThresholdDb
+		}
+
+		// this is copied from ExoPlayer's Id3Decoder but removed fromIndex
+		private fun indexOfZeroByte(data: ByteArray): Int {
+			for (i in 0 until data.size) {
 				if (data[i] == 0.toByte()) {
 					return i
 				}
 			}
 			return data.size
+		}
+
+		fun amplToDb(ampl: Float): Float {
+			if (ampl == 0f) {
+				return -758f
+			}
+			return 20 * log10(ampl)
+		}
+
+		private fun dbToAmpl(db: Float): Float {
+			if (db <= -758f) {
+				return 0f
+			}
+			return exp(db * ln(10f) / 20f)
 		}
 	}
 }

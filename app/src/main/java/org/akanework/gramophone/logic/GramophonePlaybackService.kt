@@ -112,6 +112,7 @@ import org.akanework.gramophone.logic.utils.LrcUtils.LrcParserOptions
 import org.akanework.gramophone.logic.utils.LrcUtils.extractAndParseLyrics
 import org.akanework.gramophone.logic.utils.LrcUtils.loadAndParseLyricsFile
 import org.akanework.gramophone.logic.utils.ReplayGainAudioProcessor
+import org.akanework.gramophone.logic.utils.ReplayGainUtil
 import org.akanework.gramophone.logic.utils.SemanticLyrics
 import org.akanework.gramophone.logic.utils.exoplayer.EndedWorkaroundPlayer
 import org.akanework.gramophone.logic.utils.exoplayer.GramophoneExtractorsFactory
@@ -710,21 +711,21 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             val drc = prefs.getBooleanStrict("rg_drc", true)
             rgAp.setReduceGain(!drc)
         }
-        if (key == null || key == "rg_rg_preamp") {
-            val rgGain = prefs.getIntStrict("rg_rg_preamp", 15) - 15
-            rgAp.setRgGain(-rgGain)
+        if (key == null || key == "rg_rg_gain") {
+            val rgGain = prefs.getIntStrict("rg_rg_gain", 15)
+            rgAp.setRgGain(rgGain - 15)
         }
-        if (key == null || key == "rg_non_rg_preamp") {
-            val nonRgGain = prefs.getIntStrict("rg_non_rg_preamp", 0)
-            rgAp.setNonRgGain(nonRgGain)
+        if (key == null || key == "rg_no_rg_gain") {
+            val nonRgGain = prefs.getIntStrict("rg_no_rg_gain", 0)
+            rgAp.setNonRgGain(-nonRgGain)
         }
     }
 
     private fun computeRgMode() {
         rgAp.setMode(when (rgMode) {
-            0 -> ReplayGainAudioProcessor.Mode.None
-            1 -> ReplayGainAudioProcessor.Mode.Track
-            2 -> ReplayGainAudioProcessor.Mode.Album
+            0 -> ReplayGainUtil.Mode.None
+            1 -> ReplayGainUtil.Mode.Track
+            2 -> ReplayGainUtil.Mode.Album
             3 -> {
                 val item = controller?.currentMediaItem
                 val idx = controller?.currentMediaItemIndex ?: 0
@@ -735,8 +736,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     controller?.getMediaItemAt(idx - 1)
                 if (item != null && (item.mediaMetadata.albumId == next?.mediaMetadata?.albumId ||
                     item.mediaMetadata.albumId == prev?.mediaMetadata?.albumId))
-                    ReplayGainAudioProcessor.Mode.Album
-                else ReplayGainAudioProcessor.Mode.Track
+                    ReplayGainUtil.Mode.Album
+                else ReplayGainUtil.Mode.Track
             }
             else -> throw IllegalArgumentException("invalid rg mode $rgMode")
         })

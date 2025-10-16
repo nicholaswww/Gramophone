@@ -17,41 +17,41 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 	companion object {
 		private const val TAG = "ReplayGainAP"
 	}
-	enum class Mode {
-		None, Track, Album
-	}
 	private var compressor: AdaptiveDynamicRangeCompression? = null
 	private var waitingForFlush = false
-	private var mode = Mode.None
-	private var rgGain = 0 // dB
-	private var nonRgGain = 0 // dB
+	var mode = ReplayGainUtil.Mode.None
+		private set
+	var rgGain = 0 // dB
+		private set
+	var nonRgGain = 0 // dB
+		private set
 	private var reduceGain = false
 	private var gain = 1f
-	private var tagTrackPeak: Float? = null
-	private var tagTrackGain: Float? = null
-	private var tagAlbumPeak: Float? = null
-	private var tagAlbumGain: Float? = null
-	private var postGainPeak = 1f
-	private var kneeThresholdDb = 0f
+	private var kneeThresholdDb: Float? = null
+	private var tags: ReplayGainUtil.ReplayGainInfo? = null
 	private val ratio = 2f
 	private val tauAttack = 0.0014f
 	private val tauRelease = 0.093f
 	override fun queueInput(inputBuffer: ByteBuffer) {
 		val frameCount = inputBuffer.remaining() / inputAudioFormat.bytesPerFrame
 		val outputBuffer = replaceOutputBuffer(frameCount * outputAudioFormat.bytesPerFrame)
-		if (compressor != null) {
-			compressor!!.compress(inputAudioFormat.channelCount,
-				gain,
-				kneeThresholdDb, 1f, inputBuffer,
-				outputBuffer, frameCount)
-			inputBuffer.position(inputBuffer.limit())
-			outputBuffer.position(frameCount * outputAudioFormat.bytesPerFrame)
-		} else {
-			if (gain == 1f) {
-				outputBuffer.put(inputBuffer)
+		if (inputBuffer.hasRemaining()) {
+			if (compressor != null) {
+				compressor!!.compress(
+					inputAudioFormat.channelCount,
+					gain,
+					kneeThresholdDb!!, 1f, inputBuffer,
+					outputBuffer, frameCount
+				)
+				inputBuffer.position(inputBuffer.limit())
+				outputBuffer.position(frameCount * outputAudioFormat.bytesPerFrame)
 			} else {
-				while (inputBuffer.hasRemaining()) {
-					outputBuffer.putFloat(inputBuffer.getFloat() * gain)
+				if (gain == 1f) {
+					outputBuffer.put(inputBuffer)
+				} else {
+					while (inputBuffer.hasRemaining()) {
+						outputBuffer.putFloat(inputBuffer.getFloat() * gain)
+					}
 				}
 			}
 		}
@@ -65,17 +65,17 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 			)
 		}
 		// TODO: if setMode and setNonRgGain required reconfiguration, we could be a lot lazier.
-		if ((tagTrackGain == null && tagAlbumGain == null)
-			|| (tagTrackGain != null && tagTrackGain != 1f)
-			|| (tagAlbumGain != null && tagAlbumGain != 1f)) {
-			return inputAudioFormat
+		if ((tags?.trackGain == null && tags?.albumGain == null)
+			|| (tags?.trackGain != null && tags?.trackGain != 1f)
+			|| (tags?.albumGain != null && tags?.albumGain != 1f)) {
+			//return inputAudioFormat TODO
 		}
 		// if there's RG metadata but it says we don't need to do anything, we can skip all work.
 		return AudioProcessor.AudioFormat.NOT_SET
 	}
 
 	@Synchronized
-	fun setMode(mode: Mode) {
+	fun setMode(mode: ReplayGainUtil.Mode) {
 		this.mode = mode
 	}
 
@@ -95,15 +95,11 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 	}
 
 	fun setRootFormat(inputFormat: Format) {
-		val rg = ReplayGainUtil.parse(inputFormat)
-		tagTrackGain = rg.trackGain
-		tagTrackPeak = rg.trackPeak
-		tagAlbumGain = rg.albumGain
-		tagAlbumPeak = rg.albumPeak
+		tags = ReplayGainUtil.parse(inputFormat)
 	}
 
 	private fun computeGain() {
-		val mode: Mode
+		val mode: ReplayGainUtil.Mode
 		val rgGain: Int
 		val nonRgGain: Int
 		val reduceGain: Boolean
@@ -113,30 +109,11 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 			nonRgGain = this.nonRgGain
 			reduceGain = this.reduceGain
 		}
-		val rgGainAmpl = dbToAmpl(rgGain)
-		val tagGain = when (mode) {
-			Mode.Track -> (tagTrackGain ?: tagAlbumGain)?.times(rgGainAmpl) ?: dbToAmpl(nonRgGain)
-			Mode.Album -> (tagAlbumGain?: tagTrackGain)?.times(rgGainAmpl) ?: dbToAmpl(nonRgGain)
-			Mode.None -> 1f
-		}
-		val tagPeak = when (mode) {
-			Mode.Track -> tagTrackPeak ?: tagAlbumPeak ?: 1f
-			Mode.Album -> tagAlbumPeak ?: tagTrackPeak ?: 1f
-			Mode.None -> 1f
-		}
-		gain = if (reduceGain) {
-			min(tagGain, if (tagPeak == 0f) 1f else 1f / tagPeak)
-		} else {
-			tagGain
-		}
-		postGainPeak = (if (tagPeak == 0f) 1f else tagPeak) * (if (gain == 0f) 0.001f else gain)
-		val postGainPeakDb = 20 * log10(postGainPeak)
-		val targetDb = 0
-		kneeThresholdDb = postGainPeakDb - (postGainPeakDb - targetDb) * ratio / (ratio - 1f)
-		if (postGainPeakDb + targetDb > 0f) {
-			if (reduceGain)
-				throw IllegalStateException("reduceGain true but ($postGainPeak)" +
-						"$postGainPeakDb > 0f")
+		val (gain, kneeThresholdDb) = ReplayGainUtil.calculateGain(tags, mode, rgGain, nonRgGain,
+			reduceGain, ratio)
+		this.gain = gain
+		this.kneeThresholdDb = kneeThresholdDb
+		if (kneeThresholdDb != null) {
 			if (compressor == null)
 				compressor = AdaptiveDynamicRangeCompression()
 			Log.w(TAG, "using dynamic range compression")
@@ -147,13 +124,6 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		} else {
 			onReset() // delete compressor
 		}
-	}
-
-	private fun dbToAmpl(db: Int): Float {
-		if (db <= -758) {
-			return 0f
-		}
-		return exp(db * ln(10f) / 20f)
 	}
 
 	override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
