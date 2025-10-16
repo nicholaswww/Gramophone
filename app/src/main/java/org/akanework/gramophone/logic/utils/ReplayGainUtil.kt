@@ -285,11 +285,14 @@ sealed class ReplayGainUtil {
 		}
 
 		fun parse(inputFormat: Format): ReplayGainInfo {
+			if (inputFormat.metadata == null) {
+				return ReplayGainInfo(null, null, null, null)
+			}
 			val metadata = arrayListOf<ReplayGainUtil>()
-			inputFormat.metadata?.getMatchingEntries(InternalFrame::class.java)
+			inputFormat.metadata!!.getMatchingEntries(InternalFrame::class.java)
 			{ it.domain == "com.apple.iTunes" &&
 					it.description.startsWith("REPLAYGAIN_", ignoreCase = true) }
-				?.let {
+				.let {
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
 							parseTxxx(frame.description, listOf(frame.text))
@@ -299,12 +302,12 @@ sealed class ReplayGainUtil {
 						}
 					})
 				} // agreed standard for ReplayGain in MP$
-			inputFormat.metadata?.getMatchingEntries(VorbisComment::class.java)
+			inputFormat.metadata!!.getMatchingEntries(VorbisComment::class.java)
 			{ it.key.startsWith("REPLAYGAIN_", ignoreCase = true) /* OggVorbis/Flac */
 					|| it.key.startsWith("R128_", ignoreCase = true) /* OggOpus */
 					|| it.key.equals("REPLAY GAIN", ignoreCase = true) /* JRiver */
 					|| it.key.equals("PEAK LEVEL", ignoreCase = true) /* also JRiver */ }
-				?.let {
+				.let {
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
 							parseTxxx(frame.key, listOf(frame.value))
@@ -314,14 +317,14 @@ sealed class ReplayGainUtil {
 						}
 					})
 				}
-			inputFormat.metadata?.getMatchingEntries(TextInformationFrame::class.java)
+			inputFormat.metadata!!.getMatchingEntries(TextInformationFrame::class.java)
 			{ (it.id == "TXXX" || it.id == "TXX") && (
 					it.description?.startsWith("REPLAYGAIN_", ignoreCase = true) == true ||
 							// MEDIA JUKEBOX = JRiver
 					it.description?.equals("MEDIA JUKEBOX: REPLAY GAIN", ignoreCase = true) == true ||
 					it.description?.equals("MEDIA JUKEBOX: ALBUM GAIN", ignoreCase = true) == true ||
 					it.description?.equals("MEDIA JUKEBOX: PEAK LEVEL", ignoreCase = true) == true) }
-				?.let {
+				.let {
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
 							parseTxxx(frame.description, frame.values)
@@ -331,9 +334,9 @@ sealed class ReplayGainUtil {
 						}
 					})
 				} // Modern-day ReplayGain for ID3
-			inputFormat.metadata?.getMatchingEntries(CommentFrame::class.java)
+			inputFormat.metadata!!.getMatchingEntries(CommentFrame::class.java)
 			{ it.description.startsWith("RVA", ignoreCase = true) }
-				?.let {
+				.let {
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
 							parseTxxx(frame.description, listOf(frame.text))
@@ -344,8 +347,8 @@ sealed class ReplayGainUtil {
 					})
 				} // proposed by author of and supported in mpg123
 			if (inputFormat.pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
-				inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-				{ it.id == "RVA2" || it.id == "XRV" || it.id == "XRVA" }?.let {
+				inputFormat.metadata!!.getMatchingEntries(BinaryFrame::class.java)
+				{ it.id == "RVA2" || it.id == "XRV" || it.id == "XRVA" }.let {
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
 							parseRva2(frame, Util.getBitDepth(inputFormat.pcmEncoding))
@@ -356,21 +359,46 @@ sealed class ReplayGainUtil {
 					})
 				}
 			} // ID3v2.4 RVA2 frame and backport to ID3v2.2/2.3 by normalize
-			if (inputFormat.pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
-				inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-				{ it.id == "RVAD" || it.id == "RVA" }?.let {
-					metadata.addAll(it.mapNotNull { frame ->
+			val iTunNorm = inputFormat.metadata!!.getMatchingEntries(CommentFrame::class.java)
+			{ it.description == "iTunNORM" }
+				.let {
+					it.mapNotNull { frame ->
 						try {
-							parseRvad(frame, Util.getBitDepth(inputFormat.pcmEncoding))
+							parseITunNORM(frame.text)
 						} catch (e: Exception) {
 							Log.e(TAG, "failed to parse $frame", e)
 							null
 						}
-					})
+					}
+				} // iTunes SoundCheck (MP3)
+			if (inputFormat.pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
+				inputFormat.metadata!!.getMatchingEntries(BinaryFrame::class.java)
+				{ it.id == "RVAD" || it.id == "RVA" }.let {
+					val out = it.mapNotNull { frame ->
+						try {
+							parseRvad(frame,
+								Util.getBitDepth(inputFormat.pcmEncoding))
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
+					}
+					if (out.isNotEmpty()) {
+						// see https://bugs-archive.lyrion.org/bug-6890.html#c13
+						// RVAD/RVA + iTunNORM should be combined
+						metadata.addAll(out.map {
+							it.copy(it.channels.map { ch ->
+								ch.copy(volumeAdjustment = ch.volumeAdjustment + (iTunNorm
+									.firstOrNull()?.let { f -> max(f.gainL, f.gainR) } ?: 0f))
+							})
+						})
+					} else {
+						metadata.addAll(iTunNorm)
+					}
 				}
 			} // ID3v2.2 RVA frame and ID3v2.3 RVAD frame
-			inputFormat.metadata?.getMatchingEntries(BinaryFrame::class.java)
-			{ it.id == "RGAD" }?.let { metadata.addAll(it.mapNotNull { frame ->
+			inputFormat.metadata!!.getMatchingEntries(BinaryFrame::class.java)
+			{ it.id == "RGAD" }.let { metadata.addAll(it.mapNotNull { frame ->
 				try {
 					parseRgad(frame)
 				} catch (e: Exception) {
@@ -378,24 +406,11 @@ sealed class ReplayGainUtil {
 					null
 				}
 			}) } // Classic ReplayGain proposed ID3 tag
-			inputFormat.metadata?.getEntriesOfType(Mp3InfoReplayGain::class.java)
-				?.let { metadata.addAll(it.map { info -> Mp3Info(info) }) } // LAME
-			// TODO: should I follow this? https://github.com/LMS-Community/slimserver/commit/c404768e06df4700dddade848d1135353a6fb79f
-			inputFormat.metadata?.getMatchingEntries(CommentFrame::class.java)
-			{ it.description == "iTunNORM" }
-				?.let {
-					metadata.addAll(it.mapNotNull { frame ->
-						try {
-							parseITunNORM(frame.text)
-						} catch (e: Exception) {
-							Log.e(TAG, "failed to parse $frame", e)
-							null
-						}
-					})
-				} // iTunes SoundCheck (MP3)
-			inputFormat.metadata?.getMatchingEntries(InternalFrame::class.java)
+			inputFormat.metadata!!.getEntriesOfType(Mp3InfoReplayGain::class.java)
+				.let { metadata.addAll(it.map { info -> Mp3Info(info) }) } // LAME
+			inputFormat.metadata!!.getMatchingEntries(InternalFrame::class.java)
 			{ it.domain == "com.apple.iTunes" && it.description == "iTunNORM" }
-				?.let {
+				.let {
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
 							parseITunNORM(frame.text)
