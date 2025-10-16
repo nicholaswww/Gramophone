@@ -291,8 +291,6 @@ sealed class ReplayGainUtil {
 				return ReplayGainInfo(null, null, null, null)
 			}
 			val metadata = arrayListOf<ReplayGainUtil>()
-			val pcmEncoding = if (inputFormat.sampleMimeType == MimeTypes.AUDIO_MPEG)
-				C.ENCODING_PCM_16BIT else inputFormat.pcmEncoding
 			inputFormat.metadata!!.getMatchingEntries(InternalFrame::class.java)
 			{ it.domain == "com.apple.iTunes" &&
 					it.description.startsWith("REPLAYGAIN_", ignoreCase = true) }
@@ -350,7 +348,7 @@ sealed class ReplayGainUtil {
 						}
 					})
 				} // proposed by author of and supported in mpg123
-			if (pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
+			if (inputFormat.pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
 				inputFormat.metadata!!.getMatchingEntries(BinaryFrame::class.java)
 				{ it.id == "RVA2" || it.id == "XRV" || it.id == "XRVA" }.let {
 					metadata.addAll(it.mapNotNull { frame ->
@@ -375,7 +373,7 @@ sealed class ReplayGainUtil {
 						}
 					}
 				} // iTunes SoundCheck (MP3)
-			if (pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
+			if (inputFormat.pcmEncoding != Format.NO_VALUE) { // TODO: what if NO_VALUE
 				inputFormat.metadata!!.getMatchingEntries(BinaryFrame::class.java)
 				{ it.id == "RVAD" || it.id == "RVA" }.let {
 					val out = it.mapNotNull { frame ->
