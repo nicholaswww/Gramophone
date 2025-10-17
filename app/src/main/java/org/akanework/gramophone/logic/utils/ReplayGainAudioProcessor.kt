@@ -107,10 +107,10 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 			nonRgGain = this.nonRgGain
 			reduceGain = this.reduceGain
 		}
-		val (gain, kneeThresholdDb) = ReplayGainUtil.calculateGain(tags, mode, rgGain, nonRgGain,
+		val gain = ReplayGainUtil.calculateGain(tags, mode, rgGain,
 			reduceGain, ReplayGainUtil.RATIO)
-		this.gain = gain
-		this.kneeThresholdDb = kneeThresholdDb
+		this.gain = gain?.first ?: ReplayGainUtil.dbToAmpl(nonRgGain.toFloat())
+		this.kneeThresholdDb = gain?.second
 		if (kneeThresholdDb != null) {
 			if (compressor == null)
 				compressor = AdaptiveDynamicRangeCompression()

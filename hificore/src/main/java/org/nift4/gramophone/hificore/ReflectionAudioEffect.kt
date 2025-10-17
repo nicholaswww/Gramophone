@@ -134,8 +134,7 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 	 *         otherwise.
 	 * @throws IllegalStateException
 	 */
-	val hasControl
-		get() = effect.hasControl()
+	fun hasControl() = effect.hasControl()
 
 	/**
 	 * Releases the native AudioEffect resources. It is a good practice to

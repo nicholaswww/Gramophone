@@ -211,22 +211,34 @@ sealed class ReplayGainUtil {
 			return Rvad(channels)
 		}
 
-		private fun parseTxxx(description: String?, values: List<String>): Txxx? {
+		private fun parseTxxxReference(description: String?, values: List<String>): Float? {
 			val description = description?.uppercase()
-			return when (description) {
+			return if (description == "REPLAYGAIN_REFERENCE_LOUDNESS") {
+				var value = values.firstOrNull()?.trim()
+				if (value?.endsWith(" LUFS", ignoreCase = true) == true) {
+					value = value.dropLast(5)
+					value.replace(',', '.').toFloatOrNull()?.let { -18f - it }
+				} else null // we can't parse dB (SPL) values because idk the conversion formula
+			} else null
+		}
+
+		private fun parseTxxx(description: String?, values: List<String>, diff: Float): Txxx? {
+			return when (val description = description?.uppercase()) {
 				"REPLAYGAIN_TRACK_GAIN", "REPLAYGAIN_ALBUM_GAIN", "RVA", "RVA_ALBUM", "RVA_RADIO",
 				"RVA_MIX", "RVA_AUDIOPHILE", "RVA_USER", "REPLAY GAIN",
 				"MEDIA JUKEBOX: REPLAY GAIN", "MEDIA JUKEBOX: ALBUM GAIN" -> {
 					var value = values.firstOrNull()?.trim()
 					if (value?.endsWith(" dB", ignoreCase = true) == true
 						|| value?.endsWith(" LU", ignoreCase = true) == true) {
-						value = value.substring(0, value.length - 3)
+						value = value.dropLast(3)
 					}
 					value?.replace(',', '.')?.toFloatOrNull()?.let {
+						val diff = if (description == "REPLAYGAIN_TRACK_GAIN" ||
+							description == "REPLAYGAIN_ALBUM_GAIN") diff else 0f
 						if (description.contains("ALBUM") ||
 							description == "RVA_AUDIOPHILE" ||
-							description == "RVA_USER") TxxxAlbumGain(it)
-						else TxxxTrackGain(it)
+							description == "RVA_USER") TxxxAlbumGain(it + diff)
+						else TxxxTrackGain(it + diff)
 					}
 				}
 				"REPLAYGAIN_TRACK_PEAK", "REPLAYGAIN_ALBUM_PEAK", "PEAK LEVEL",
@@ -311,9 +323,17 @@ sealed class ReplayGainUtil {
 			{ it.domain == "com.apple.iTunes" &&
 					it.description.startsWith("REPLAYGAIN_", ignoreCase = true) }
 				.let {
+					val diff = it.firstNotNullOfOrNull { frame ->
+						try {
+							parseTxxxReference(frame.description, listOf(frame.text))
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
+					} ?: 0f
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
-							parseTxxx(frame.description, listOf(frame.text))
+							parseTxxx(frame.description, listOf(frame.text), diff)
 						} catch (e: Exception) {
 							Log.e(TAG, "failed to parse $frame", e)
 							null
@@ -326,9 +346,17 @@ sealed class ReplayGainUtil {
 					|| it.key.equals("REPLAY GAIN", ignoreCase = true) /* JRiver */
 					|| it.key.equals("PEAK LEVEL", ignoreCase = true) /* also JRiver */ }
 				.let {
+					val diff = it.firstNotNullOfOrNull { frame ->
+						try {
+							parseTxxxReference(frame.key, listOf(frame.value))
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
+					} ?: 0f
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
-							parseTxxx(frame.key, listOf(frame.value))
+							parseTxxx(frame.key, listOf(frame.value), diff)
 						} catch (e: Exception) {
 							Log.e(TAG, "failed to parse $frame", e)
 							null
@@ -343,9 +371,17 @@ sealed class ReplayGainUtil {
 					it.description?.equals("MEDIA JUKEBOX: ALBUM GAIN", ignoreCase = true) == true ||
 					it.description?.equals("MEDIA JUKEBOX: PEAK LEVEL", ignoreCase = true) == true) }
 				.let {
+					val diff = it.firstNotNullOfOrNull { frame ->
+						try {
+							parseTxxxReference(frame.description, frame.values)
+						} catch (e: Exception) {
+							Log.e(TAG, "failed to parse $frame", e)
+							null
+						}
+					} ?: 0f
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
-							parseTxxx(frame.description, frame.values)
+							parseTxxx(frame.description, frame.values, diff)
 						} catch (e: Exception) {
 							Log.e(TAG, "failed to parse $frame", e)
 							null
@@ -357,7 +393,7 @@ sealed class ReplayGainUtil {
 				.let {
 					metadata.addAll(it.mapNotNull { frame ->
 						try {
-							parseTxxx(frame.description, listOf(frame.text))
+							parseTxxx(frame.description, listOf(frame.text), 0f)
 						} catch (e: Exception) {
 							Log.e(TAG, "failed to parse $frame", e)
 							null
@@ -405,7 +441,7 @@ sealed class ReplayGainUtil {
 						// see https://bugs-archive.lyrion.org/bug-6890.html#c13
 						// RVAD/RVA + iTunNORM should be combined
 						metadata.addAll(out.map { frame ->
-							frame.copy(frame.channels.map { ch ->
+							frame.copy(channels = frame.channels.map { ch ->
 								ch.copy(volumeAdjustment = ch.volumeAdjustment + (iTunNorm
 									.firstOrNull()?.let { f -> max(f.gainL, f.gainR) } ?: 0f))
 							})
@@ -552,16 +588,16 @@ sealed class ReplayGainUtil {
 			return ReplayGainInfo(trackGain, trackPeak, albumGain, albumPeak)
 		}
 
-		fun calculateGain(tags: ReplayGainInfo?, mode: Mode, rgGain: Int, nonRgGain: Int,
-		                  reduceGain: Boolean, ratio: Float?): Pair<Float, Float?> {
+		fun calculateGain(tags: ReplayGainInfo?, mode: Mode, rgGain: Int,
+		                  reduceGain: Boolean, ratio: Float?): Pair<Float, Float?>? {
 			if (ratio == null && !reduceGain) {
 				throw IllegalArgumentException("compressor is enabled but no compression ratio")
 			}
 			val tagGain = when (mode) {
 				Mode.Track -> dbToAmpl((tags?.trackGain ?: tags?.albumGain)
-					?.plus(rgGain.toFloat()) ?: nonRgGain.toFloat())
+					?.plus(rgGain.toFloat()) ?: return null)
 				Mode.Album -> dbToAmpl((tags?.albumGain ?: tags?.trackGain)
-					?.plus(rgGain.toFloat()) ?: nonRgGain.toFloat())
+					?.plus(rgGain.toFloat()) ?: return null)
 				Mode.None -> 1f
 			}
 			val tagPeak = when (mode) {
@@ -602,7 +638,7 @@ sealed class ReplayGainUtil {
 			return 20 * log10(ampl)
 		}
 
-		private fun dbToAmpl(db: Float): Float {
+		fun dbToAmpl(db: Float): Float {
 			if (db <= -758f) {
 				return 0f
 			}

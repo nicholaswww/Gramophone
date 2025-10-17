@@ -389,6 +389,12 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 .setPlaybackLooper(internalPlaybackThread.looper)
                 .build()
         )
+	    player.exoPlayer.addListener(object : Player.Listener {
+		    override fun onAudioSessionIdChanged(audioSessionId: Int) {
+			    // https://github.com/androidx/media/issues/2739
+			    this@GramophonePlaybackService.onAudioSessionIdChanged(audioSessionId)
+		    }
+	    })
         player.exoPlayer.addAnalyticsListener(EventLogger())
         player.exoPlayer.addAnalyticsListener(afFormatTracker)
         player.exoPlayer.addAnalyticsListener(this)
@@ -747,12 +753,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (audioSessionId != lastSessionId) {
             broadcastAudioSessionClose()
             lastSessionId = audioSessionId
-            broadcastAudioSession()
+            //broadcastAudioSession() TODO
         }
     }
 
     private fun broadcastAudioSession() {
         if (lastSessionId != 0) {
+			Log.i(TAG, "broadcast audio session open: $lastSessionId")
             sendBroadcast(Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
                 putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
                 putExtra(AudioEffect.EXTRA_AUDIO_SESSION, lastSessionId)
@@ -765,6 +772,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 
     private fun broadcastAudioSessionClose() {
         if (lastSessionId != 0) {
+	        Log.i(TAG, "broadcast audio session close: $lastSessionId")
             sendBroadcast(Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
                 putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
                 putExtra(AudioEffect.EXTRA_AUDIO_SESSION, lastSessionId)

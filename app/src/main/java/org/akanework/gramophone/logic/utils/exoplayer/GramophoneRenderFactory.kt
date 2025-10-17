@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.audio.ToFloatPcmAudioProcessor
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.video.VideoRendererEventListener
+import org.akanework.gramophone.logic.utils.PostAmpAudioSink
 import org.akanework.gramophone.logic.utils.ReplayGainAudioProcessor
 import org.nift4.alacdecoder.AlacRenderer
 
@@ -124,9 +125,9 @@ class GramophoneRenderFactory(context: Context,
         val root = builder.setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams).build()
         audioSinkListener(root)
         return MyForwardingAudioSink(
-            //PostAmpAudioSink(
-                root//, context
-            //)
+	        //PostAmpAudioSink(
+		        root//, rgAp, context
+	        //)
         )
     }
 
