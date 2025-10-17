@@ -257,7 +257,7 @@ class PostAmpAudioSink(
 							true, true, 0,
 							ReplayGainUtil.TAU_ATTACK * 1000f,
 							ReplayGainUtil.TAU_RELEASE * 1000f,
-							ReplayGainUtil.RATIO, kneeThresholdDb, 1f
+							ReplayGainUtil.RATIO, kneeThresholdDb, 0f
 						)
 					)
 				} else {
@@ -266,7 +266,7 @@ class PostAmpAudioSink(
 							true, false, 0,
 							ReplayGainUtil.TAU_ATTACK * 1000f,
 							ReplayGainUtil.TAU_RELEASE * 1000f,
-							ReplayGainUtil.RATIO, 0f, 1f
+							ReplayGainUtil.RATIO, 0f, 0f
 						)
 					)
 				}
