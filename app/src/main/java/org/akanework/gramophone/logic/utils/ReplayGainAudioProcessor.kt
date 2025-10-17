@@ -25,13 +25,11 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		private set
 	var nonRgGain = 0 // dB
 		private set
-	private var reduceGain = false
+	var reduceGain = false
+		private set
 	private var gain = 1f
 	private var kneeThresholdDb: Float? = null
 	private var tags: ReplayGainUtil.ReplayGainInfo? = null
-	private val ratio = 2f
-	private val tauAttack = 0.0014f
-	private val tauRelease = 0.093f
 	override fun queueInput(inputBuffer: ByteBuffer) {
 		val frameCount = inputBuffer.remaining() / inputAudioFormat.bytesPerFrame
 		val outputBuffer = replaceOutputBuffer(frameCount * outputAudioFormat.bytesPerFrame)
@@ -110,7 +108,7 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 			reduceGain = this.reduceGain
 		}
 		val (gain, kneeThresholdDb) = ReplayGainUtil.calculateGain(tags, mode, rgGain, nonRgGain,
-			reduceGain, ratio)
+			reduceGain, ReplayGainUtil.RATIO)
 		this.gain = gain
 		this.kneeThresholdDb = kneeThresholdDb
 		if (kneeThresholdDb != null) {
@@ -119,7 +117,8 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 			Log.w(TAG, "using dynamic range compression")
 			compressor!!.init(
 				inputAudioFormat.sampleRate,
-				tauAttack, tauRelease, ratio
+				ReplayGainUtil.TAU_ATTACK, ReplayGainUtil.TAU_RELEASE,
+				ReplayGainUtil.RATIO
 			)
 		} else {
 			onReset() // delete compressor

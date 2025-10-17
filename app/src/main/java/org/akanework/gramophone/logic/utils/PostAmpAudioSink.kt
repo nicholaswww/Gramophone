@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import kotlin.math.log10
 import kotlin.math.max
+import kotlin.math.min
 
 /*
  * some notes:
@@ -77,7 +78,8 @@ import kotlin.math.max
  *
  * offload ReplayGain (DPE effect is offloadable):
  * - if non-RG track, set DPE effect to apply inverted boost gain
- * - negative RG gain should be applied via setVolume()
+ * - negative RG gain should be applied via DPE.Limiter.postGain
+ *     not setVolume() because it interferes with boost
  * - positive RG gain could be applied via DPE.Limiter.postGain
  *     if gain is positive and peaks are so high that it'd clip, reduce gain or use the effect's DRC
  *     DPE has DRC via MBC stage (but we would only use a single band), or linked Limiters
@@ -231,15 +233,46 @@ class PostAmpAudioSink(
 		val mode: ReplayGainUtil.Mode
 		val rgGain: Int
 		val nonRgGain: Int
+		val reduceGain: Boolean
 		synchronized(rgAp) {
 			mode = rgAp.mode
 			rgGain = rgAp.rgGain
 			nonRgGain = rgAp.nonRgGain
+			reduceGain = rgAp.reduceGain
 		}
-		val (gain, _) = ReplayGainUtil.calculateGain(tags, mode, rgGain, nonRgGain,
-			true, null)
+		val useDpe = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && dpeEffect != null
 		val isOffload = format?.let { it.sampleMimeType != MimeTypes.AUDIO_RAW } == true
-		//dpeEffect.setLimiterAllChannelsTo(DynamicsProcessing.Limiter())
+		if (wasOffload != isOffload && useDpe) {
+			dpeEffect!!.enabled = isOffload
+		}
+		if (isOffload) {
+			val (gain, kneeThresholdDb) = ReplayGainUtil.calculateGain(tags, mode, rgGain, nonRgGain,
+				reduceGain || !useDpe, if (useDpe) ReplayGainUtil.RATIO else null)
+			rgVolume = if (useDpe) 1f else min(gain, 1f)
+			if (useDpe) {
+				dpeEffect!!.setInputGainAllChannelsTo(ReplayGainUtil.amplToDb(gain))
+				if (kneeThresholdDb != null) {
+					dpeEffect!!.setLimiterAllChannelsTo(
+						DynamicsProcessing.Limiter(
+							true, true, 0,
+							ReplayGainUtil.TAU_ATTACK * 1000f,
+							ReplayGainUtil.TAU_RELEASE * 1000f,
+							ReplayGainUtil.RATIO, kneeThresholdDb, 1f
+						)
+					)
+				} else {
+					dpeEffect!!.setLimiterAllChannelsTo(
+						DynamicsProcessing.Limiter(
+							true, false, 0,
+							ReplayGainUtil.TAU_ATTACK * 1000f,
+							ReplayGainUtil.TAU_RELEASE * 1000f,
+							ReplayGainUtil.RATIO, 0f, 1f
+						)
+					)
+				}
+			}
+		} else rgVolume = 1f
+		setVolumeInternal()
 		Log.i(TAG, "set format to $format")
 
 		onAudioTrackPlayStateChanging()
@@ -262,7 +295,7 @@ class PostAmpAudioSink(
 					}
 				}
 				volumeEffect = null
-				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && dpeEffect != null) {
 					dpeEffect!!.let {
 						CoroutineScope(Dispatchers.Default).launch {
 							it.enabled = false
@@ -279,8 +312,17 @@ class PostAmpAudioSink(
 				// TODO: is enabling actually needed to change volume? if not, can we keep effect in
 				//  disabled state to avoid offload detection false negatives?
 				volumeEffect!!.enabled = true
-				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+				val isDpeOffloadable = false // TODO
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && isDpeOffloadable) {
 					dpeEffect = DynamicsProcessing(id)
+					dpeEffect!!.setLimiterAllChannelsTo(
+						DynamicsProcessing.Limiter(
+							true, false, 0,
+							ReplayGainUtil.TAU_ATTACK * 1000f,
+							ReplayGainUtil.TAU_RELEASE * 1000f,
+							ReplayGainUtil.RATIO, 0f, 1f
+						)
+					)
 					dpeEffect!!.enabled = true
 				}
 			}

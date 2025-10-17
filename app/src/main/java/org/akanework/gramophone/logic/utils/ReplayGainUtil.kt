@@ -83,6 +83,9 @@ sealed class ReplayGainUtil {
 	                          val albumPeak: Float?)
 	companion object {
 		private const val TAG = "ReplayGainUtil"
+		const val RATIO = 2f
+		const val TAU_ATTACK = 0.0014f
+		const val TAU_RELEASE = 0.093f
 
 		private fun adjustVolume(bytes: ByteArray, sign: Boolean): Float {
 			val peak = BigInteger(bytes)
