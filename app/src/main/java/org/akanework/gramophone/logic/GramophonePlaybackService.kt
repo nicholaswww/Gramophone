@@ -392,6 +392,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 	    player.exoPlayer.addListener(object : Player.Listener {
 		    override fun onAudioSessionIdChanged(audioSessionId: Int) {
 			    // https://github.com/androidx/media/issues/2739
+				// TODO wasn't that bug supposed to be fixed?!
 			    this@GramophonePlaybackService.onAudioSessionIdChanged(audioSessionId)
 		    }
 	    })
@@ -753,7 +754,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (audioSessionId != lastSessionId) {
             broadcastAudioSessionClose()
             lastSessionId = audioSessionId
-            //broadcastAudioSession() TODO
+            broadcastAudioSession()
         }
     }
 
