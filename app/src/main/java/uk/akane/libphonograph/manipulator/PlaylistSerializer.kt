@@ -5,6 +5,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import androidx.media3.common.util.Log
 import java.io.File
+import java.io.IOException
 
 object PlaylistSerializer {
     private const val TAG = "PlaylistSerializer"
@@ -38,7 +39,10 @@ object PlaylistSerializer {
             PlaylistFormat.M3u -> {
                 val lines = outFile.readLines()
                 lines.filter { !it.startsWith('#') }.map { Uri.decode(it) }
-                    .map { outFile.resolveSibling(it) }
+                    .map { outFile.resolveSibling(it).let {
+                        try { it.canonicalFile } catch (e: IOException) {
+                            Log.e(TAG, "resolving path failed", e); it
+                        } } }
             }
             PlaylistFormat.Xspf -> TODO()
             PlaylistFormat.Wpl -> TODO()

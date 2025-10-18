@@ -156,7 +156,7 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
                 .detectFragmentTagUsage()
                 .detectRetainInstanceUsage()
                 .detectSetUserVisibleHint()
-                .detectTargetFragmentUsage()
+                //.detectTargetFragmentUsage() TODO onDisplayPreferenceDialog()
                 .detectWrongFragmentContainer()
                 .detectWrongNestedHierarchy()
                 .penaltyDeath()
