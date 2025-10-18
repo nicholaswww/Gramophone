@@ -78,11 +78,15 @@ class PostAmpAudioSink(
 	}
 	private val isDpeAvailable by lazy {
 		try {
-			ReflectionAudioEffect.isEffectTypeAvailable(
-				AudioEffect.EFFECT_TYPE_DYNAMICS_PROCESSING, null
-			)
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+				ReflectionAudioEffect.isEffectTypeAvailable(
+					AudioEffect.EFFECT_TYPE_DYNAMICS_PROCESSING, null
+				)
+			} else {
+				false
+			}
 		} catch (e: Throwable) {
-			Log.e(TAG, "failed to check if volume is available", e)
+			Log.e(TAG, "failed to check if DPE is available", e)
 			false
 		}
 	}
@@ -96,11 +100,15 @@ class PostAmpAudioSink(
 	}
 	private val isDpeOffloadable by lazy {
 		try {
-			ReflectionAudioEffect.isEffectTypeOffloadable(
-				AudioEffect.EFFECT_TYPE_DYNAMICS_PROCESSING, null
-			)
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+				ReflectionAudioEffect.isEffectTypeOffloadable(
+					AudioEffect.EFFECT_TYPE_DYNAMICS_PROCESSING, null
+				)
+			} else {
+				false
+			}
 		} catch (e: Throwable) {
-			Log.e(TAG, "failed to check if volume is offloadable", e)
+			Log.e(TAG, "failed to check if DPE is offloadable", e)
 			false
 		}
 	}
