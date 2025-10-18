@@ -132,7 +132,7 @@ object ItemManipulator {
             if (hasImprovedMediaStore())
                 arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE)
             else arrayOf(MediaStore.MediaColumns._ID),
-            "${MediaStore.Files.FileColumns.DATA} = ?", arrayOf(file.absolutePath), null)
+            "${MediaStore.Files.FileColumns.DATA} = ?", arrayOf(file.canonicalPath), null)
         if (cursor == null) return null
         cursor.use {
             if (!cursor.moveToFirst()) return null
