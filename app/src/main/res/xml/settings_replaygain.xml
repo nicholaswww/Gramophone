@@ -28,7 +28,6 @@
 		app:iconSpaceReserved="false"
 		app:useSimpleSummaryProvider="true" />
 
-	<!-- TODO fix summary to substract 15 -->
 	<SeekBarPreference
 		android:defaultValue="15"
 		android:icon="@drawable/outline_volume_up_24"

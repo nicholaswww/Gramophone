@@ -3,7 +3,6 @@ package org.akanework.gramophone.logic.utils.exoplayer
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.audio.AudioProcessor
@@ -90,7 +89,7 @@ class GramophoneRenderFactory(context: Context,
         pcmEncodingRestrictionLifted: Boolean,
         enableFloatOutput: Boolean,
         enableAudioTrackPlaybackParams: Boolean
-    ): AudioSink? {
+    ): AudioSink {
         val builder = DefaultAudioSink.Builder(context)
         if (pcmEncodingRestrictionLifted || !enableFloatOutput) {
             builder.setPcmEncodingRestrictionLifted(pcmEncodingRestrictionLifted)
@@ -102,7 +101,7 @@ class GramophoneRenderFactory(context: Context,
         builder.setAudioProcessorChain(object : AudioProcessorChain {
             override fun getAudioProcessors(inputFormat: Format): Array<out AudioProcessor> {
                 rgAp.setRootFormat(inputFormat)
-                // TODO: do i wish to hardcode float conversion always?
+                // TODO(ASAP): do i wish to hardcode float conversion always?
                 return arrayOf(float, rgAp)
             }
 
@@ -125,9 +124,9 @@ class GramophoneRenderFactory(context: Context,
         val root = builder.setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams).build()
         audioSinkListener(root)
         return MyForwardingAudioSink(
-	        //PostAmpAudioSink( TODO
+	        //PostAmpAudioSink( TODO(ASAP)
 		        root//, rgAp, context
-	        //)
+			//)
         )
     }
 

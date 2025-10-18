@@ -521,6 +521,7 @@ object AudioFormatDetector {
         MimeTypes.AUDIO_EXOPLAYER_MIDI -> true
 
         // TODO distinguish lossless DTS-HD MA vs other lossy DTS-HD encoding schemes
+	    //  https://github.com/androidx/media/issues/2487
         MimeTypes.AUDIO_DTS_HD, MimeTypes.AUDIO_DTS_X -> null
 
         else -> false

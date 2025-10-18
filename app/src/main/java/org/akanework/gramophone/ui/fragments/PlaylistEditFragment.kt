@@ -52,8 +52,8 @@ class PlaylistEditFragment : BaseFragment(false) {
 			theItem.emit(item)
 		}
 
-		// TODO: if there is a pending playlist edit, ask whether it should be restored
-		// TODO: maybe use something like PlaylistCardAdapter instead of SongAdapter? if I add
+		// TODO(ASAP): if there is a pending playlist edit, ask whether it should be restored
+		// TODO(ASAP): maybe use something like PlaylistCardAdapter instead of SongAdapter? if I add
 		//  drag handles and delete buttons to SongAdapter it would be kinda weird and sorting or
 		//  layouts really aren't needed here...
 		val songAdapter =
@@ -68,13 +68,13 @@ class PlaylistEditFragment : BaseFragment(false) {
 		recyclerView.setAppBar(appBarLayout)
 		recyclerView.adapter = songAdapter.concatAdapter
 
-		// TODO: some sorta delete button for songs
+		// TODO(ASAP): some sorta delete button for songs
 		val callback = PlaylistCardMoveCallback { from, to ->
 			/*val list = runBlocking { songList.first() }.toMutableList()
 			val item = list.removeAt(from)
 			list.add(to, item)
 			songList.tryEmit(list)*/
-			// TODO: store pending playlist
+			// TODO(ASAP): store pending playlist
 		}
 		val touchHelper = ItemTouchHelper(callback)
 		touchHelper.attachToRecyclerView(recyclerView)
@@ -83,7 +83,7 @@ class PlaylistEditFragment : BaseFragment(false) {
 		recyclerView.fastScroll(songAdapter, songAdapter.itemHeightHelper)
 
 		topAppBar.setNavigationOnClickListener {
-			// TODO: ask "are you sure" and delete pending edit
+			// TODO(ASAP): ask "are you sure" and delete pending edit
 			requireActivity().supportFragmentManager.popBackStack()
 		}
 

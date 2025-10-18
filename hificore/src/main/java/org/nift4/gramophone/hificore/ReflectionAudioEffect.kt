@@ -48,10 +48,7 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 			AudioEffect::class.java.getDeclaredField("EFFECT_TYPE_NULL").get(null) as UUID
 		}
 		fun isEffectTypeAvailable(type: UUID?, uuid: UUID?): Boolean {
-			val desc = AudioEffect.queryEffects()
-			if (desc == null) {
-				return false
-			}
+			val desc = AudioEffect.queryEffects() ?: return false
 			for (i in desc.indices) {
 				if (type == null || desc[i]!!.type == type) {
 					if (uuid == null || desc[i]!!.uuid == uuid) {

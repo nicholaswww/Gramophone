@@ -160,10 +160,11 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
             it.animate = false
         }
         // TODO de-dupe
+	    val rgAp = ReplayGainAudioProcessor()
         player = ExoPlayer.Builder(
             this,
             GramophoneRenderFactory(this,
-                ReplayGainAudioProcessor(), {}, {})
+                rgAp, {}, {})
                 .setPcmEncodingRestrictionLifted(true)
                 .setEnableDecoderFallback(true)
                 .setEnableAudioTrackPlaybackParams(true)
@@ -191,6 +192,7 @@ class AudioPreviewActivity : BaseActivity(), View.OnClickListener {
                             .apply {
                                 val config = prefs.getStringStrict("offload", "0")?.toIntOrNull()
                                 if (config != null && config > 0 && Flags.OFFLOAD) {
+	                                rgAp.setOffloadEnabled(true)
                                     setAudioOffloadMode(TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED)
                                     setIsGaplessSupportRequired(config == 2)
                                 }

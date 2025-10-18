@@ -380,6 +380,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                                 .apply {
                                     val config = prefs.getStringStrict("offload", "0")?.toIntOrNull()
                                     if (config != null && config > 0 && Flags.OFFLOAD) {
+	                                    rgAp.setOffloadEnabled(true)
                                         setAudioOffloadMode(TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED)
                                         setIsGaplessSupportRequired(config == 2)
                                     }
@@ -392,7 +393,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
 	    player.exoPlayer.addListener(object : Player.Listener {
 		    override fun onAudioSessionIdChanged(audioSessionId: Int) {
 			    // https://github.com/androidx/media/issues/2739
-				// TODO wasn't that bug supposed to be fixed?!
+				// TODO(ASAP) wasn't that bug supposed to be fixed?!
 			    this@GramophonePlaybackService.onAudioSessionIdChanged(audioSessionId)
 		    }
 	    })
@@ -722,9 +723,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             val rgGain = prefs.getIntStrict("rg_rg_gain", 15)
             rgAp.setRgGain(rgGain - 15)
         }
-        if (key == null || key == "rg_no_rg_gain") {
+        if (key == null || key == "rg_no_rg_gain" || key == "rg_boost_gain") {
             val nonRgGain = prefs.getIntStrict("rg_no_rg_gain", 0)
-            rgAp.setNonRgGain(-nonRgGain)
+	        val boostGain = prefs.getIntStrict("rg_boost_gain", 0)
+            rgAp.setNonRgGain(-nonRgGain - boostGain)
+	        rgAp.setBoostGain(boostGain)
         }
     }
 
@@ -1151,7 +1154,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         if (deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE) {
             handler.postDelayed({
                 setShowNotificationForEmptyPlayer(SHOW_NOTIFICATION_FOR_EMPTY_PLAYER_NEVER)
-            }, 2000) // TODO lol
+            }, 2000) // TODO(ASAP) lol
         } else {
             setShowNotificationForEmptyPlayer(SHOW_NOTIFICATION_FOR_EMPTY_PLAYER_AFTER_STOP_OR_ERROR)
         }

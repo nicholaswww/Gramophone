@@ -8,10 +8,6 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.Log
 import org.nift4.gramophone.hificore.AdaptiveDynamicRangeCompression
 import java.nio.ByteBuffer
-import kotlin.math.exp
-import kotlin.math.ln
-import kotlin.math.log10
-import kotlin.math.min
 
 class ReplayGainAudioProcessor : BaseAudioProcessor() {
 	companion object {
@@ -25,8 +21,14 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		private set
 	var nonRgGain = 0 // dB
 		private set
+	var boostGain = 0 // dB
+		private set
+	var offloadEnabled = false
+		private set
 	var reduceGain = false
 		private set
+	var boostGainChangedListener: (() -> Unit)? = null
+	var offloadEnabledChangedListener: (() -> Unit)? = null
 	private var gain = 1f
 	private var kneeThresholdDb: Float? = null
 	private var tags: ReplayGainUtil.ReplayGainInfo? = null
@@ -62,11 +64,11 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 				"Invalid PCM encoding. Expected float PCM.", inputAudioFormat
 			)
 		}
-		// TODO: if setMode and setNonRgGain required reconfiguration, we could be a lot lazier.
+		// TODO(ASAP): if setMode and setNonRgGain required reconfiguration, we could be a lot lazier.
 		if ((tags?.trackGain == null && tags?.albumGain == null)
 			|| (tags?.trackGain != null && tags?.trackGain != 1f)
 			|| (tags?.albumGain != null && tags?.albumGain != 1f)) {
-			//return inputAudioFormat TODO
+			//return inputAudioFormat TODO(ASAP)
 		}
 		// if there's RG metadata but it says we don't need to do anything, we can skip all work.
 		return AudioProcessor.AudioFormat.NOT_SET
@@ -87,9 +89,35 @@ class ReplayGainAudioProcessor : BaseAudioProcessor() {
 		this.nonRgGain = nonRgGain
 	}
 
+	fun setBoostGain(boostGain: Int) {
+		val changed: Boolean
+		val listener: (() -> Unit)?
+		synchronized(this) {
+			changed = this.boostGain != boostGain
+			listener = boostGainChangedListener
+			this.boostGain = boostGain
+		}
+		if (changed) {
+			listener?.invoke()
+		}
+	}
+
 	@Synchronized
 	fun setReduceGain(reduceGain: Boolean) {
 		this.reduceGain = reduceGain
+	}
+
+	fun setOffloadEnabled(offloadEnabled: Boolean) {
+		val changed: Boolean
+		val listener: (() -> Unit)?
+		synchronized(this) {
+			changed = this.offloadEnabled != offloadEnabled
+			listener = offloadEnabledChangedListener
+			this.offloadEnabled = offloadEnabled
+		}
+		if (changed) {
+			listener?.invoke()
+		}
 	}
 
 	fun setRootFormat(inputFormat: Format) {
