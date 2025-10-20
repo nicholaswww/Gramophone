@@ -218,12 +218,12 @@ internal object Reader {
                 val duration = it.getLongOrNullIfThrow(durationColumn)?.let { if (it >= 0) it else null }
                 val pathFile = path?.let { it1 -> File(it1) }
                 val parent = pathFile?.parentFile
-                val fldPath = parent?.canonicalPath
+                val fldPath = parent?.absolutePath
                 var isBlacklisted = false
                 if (blackListSet.isNotEmpty()) {
                     var f = pathFile
                     while (f != null) {
-                        if (blackListSet.contains(f.canonicalPath)) {
+                        if (blackListSet.contains(f.absolutePath)) {
                             isBlacklisted = true
                             break
                         }
@@ -407,9 +407,9 @@ internal object Reader {
                     handleShallowMediaItem(song, albumId, parent.name, shallowRoot!!)
                     var tmpPath = parent
                     while (tmpPath != null) {
-                        folders!!.add(tmpPath.canonicalPath)
+                        folders!!.add(tmpPath.absolutePath)
                         tmpPath = tmpPath.parentFile
-                        if (tmpPath.canonicalPath == "/storage/emulated" || tmpPath.canonicalPath == "/storage")
+                        if (tmpPath.absolutePath == "/storage/emulated" || tmpPath.absolutePath == "/storage")
                             tmpPath = null // lets not allow to blacklist more than entire volumes
                     }
                 }
@@ -441,7 +441,7 @@ internal object Reader {
                 if (p.second.albumId == it.id) {
                     if (coverStubUri != null)
                         it.cover = Uri.Builder().scheme(coverStubUri)
-                            .authority(it.id.toString()).path(p.first.canonicalPath).build()
+                            .authority(it.id.toString()).path(p.first.absolutePath).build()
                     else
                         findBestCover(p.first)?.let { f -> it.cover = f.toUriCompat() }
                 }
@@ -470,9 +470,9 @@ internal object Reader {
             for (blacklistedFolder in blackListSet) {
                 var tmpPath: File? = File(blacklistedFolder)
                 while (tmpPath != null) {
-                    folders.add(tmpPath.canonicalPath)
+                    folders.add(tmpPath.absolutePath)
                     tmpPath = tmpPath.parentFile
-                    if (tmpPath.canonicalPath == "/storage/emulated" || tmpPath.canonicalPath == "/storage")
+                    if (tmpPath.absolutePath == "/storage/emulated" || tmpPath.absolutePath == "/storage")
                         tmpPath = null // lets not allow to blacklist more than entire volumes
                 }
             }
