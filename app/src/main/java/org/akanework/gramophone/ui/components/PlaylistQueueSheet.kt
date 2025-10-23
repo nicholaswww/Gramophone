@@ -36,8 +36,8 @@ class PlaylistQueueSheet(
 ) : BottomSheetDialog(context), Player.Listener {
 	private val instance: MediaBrowser?
 		get() = activity.getPlayer()
-	private var playlistNowPlaying: TextView? = null
-	private var playlistNowPlayingCover: ImageView? = null
+	private val playlistNowPlaying: TextView
+	private val playlistNowPlayingCover: ImageView
 
 	init {
 		setContentView(R.layout.playlist_bottom_sheet)
@@ -69,14 +69,8 @@ class PlaylistQueueSheet(
 		val callback = PlaylistCardMoveCallback(playlistAdapter::onRowMoved)
 		val touchHelper = ItemTouchHelper(callback)
 		touchHelper.attachToRecyclerView(recyclerView)
-		playlistNowPlaying = findViewById(R.id.now_playing)
-		playlistNowPlaying!!.text = instance?.currentMediaItem?.mediaMetadata?.title
-		playlistNowPlayingCover = findViewById(R.id.now_playing_cover)
-		playlistNowPlayingCover!!.load(instance?.currentMediaItem?.mediaMetadata?.artworkUri) {
-			placeholderScaleToFit(R.drawable.ic_default_cover)
-			crossfade(true)
-			error(R.drawable.ic_default_cover)
-		}
+		playlistNowPlaying = findViewById(R.id.now_playing)!!
+		playlistNowPlayingCover = findViewById(R.id.now_playing_cover)!!
 		recyclerView.layoutManager = LinearLayoutManager(context)
 		recyclerView.adapter = playlistAdapter
 		recyclerView.scrollToPosition(playlistAdapter.playlist.first.indexOfFirst { i ->
@@ -84,11 +78,11 @@ class PlaylistQueueSheet(
 		})
 		recyclerView.fastScroll(null, null)
 		setOnDismissListener {
-			if (playlistNowPlaying != null) {
-				playlistNowPlayingCover!!.dispose()
-				playlistNowPlayingCover = null
-				playlistNowPlaying = null
-			}
+			playlistNowPlayingCover.dispose()
+		}
+		activity.controllerViewModel.addRecreationalPlayerListener(lifecycle, this) {
+			onMediaItemTransition(instance?.currentMediaItem,
+				Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED)
 		}
 	}
 
@@ -97,16 +91,14 @@ class PlaylistQueueSheet(
 		reason: @Player.MediaItemTransitionReason Int
 	) {
 		if (instance?.mediaItemCount != 0) {
-			if (playlistNowPlaying != null) {
-				playlistNowPlaying!!.text = mediaItem?.mediaMetadata?.title
-				playlistNowPlayingCover!!.load(mediaItem?.mediaMetadata?.artworkUri) {
-					placeholderScaleToFit(R.drawable.ic_default_cover)
-					crossfade(true)
-					error(R.drawable.ic_default_cover)
-				}
+			playlistNowPlaying.text = mediaItem?.mediaMetadata?.title
+			playlistNowPlayingCover.load(mediaItem?.mediaMetadata?.artworkUri) {
+				placeholderScaleToFit(R.drawable.ic_default_cover)
+				crossfade(true)
+				error(R.drawable.ic_default_cover)
 			}
 		} else {
-			playlistNowPlayingCover?.dispose()
+			playlistNowPlayingCover.dispose()
 		}
 	}
 

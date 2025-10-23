@@ -15,12 +15,8 @@ import android.text.format.DateFormat
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.KeyEvent
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.view.ViewPropertyAnimator
 import android.view.WindowInsets
-import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.result.IntentSenderRequest
@@ -45,21 +41,14 @@ import androidx.media3.session.MediaBrowser
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import androidx.preference.PreferenceManager
-import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import coil3.asDrawable
-import coil3.dispose
 import coil3.imageLoader
-import coil3.load
 import coil3.request.Disposable
 import coil3.request.ImageRequest
 import coil3.request.allowConversionToBitmap
 import coil3.request.allowHardware
-import coil3.request.crossfade
 import coil3.request.error
 import coil3.size.Scale
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.DynamicColors
@@ -88,13 +77,10 @@ import org.akanework.gramophone.logic.getIntStrict
 import org.akanework.gramophone.logic.getLyrics
 import org.akanework.gramophone.logic.getTimer
 import org.akanework.gramophone.logic.playOrPause
-import org.akanework.gramophone.logic.replaceAllSupport
 import org.akanework.gramophone.logic.requireMediaStoreId
 import org.akanework.gramophone.logic.setTextAnimation
 import org.akanework.gramophone.logic.setTimer
 import org.akanework.gramophone.logic.startAnimation
-import org.akanework.gramophone.logic.ui.MyRecyclerView
-import org.akanework.gramophone.logic.ui.placeholderScaleToFit
 import org.akanework.gramophone.logic.updateMargin
 import org.akanework.gramophone.logic.utils.AudioFormatDetector
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioFormatInfo
@@ -103,7 +89,6 @@ import org.akanework.gramophone.logic.utils.AudioFormatDetector.SpatialFormat
 import org.akanework.gramophone.logic.utils.CalculationUtils
 import org.akanework.gramophone.logic.utils.ColorUtils
 import org.akanework.gramophone.logic.utils.Flags
-import org.akanework.gramophone.logic.utils.convertDurationToTimeStamp
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import org.akanework.gramophone.ui.fragments.DetailDialogFragment
@@ -111,7 +96,6 @@ import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.manipulator.ItemManipulator
-import java.util.LinkedList
 import kotlin.math.min
 
 @SuppressLint("NotifyDataSetChanged")
@@ -463,9 +447,8 @@ class FullBottomSheet
 
         removeColorScheme()
 
-        activity.controllerViewModel.addControllerCallback(activity.lifecycle) { _, _ ->
+        activity.controllerViewModel.addRecreationalPlayerListener(activity.lifecycle, this) {
             firstTime = true
-            instance?.addListener(this@FullBottomSheet)
             updateTimer()
             onRepeatModeChanged(instance?.repeatMode ?: Player.REPEAT_MODE_OFF)
             onShuffleModeEnabledChanged(instance?.shuffleModeEnabled == true)

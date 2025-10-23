@@ -103,12 +103,14 @@ class MediaControllerViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    fun addRecreationalPlayerListener(lifecycle: Lifecycle, callback: (Player) -> Player.Listener) {
+    fun addRecreationalPlayerListener(lifecycle: Lifecycle, listener: Player.Listener,
+                                      then: (MediaBrowser) -> Unit) {
         addControllerCallback(lifecycle) { controller, controllerLifecycle ->
             controller.registerLifecycleCallback(
                 LifecycleIntersection(lifecycle, controllerLifecycle).lifecycle,
-                callback(controller)
+	            listener
             )
+	        then(controller)
         }
     }
 

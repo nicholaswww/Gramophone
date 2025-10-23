@@ -60,8 +60,7 @@ class PreviewBottomSheet(context: Context, attrs: AttributeSet?, defStyleAttr: I
 			instance?.seekToNext()
 		}
 
-		activity.controllerViewModel.addControllerCallback(activity.lifecycle) { _, _ ->
-			instance?.addListener(this@PreviewBottomSheet)
+		activity.controllerViewModel.addRecreationalPlayerListener(activity.lifecycle, this) {
 			onPlaybackStateChanged(instance?.playbackState ?: Player.STATE_IDLE)
 			onMediaItemTransition(
 				instance?.currentMediaItem,

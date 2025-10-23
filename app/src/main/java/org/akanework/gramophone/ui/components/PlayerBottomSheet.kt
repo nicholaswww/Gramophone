@@ -131,8 +131,7 @@ class PlayerBottomSheet private constructor(
             }
         }
 
-        activity.controllerViewModel.addControllerCallback(activity.lifecycle) { _, _ ->
-            instance?.addListener(this@PlayerBottomSheet)
+        activity.controllerViewModel.addRecreationalPlayerListener(activity.lifecycle, this) {
             onMediaItemTransition(
                 instance?.currentMediaItem,
                 Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
