@@ -46,6 +46,7 @@ class GramophoneRenderFactory(context: Context,
         eventListener: AudioRendererEventListener,
         out: java.util.ArrayList<Renderer>
     ) {
+        out.add(AlacRenderer(eventHandler, eventListener, audioSink))
         super.buildAudioRenderers(
             context,
             extensionRendererMode,
@@ -56,7 +57,6 @@ class GramophoneRenderFactory(context: Context,
             eventListener,
             out
         )
-        out.add(AlacRenderer(eventHandler, eventListener, audioSink))
     }
 
     override fun buildVideoRenderers(
