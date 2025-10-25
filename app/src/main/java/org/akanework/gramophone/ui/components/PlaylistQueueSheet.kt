@@ -335,7 +335,7 @@ class PlaylistQueueSheet(
             // it programmatically.
             dragHandle.id = R.id.dragHandle
             val dp8 = 8.dpToPx(view.context)
-            dragHandle.setPaddingRelative(0, dp8, 0, dp8)
+            dragHandle.setPaddingRelative(10.dpToPx(view.context), dp8, 0, dp8)
             dragHandle.setImageResource(R.drawable.baseline_drag_handle_24)
             view.addView(dragHandle, ConstraintLayout.LayoutParams(
                 ConstraintLayout.LayoutParams.WRAP_CONTENT,

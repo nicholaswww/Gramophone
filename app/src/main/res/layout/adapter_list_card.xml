@@ -6,7 +6,7 @@
     android:layout_height="@dimen/list_height"
     android:clickable="true"
     android:focusable="true"
-    android:paddingStart="16dp"
+    android:paddingStart="6dp"
     android:paddingEnd="6dp"
     tools:ignore="RtlSymmetry">
 
@@ -16,7 +16,7 @@
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:layout_gravity="center_vertical"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="18dp"
         app:cardCornerRadius="@dimen/list_round_corner_size"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
