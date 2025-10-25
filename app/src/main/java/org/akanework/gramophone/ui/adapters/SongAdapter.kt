@@ -316,7 +316,7 @@ class SongAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
         if (payloads.isNotEmpty()) {
             if (payloads.none { it is Boolean && it }) {
-                holder.nowPlaying.drawable.level = if (currentIsPlaying == true) 1 else 0
+                holder.nowPlaying.drawable?.level = if (currentIsPlaying == true) 1 else 0
                 return
             }
             if (currentMediaItem == null || getSongList()[position].mediaId != currentMediaItem) {
@@ -329,7 +329,7 @@ class SongAdapter(
             }
         } else {
             super.onBindViewHolder(holder, position, payloads)
-            if (currentMediaItem == null || getSongList().getOrNull(position)?.mediaId != currentMediaItem)
+            if (currentMediaItem == null || getSongList()[position].mediaId != currentMediaItem)
                 return
         }
         holder.nowPlaying.setImageDrawable(NowPlayingDrawable(context)
