@@ -262,7 +262,7 @@ class PostAmpAudioSink(
 				Log.e(TAG, "dpe enable=$isOffload failed", e)
 			}
 		}
-		val boostGainDbLimited = if (useDpe && boostGainDb > 0 && deviceType != null && !isAbsoluteVolume(deviceType!!)) {
+		val boostGainDbLimited = if (useDpe && boostGainDb > 0 && deviceType != null && !isAbsoluteVolume(deviceType!!, true, false)) {
 			val maxIndex = AudioManagerCompat.getStreamMaxVolume(audioManager, C.STREAM_TYPE_MUSIC)
 			val curIndex = AudioManagerCompat.getStreamVolume(audioManager, C.STREAM_TYPE_MUSIC)
 			val minIndex = AudioManagerCompat.getStreamMinVolume(audioManager, C.STREAM_TYPE_MUSIC)
@@ -351,7 +351,7 @@ class PostAmpAudioSink(
 		synchronized(rgAp) {
 			offloadEnabled = rgAp.offloadEnabled
 		}
-		if ((id ?: audioSessionId) != audioSessionId || offloadEnabled != this.offloadEnabled) {
+		if (id != null && id != audioSessionId || offloadEnabled != this.offloadEnabled) {
 			Log.i(TAG, "set session id to $id")
 			if (audioSessionId != 0) {
 				if (volumeEffect != null) {
@@ -544,14 +544,13 @@ class PostAmpAudioSink(
 						dpeCanary = null
 						createDpeEffect()
 					} else {
-						// odd.
+						Log.e(TAG, "DPE canary control, but why did it ever have it?")
 						calculateGain(true)
 					}
 				}
 				Log.i(TAG, "init dpe canary")
 				if (dpeCanary!!.hasControl()) {
-					// what???
-					Log.i(TAG, "release dpe canary because we suddenly have control")
+					Log.w(TAG, "release dpe canary because we suddenly have control")
 					try {
 						dpeCanary!!.release()
 					} catch (e: Throwable) {
@@ -580,12 +579,10 @@ class PostAmpAudioSink(
 			val useDpe = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && hasDpe
 			try {
 				if (hasVolume) volumeEffect!!.enabled = boostGainDb > 0 && deviceType != null
-						&& !isAbsoluteVolume(deviceType!!)
 			} catch (e: IllegalStateException) {
 				Log.e(TAG, "volume enable failed", e)
 			}
-			if (!hasVolume || deviceType == null ||
-				isAbsoluteVolume(deviceType!!) || boostGainDb <= 0 || useDpe && !force) return
+			if (!hasVolume || deviceType == null || boostGainDb <= 0 || useDpe && !force) return
 			val boostGainForOldEffect = if (useDpe) 0 else boostGainDb
 			var minVolumeDb: Float
 			var maxVolumeDb: Float
@@ -629,7 +626,7 @@ class PostAmpAudioSink(
 				minVolumeDb = -96f
 				maxVolumeDb = 0f
 				curVolumeDb = max(-96f, 0f)
-			}
+            }
 			val theVolume = min(
 				volumeEffect!!.maxLevel.toInt().toFloat(),
 				(curVolumeDb + ReplayGainUtil.amplToDb(volume) +
@@ -688,45 +685,38 @@ class PostAmpAudioSink(
 	}
 
     // To get the real volume of mixer taking into account absolute volume:
-    // - 14 QPR3 and earlier: use AudioSystem.getVolumeIndexForAttributes() to get volume after
-    //                        any prescale or force to max done in java (A2DP/HDMI/LEA/ASHA)
+    // - 14 QPR3 and earlier: use AudioFlinger.streamVolume() to get volume after any prescale or
+    //                        force to max done in java (A2DP/HDMI/LEA/ASHA)
     // - 15 and later: do the same as above to handle HDMI case, and:
     //   - 15 QPR0: getStreamVolumeDb() will return real volume (ie 0dB) for A2DP/LEA/ASHA.
     //              alternatively, this is the last version to support AudioFlinger.streamVolume()
     //              which works just as well and returns dB value since M.
     //   - 15 QPR1: have to apply adjustDeviceAttenuationForAbsVolume(), ie force 0dB except if the
     //              index is zero and device is not BLE broadcast, then min volume dB, in app code
-    //              based on the result of this function.
-    //   - 15 QPR2: getOutputForAttr() returns real volume as amplification. but making a new
-    //              output is quite stupid. not sure what to do. maybe same thing as QPR1?
+    //              based on the result of this function with considerHdmi=false.
+    //   - 15 QPR2: getOutputForAttr() returns real volume as amplification, but it's reserved for
+    //              AudioFlinger - no luck here. do same as QPR1.
     // Alternatively, to avoid pessimism on 15 QPR1 and later, if Volume is offloadable (or offload
     // is disabled) we can create a stopped mixed track (mustn't be offload to avoid wasting
     // resources) and Volume effect and read Volume.level property. TODO: how well does that actually work?
     // If hidden API is not available, we have to be pessimistic and assume no prescale and apply
-    // force max based on result of this function.
-	private fun isAbsoluteVolume(deviceType: Int): Boolean {
+    // force max based on result of this function with considerHdmi=true.
+	private fun isAbsoluteVolume(deviceType: Int, considerHdmi: Boolean, isA2dpAbsoluteVolumeOff: Boolean): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             throw IllegalStateException("isAbsoluteVolume($deviceType) before M")
         }
 		// LEA having abs vol is a safe assumption, as LEA absolute volume is forced. Same for ASHA.
-        // TODO: can we getprop it or does SELinux block it?
-        val name = "persist.bluetooth.disableabsvol"
-        val isA2dpAbsoluteVolumeOff = try {
-            @SuppressLint("PrivateApi") val systemProperties =
-                Class.forName("android.os.SystemProperties")
-            val getMethod = systemProperties.getMethod("get", String::class.java)
-            getMethod.invoke(systemProperties, name) as String?
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to read system property $name", e)
-            null
-        }.toBoolean()
-		return !isA2dpAbsoluteVolumeOff && deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+        return !isA2dpAbsoluteVolumeOff && deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                considerHdmi && (deviceType == AudioDeviceInfo.TYPE_LINE_DIGITAL ||
+                deviceType == AudioDeviceInfo.TYPE_HDMI || // HDMI logic here is only a fallback, so
+                deviceType == AudioDeviceInfo.TYPE_HDMI_ARC) || // there is no need to add override
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
                 deviceType == AudioDeviceInfo.TYPE_HEARING_AID ||
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                 ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                         && deviceType == AudioDeviceInfo.TYPE_BLE_BROADCAST) ||
                         deviceType == AudioDeviceInfo.TYPE_BLE_SPEAKER ||
-                        deviceType == AudioDeviceInfo.TYPE_BLE_HEADSET)
+                        deviceType == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                        considerHdmi && deviceType == AudioDeviceInfo.TYPE_HDMI_EARC)
 	}
 }

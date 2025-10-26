@@ -308,8 +308,7 @@ fun MediaController.getAudioFormat(): AudioFormatDetector.AudioFormats? =
                         bundle.getInt("type", C.TRACK_TYPE_UNKNOWN) to
                                 Format.fromBundle(bundle.getBundle("format")!!) } },
             it.getBundle("sink_format")?.let { bundle -> Format.fromBundle(bundle) },
-            BundleCompat.getParcelableArrayList(it, "track_format",
-                AudioTrackInfo::class.java),
+            BundleCompat.getParcelable(it, "track_format", AudioTrackInfo::class.java),
             BundleCompat.getParcelable(it, "hal_format", AfFormatInfo::class.java),
             BundleCompat.getParcelable(it, "bt", BtCodecInfo::class.java)
         )

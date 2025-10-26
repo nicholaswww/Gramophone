@@ -180,9 +180,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     private var afTrackFormat: Pair<Any, AfFormatInfo>? = null
     private val pendingAfTrackFormats = hashMapOf<Any, AfFormatInfo>()
     private var audioSinkInputFormat: Format? = null
-    private var audioTrackInfo = arrayListOf<Pair<Any, AudioTrackInfo>>()
-    private var pendingAudioTrackInfo = arrayListOf<Pair<Any, AudioTrackInfo>>()
-    // only used for formats where this is significant for quality, but not in header
+    private var audioTrackInfo: AudioTrackInfo? = null
+    private var audioTrackInfoCounter = 0
+    private var audioTrackReleaseCounter = 0
+    // only used for formats where this is significant for quality, but not in header (opus)
     private var bitrate: Int? = null
     private var btInfo: BtCodecInfo? = null
     private var proxy: BtCodecInfo.Companion.Proxy? = null
@@ -570,8 +571,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             scope.launch {
                 gramophoneApplication.reader.songListFlow.collect { list ->
                     withContext(Dispatchers.Main + NonCancellable) {
-                        val cmi = controller?.currentMediaItem?.mediaId
-                        if (cmi == null) return@withContext
+                        val cmi = controller?.currentMediaItem?.mediaId ?: return@withContext
                         list.find { it.mediaId == cmi }?.let {
                             // TODO need to update non current item too
                             controller!!.replaceMediaItem(controller!!.currentMediaItemIndex, it)
@@ -614,9 +614,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         controller: MediaSession.ControllerInfo,
         rating: Rating
     ): ListenableFuture<SessionResult> {
-        val mediaItemId = this.controller?.currentMediaItem?.mediaId
-        if (mediaItemId == null)
-            return Futures.immediateFuture(SessionResult(SessionError.ERROR_INVALID_STATE))
+        val mediaItemId =
+            this.controller?.currentMediaItem?.mediaId ?: return Futures.immediateFuture(
+                SessionResult(SessionError.ERROR_INVALID_STATE)
+            )
         return onSetRating(session, controller, mediaItemId, rating)
     }
 
@@ -725,7 +726,7 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         }
         if (key == null || key == "rg_no_rg_gain" || key == "rg_boost_gain") {
             val nonRgGain = prefs.getIntStrict("rg_no_rg_gain", 0)
-	        val boostGain = prefs.getIntStrict("rg_boost_gain", 0)
+            val boostGain = prefs.getIntStrict("rg_boost_gain", 0)
             rgAp.setNonRgGain(-nonRgGain - boostGain)
 	        rgAp.setBoostGain(boostGain)
         }
@@ -828,9 +829,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 }
 
                 SERVICE_GET_AUDIO_FORMAT -> {
-                    SessionResult(SessionResult.RESULT_SUCCESS).also {
+                    SessionResult(SessionResult.RESULT_SUCCESS).also { res ->
                         if (downstreamFormat.isNotEmpty()) {
-                            it.extras.putParcelableArrayList(
+                            res.extras.putParcelableArrayList(
                                 "file_format",
                                 ArrayList(downstreamFormat.map { Bundle().apply {
                                     putInt("type", it.second.first)
@@ -845,16 +846,11 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                                 } })
                             )
                         }
-                        it.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
-                        if (audioTrackInfo.isNotEmpty()) {
-                            it.extras.putParcelableArrayList(
-                                "track_format",
-                                ArrayList(audioTrackInfo.map { it.second })
-                            )
-                        }
-                        it.extras.putParcelable("hal_format", afTrackFormat?.second)
+                        res.extras.putBundle("sink_format", audioSinkInputFormat?.toBundle())
+                        res.extras.putParcelable("track_format", audioTrackInfo)
+                        res.extras.putParcelable("hal_format", afTrackFormat?.second)
                         if (afFormatTracker.format?.routedDeviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
-                            it.extras.putParcelable("bt", btInfo)
+                            res.extras.putParcelable("bt", btInfo)
                         }
                     }
                 }
@@ -1042,37 +1038,27 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        if (eventTime.mediaPeriodId == null) { // https://github.com/androidx/media/issues/2812
-            Log.e(TAG, "mediaPeriodId is NULL in onAudioTrackInitialized()!!")
-            return
-        }
-        val currentPeriod = eventTime.currentMediaPeriodId?.periodUid
-        val item = eventTime.mediaPeriodId!!.periodUid to
-                AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
-        if (currentPeriod != item.first) {
-            pendingAudioTrackInfo += item
-        } else {
-            audioTrackInfo += item
-            mediaSession?.broadcastCustomCommand(
-                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
-                Bundle.EMPTY
-            )
-        }
+        audioTrackInfoCounter++
+        audioTrackInfo = AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
+        mediaSession?.broadcastCustomCommand(
+            SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+            Bundle.EMPTY
+        )
     }
 
     override fun onAudioTrackReleased(
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig
     ) {
-        // BUG: media3's eventTime provided here is for the wrong period, it always returns for
-        // currently playing period, and hence can't ever match. hence we can only guess which
-        // config has to go.
-        val config = AudioTrackInfo.fromMedia3AudioTrackConfig(audioTrackConfig)
-        val pendingIdx = pendingAudioTrackInfo.indexOfFirst { it.second == config }
-        if (pendingIdx != -1) {
-            pendingAudioTrackInfo.removeAt(pendingIdx)
+        // Normally called after the replacement has been initialized, but if old track is released
+        // without replacement, we want to instantly know that instead of keeping stale data.
+        if (++audioTrackReleaseCounter == audioTrackInfoCounter) {
+            audioTrackInfo = null
+            mediaSession?.broadcastCustomCommand(
+                SessionCommand(SERVICE_GET_AUDIO_FORMAT, Bundle.EMPTY),
+                Bundle.EMPTY
+            )
         }
-        // otherwise period probably already disappeared, if it didn't, it doesn't matter.
     }
 
     override fun onDownstreamFormatChanged(
@@ -1110,15 +1096,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
     override fun onPlaybackStateChanged(state: Int) {
         if (state == Player.STATE_IDLE) {
             var changed = false
-            if (audioTrackInfo.isNotEmpty()) {
-                Log.e(TAG, "leaked audio track infos: $audioTrackInfo")
-                audioTrackInfo.clear()
-                changed = true
-            }
-            if (pendingAudioTrackInfo.isNotEmpty()) {
-                Log.e(TAG, "leaked pending audio track infos: $pendingAudioTrackInfo")
-                pendingAudioTrackInfo.clear()
-            }
             if (afTrackFormat != null) {
                 Log.e(TAG, "leaked track format: $afTrackFormat")
                 afTrackFormat = null
@@ -1240,12 +1217,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 pendingAfTrackFormats.remove(key)
             }
         }
-        pendingAudioTrackInfo.toList().forEach {
-            if (timeline.getIndexOfPeriod(it.first) == C.INDEX_UNSET) {
-                // This period is going away.
-                pendingAudioTrackInfo.remove(it)
-            }
-        }
     }
 
     private fun refreshMediaButtonCustomLayout() {
@@ -1288,20 +1259,6 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                     changed = true
                 }
             }
-            audioTrackInfo.toList().forEach {
-                if (newPosition.periodUid != it.first) {
-                    pendingAudioTrackInfo.add(it)
-                    audioTrackInfo.remove(it)
-                    changed = true
-                }
-            }
-            pendingAudioTrackInfo.toList().forEach {
-                if (newPosition.periodUid == it.first) {
-                    audioTrackInfo.add(it)
-                    pendingAudioTrackInfo.remove(it)
-                    changed = true
-                }
-            }
             if (afTrackFormat?.first != newPosition.periodUid) {
                 afTrackFormat = null
                 changed = true
@@ -1329,10 +1286,10 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
         val hnw = !LyricWidgetProvider.hasWidget(this)
         if (controller?.isPlaying != true || (!isStatusBarLyricsEnabled && hnw)) return
         val cPos = (controller?.contentPosition ?: 0).toULong()
-        val nextUpdate = syncedLyrics?.text?.flatMap {
-            if (hnw && it.start <= cPos) listOf() else if (hnw) listOf(it.start) else
-                (it.words?.map { it.timeRange.start }?.filter { it > cPos } ?: listOf())
-                    .let { i -> if (it.start > cPos) i + it.start else i }
+        val nextUpdate = syncedLyrics?.text?.flatMap { line ->
+            if (hnw && line.start <= cPos) listOf() else if (hnw) listOf(line.start) else
+                (line.words?.map { it.timeRange.first }?.filter { it > cPos } ?: listOf())
+                    .let { i -> if (line.start > cPos) i + line.start else i }
         }?.minOrNull()
         nextUpdate?.let { handler.postDelayed(sendLyrics, (it - cPos).toLong()) }
     }

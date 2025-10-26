@@ -310,7 +310,7 @@ object AudioFormatDetector {
 
     data class AudioFormats(
         val downstreamFormat: List<Pair<Int, Format>>?, val audioSinkInputFormat: Format?,
-        val audioTrackInfo: List<AudioTrackInfo>?, val halFormat: AfFormatInfo?,
+        val audioTrackInfo: AudioTrackInfo?, val halFormat: AfFormatInfo?,
         val btCodecInfo: BtCodecInfo?
     ) {
         fun prettyToString(context: Context): String? {
@@ -326,17 +326,8 @@ object AudioFormatDetector {
                 append("== Audio sink input format ==\n")
                 prettyPrintFormat(context, audioSinkInputFormat)
                 append("\n")
-                if (audioTrackInfo.size == 1) {
-                    append("== Audio track format ==\n")
-                    prettyPrintAudioTrackInfo(context, audioTrackInfo.first())
-                } else {
-                    audioTrackInfo.forEachIndexed { i, it ->
-                        append("== Audio track format [$i] ==\n")
-                        prettyPrintAudioTrackInfo(context, it)
-                        append("\n")
-                    }
-                    append("== Audio track HAL format ==\n")
-                }
+                append("== Audio track format ==\n")
+                prettyPrintAudioTrackInfo(context, audioTrackInfo)
                 if (halFormat != null) {
                     append("Policy port/track ID: ${halFormat.policyPortId} (session: ${halFormat.audioSessionId})\n")
                     append("Granted flags: ${mixPortFlagsToString(context, halFormat.grantedFlags)}\n")
