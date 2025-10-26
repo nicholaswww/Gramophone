@@ -15,12 +15,12 @@ import android.os.Handler
 import android.os.Looper
 import android.os.StrictMode
 import androidx.annotation.RequiresApi
-import androidx.media3.common.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.audio.AudioManagerCompat
+import androidx.media3.common.util.Log
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
@@ -687,20 +687,46 @@ class PostAmpAudioSink(
 		return audioTrackStoppedField.get(this) as Boolean
 	}
 
+    // To get the real volume of mixer taking into account absolute volume:
+    // - 14 QPR3 and earlier: use AudioSystem.getVolumeIndexForAttributes() to get volume after
+    //                        any prescale or force to max done in java (A2DP/HDMI/LEA/ASHA)
+    // - 15 and later: do the same as above to handle HDMI case, and:
+    //   - 15 QPR0: getStreamVolumeDb() will return real volume (ie 0dB) for A2DP/LEA/ASHA.
+    //              alternatively, this is the last version to support AudioFlinger.streamVolume()
+    //              which works just as well and returns dB value since M.
+    //   - 15 QPR1: have to apply adjustDeviceAttenuationForAbsVolume(), ie force 0dB except if the
+    //              index is zero and device is not BLE broadcast, then min volume dB, in app code
+    //              based on the result of this function.
+    //   - 15 QPR2: getOutputForAttr() returns real volume as amplification. but making a new
+    //              output is quite stupid. not sure what to do. maybe same thing as QPR1?
+    // Alternatively, to avoid pessimism on 15 QPR1 and later, if Volume is offloadable (or offload
+    // is disabled) we can create a stopped mixed track (mustn't be offload to avoid wasting
+    // resources) and Volume effect and read Volume.level property. TODO: how well does that actually work?
+    // If hidden API is not available, we have to be pessimistic and assume no prescale and apply
+    // force max based on result of this function.
 	private fun isAbsoluteVolume(deviceType: Int): Boolean {
-		// TODO: A2DP absolute 1. can be disabled (ie via prop) 2. may not be supported by remote
-		//  but making it work is pain, as getStreamVolumeDb() apparently had a double attenuation
-		//  bug before, and BluetoothA2dp's method to detect it was hardcoded to false since 2018.
-		//  not sure how to handle it for now, so play safe.
-		// LEA actually is a safe assumption for now, as LEA absolute volume seems to be forced.
-		// TODO: what about HDMI absolute volume?
-		return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (
-			deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-					Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-					((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-							&& deviceType == AudioDeviceInfo.TYPE_BLE_BROADCAST) ||
-					deviceType == AudioDeviceInfo.TYPE_BLE_SPEAKER ||
-					deviceType == AudioDeviceInfo.TYPE_BLE_HEADSET)
-		)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            throw IllegalStateException("isAbsoluteVolume($deviceType) before M")
+        }
+		// LEA having abs vol is a safe assumption, as LEA absolute volume is forced. Same for ASHA.
+        // TODO: can we getprop it or does SELinux block it?
+        val name = "persist.bluetooth.disableabsvol"
+        val isA2dpAbsoluteVolumeOff = try {
+            @SuppressLint("PrivateApi") val systemProperties =
+                Class.forName("android.os.SystemProperties")
+            val getMethod = systemProperties.getMethod("get", String::class.java)
+            getMethod.invoke(systemProperties, name) as String?
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to read system property $name", e)
+            null
+        }.toBoolean()
+		return !isA2dpAbsoluteVolumeOff && deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+                deviceType == AudioDeviceInfo.TYPE_HEARING_AID ||
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                        && deviceType == AudioDeviceInfo.TYPE_BLE_BROADCAST) ||
+                        deviceType == AudioDeviceInfo.TYPE_BLE_SPEAKER ||
+                        deviceType == AudioDeviceInfo.TYPE_BLE_HEADSET)
 	}
 }
