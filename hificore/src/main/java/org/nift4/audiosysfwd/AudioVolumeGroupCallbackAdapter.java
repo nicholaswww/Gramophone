@@ -8,7 +8,7 @@ import android.util.Log;
 import java.lang.reflect.Method;
 import java.util.Objects;
 
-public class AudioVolumeGroupCallbackAdapter extends INativeAudioVolumeGroupCallback.Stub {
+/* package */ class AudioVolumeGroupCallbackAdapter extends INativeAudioVolumeGroupCallback.Stub {
     private final AudioVolumeGroupCallback delegate;
 
     public AudioVolumeGroupCallbackAdapter(AudioVolumeGroupCallback delegate) {
@@ -33,8 +33,14 @@ public class AudioVolumeGroupCallbackAdapter extends INativeAudioVolumeGroupCall
     }
 
     @SuppressWarnings("PrivateApi")
-    public static Method getGetter() throws NoSuchMethodException {
+    public static Method getAdd() throws NoSuchMethodException {
         return AudioSystem.class.getDeclaredMethod("registerAudioVolumeGroupCallback",
+                INativeAudioVolumeGroupCallback.class);
+    }
+
+    @SuppressWarnings("PrivateApi")
+    public static Method getRemove() throws NoSuchMethodException {
+        return AudioSystem.class.getDeclaredMethod("unregisterAudioVolumeGroupCallback",
                 INativeAudioVolumeGroupCallback.class);
     }
 }

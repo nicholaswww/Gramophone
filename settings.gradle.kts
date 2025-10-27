@@ -1,8 +1,5 @@
 @file:Suppress("UnstableApiUsage")
 
-include(":misc:audiofxstub2")
-
-
 pluginManagement {
     repositories {
         google()

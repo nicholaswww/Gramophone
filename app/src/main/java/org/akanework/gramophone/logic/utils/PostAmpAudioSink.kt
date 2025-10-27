@@ -28,6 +28,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.audioDeviceTypeToString
+import org.nift4.gramophone.hificore.AudioSystemHiddenApi
 import org.nift4.gramophone.hificore.ReflectionAudioEffect
 import java.nio.ByteBuffer
 import kotlin.math.max
@@ -52,7 +53,7 @@ import kotlin.math.min
 // TODO(ASAP): impl isEffectTypeOffloadable()
 class PostAmpAudioSink(
 	val sink: DefaultAudioSink, val rgAp: ReplayGainAudioProcessor, val context: Context
-) : ForwardingAudioSink(sink) {
+) : ForwardingAudioSink(sink), AudioSystemHiddenApi.VolumeChangeListener {
 	companion object {
 		private const val TAG = "PostAmpAudioSink"
 	}
@@ -129,18 +130,26 @@ class PostAmpAudioSink(
 	private var rgVolume = 1f
 
 	init {
-		ContextCompat.registerReceiver(
-			context,
-			receiver,
-			IntentFilter().apply {
-				addAction("android.media.VOLUME_CHANGED_ACTION")
-				addAction("android.media.MASTER_VOLUME_CHANGED_ACTION")
-				addAction("android.media.MASTER_MUTE_CHANGED_ACTION")
-				addAction("android.media.STREAM_MUTE_CHANGED_ACTION")
-			},
-			@SuppressLint("WrongConstant") // why is this needed?
-			ContextCompat.RECEIVER_NOT_EXPORTED
-		)
+        var forVolumeChanged = false
+        try {
+            AudioSystemHiddenApi.addVolumeCallback(context, this)
+        } catch (e: Exception) {
+            Log.e(TAG, "failed to register volume cb", e)
+            forVolumeChanged = true
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter().apply {
+                if (forVolumeChanged) // only register if better native callback doesn't work
+                    addAction("android.media.VOLUME_CHANGED_ACTION")
+                addAction("android.media.MASTER_VOLUME_CHANGED_ACTION")
+                addAction("android.media.MASTER_MUTE_CHANGED_ACTION")
+                addAction("android.media.STREAM_MUTE_CHANGED_ACTION")
+            },
+            @SuppressLint("WrongConstant") // why is this needed?
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 		synchronized(rgAp) {
 			rgAp.boostGainChangedListener = {
 				handler?.post { // if null, there are no effects that need to be notified anyway
@@ -228,11 +237,27 @@ class PostAmpAudioSink(
 
 	private fun myOnReceiveBroadcast(intent: Intent) {
 		updateVolumeEffect()
-		val useDpe = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && hasDpe
-		if (intent.action == "android.media.VOLUME_CHANGED_ACTION" && useDpe) {
-			calculateGain(false)
+		if (intent.action == "android.media.VOLUME_CHANGED_ACTION") {
+			onVolumeChanged()
 		}
 	}
+
+    override fun onVolumeChanged(
+        groupId: Int,
+        flags: Int
+    ) {
+        // TODO use below class to find out which group id corresponds to music and only listen to
+        //  those change events
+        // https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/media/java/android/media/audiopolicy/AudioProductStrategy.java;l=80?q=getAudioProductStrategies&ss=android%2Fplatform%2Fsuperproject%2Fmain
+        Log.i(TAG, "volume changed: $groupId, $flags")
+        onVolumeChanged()
+    }
+
+    private fun onVolumeChanged() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && hasDpe) {
+            calculateGain(false)
+        }
+    }
 
 	private fun myApplyPendingConfig() {
 		format = pendingFormat
@@ -259,7 +284,7 @@ class PostAmpAudioSink(
 		val isOffload = true//format?.let { it.sampleMimeType != MimeTypes.AUDIO_RAW } == true TODO(ASAP)
 		if (useDpe) {
 			try {
-				dpeEffect!!.enabled = isOffload || boostGainDb > 0 && !hasVolume
+				dpeEffect!!.enabled = isOffload || boostGainDb > 0/* && !hasVolume*/
 			} catch (e: IllegalStateException) {
 				Log.e(TAG, "dpe enable=$isOffload failed", e)
 			}
@@ -302,44 +327,30 @@ class PostAmpAudioSink(
 			rgVolume = if (useDpe) 1f else min(gain, 1f)
 			try {
 				if (useDpe) {
-					dpeEffect!!.setInputGainAllChannelsTo(ReplayGainUtil.amplToDb(gain))
-					if (kneeThresholdDb != null) {
-						dpeEffect!!.setLimiterAllChannelsTo(
-							DynamicsProcessing.Limiter(
-								true, true, 0,
-								ReplayGainUtil.TAU_ATTACK * 1000f,
-								ReplayGainUtil.TAU_RELEASE * 1000f,
-								ReplayGainUtil.RATIO, kneeThresholdDb, boostGainDbLimited
-							)
-						)
-					} else {
-						dpeEffect!!.setLimiterAllChannelsTo(
-							DynamicsProcessing.Limiter(
-								true, true, 0,
-								ReplayGainUtil.TAU_ATTACK * 1000f,
-								ReplayGainUtil.TAU_RELEASE * 1000f,
-								ReplayGainUtil.RATIO, 9999999f, boostGainDbLimited
-							)
-						)
-					}
+					dpeEffect!!.setInputGainAllChannelsTo(ReplayGainUtil.amplToDb(gain) + boostGainDbLimited)
+                    dpeEffect!!.setLimiterAllChannelsTo(
+                        DynamicsProcessing.Limiter(
+                            true, kneeThresholdDb != null, 0,
+                            ReplayGainUtil.TAU_ATTACK * 1000f,
+                            ReplayGainUtil.TAU_RELEASE * 1000f,
+                            ReplayGainUtil.RATIO, kneeThresholdDb ?: 999999f, 0f
+                        )
+                    )
 				}
 			} catch (e: UnsupportedOperationException) {
 				Log.e(TAG, "we raced with someone else about DPE and we lost", e)
 			}
 		} else {
-			if (useDpe && /*(!hasVolume || force) && TODO*/ boostGainDb > 0) {
-				// This limiter has such a high threshold it doesn't limit anything. But it sure
-				// does apply the postGain and makes everything LOUD.
-                // TODO: can I just use input gain?
-				/*dpeEffect!!.setLimiterAllChannelsTo(
-					DynamicsProcessing.Limiter(
-						true, boostGainDbLimited > 0, 0,
-						ReplayGainUtil.TAU_ATTACK * 1000f,
-						ReplayGainUtil.TAU_RELEASE * 1000f,
-						ReplayGainUtil.RATIO, 99999f, boostGainDbLimited
-					)
-				)*/
+			if (useDpe && /*(!hasVolume || force) && */boostGainDb > 0) {
                 dpeEffect!!.setInputGainAllChannelsTo(boostGainDbLimited)
+                dpeEffect!!.setLimiterAllChannelsTo(
+                    DynamicsProcessing.Limiter(
+                        true, false, 0,
+                        ReplayGainUtil.TAU_ATTACK * 1000f,
+                        ReplayGainUtil.TAU_RELEASE * 1000f,
+                        ReplayGainUtil.RATIO, 999999f, 0f
+                    )
+                )
 			}
 			rgVolume = 1f
 		}
@@ -671,6 +682,11 @@ class PostAmpAudioSink(
 
 	override fun release() {
 		context.unregisterReceiver(receiver)
+        try {
+            AudioSystemHiddenApi.removeVolumeCallback(context, this)
+        } catch (e: Exception) {
+            Log.w(TAG, "failed to remove volume cb", e)
+        }
 		super.release()
 	}
 

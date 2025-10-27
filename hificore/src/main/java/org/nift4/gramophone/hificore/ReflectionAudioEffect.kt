@@ -90,7 +90,7 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 	private val adapterClazz by lazy {
 		Class.forName("org.nift4.audiofxfwd.OnParameterChangeListenerAdapter") }
 	private val setParameterListenerFn by lazy {
-		adapterClazz.getDeclaredMethod("getGetter").invoke(null) as Method
+		adapterClazz.getDeclaredMethod("getSetter").invoke(null) as Method
 	}
 	private val setParameterFn by lazy { AudioEffect::class.java.getDeclaredMethod(
 		"setParameter", ByteArray::class.java, ByteArray::class.java) }
@@ -185,6 +185,7 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 	fun setBaseParameterListener(listener: OnParameterChangeListener?) {
 		val adapter = listener?.let { adapterClazz.getDeclaredConstructor(
 			org.nift4.audiofxfwd.OnParameterChangeListener::class.java)
+            .apply { isAccessible = true }
 			.newInstance(org.nift4.audiofxfwd.OnParameterChangeListener { e, i, b, b1 ->
 				listener.onParameterChange(effect, i, b, b1)
 			}) }

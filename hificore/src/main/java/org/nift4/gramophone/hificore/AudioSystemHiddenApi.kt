@@ -1,10 +1,16 @@
 package org.nift4.gramophone.hificore
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.os.Parcel
+import androidx.core.content.getSystemService
+import androidx.media3.common.audio.AudioManagerCompat
 import androidx.media3.common.util.Log
+import com.google.common.util.concurrent.MoreExecutors
+import java.lang.reflect.Method
 
 /**
  * Some private utility methods from AudioSystem. Sadly, most of AudioSystem calls into
@@ -232,16 +238,75 @@ object AudioSystemHiddenApi {
 
     // ====== MISC ======
 
+    private val adapterCache = hashMapOf<VolumeChangeListener, Any>()
+    private val adapterClazz by lazy {
+        Class.forName("org.nift4.audiosysfwd.AudioVolumeGroupCallbackAdapter") }
+    private val addAudioVolumeGroupCallbackFn by lazy {
+        adapterClazz.getDeclaredMethod("getAdd").invoke(null) as Method
+    }
+    private val removeAudioVolumeGroupCallbackFn by lazy {
+        adapterClazz.getDeclaredMethod("getRemove").invoke(null) as Method
+    }
+    private val adapterClazzLegacy by lazy {
+        Class.forName("org.nift4.audiofxfwd.VolumeGroupCallbackAdapter") }
+    private val addVolumeGroupCallbackFn by lazy {
+        adapterClazzLegacy.getDeclaredMethod("getAdd").invoke(null) as Method
+    }
+    private val removeVolumeGroupCallbackFn by lazy {
+        adapterClazzLegacy.getDeclaredMethod("getRemove").invoke(null) as Method
+    }
+    @Throws(IllegalStateException::class, IllegalArgumentException::class)
+    fun addVolumeCallback(context: Context, cb: VolumeChangeListener) {
+        if (adapterCache.containsKey(cb))
+            throw IllegalArgumentException("already registered $cb")
+        try {
+            if (Build.VERSION.SDK_INT >= 36) {
+                val adapter = adapterClazz.getDeclaredConstructor(
+                    org.nift4.audiosysfwd.AudioVolumeGroupCallback::class.java
+                ).apply { isAccessible = true }
+                    .newInstance(org.nift4.audiosysfwd.AudioVolumeGroupCallback {
+                        // other two fields seem to be always unset
+                        cb.onVolumeChanged(it.groupId, it.flags)
+                    })
+                adapterCache[cb] = adapter
+                val ret = addAudioVolumeGroupCallbackFn.invoke(null, adapter) as Int
+                if (ret != 0) {
+                    throw IllegalArgumentException("registerAudioVolumeGroupCallback: $ret")
+                }
+            } else {
+                val audioManager = context.getSystemService<AudioManager>()
+                val adapter = adapterClazzLegacy.getDeclaredConstructor(
+                    org.nift4.audiofxfwd.VolumeGroupCallback::class.java
+                ).apply { isAccessible = true }
+                    .newInstance(org.nift4.audiofxfwd.VolumeGroupCallback { a, b ->
+                        cb.onVolumeChanged(a, b)
+                    })
+                adapterCache[cb] = adapter
+                addVolumeGroupCallbackFn.invoke(audioManager, MoreExecutors.directExecutor(), adapter)
+            }
+        } catch (t: Throwable) {
+            throw IllegalStateException("failed to add vol cb", t)
+        }
+    }
+    @Throws(IllegalStateException::class, IllegalArgumentException::class)
+    fun removeVolumeCallback(context: Context, cb: VolumeChangeListener) {
+        val adapter = adapterCache[cb] ?: throw IllegalArgumentException("never registered $cb")
+        try {
+            if (Build.VERSION.SDK_INT >= 36) {
+                removeAudioVolumeGroupCallbackFn.invoke(null, adapter)
+            } else {
+                val audioManager = context.getSystemService<AudioManager>()
+                removeVolumeGroupCallbackFn.invoke(audioManager, adapter)
+            }
+        } catch (t: Throwable) {
+            throw IllegalStateException("failed to add vol cb", t)
+        }
+    }
+    fun interface VolumeChangeListener {
+        fun onVolumeChanged(groupId: Int, flags: Int)
+    }
+
     // TODO: getMasterVolume, getMasterBalance for PostAmpAudioSink headroom calculation
     // TODO: addErrorCallback, removeErrorCallback for audioflinger crash detect out of curiosity
     // TODO: getMasterMono for offload detect
-    /*
-     * TODO
-     *  addAudioVolumeGroupCallback
-     *  removeAudioVolumeGroupCallback
-     *  https://github.com/search?q=org%3ALineageOS+Bug%3A+293236285&type=commits
-     *  did he forget to lock down APM/AudioSystem and just did AudioService?
-     *  A16 and later: AudioSystem.registerAudioVolumeGroupCallback (java)
-     *  older: AudioManager.registerAudioVolumeGroupCallback (java)
-     */
 }
