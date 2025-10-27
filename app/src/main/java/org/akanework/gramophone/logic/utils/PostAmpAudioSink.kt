@@ -80,7 +80,8 @@ class PostAmpAudioSink(
 		try {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
 				ReflectionAudioEffect.isEffectTypeAvailable(
-					AudioEffect.EFFECT_TYPE_DYNAMICS_PROCESSING, null
+					AudioEffect.EFFECT_TYPE_DYNAMICS_PROCESSING,
+                    ReflectionAudioEffect.EFFECT_TYPE_NULL
 				)
 			} else {
 				false
@@ -102,7 +103,8 @@ class PostAmpAudioSink(
 		try {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
 				ReflectionAudioEffect.isEffectTypeOffloadable(
-					AudioEffect.EFFECT_TYPE_DYNAMICS_PROCESSING, null
+					AudioEffect.EFFECT_TYPE_DYNAMICS_PROCESSING,
+                    ReflectionAudioEffect.EFFECT_TYPE_NULL
 				)
 			} else {
 				false
@@ -257,12 +259,15 @@ class PostAmpAudioSink(
 		val isOffload = true//format?.let { it.sampleMimeType != MimeTypes.AUDIO_RAW } == true TODO(ASAP)
 		if (useDpe) {
 			try {
-				dpeEffect!!.enabled = isOffload || boostGainDb > 0
+				dpeEffect!!.enabled = isOffload || boostGainDb > 0 && !hasVolume
 			} catch (e: IllegalStateException) {
 				Log.e(TAG, "dpe enable=$isOffload failed", e)
 			}
 		}
-		val boostGainDbLimited = if (useDpe && boostGainDb > 0 && deviceType != null && !isAbsoluteVolume(deviceType!!, true, false)) {
+        // prefer volume over DPE because volume may result in too low volume only, DPE may result
+        // in too high volume / clipping for a short moment.
+		val boostGainDbLimited = if (useDpe && boostGainDb > 0 && /*!hasVolume && */deviceType != null
+            && !isAbsoluteVolume(deviceType!!, true, false)) {
 			val maxIndex = AudioManagerCompat.getStreamMaxVolume(audioManager, C.STREAM_TYPE_MUSIC)
 			val curIndex = AudioManagerCompat.getStreamVolume(audioManager, C.STREAM_TYPE_MUSIC)
 			val minIndex = AudioManagerCompat.getStreamMinVolume(audioManager, C.STREAM_TYPE_MUSIC)
@@ -322,17 +327,19 @@ class PostAmpAudioSink(
 				Log.e(TAG, "we raced with someone else about DPE and we lost", e)
 			}
 		} else {
-			if (useDpe && boostGainDb > 0) {
+			if (useDpe && /*(!hasVolume || force) && TODO*/ boostGainDb > 0) {
 				// This limiter has such a high threshold it doesn't limit anything. But it sure
 				// does apply the postGain and makes everything LOUD.
-				dpeEffect!!.setLimiterAllChannelsTo(
+                // TODO: can I just use input gain?
+				/*dpeEffect!!.setLimiterAllChannelsTo(
 					DynamicsProcessing.Limiter(
-						true, true, 0,
+						true, boostGainDbLimited > 0, 0,
 						ReplayGainUtil.TAU_ATTACK * 1000f,
 						ReplayGainUtil.TAU_RELEASE * 1000f,
 						ReplayGainUtil.RATIO, 99999f, boostGainDbLimited
 					)
-				)
+				)*/
+                dpeEffect!!.setInputGainAllChannelsTo(boostGainDbLimited)
 			}
 			rgVolume = 1f
 		}
@@ -385,29 +392,36 @@ class PostAmpAudioSink(
 			hasDpe = false
 			this.offloadEnabled = offloadEnabled
 			audioSessionId = id ?: audioSessionId
+            // Set a lower priority when creating effects - we are willing to share.
+            // (User story "EQ is not working and I have to change a obscure setting to fix it"
+            // is worse than user story "it's too quiet when I enable my EQ, but gets louder
+            // when I disable it").
 			if (audioSessionId != 0) {
-				// Set a lower priority when creating effects - we are willing to share.
-				// (User story "EQ is not working and I have to change a obscure setting to fix it"
-				// is worse than user story "it's too quiet when I enable my EQ, but gets louder
-				// when I disable it").
-				if (isVolumeAvailable && (!offloadEnabled || isVolumeOffloadable)) {
-					try {
-						volumeEffect = Volume(-100000, audioSessionId)
-						volumeEffect!!.setControlStatusListener { _, hasControl ->
-							Log.i(TAG, "volume control state is now: $hasControl")
-							hasVolume = hasControl
-							updateVolumeEffect()
-						}
-						hasVolume = volumeEffect!!.hasControl()
-						Log.i(TAG, "init volume, control state is: $hasVolume")
-					} catch (e: Throwable) {
-						Log.e(TAG, "failed to init Volume effect", e)
-					}
-				}
-				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && isDpeAvailable &&
-					(!offloadEnabled || isDpeOffloadable)) {
-					createDpeEffect()
-				}
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    if (isDpeAvailable &&
+                        (!offloadEnabled || isDpeOffloadable)
+                    ) {
+                        createDpeEffect()
+                    } else {
+                        Log.i(TAG, "didn't init DPE, e=$isDpeAvailable o=$isDpeOffloadable O=$offloadEnabled")
+                    }
+                }
+                if (isVolumeAvailable && (!offloadEnabled || isVolumeOffloadable)) {
+                    try {
+                        volumeEffect = Volume(-100000, audioSessionId)
+                        volumeEffect!!.setControlStatusListener { _, hasControl ->
+                            Log.i(TAG, "volume control state is now: $hasControl")
+                            hasVolume = hasControl
+                            updateVolumeEffect()
+                        }
+                        hasVolume = volumeEffect!!.hasControl()
+                        Log.i(TAG, "init volume, control state is: $hasVolume")
+                    } catch (e: Throwable) {
+                        Log.e(TAG, "failed to init Volume effect", e)
+                    }
+                } else {
+                    Log.i(TAG, "didn't init volume, e=$isVolumeAvailable o=$isVolumeOffloadable O=$offloadEnabled")
+                }
 			}
 		}
 	}
@@ -576,14 +590,13 @@ class PostAmpAudioSink(
 			boostGainDb = rgAp.boostGain
 		}
 		try {
-			val useDpe = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && hasDpe
 			try {
-				if (hasVolume) volumeEffect!!.enabled = boostGainDb > 0 && deviceType != null
+				if (hasVolume) volumeEffect!!.enabled = boostGainDb > 0 && deviceType != null && !hasDpe
 			} catch (e: IllegalStateException) {
 				Log.e(TAG, "volume enable failed", e)
 			}
-			if (!hasVolume || deviceType == null || boostGainDb <= 0 || useDpe && !force) return
-			val boostGainForOldEffect = if (useDpe) 0 else boostGainDb
+			if (!hasVolume || deviceType == null || hasDpe && !force || boostGainDb <= 0) return
+            val boostGainDb = if (hasDpe) 0 else boostGainDb
 			var minVolumeDb: Float
 			var maxVolumeDb: Float
 			var curVolumeDb: Float
@@ -630,11 +643,11 @@ class PostAmpAudioSink(
 			val theVolume = min(
 				volumeEffect!!.maxLevel.toInt().toFloat(),
 				(curVolumeDb + ReplayGainUtil.amplToDb(volume) +
-						boostGainForOldEffect) * 100f
+						boostGainDb) * 100f
 			).toInt().toShort()
 			Log.d(TAG, "min=$minVolumeDb max=$maxVolumeDb cur=$curVolumeDb --> $theVolume")
 			repeat(20) {
-				volumeEffect!!.level = theVolume
+				//volumeEffect!!.level = theVolume
 			}
 		} catch (e: Throwable) {
 			Log.e(TAG, "failed to update volume effect state", e)

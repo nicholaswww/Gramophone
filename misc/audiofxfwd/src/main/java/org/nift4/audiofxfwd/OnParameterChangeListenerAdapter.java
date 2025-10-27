@@ -17,7 +17,7 @@ public class OnParameterChangeListenerAdapter implements AudioEffect.OnParameter
 		delegate.onParameterChange(effect, status, param, value);
 	}
 
-	@SuppressWarnings("PrivateApi")
+	@SuppressWarnings("BlockedPrivateApi")
 	public static Method getGetter() throws NoSuchMethodException {
 		return AudioEffect.class.getDeclaredMethod("setParameterListener",
 				AudioEffect.OnParameterChangeListener.class);

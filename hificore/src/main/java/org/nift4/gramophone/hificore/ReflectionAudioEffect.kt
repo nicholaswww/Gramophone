@@ -47,20 +47,35 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 		val EFFECT_TYPE_NULL by lazy {
 			AudioEffect::class.java.getDeclaredField("EFFECT_TYPE_NULL").get(null) as UUID
 		}
-		fun isEffectTypeAvailable(type: UUID?, uuid: UUID?): Boolean {
+		fun isEffectTypeAvailable(type: UUID, uuid: UUID): Boolean {
 			val desc = AudioEffect.queryEffects() ?: return false
 			for (i in desc.indices) {
-				if (type == null || desc[i]!!.type == type) {
-					if (uuid == null || desc[i]!!.uuid == uuid) {
+				if (type == EFFECT_TYPE_NULL || desc[i]!!.type == type) {
+					if (uuid == EFFECT_TYPE_NULL || desc[i]!!.uuid == uuid) {
 						return true
 					}
 				}
 			}
 			return false
 		}
-		fun isEffectTypeOffloadable(type: UUID?, uuid: UUID?): Boolean {
+		fun isEffectTypeOffloadable(type: UUID, uuid: UUID): Boolean {
 			TODO("implement this using AudioSystem::queryEffect")
 		}
+
+        data class AudioConfigBase(val sampleRate: Int, val channelMask: Int, val format: Int)
+
+        @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+        private fun getEffectConfigs(ptr: Long): Pair<AudioConfigBase, AudioConfigBase> {
+            val out = IntArray(6)
+            val ret = getEffectConfigs(ptr, out)
+            if (ret != 0) {
+                throw IllegalStateException("getEffectConfigs() failed: $ret")
+            }
+            return AudioConfigBase(out[0], out[1], out[2]) to
+                    AudioConfigBase(out[3], out[4], out[5])
+        }
+        @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+        private external fun getEffectConfigs(ptr: Long, out: IntArray): Int
 	}
 	private val effect: AudioEffect = AudioEffect::class.java
 		.getDeclaredConstructor(
@@ -177,14 +192,14 @@ open class ReflectionAudioEffect(type: UUID, uuid: UUID, priority: Int, audioSes
 	}
 
 	@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-	fun getConfigs(): Pair<AudioTrackHiddenApi.AudioConfigBase, AudioTrackHiddenApi.AudioConfigBase> {
+	fun getConfigs(): Pair<AudioConfigBase, AudioConfigBase> {
 		try {
 			effect.getId()
 		} catch (_: IllegalStateException) {
 			throw IllegalStateException("getConfigs() called on released AudioEffect")
 		}
 		val ptr = nativeEffectField.getLong(effect)
-		return AudioTrackHiddenApi.getEffectConfigs(ptr)
+		return getEffectConfigs(ptr)
 	}
 
 	/**

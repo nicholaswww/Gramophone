@@ -141,6 +141,8 @@
             <option value="$PROJECT_DIR$/misc/alacdecoder" />
             <option value="$PROJECT_DIR$/misc/audiofxfwd" />
             <option value="$PROJECT_DIR$/misc/audiofxstub" />
+            <option value="$PROJECT_DIR$/misc/audiofxstub2" />
+            <option value="$PROJECT_DIR$/misc/audiosysfwd" />
           </set>
         </option>
       </GradleProjectSettings>
