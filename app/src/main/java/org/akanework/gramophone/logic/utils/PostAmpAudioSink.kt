@@ -731,15 +731,15 @@ class PostAmpAudioSink(
     // If hidden API is not available, we have to be pessimistic and assume no prescale and apply
     // force max based on result of this function.
 	// TODO(ASAP): impl the above
-	private fun isAbsoluteVolume(deviceType: Int, isA2dpAbsoluteVolumeOff: Boolean): Boolean {
+	private fun isAbsoluteVolume(deviceType: Int, isA2dpAbsoluteVolumeOff: Boolean, isHdmiCecVolumeOff: Boolean = false): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             throw IllegalStateException("isAbsoluteVolume($deviceType) before M")
         }
 		// LEA having abs vol is a safe assumption, as LEA absolute volume is forced. Same for ASHA.
         return !isA2dpAbsoluteVolumeOff && deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                considerHdmi && (deviceType == AudioDeviceInfo.TYPE_LINE_DIGITAL ||
-                deviceType == AudioDeviceInfo.TYPE_HDMI || // HDMI logic here is only a fallback, so
-                deviceType == AudioDeviceInfo.TYPE_HDMI_ARC) || // there is no need to add override
+                !isHdmiAbsoluteVolumeOff && (deviceType == AudioDeviceInfo.TYPE_LINE_DIGITAL ||
+                deviceType == AudioDeviceInfo.TYPE_HDMI ||
+                deviceType == AudioDeviceInfo.TYPE_HDMI_ARC) ||
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
                 deviceType == AudioDeviceInfo.TYPE_HEARING_AID ||
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -747,6 +747,6 @@ class PostAmpAudioSink(
                         && deviceType == AudioDeviceInfo.TYPE_BLE_BROADCAST) ||
                         deviceType == AudioDeviceInfo.TYPE_BLE_SPEAKER ||
                         deviceType == AudioDeviceInfo.TYPE_BLE_HEADSET ||
-                        deviceType == AudioDeviceInfo.TYPE_HDMI_EARC)
+                        !isHdmiAbsoluteVolumeOff && deviceType == AudioDeviceInfo.TYPE_HDMI_EARC)
 	}
 }
