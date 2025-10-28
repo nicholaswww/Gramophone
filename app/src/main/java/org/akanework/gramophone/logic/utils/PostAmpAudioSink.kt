@@ -292,7 +292,7 @@ class PostAmpAudioSink(
         // prefer volume over DPE because volume may result in too low volume only, DPE may result
         // in too high volume / clipping for a short moment.
 		val boostGainDbLimited = if (useDpe && boostGainDb > 0 && /*!hasVolume && */deviceType != null
-            && !isAbsoluteVolume(deviceType!!, true, false)) {
+            && !isAbsoluteVolume(deviceType!!, false)) {
 			val maxIndex = AudioManagerCompat.getStreamMaxVolume(audioManager, C.STREAM_TYPE_MUSIC)
 			val curIndex = AudioManagerCompat.getStreamVolume(audioManager, C.STREAM_TYPE_MUSIC)
 			val minIndex = AudioManagerCompat.getStreamMinVolume(audioManager, C.STREAM_TYPE_MUSIC)
@@ -714,23 +714,24 @@ class PostAmpAudioSink(
 	}
 
     // To get the real volume of mixer taking into account absolute volume:
-    // - 14 QPR3 and earlier: use AudioFlinger.streamVolume() to get volume after any prescale or
-    //                        force to max done in java (A2DP/HDMI/LEA/ASHA)
-    // - 15 and later: do the same as above to handle HDMI case, and:
-    //   - 15 QPR0: getStreamVolumeDb() will return real volume (ie 0dB) for A2DP/LEA/ASHA.
-    //              alternatively, this is the last version to support AudioFlinger.streamVolume()
-    //              which works just as well and returns dB value since M.
+    // - 15 QPR0 and earlier: use AudioFlinger.streamVolume() to get volume after any prescale or
+    //                        force to max done in java (A2DP/HDMI/LEA/ASHA). Returns dB since M.
+    //  also, just on 15 QPR0, getStreamVolumeDb(publicApiIndex) will return real volume (ie 0dB) for
+	//  A2DP/LEA/ASHA, but not HDMI. but can't differentiate between 15 QPR0 and 15 QPR1 in public
+	//  API so this is not useful fallback for case where private API bypass somehow ends up broken.
+    // - 15 QPR1 and later: HDMI can no longer be detected at all, so got to be pessimistic.
     //   - 15 QPR1: have to apply adjustDeviceAttenuationForAbsVolume(), ie force 0dB except if the
     //              index is zero and device is not BLE broadcast, then min volume dB, in app code
-    //              based on the result of this function with considerHdmi=false.
+    //              based on the result of this function.
     //   - 15 QPR2: getOutputForAttr() returns real volume as amplification, but it's reserved for
     //              AudioFlinger - no luck here. do same as QPR1.
     // Alternatively, to avoid pessimism on 15 QPR1 and later, if Volume is offloadable (or offload
     // is disabled) we can create a stopped mixed track (mustn't be offload to avoid wasting
     // resources) and Volume effect and read Volume.level property. TODO: how well does that actually work?
     // If hidden API is not available, we have to be pessimistic and assume no prescale and apply
-    // force max based on result of this function with considerHdmi=true.
-	private fun isAbsoluteVolume(deviceType: Int, considerHdmi: Boolean, isA2dpAbsoluteVolumeOff: Boolean): Boolean {
+    // force max based on result of this function.
+	// TODO(ASAP): impl the above
+	private fun isAbsoluteVolume(deviceType: Int, isA2dpAbsoluteVolumeOff: Boolean): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             throw IllegalStateException("isAbsoluteVolume($deviceType) before M")
         }
@@ -746,6 +747,6 @@ class PostAmpAudioSink(
                         && deviceType == AudioDeviceInfo.TYPE_BLE_BROADCAST) ||
                         deviceType == AudioDeviceInfo.TYPE_BLE_SPEAKER ||
                         deviceType == AudioDeviceInfo.TYPE_BLE_HEADSET ||
-                        considerHdmi && deviceType == AudioDeviceInfo.TYPE_HDMI_EARC)
+                        deviceType == AudioDeviceInfo.TYPE_HDMI_EARC)
 	}
 }
