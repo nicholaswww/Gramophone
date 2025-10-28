@@ -737,7 +737,7 @@ class PostAmpAudioSink(
         }
 		// LEA having abs vol is a safe assumption, as LEA absolute volume is forced. Same for ASHA.
         return !isA2dpAbsoluteVolumeOff && deviceType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                !isHdmiAbsoluteVolumeOff && (deviceType == AudioDeviceInfo.TYPE_LINE_DIGITAL ||
+                !isHdmiCecVolumeOff && (deviceType == AudioDeviceInfo.TYPE_LINE_DIGITAL ||
                 deviceType == AudioDeviceInfo.TYPE_HDMI ||
                 deviceType == AudioDeviceInfo.TYPE_HDMI_ARC) ||
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
@@ -747,6 +747,6 @@ class PostAmpAudioSink(
                         && deviceType == AudioDeviceInfo.TYPE_BLE_BROADCAST) ||
                         deviceType == AudioDeviceInfo.TYPE_BLE_SPEAKER ||
                         deviceType == AudioDeviceInfo.TYPE_BLE_HEADSET ||
-                        !isHdmiAbsoluteVolumeOff && deviceType == AudioDeviceInfo.TYPE_HDMI_EARC)
+                        !isHdmiCecVolumeOff && deviceType == AudioDeviceInfo.TYPE_HDMI_EARC)
 	}
 }
