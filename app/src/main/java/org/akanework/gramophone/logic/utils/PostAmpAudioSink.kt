@@ -51,6 +51,9 @@ import kotlin.math.min
 // TODO(ASAP): setting in UI for boost gain
 // TODO(ASAP): fix summary to subtract 15 in settings UI
 // TODO(ASAP): impl isEffectTypeOffloadable()
+// TODO(ASAP): figure out if we can influence or detect the precedence between volume and DPE
+//  and decide on a strategy. so far it seems DPE always works, so one possibility is to just use it
+//  or maybe I just don't create DPE if offload is off and always use volume
 class PostAmpAudioSink(
 	val sink: DefaultAudioSink, val rgAp: ReplayGainAudioProcessor, val context: Context
 ) : ForwardingAudioSink(sink), AudioSystemHiddenApi.VolumeChangeListener {
