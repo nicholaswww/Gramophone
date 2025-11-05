@@ -17,6 +17,7 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.ViewPropertyAnimator
 import android.view.WindowInsets
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.result.IntentSenderRequest
@@ -97,6 +98,8 @@ import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.manipulator.ItemManipulator
 import kotlin.math.min
+import androidx.core.content.edit
+import androidx.media3.common.PlaybackParameters
 
 @SuppressLint("NotifyDataSetChanged")
 class FullBottomSheet
@@ -194,6 +197,7 @@ class FullBottomSheet
     private val bottomSheetLoopButton: MaterialButton
     private val bottomSheetPlaylistButton: MaterialButton
     private val bottomSheetTimerButton: MaterialButton
+    private val bottomSheetPlaybackSpeedButton: MaterialButton
     private val bottomSheetFavoriteButton: MaterialButton
     val bottomSheetLyricButton: MaterialButton
     private val bottomSheetFullSeekBar: SeekBar
@@ -225,6 +229,7 @@ class FullBottomSheet
         bottomSheetShuffleButton = findViewById(R.id.sheet_random)
         bottomSheetLoopButton = findViewById(R.id.sheet_loop)
         bottomSheetTimerButton = findViewById(R.id.timer)
+        bottomSheetPlaybackSpeedButton = findViewById(R.id.playback_speed)
         bottomSheetFavoriteButton = findViewById(R.id.favor)
         if (!Flags.FAVORITE_SONGS)
             bottomSheetFavoriteButton.visibility = GONE
@@ -395,6 +400,11 @@ class FullBottomSheet
             }
         }
 
+        bottomSheetPlaybackSpeedButton.setOnClickListener {
+            ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
+            showPlaybackSpeedDialog()
+        }
+
         bottomSheetFavoriteButton.addOnCheckedChangeListener(this)
 
         bottomSheetPlaylistButton.setOnClickListener {
@@ -458,6 +468,9 @@ class FullBottomSheet
                 Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
             )
             onMediaMetadataChanged(instance?.mediaMetadata ?: MediaMetadata.EMPTY)
+
+            val savedSpeed = prefs.getFloat("playback_speed", 1f)
+            instance?.playbackParameters = androidx.media3.common.PlaybackParameters(savedSpeed, savedSpeed)
             firstTime = false
         }
         bottomSheetFullCover.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
@@ -534,6 +547,57 @@ class FullBottomSheet
         if (key == null || key == "cookie_cover") {
             bottomSheetFullCover.setClip(prefs.getBooleanStrict("cookie_cover", false))
         }
+    }
+
+    private fun showPlaybackSpeedDialog() {
+        val currentSpeed = instance?.playbackParameters?.speed ?: 1.0f
+
+        val slider = Slider(wrappedContext ?: context).apply {
+            valueFrom = 0.25f
+            valueTo = 2.0f
+            stepSize = 0.01f
+            value = currentSpeed.coerceIn(0.25f, 2.0f)
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        val speedText = TextView(wrappedContext ?: context).apply {
+            text =  String.format(java.util.Locale.getDefault(), "%.2fx", slider.value)
+            gravity = Gravity.CENTER
+            textSize = 20f
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        val container = LinearLayout(wrappedContext ?: context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48.dpToPx(context), 16.dpToPx(context), 48.dpToPx(context), 16.dpToPx(context))
+            addView(speedText)
+            addView(slider)
+        }
+
+        slider.addOnChangeListener { _, value, _ ->
+            speedText.text =  String.format(java.util.Locale.getDefault(), "%.2fx", value)
+        }
+
+        MaterialAlertDialogBuilder(wrappedContext ?: context)
+            .setTitle(R.string.playback_speed)
+            .setView(container)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val newSpeed = slider.value
+                prefs.edit { putFloat("playback_speed", newSpeed) }
+                instance?.playbackParameters = PlaybackParameters(newSpeed, newSpeed)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.reset) { _, _ ->
+                prefs.edit { putFloat("playback_speed", 1f) }
+                instance?.playbackParameters = PlaybackParameters(1f, 1f)
+            }
+            .show()
     }
 
     fun onStop() {
@@ -907,6 +971,8 @@ class FullBottomSheet
             )
 
             bottomSheetTimerButton.iconTint =
+                ColorStateList.valueOf(colorOnSurface)
+            bottomSheetPlaybackSpeedButton.iconTint =
                 ColorStateList.valueOf(colorOnSurface)
             bottomSheetPlaylistButton.iconTint =
                 ColorStateList.valueOf(colorOnSurface)
