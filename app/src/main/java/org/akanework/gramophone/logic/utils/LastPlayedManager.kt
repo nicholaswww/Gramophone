@@ -150,8 +150,6 @@ class LastPlayedManager(
                 putBoolean("shuffle", shuffleModeEnabled)
                 putString("shuffle_persist", persistent?.toString())
                 putBoolean("ended", ended)
-                putFloat("speed", playbackParameters.speed)
-                putFloat("pitch", playbackParameters.pitch)
                 apply()
             }
         }
