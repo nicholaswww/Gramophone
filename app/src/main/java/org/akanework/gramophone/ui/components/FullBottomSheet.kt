@@ -606,6 +606,8 @@ class FullBottomSheet
         pitchSlider.isEnabled = !isLocked
         pitchText.alpha = if (isLocked) 0.5f else 1.0f
 
+        var rememberedPitchValue = currentPitch
+
         val container = LinearLayout(wrappedContext ?: context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48.dpToPx(context), 16.dpToPx(context), 48.dpToPx(context), 16.dpToPx(context))
@@ -625,13 +627,19 @@ class FullBottomSheet
 
         pitchSlider.addOnChangeListener { _, value, _ ->
             pitchText.text = context.getString(R.string.pitch) + ": " + String.format(java.util.Locale.getDefault(), "%.2fx", value)
+            if (!lockCheckbox.isChecked) {
+                rememberedPitchValue = value
+            }
         }
 
         lockCheckbox.setOnCheckedChangeListener { _, isChecked ->
             pitchSlider.isEnabled = !isChecked
             pitchText.alpha = if (isChecked) 0.5f else 1.0f
             if (isChecked) {
+                rememberedPitchValue = pitchSlider.value
                 pitchSlider.value = tempoSlider.value
+            } else {
+                pitchSlider.value = rememberedPitchValue
             }
         }
 
