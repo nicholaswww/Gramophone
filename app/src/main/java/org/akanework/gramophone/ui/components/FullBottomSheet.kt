@@ -469,10 +469,6 @@ class FullBottomSheet
                 Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED
             )
             onMediaMetadataChanged(instance?.mediaMetadata ?: MediaMetadata.EMPTY)
-
-            val savedSpeed = prefs.getFloat("playback_speed", 1f)
-            val savedPitch = prefs.getFloat("playback_pitch", 1f)
-            instance?.playbackParameters = androidx.media3.common.PlaybackParameters(savedSpeed, savedPitch)
             firstTime = false
         }
         bottomSheetFullCover.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->

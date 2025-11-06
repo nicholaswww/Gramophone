@@ -150,6 +150,8 @@ class LastPlayedManager(
                 putBoolean("shuffle", shuffleModeEnabled)
                 putString("shuffle_persist", persistent?.toString())
                 putBoolean("ended", ended)
+                putFloat("playback_speed", playbackParameters.speed)
+                putFloat("playback_pitch", playbackParameters.pitch)
                 apply()
             }
         }
@@ -184,8 +186,8 @@ class LastPlayedManager(
                 val shuffleModeEnabled = prefs.getBoolean("shuffle", false)
                 val ended = prefs.getBoolean("ended", false)
                 val playbackParameters = PlaybackParameters(
-                    prefs.getFloat("speed", 1f),
-                    prefs.getFloat("pitch", 1f)
+                    prefs.getFloat("playback_speed", 1f),
+                    prefs.getFloat("playback_pitch", 1f)
                 )
                 val data = MediaItemsWithStartPosition(
                     PrefsListUtils.parse(lastPlayedLst, lastPlayedGrp)
