@@ -100,6 +100,7 @@ import uk.akane.libphonograph.manipulator.ItemManipulator
 import kotlin.math.min
 import androidx.core.content.edit
 import androidx.media3.common.PlaybackParameters
+import com.google.android.material.checkbox.MaterialCheckBox
 
 @SuppressLint("NotifyDataSetChanged")
 class FullBottomSheet
@@ -470,7 +471,8 @@ class FullBottomSheet
             onMediaMetadataChanged(instance?.mediaMetadata ?: MediaMetadata.EMPTY)
 
             val savedSpeed = prefs.getFloat("playback_speed", 1f)
-            instance?.playbackParameters = androidx.media3.common.PlaybackParameters(savedSpeed, savedSpeed)
+            val savedPitch = prefs.getFloat("playback_pitch", 1f)
+            instance?.playbackParameters = androidx.media3.common.PlaybackParameters(savedSpeed, savedPitch)
             firstTime = false
         }
         bottomSheetFullCover.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
@@ -551,50 +553,112 @@ class FullBottomSheet
 
     private fun showPlaybackSpeedDialog() {
         val currentSpeed = instance?.playbackParameters?.speed ?: 1.0f
+        val currentPitch = instance?.playbackParameters?.pitch ?: 1.0f
+        val isLocked = prefs.getBoolean("playback_tempo_pitch_locked", true)
 
-        val slider = Slider(wrappedContext ?: context).apply {
+        val tempoSlider = Slider(wrappedContext ?: context).apply {
             valueFrom = 0.25f
-            valueTo = 2.0f
+            valueTo = 4.0f
             stepSize = 0.01f
-            value = currentSpeed.coerceIn(0.25f, 2.0f)
+            value = currentSpeed.coerceIn(0.25f, 4.0f)
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).also { layoutParams = it }
         }
 
-        val speedText = TextView(wrappedContext ?: context).apply {
-            text =  String.format(java.util.Locale.getDefault(), "%.2fx", slider.value)
+        val tempoText = TextView(wrappedContext ?: context).apply {
+            text = context.getString(R.string.tempo) + ": " + String.format(java.util.Locale.getDefault(), "%.2fx", tempoSlider.value)
             gravity = Gravity.CENTER
-            textSize = 20f
+            textSize = 16f
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).also { layoutParams = it }
         }
+
+        val pitchSlider = Slider(wrappedContext ?: context).apply {
+            valueFrom = 0.25f
+            valueTo = 4.0f
+            stepSize = 0.01f
+            value = currentPitch.coerceIn(0.25f, 4.0f)
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        val pitchText = TextView(wrappedContext ?: context).apply {
+            text = context.getString(R.string.pitch) + ": " + String.format(java.util.Locale.getDefault(), "%.2fx", pitchSlider.value)
+            gravity = Gravity.CENTER
+            textSize = 16f
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        val lockCheckbox = MaterialCheckBox(wrappedContext ?: context).apply {
+            text = context.getString(R.string.lock_tempo_pitch)
+            isChecked = isLocked
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        pitchSlider.isEnabled = !isLocked
+        pitchText.alpha = if (isLocked) 0.5f else 1.0f
 
         val container = LinearLayout(wrappedContext ?: context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48.dpToPx(context), 16.dpToPx(context), 48.dpToPx(context), 16.dpToPx(context))
-            addView(speedText)
-            addView(slider)
+            addView(tempoText)
+            addView(tempoSlider)
+            addView(pitchText)
+            addView(pitchSlider)
+            addView(lockCheckbox)
         }
 
-        slider.addOnChangeListener { _, value, _ ->
-            speedText.text =  String.format(java.util.Locale.getDefault(), "%.2fx", value)
+        tempoSlider.addOnChangeListener { _, value, _ ->
+            tempoText.text = context.getString(R.string.tempo) + ": " + String.format(java.util.Locale.getDefault(), "%.2fx", value)
+            if (lockCheckbox.isChecked) {
+                pitchSlider.value = value
+            }
+        }
+
+        pitchSlider.addOnChangeListener { _, value, _ ->
+            pitchText.text = context.getString(R.string.pitch) + ": " + String.format(java.util.Locale.getDefault(), "%.2fx", value)
+        }
+
+        lockCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            pitchSlider.isEnabled = !isChecked
+            pitchText.alpha = if (isChecked) 0.5f else 1.0f
+            if (isChecked) {
+                pitchSlider.value = tempoSlider.value
+            }
         }
 
         MaterialAlertDialogBuilder(wrappedContext ?: context)
             .setTitle(R.string.playback_speed)
             .setView(container)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                val newSpeed = slider.value
-                prefs.edit { putFloat("playback_speed", newSpeed) }
-                instance?.playbackParameters = PlaybackParameters(newSpeed, newSpeed)
+                val newSpeed = tempoSlider.value
+                val newPitch = pitchSlider.value
+                prefs.edit {
+                    putFloat("playback_speed", newSpeed)
+                    putFloat("playback_pitch", newPitch)
+                    putBoolean("playback_tempo_pitch_locked", lockCheckbox.isChecked)
+                }
+                instance?.playbackParameters = PlaybackParameters(newSpeed, newPitch)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .setNeutralButton(R.string.reset) { _, _ ->
-                prefs.edit { putFloat("playback_speed", 1f) }
+                prefs.edit {
+                    putFloat("playback_speed", 1f)
+                    putFloat("playback_pitch", 1f)
+                    putBoolean("playback_tempo_pitch_locked", true)
+                }
                 instance?.playbackParameters = PlaybackParameters(1f, 1f)
             }
             .show()
