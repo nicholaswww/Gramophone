@@ -353,8 +353,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             )
             val fadeInStart = max(firstTs.toLong() - timeOffsetForUse.toLong(), 0L).toULong()
             val fadeInEnd = firstTs + timeOffsetForUse.toULong()
-            val fadeOutStart = lastTs - timeOffsetForUse.toULong()
-            val fadeOutEnd = lastTs + timeOffsetForUse.toULong()
+            val fadeOutStart = lastTs// - timeOffsetForUse.toULong()
+            val fadeOutEnd = lastTs + (timeOffsetForUse * 2).toULong()
             val highlight = posForRender in fadeInStart..fadeOutEnd
             val scrollTarget = posForRender in fadeInStart..fadeOutStart
             val scaleInProgress = if (it.line == null) 1f else lerpInv(
