@@ -683,7 +683,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             val paragraphRtl = layout.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT
             val alignmentNormal = if (paragraphRtl) align == Layout.Alignment.ALIGN_OPPOSITE
             else align == Layout.Alignment.ALIGN_NORMAL
-            var l: StaticLayout? = null
+            //var l: StaticLayout? = null
             val lineOffsets = words?.map {
                 val ia = mutableListOf<Int>()
                 val firstLine = layout.getLineForOffset(it.charRange.first)
@@ -698,29 +698,43 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                     val horizontalStart = if (paragraphRtl == it.isRtl)
                         layout.getPrimaryHorizontal(firstInLine)
                     else layout.getSecondaryHorizontal(firstInLine)
-                    // Recycle the layout if we have multiple words in one line.
-                    if (l == null || l.getLineStart(0) != lineStart
-                        || (l.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT) != it.isRtl) {
-                        // Use StaticLayout instead of Paint.measureText() for V+ useBoundsForWidth
-                        // TODO is this working since moving to getPrimaryHorizontal() again?
-                        l = StaticLayoutBuilderCompat
-                            .obtain(layout.text, layout.paint, Int.MAX_VALUE)
-                            .setAlignment(
-                                if (it.isRtl) Layout.Alignment.ALIGN_OPPOSITE
-                                else Layout.Alignment.ALIGN_NORMAL
-                            )
-                            .setIsRtl(it.isRtl)
-                            .setStart(lineStart)
-                            .setEnd(lineEnd)
-                            .build()
+                    val horizontalEnd = if (lastInLineExcl == lineEnd) {
+                        // If this is the last word in this line, we're possibly hyphenated, so the
+                        // horizontal would be on a new line. Instead, let's get the line maximum.
+                        // TODO: does it work for RTL?
+                        layout.getLineMax(line)
+                    } else {
+                        if (paragraphRtl == it.isRtl)
+                            layout.getPrimaryHorizontal(lastInLineExcl)
+                        else layout.getSecondaryHorizontal(lastInLineExcl)
+                        /*
+                        // TODO consider trying out layout.fillCharacterBounds() to get width on U+
+                        //  without additional layout here
+                        // Let's recycle the layout if we have multiple words in one line.
+                        if (l == null || l.getLineStart(0) != lineStart
+                            || (l.getParagraphDirection(0) == Layout.DIR_RIGHT_TO_LEFT) != it.isRtl) {
+                            // Use StaticLayout instead of Paint.measureText() for V+ useBoundsForWidth
+                            l = StaticLayoutBuilderCompat
+                                .obtain(layout.text, layout.paint, Int.MAX_VALUE)
+                                .setAlignment(
+                                    if (it.isRtl) Layout.Alignment.ALIGN_OPPOSITE
+                                    else Layout.Alignment.ALIGN_NORMAL
+                                )
+                                .setIsRtl(it.isRtl)
+                                .setStart(lineStart)
+                                .setEnd(lineEnd)
+                                .build()
+                        }
+                        // We have to ask a StaticLayout without line breaks here because the
+                        // primary horizontal may otherrwise
+                        val w = (l.getPrimaryHorizontal(if (it.isRtl) firstInLine else lastInLineExcl)
+                                - l.getPrimaryHorizontal(if (it.isRtl) lastInLineExcl else firstInLine)) +
+                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                                    // just add a few pixels on top if RTL as approximation :D
+                                    if (it.isRtl) 5 else 0
+                                } else 0
+                        horizontalStart + w * if (it.isRtl) -1 else 1*/
                     }
-                    val w = (l.getPrimaryHorizontal(if (it.isRtl) firstInLine else lastInLineExcl)
-                            - l.getPrimaryHorizontal(if (it.isRtl) lastInLineExcl else firstInLine)) +
-                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                                // just add a few pixels on top if RTL as approximation :D
-                                if (it.isRtl) 5 else 0
-                            } else 0
-                    val horizontalEnd = horizontalStart + w * if (it.isRtl) -1 else 1
                     val horizontalLeft = min(horizontalStart, horizontalEnd)
                     val horizontalRight = max(horizontalStart, horizontalEnd)
                     ia.add(horizontalLeft.toInt()) // offset from left to start of word
