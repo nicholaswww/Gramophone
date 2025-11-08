@@ -17,6 +17,7 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.ViewPropertyAnimator
 import android.view.WindowInsets
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.result.IntentSenderRequest
@@ -97,6 +98,9 @@ import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.manipulator.ItemManipulator
 import kotlin.math.min
+import androidx.core.content.edit
+import androidx.media3.common.PlaybackParameters
+import com.google.android.material.checkbox.MaterialCheckBox
 
 @SuppressLint("NotifyDataSetChanged")
 class FullBottomSheet
@@ -194,6 +198,7 @@ class FullBottomSheet
     private val bottomSheetLoopButton: MaterialButton
     private val bottomSheetPlaylistButton: MaterialButton
     private val bottomSheetTimerButton: MaterialButton
+    private val bottomSheetPlaybackSpeedButton: MaterialButton
     private val bottomSheetFavoriteButton: MaterialButton
     val bottomSheetLyricButton: MaterialButton
     private val bottomSheetFullSeekBar: SeekBar
@@ -225,6 +230,7 @@ class FullBottomSheet
         bottomSheetShuffleButton = findViewById(R.id.sheet_random)
         bottomSheetLoopButton = findViewById(R.id.sheet_loop)
         bottomSheetTimerButton = findViewById(R.id.timer)
+        bottomSheetPlaybackSpeedButton = findViewById(R.id.playback_speed)
         bottomSheetFavoriteButton = findViewById(R.id.favor)
         if (!Flags.FAVORITE_SONGS)
             bottomSheetFavoriteButton.visibility = GONE
@@ -395,6 +401,12 @@ class FullBottomSheet
             }
         }
 
+        bottomSheetPlaybackSpeedButton.setOnClickListener {
+            ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
+            if (instance != null)
+                showPlaybackSpeedDialog()
+        }
+
         bottomSheetFavoriteButton.addOnCheckedChangeListener(this)
 
         bottomSheetPlaylistButton.setOnClickListener {
@@ -534,6 +546,131 @@ class FullBottomSheet
         if (key == null || key == "cookie_cover") {
             bottomSheetFullCover.setClip(prefs.getBooleanStrict("cookie_cover", false))
         }
+    }
+
+    private fun showPlaybackSpeedDialog() {
+        val context = wrappedContext ?: context
+        val initialPlaybackParameters = instance!!.playbackParameters
+        val wantsToBeLocked = prefs.getBoolean("playback_tempo_pitch_locked", true)
+        val isLocked = initialPlaybackParameters.pitch == initialPlaybackParameters.speed && wantsToBeLocked
+
+        val tempoSlider = Slider(context).apply {
+            valueFrom = 0.25f
+            valueTo = 4.0f
+            stepSize = 0.01f
+            value = initialPlaybackParameters.speed.coerceIn(0.25f, 4.0f)
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        val tempoText = TextView(context).apply {
+            text = context.getString(R.string.tempo_pitch_value, context.getString(R.string.tempo), tempoSlider.value)
+            gravity = Gravity.CENTER
+            textSize = 16f
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        val pitchSlider = Slider(context).apply {
+            valueFrom = 0.25f
+            valueTo = 4.0f
+            stepSize = 0.01f
+            value = initialPlaybackParameters.pitch.coerceIn(0.25f, 4.0f)
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        val pitchText = TextView(context).apply {
+            text = context.getString(R.string.tempo_pitch_value, context.getString(R.string.pitch), pitchSlider.value)
+            gravity = Gravity.CENTER
+            textSize = 16f
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        val lockCheckbox = MaterialCheckBox(context).apply {
+            text = context.getString(R.string.lock_tempo_pitch)
+            isChecked = isLocked
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { layoutParams = it }
+        }
+
+        pitchSlider.isEnabled = !isLocked
+        pitchText.isEnabled = !isLocked
+
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48.dpToPx(context), 16.dpToPx(context),
+                48.dpToPx(context), 0)
+            addView(tempoText)
+            addView(tempoSlider)
+            addView(pitchText)
+            addView(pitchSlider)
+            addView(lockCheckbox)
+        }
+
+        tempoSlider.addOnChangeListener { _, value, fromUser ->
+            tempoText.text = context.getString(R.string.tempo_pitch_value, context.getString(R.string.tempo), value)
+            if (fromUser) {
+                if (lockCheckbox.isChecked) {
+                    pitchSlider.value = value
+                }
+                instance?.playbackParameters =
+                    PlaybackParameters(tempoSlider.value, pitchSlider.value)
+            }
+        }
+
+        pitchSlider.addOnChangeListener { _, value, fromUser ->
+            pitchText.text = context.getString(R.string.tempo_pitch_value, context.getString(R.string.pitch), value)
+            if (fromUser) {
+                instance?.playbackParameters =
+                    PlaybackParameters(tempoSlider.value, pitchSlider.value)
+            }
+        }
+
+        lockCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            pitchSlider.isEnabled = !isChecked
+            pitchText.isEnabled = !isChecked
+            if (isChecked) {
+                pitchSlider.value = tempoSlider.value
+                instance?.playbackParameters =
+                    PlaybackParameters(tempoSlider.value, pitchSlider.value)
+            }
+        }
+
+        MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.playback_speed)
+            .setView(container)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                prefs.edit {
+                    putBoolean("playback_tempo_pitch_locked", lockCheckbox.isChecked)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                instance?.playbackParameters = initialPlaybackParameters
+                if (wantsToBeLocked != isLocked) { // if external app changed speed/pitch.
+                    prefs.edit {
+                        putBoolean("playback_tempo_pitch_locked", false)
+                    }
+                }
+            }
+            .setNeutralButton(R.string.reset) { _, _ ->
+                prefs.edit {
+                    putBoolean("playback_tempo_pitch_locked", true)
+                }
+                instance?.playbackParameters = PlaybackParameters(1f, 1f)
+            }
+            .show()
     }
 
     fun onStop() {
@@ -907,6 +1044,8 @@ class FullBottomSheet
             )
 
             bottomSheetTimerButton.iconTint =
+                ColorStateList.valueOf(colorOnSurface)
+            bottomSheetPlaybackSpeedButton.iconTint =
                 ColorStateList.valueOf(colorOnSurface)
             bottomSheetPlaylistButton.iconTint =
                 ColorStateList.valueOf(colorOnSurface)
