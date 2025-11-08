@@ -43,27 +43,36 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
         val oldPaddingRight = newView?.paddingRight ?: recyclerView?.paddingRight ?: 0
         recyclerView = null
         newView = null
+        val cb = object : NewLyricsView.Callbacks {
+            // TODO https://github.com/androidx/media/issues/1578
+            override fun getCurrentPosition(): ULong =
+                GramophonePlaybackService.instanceForWidgetAndLyricsOnly
+                    ?.endedWorkaroundPlayer?.currentPosition?.toULong()
+                    ?: (context as MainActivity).getPlayer()?.currentPosition?.toULong() ?: 0uL
+
+            override fun seekTo(position: ULong) {
+                (context as MainActivity).getPlayer()?.seekTo(position.toLong())
+            }
+
+            override fun setPlayWhenReady(play: Boolean) {
+                (context as MainActivity).getPlayer()?.playWhenReady = play
+            }
+
+            override fun speed(): Float {
+                return (context as MainActivity).getPlayer()?.playbackParameters?.speed ?: 1f
+            }
+        }
         if (prefs.getBooleanStrict("lyric_ui", false)) {
             inflate(context, R.layout.lyric_view_v2, this)
-            newView = findViewById(R.id.lyric_view)
-            newView?.setPadding(oldPaddingLeft, oldPaddingTop, oldPaddingRight, oldPaddingBottom)
-            newView?.instance = object : NewLyricsView.Callbacks {
-                // TODO https://github.com/androidx/media/issues/1578
-                override fun getCurrentPosition(): ULong =
-                    GramophonePlaybackService.instanceForWidgetAndLyricsOnly
-                        ?.endedWorkaroundPlayer?.currentPosition?.toULong()
-                        ?: (context as MainActivity).getPlayer()?.currentPosition?.toULong() ?: 0uL
-
-                override fun seekTo(position: ULong) {
-                    (context as MainActivity).getPlayer()?.seekTo(position.toLong())
-                }
-            }
-            newView?.updateTextColor(
+            newView = findViewById(R.id.lyric_view)!!
+            newView!!.setPadding(oldPaddingLeft, oldPaddingTop, oldPaddingRight, oldPaddingBottom)
+            newView!!.instance = cb
+            newView!!.updateTextColor(
                 defaultTextColor, highlightTextColor, defaultTextColorM,
                 highlightTextColorM, defaultTextColorF, highlightTextColorF, defaultTextColorD,
                 highlightTextColorD
             )
-            newView?.updateLyrics(lyrics)
+            newView!!.updateLyrics(lyrics)
         } else {
             inflate(context, R.layout.lyric_view, this)
             recyclerView = findViewById(R.id.recycler_view)
@@ -72,7 +81,8 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
                 it.updateTextColor(defaultTextColor, highlightTextColor)
             }
             recyclerView!!.addItemDecoration(LyricPaddingDecoration(context))
-            adapter?.updateLyrics(lyrics)
+            adapter!!.callback = cb
+            adapter!!.updateLyrics(lyrics)
         }
     }
 
@@ -88,10 +98,10 @@ class LyricsView(context: Context, attrs: AttributeSet?) : FrameLayout(context, 
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        if ((key == "lyric_center" || key == "lyric_bold") && adapter != null)
+        if (key == "lyric_center" || key == "lyric_bold")
             adapter?.onPrefsChanged()
-        else if (key == "lyric_center" || key == "lyric_bold" || key == "lyric_no_animation" ||
-            key == "lyric_char_scaling" || key == "translation_auto_word")
+        if (key == "lyric_center" || key == "lyric_bold" || key == "lyric_no_animation" ||
+            key == "translation_auto_word")
             newView?.onPrefsChanged(key)
         else if (key == "lyric_ui")
             createView()

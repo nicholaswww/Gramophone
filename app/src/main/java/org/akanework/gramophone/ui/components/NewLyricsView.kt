@@ -15,11 +15,9 @@ import android.util.AttributeSet
 import androidx.media3.common.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
-import android.view.animation.AnimationUtils
 import android.view.animation.PathInterpolator
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.TypefaceCompat
-import androidx.core.graphics.createBitmap
 import androidx.core.text.getSpans
 import androidx.preference.PreferenceManager
 import org.akanework.gramophone.R
@@ -48,7 +46,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
     private val scaleInAnimTime
         get() = lyricAnimTime / 2f
     private val isElegantTextHeight = false // TODO this was causing issues, but target 36 can't turn this off anymore... needs rework
-    private var charScaling: Boolean
     private val scaleColorInterpolator = PathInterpolator(0.4f, 0.2f, 0f, 1f)
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private lateinit var typeface: Typeface
@@ -144,23 +141,24 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
     private var gradientSpanPoolF = lazy { mutableListOf<MyGradientSpan>() }
     private var gradientSpanPoolD = lazy { mutableListOf<MyGradientSpan>() }
     private fun makeGradientSpan() =
-        MyGradientSpan(grdWidth, defaultTextColor, highlightTextColor, charScaling)
+        MyGradientSpan(grdWidth, defaultTextColor, highlightTextColor)
     private fun makeGradientSpanM() =
-        MyGradientSpan(grdWidth, defaultTextColorM, highlightTextColorM, charScaling)
+        MyGradientSpan(grdWidth, defaultTextColorM, highlightTextColorM)
     private fun makeGradientSpanF() =
-        MyGradientSpan(grdWidth, defaultTextColorF, highlightTextColorF, charScaling)
+        MyGradientSpan(grdWidth, defaultTextColorF, highlightTextColorF)
     private fun makeGradientSpanD() =
-        MyGradientSpan(grdWidth, defaultTextColorD, highlightTextColorD, charScaling)
+        MyGradientSpan(grdWidth, defaultTextColorD, highlightTextColorD)
 
     init {
         applyTypefaces()
         loadLyricAnimTime()
-        charScaling = prefs.getBooleanStrict("lyric_char_scaling", false)
     }
 
     interface Callbacks {
         fun getCurrentPosition(): ULong
         fun seekTo(position: ULong)
+        fun setPlayWhenReady(play: Boolean)
+        fun speed(): Float
     }
 
     fun updateTextColor(
@@ -240,19 +238,19 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
         }
         if (changed) {
             gradientSpanPool.clear()
-            (1..3).forEach { gradientSpanPool.add(makeGradientSpan()) }
+            repeat(3) { gradientSpanPool.add(makeGradientSpan()) }
         }
         if (changedM && gradientSpanPoolM.isInitialized()) {
             gradientSpanPoolM.value.clear()
-            (1..3).forEach { gradientSpanPoolM.value.add(makeGradientSpanM()) }
+            repeat(3) { gradientSpanPoolM.value.add(makeGradientSpanM()) }
         }
         if (changedF && gradientSpanPoolF.isInitialized()) {
             gradientSpanPoolF.value.clear()
-            (1..3).forEach { gradientSpanPoolF.value.add(makeGradientSpanF()) }
+            repeat(3) { gradientSpanPoolF.value.add(makeGradientSpanF()) }
         }
         if (changedD && gradientSpanPoolD.isInitialized()) {
             gradientSpanPoolD.value.clear()
-            (1..3).forEach { gradientSpanPoolD.value.add(makeGradientSpanD()) }
+            repeat(3) { gradientSpanPoolD.value.add(makeGradientSpanD()) }
         }
         if (changed || changedM || changedF || changedD) {
             spForRender?.second?.forEach {
@@ -276,10 +274,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
     }
 
     fun onPrefsChanged(key: String) {
-        if (key == "lyric_char_scaling") {
-            loadCharScaling()
-            return
-        }
         if (key == "lyric_no_animation") {
             loadLyricAnimTime()
             return
@@ -293,34 +287,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
 
     private fun loadLyricAnimTime() {
         lyricAnimTime = if (prefs.getBooleanStrict("lyric_no_animation", false)) 0f else 650f
-    }
-
-    private fun loadCharScaling() {
-        var changed = false
-        charScaling = prefs.getBooleanStrict("lyric_char_scaling", false).also {
-            if (it != charScaling) changed = true
-        }
-        if (changed) {
-            gradientSpanPool.clear()
-            (1..3).forEach { gradientSpanPool.add(makeGradientSpan()) }
-            if (gradientSpanPoolM.isInitialized()) {
-                gradientSpanPoolM.value.clear()
-                (1..3).forEach { gradientSpanPoolM.value.add(makeGradientSpanM()) }
-            }
-            if (gradientSpanPoolF.isInitialized()) {
-                gradientSpanPoolF.value.clear()
-                (1..3).forEach { gradientSpanPoolF.value.add(makeGradientSpanF()) }
-            }
-            if (gradientSpanPoolD.isInitialized()) {
-                gradientSpanPoolD.value.clear()
-                (1..3).forEach { gradientSpanPoolD.value.add(makeGradientSpanD()) }
-            }
-            spForRender?.second?.forEach {
-                it.text.getSpans<MyGradientSpan>()
-                    .forEach { s -> it.text.removeSpan(s) }
-            }
-            invalidate()
-        }
     }
 
     private fun applyTypefaces() {
@@ -389,10 +355,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             val fadeInEnd = firstTs + timeOffsetForUse.toULong()
             val fadeOutStart = lastTs - timeOffsetForUse.toULong()
             val fadeOutEnd = lastTs + timeOffsetForUse.toULong()
-            val highlight = posForRender >= fadeInStart &&
-                    posForRender <= fadeOutEnd
-            val scrollTarget = posForRender >= fadeInStart &&
-                    posForRender <= fadeOutStart
+            val highlight = posForRender in fadeInStart..fadeOutEnd
+            val scrollTarget = posForRender in fadeInStart..fadeOutStart
             val scaleInProgress = if (it.line == null) 1f else lerpInv(
                 fadeInStart.toFloat(), fadeInEnd.toFloat(),
                 posForRender.toFloat()
@@ -404,13 +368,13 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             )
             val hlScaleFactor = if (it.line == null) 1f else {
                 // lerp() argument order is swapped because we divide by this factor
-                if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
+                if (scaleOutProgress in 0f..1f)
                     lerp(
                         smallSizeFactor,
                         1f,
                         scaleColorInterpolator.getInterpolation(scaleOutProgress)
                     )
-                else if (scaleInProgress >= 0f && scaleInProgress <= 1f)
+                else if (scaleInProgress in 0f..1f)
                     lerp(
                         1f,
                         smallSizeFactor,
@@ -456,33 +420,33 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                     canvas.save()
                     canvas.scale(1f / hlScaleFactor, 1f / hlScaleFactor)
                     if (it.theWords != null) {
-                        wordIdx = it.theWords.indexOfLast { it.timeRange.start <= posForRender }
+                        wordIdx = it.theWords.indexOfLast { it.timeRange.first <= posForRender }
                         if (wordIdx == -1) wordIdx = null
                         if (wordIdx != null) {
                             val word = it.theWords[wordIdx]
                             spanEnd = word.charRange.last + 1 // get exclusive end
                             val gradientEndTime = min(
-                                fadeOutEnd.toFloat(),
+                                lastTs.toFloat(),
                                 word.timeRange.last.toFloat()
                             )
                             val gradientStartTime = min(
                                 max(
-                                    word.timeRange.start.toFloat(),
-                                    fadeInStart.toFloat()
+                                    word.timeRange.first.toFloat(),
+                                    firstTs.toFloat()
                                 ), gradientEndTime - 1f
                             )
                             gradientProgress = lerpInv(
                                 gradientStartTime, gradientEndTime,
                                 posForRender.toFloat()
                             )
-                            if (gradientProgress >= 0f && gradientProgress <= 1f) {
+                            if (gradientProgress in 0f..1f) {
                                 spanStartGradient = word.charRange.first
                                 // be greedy and eat as much as the line as can be eaten (text that is
                                 // same line + is in same text direction). improves font rendering for
                                 // japanese if font rendering renders whole text in one pass
                                 val wordStartLine = it.layout.getLineForOffset(word.charRange.first)
                                 val wordEndLine =
-                                    it.layout.getLineForOffset(word.charRange.endInclusive)
+                                    it.layout.getLineForOffset(word.charRange.last)
                                 val firstCharOnStartLine = it.layout.getLineStart(wordStartLine)
                                 val lastCharOnEndLineExcl = it.layout.getLineEnd(wordEndLine)
                                 realGradientStart = it.theWords.lastOrNull {
@@ -511,8 +475,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                     animating = true
             }
             val spanEndWithoutGradient = if (realGradientStart == -1) spanEnd else realGradientStart
-            val inColorAnim = ((scaleInProgress >= 0f
-                    && scaleInProgress <= 1f) || (scaleOutProgress >= 0f && scaleOutProgress <= 1f))
+            val inColorAnim = scaleInProgress in 0f..1f || scaleOutProgress in 0f..1f
             var colorSpan = it.text.getSpans<MyForegroundColorSpan>().firstOrNull()
             val cachedEnd = colorSpan?.let { j -> it.text.getSpanEnd(j) } ?: -1
             val wordActiveSpanForLine = when (it.speaker) {
@@ -535,14 +498,12 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                     else -> highlightTextColor
                 }
                 if (inColorAnim) ColorUtils.blendARGB(
-                    if (scaleOutProgress >= 0f &&
-                        scaleOutProgress <= 1f
-                    ) highlightColorForLine else defaultColorForLine,
-                    if (scaleInProgress >= 0f && scaleInProgress <= 1f) highlightColorForLine
+                    if (scaleOutProgress in 0f..1f) highlightColorForLine else
+                        defaultColorForLine,
+                    if (scaleInProgress in 0f..1f) highlightColorForLine
                     else defaultColorForLine,
                     scaleColorInterpolator.getInterpolation(
-                        if (scaleOutProgress >= 0f &&
-                            scaleOutProgress <= 1f
+                        if (scaleOutProgress in 0f..1f
                         ) scaleOutProgress else scaleInProgress
                     )
                 ) else if (highlight) highlightColorForLine else defaultColorForLine
@@ -677,12 +638,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
     fun buildSpForMeasure(lyrics: SemanticLyrics?, width: Int): Pair<IntArray, List<SbItem>> {
         val lines = lyrics?.unsyncedText ?: listOf(context.getString(R.string.no_lyric_found) to null)
         val syncedLines = (lyrics as? SemanticLyrics.SyncedLyrics?)?.text
-        val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
-            || !prefs.getBooleanStrict("pixel_perfect_measurement_legacy", false)) null else
-            createBitmap(1000, 1000) // should use smarter numbers than just "surely this is enough"
-        val pixels = b?.let { IntArray(it.width * it.height) }
-        val c = b?.let { Canvas(it) }
-        val tmpPaint = b?.let { TextPaint() }
         var lastNonTranslated: SemanticLyrics.LyricLine? = null
         val spLines = lines.mapIndexed { i, it ->
             val syncedLine = syncedLines?.get(i)
@@ -735,7 +690,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                         lineEnd--
                     val firstInLine = max(it.charRange.first, lineStart)
                     val lastInLineExcl = min(it.charRange.last + 1, lineEnd)
-                    var horizontalStart = if (paragraphRtl == it.isRtl)
+                    val horizontalStart = if (paragraphRtl == it.isRtl)
                         layout.getPrimaryHorizontal(firstInLine)
                     else layout.getSecondaryHorizontal(firstInLine)
                     // Recycle the layout if we have multiple words in one line.
@@ -755,33 +710,11 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                             .build()
                     }
                     val w = (l.getPrimaryHorizontal(if (it.isRtl) firstInLine else lastInLineExcl)
-                            - l.getPrimaryHorizontal(if (it.isRtl) lastInLineExcl else firstInLine))
-                    + if (b != null) {
-                        // this is a very dumb solution and hence disabled by default
-                        b.eraseColor(Color.TRANSPARENT)
-                        // Best effort: assume that overhang is not larger than 50px
-                        // 'cause that would be a lot. We have no way to retrieve this information
-                        tmpPaint!!.set(layout.paint)
-                        tmpPaint.color = Color.RED
-                        tmpPaint.bgColor = Color.TRANSPARENT
-                        c!!.drawText(layout.text, firstInLine, lastInLineExcl, 50f, 50f, tmpPaint)
-                        val stride = b.width
-                        b.getPixels(pixels!!, 0, stride, 0, 0, b.width, b.height)
-                        var minX: Int? = null
-                        out@for (x in 0..<b.width) {
-                            for (y in 0..<b.height) {
-                                if ((pixels[y*stride+x] shr 24) and 0xff != 0) {
-                                    minX = x
-                                    break@out
-                                }
-                            }
-                        }
-                        if (minX != null) minX -= 50 else minX = -1
-                        if (minX < 0) minX * -1 else 0
-                    } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                        // just add a few pixels on top if RTL as approximation of the above :D
-                        if (it.isRtl) 5 else 0
-                    } else 0
+                            - l.getPrimaryHorizontal(if (it.isRtl) lastInLineExcl else firstInLine)) +
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                                // just add a few pixels on top if RTL as approximation :D
+                                if (it.isRtl) 5 else 0
+                            } else 0
                     val horizontalEnd = horizontalStart + w * if (it.isRtl) -1 else 1
                     val horizontalLeft = min(horizontalStart, horizontalEnd)
                     val horizontalRight = max(horizontalStart, horizontalEnd)
@@ -811,7 +744,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             context.resources.getDimensionPixelSize(R.dimen.lyric_top_padding)
         val globalPaddingBottom = if (lyrics is SemanticLyrics.SyncedLyrics)
                 (measuredHeight * (1f - 1f/6f)).toInt() - (heights.lastOrNull() ?: 0) - globalPaddingTop
-        else context.resources.getDimensionPixelSize(R.dimen.lyric_bottom_padding)
+        else if (lyrics != null) context.resources.getDimensionPixelSize(R.dimen.lyric_bottom_padding) else 0
         return Pair(
             intArrayOf(
                 width,
@@ -847,12 +780,12 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                     lastTs - timeOffsetForUse, lastTs + timeOffsetForUse, pos)
                 val hlScaleFactor =
                     // lerp() argument order is swapped because we divide by this factor
-                    if (scaleOutProgress >= 0f && scaleOutProgress <= 1f)
+                    if (scaleOutProgress in 0f..1f)
                         lerp(
                             smallSizeFactor, 1f,
                             scaleColorInterpolator.getInterpolation(scaleOutProgress)
                         )
-                    else if (scaleInProgress >= 0f && scaleInProgress <= 1f)
+                    else if (scaleInProgress in 0f..1f)
                         lerp(
                             1f, smallSizeFactor,
                             scaleColorInterpolator.getInterpolation(scaleInProgress)
@@ -868,6 +801,7 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             }
         }
         if (foundItem != null) {
+            instance.setPlayWhenReady(true)
             instance.seekTo(foundItem.start)
             performClick()
         }

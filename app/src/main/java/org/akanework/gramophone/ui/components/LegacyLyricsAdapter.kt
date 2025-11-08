@@ -43,8 +43,9 @@ class LegacyLyricsAdapter(
 
     private val activity
         get() = context as MainActivity
-    private val instance
-        get() = activity.getPlayer()
+    var callback: NewLyricsView.Callbacks? = null
+    private val speed
+        get() = callback?.speed() ?: 1f
     private var recyclerView: MyRecyclerView? = null
     private val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
     private var defaultTextColor = 0
@@ -90,11 +91,8 @@ class LegacyLyricsAdapter(
                         it,
                         HapticFeedbackConstantsCompat.CONTEXT_CLICK
                     )
-                    val instance = activity.getPlayer()
-                    if (instance?.isPlaying == false) {
-                        instance.play()
-                    }
-                    instance?.seekTo(it1)
+                    callback?.setPlayWhenReady(true)
+                    callback?.seekTo(it1.toULong())
                 }
             }
         }
@@ -167,7 +165,7 @@ class LegacyLyricsAdapter(
             scaleX = animatedValue
             scaleY = animatedValue
         }
-        animator.duration = LYRIC_SCROLL_DURATION
+        animator.duration = (LYRIC_SCROLL_DURATION * speed).toLong()
         animator.interpolator = interpolator
         animator.start()
 
@@ -176,7 +174,7 @@ class LegacyLyricsAdapter(
             val animatedValue = animation.animatedValue as Int
             setTextColor(animatedValue)
         }
-        colorAnimator.duration = LYRIC_SCROLL_DURATION
+        colorAnimator.duration = (LYRIC_SCROLL_DURATION * speed).toLong()
         colorAnimator.interpolator = interpolator
         colorAnimator.start()
     }
@@ -263,7 +261,7 @@ class LegacyLyricsAdapter(
             }
 
             override fun calculateTimeForDeceleration(dx: Int): Int {
-                return LYRIC_SCROLL_DURATION.toInt()
+                return (LYRIC_SCROLL_DURATION * speed).toInt()
             }
 
             override fun afterTargetFound() {
@@ -281,9 +279,9 @@ class LegacyLyricsAdapter(
                                 val ii = i - firstVisibleItemPosition -
                                         if (lyricList[i].isTranslation) 1 else 0
                                 val depth = 15.dpToPx(context).toFloat()
-                                val duration = (LYRIC_SCROLL_DURATION * 0.278).toLong()
-                                val durationReturn = (LYRIC_SCROLL_DURATION * 0.722).toLong()
-                                val durationStep = (LYRIC_SCROLL_DURATION * 0.1).toLong()
+                                val duration = (LYRIC_SCROLL_DURATION * 0.278 * speed).toLong()
+                                val durationReturn = (LYRIC_SCROLL_DURATION * 0.722 * speed).toLong()
+                                val durationStep = (LYRIC_SCROLL_DURATION * 0.1 * speed).toLong()
                                 val animator = ObjectAnimator.ofFloat(
                                     view,
                                     "translationY",
@@ -342,11 +340,9 @@ class LegacyLyricsAdapter(
         }
     }
 
-    // https://github.com/androidx/media/issues/1578
     private fun updateNewIndex(): Int {
         val filteredList = lyricList.filterIndexed { _, lyric ->
-            (lyric.timeStamp ?: 0) <= (GramophonePlaybackService.instanceForWidgetAndLyricsOnly
-                ?.endedWorkaroundPlayer?.currentPosition ?: instance?.currentPosition ?: 0)
+            (lyric.timeStamp ?: 0) <= (callback?.getCurrentPosition()?.toLong() ?: 0L)
         }
 
         return if (filteredList.isNotEmpty()) {

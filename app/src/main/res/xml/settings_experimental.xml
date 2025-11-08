@@ -63,24 +63,6 @@
             android:widgetLayout="@layout/preference_switch_widget"
             app:iconSpaceReserved="false" />
 
-        <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:key="pixel_perfect_measurement_legacy"
-            android:layout="@layout/preference_switch"
-            android:title="@string/settings_pixel_perfect_measurement_legacy_title"
-            android:summary="@string/settings_pixel_perfect_measurement_legacy_summary"
-            android:widgetLayout="@layout/preference_switch_widget"
-            app:iconSpaceReserved="false" />
-
-        <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:key="lyric_char_scaling"
-            android:layout="@layout/preference_switch"
-            android:summary="@string/settings_lyrics_char_scaling_summary"
-            android:title="@string/settings_lyrics_char_scaling"
-            android:widgetLayout="@layout/preference_switch_widget"
-            app:iconSpaceReserved="false" />
-
         <ListPreference
             android:defaultValue="0"
             android:entries="@array/offload_switch"

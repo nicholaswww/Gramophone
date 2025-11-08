@@ -53,6 +53,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED
 import androidx.media3.common.Rating
@@ -992,10 +993,9 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
             Log.e(TAG, "No audio track selected: $tracks")
             controller!!.stop()
         }
-        val mediaItem = controller?.currentMediaItem
 
+        val mediaItem = controller?.currentMediaItem
         lyricsFetcher.launch {
-            // round-trip to make sure the current callback is completed
             val trim = prefs.getBoolean("trim_lyrics", true)
             val multiLine = prefs.getBoolean("lyric_multiline", false)
             val options = LrcParserOptions(
@@ -1121,6 +1121,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 )
             }
         }
+    }
+
+    override fun onPlaybackParametersChanged(
+        eventTime: AnalyticsListener.EventTime,
+        playbackParameters: PlaybackParameters
+    ) {
+        scheduleSendingLyrics(false) // if speed changes
     }
 
     override fun onPlayerError(error: PlaybackException) {
@@ -1291,7 +1298,8 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 (line.words?.map { it.timeRange.first }?.filter { it > cPos } ?: listOf())
                     .let { i -> if (line.start > cPos) i + line.start else i }
         }?.minOrNull()
-        nextUpdate?.let { handler.postDelayed(sendLyrics, (it - cPos).toLong()) }
+        nextUpdate?.let { handler.postDelayed(sendLyrics, ((it - cPos).toLong()
+                / (controller?.playbackParameters?.speed ?: 1f)).toLong()) }
     }
 
     private fun sendLyricNow(new: Boolean) {
