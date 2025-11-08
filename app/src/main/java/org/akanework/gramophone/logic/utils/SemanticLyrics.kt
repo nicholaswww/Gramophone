@@ -680,10 +680,15 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                     }
                     val start = if (currentLine.isNotEmpty()) currentLine.first().first
                     else lastWordSyncPoint ?: lastSyncPoint!!
-                    // use last word sync point (even if last word was whitespace only or something)
-                    // if present as end time, otherwise we will fill it later.
-                    out.add(LyricLine(text, start, lastWordSyncPoint?.let { it - 1uL } ?: 0uL /* filled later */,
-                        lastWordSyncPoint == null, words, speaker, false /* filled later */))
+                    val end = lastWordSyncPoint ?:
+                        words?.lastOrNull()?.timeRange?.last?.let { it - 1uL }
+                    // if we had trailing sync point only with whitespace line, it's explicit line
+                    // end ts, use it.
+                    // if we have words, use it's last sync point (possibly estimated) as end time,
+                    // otherwise we will fill it later based on next line.
+                    // TODO(ASAP): but, do we REALLY want to use that estimation? not next line start?
+                    out.add(LyricLine(text, start, end ?: 0uL /* filled later */,
+                        end == null, words, speaker, false /* filled later */))
                     compressed.forEach {
                         val diff = it - start
                         out.add(out.last().copy(start = it, words = words?.map {
@@ -993,13 +998,18 @@ fun UsltFrameDecoder.Result.Sylt.toSyncedLyrics(trimEnabled: Boolean): SyncedLyr
                         .coerceAtMost(string.length - 1)
             }
         }
-        // if we had a word, use the last sync point as end time, otherwise we will fill it later.
-        val implicitEnd = i == j - 1
+        // if we had trailing sync point only with new line, it's explicit line end ts, use it.
+        // if we have >1 segment, use it's last sync point (possibly estimated) as end time,
+        // otherwise we will fill it later based on next line.
+        // TODO(ASAP): but, do we REALLY want to use that estimation? not next line start?
+        val explicitEnd = if (i < j - 1 && text[j - 1].text.isBlank())
+            text[j - 1].timestamp.toULong() - 1uL
+        else if (wout.size > 1) wout.last().timeRange.last else null
         out.add(
             LyricLine(
-                string, text[i].timestamp.toULong(),
-                if (!implicitEnd) text[j - 1].timestamp.toULong() - 1uL else 0uL /* filled later */,
-                implicitEnd, if (wout.size > 1) wout else null, null,
+                string, text[i].timestamp.toULong(), explicitEnd ?: 0uL
+                /* filled later */, explicitEnd == null,
+                if (wout.size > 1) wout else null, null,
                 false /* filled later */
             )
         )
