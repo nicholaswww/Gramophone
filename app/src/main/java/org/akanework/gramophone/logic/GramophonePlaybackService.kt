@@ -391,13 +391,13 @@ class GramophonePlaybackService : MediaLibraryService(), MediaSessionService.Lis
                 .setPlaybackLooper(internalPlaybackThread.looper)
                 .build()
         )
-	    player.exoPlayer.addListener(object : Player.Listener {
-		    override fun onAudioSessionIdChanged(audioSessionId: Int) {
-			    // https://github.com/androidx/media/issues/2739
-				// TODO(ASAP) wasn't that bug supposed to be fixed?!
-			    this@GramophonePlaybackService.onAudioSessionIdChanged(audioSessionId)
-		    }
-	    })
+        player.exoPlayer.addListener(object : Player.Listener {
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                // https://github.com/androidx/media/issues/2739
+                // TODO(ASAP) wasn't that bug supposed to be fixed?!
+                this@GramophonePlaybackService.onAudioSessionIdChanged(audioSessionId)
+            }
+        })
         player.exoPlayer.addAnalyticsListener(EventLogger())
         player.exoPlayer.addAnalyticsListener(afFormatTracker)
         player.exoPlayer.addAnalyticsListener(this)
