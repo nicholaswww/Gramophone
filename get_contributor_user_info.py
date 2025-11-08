@@ -27,6 +27,7 @@ GITHUB_USERS = [
     ("mikooomich", "contributors_code_contributions"),
     ("lucaxvi", "contributors_code_contributions"),
     ("tungnk123", "contributors_code_contributions"),
+    ("kleidis", "contributors_code_contributions"),
     ("topazrn", "contributors_code_contributions"),
     ("strongville", "contributors_code_contributions"),
     ("SurFace81", "contributors_code_contributions"),
