@@ -353,8 +353,12 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
             )
             val fadeInStart = max(firstTs.toLong() - timeOffsetForUse.toLong(), 0L).toULong()
             val fadeInEnd = firstTs + timeOffsetForUse.toULong()
-            val fadeOutStart = lastTs// - timeOffsetForUse.toULong()
-            val fadeOutEnd = lastTs + (timeOffsetForUse * 2).toULong()
+            // If end is implicit, it's the start point of next line, so animate smoothly.
+            val fadeOutStart = if (it.line?.endIsImplicit == false) lastTs
+            else lastTs - timeOffsetForUse.toULong()
+            val fadeOutEnd = if (it.line?.endIsImplicit == false)
+                lastTs + (timeOffsetForUse * 2).toULong()
+            else lastTs + timeOffsetForUse.toULong()
             val highlight = posForRender in fadeInStart..fadeOutEnd
             val scrollTarget = posForRender in fadeInStart..fadeOutStart
             val scaleInProgress = if (it.line == null) 1f else lerpInv(
@@ -475,7 +479,8 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                     animating = true
             }
             val spanEndWithoutGradient = if (realGradientStart == -1) spanEnd else realGradientStart
-            val inColorAnim = scaleInProgress in 0f..1f || scaleOutProgress in 0f..1f
+            val inColorAnim = (scaleInProgress in 0f..1f && gradientProgress ==
+                    Float.NEGATIVE_INFINITY) || scaleOutProgress in 0f..1f
             var colorSpan = it.text.getSpans<MyForegroundColorSpan>().firstOrNull()
             val cachedEnd = colorSpan?.let { j -> it.text.getSpanEnd(j) } ?: -1
             val wordActiveSpanForLine = when (it.speaker) {
@@ -500,13 +505,14 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                 if (inColorAnim) ColorUtils.blendARGB(
                     if (scaleOutProgress in 0f..1f) highlightColorForLine else
                         defaultColorForLine,
-                    if (scaleInProgress in 0f..1f) highlightColorForLine
+                    if (scaleInProgress in 0f..1f && gradientProgress == Float
+                            .NEGATIVE_INFINITY) highlightColorForLine
                     else defaultColorForLine,
                     scaleColorInterpolator.getInterpolation(
                         if (scaleOutProgress in 0f..1f
                         ) scaleOutProgress else scaleInProgress
                     )
-                ) else if (highlight) highlightColorForLine else defaultColorForLine
+                ) else Color.GREEN
             } else Color.RED
             if (cachedEnd != spanEndWithoutGradient || inColorAnim != (colorSpan != wordActiveSpanForLine)) {
                 if (cachedEnd != -1) {
@@ -578,7 +584,6 @@ class NewLyricsView(context: Context, attrs: AttributeSet?) : ScrollingView2(con
                     // same as paragraph direction.
                     gradientSpan.runToLineMappings = it.rlm!!
                     gradientSpan.progress = gradientProgress
-                    gradientSpan.highlightColor = col
                 }
                 it.layout.draw(canvas)
                 if (highlight || !alignmentNormal)

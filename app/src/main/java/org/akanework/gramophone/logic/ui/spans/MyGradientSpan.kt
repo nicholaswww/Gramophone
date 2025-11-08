@@ -1,44 +1,29 @@
 package org.akanework.gramophone.logic.ui.spans
 
 import android.graphics.Color
-import android.graphics.ColorMatrixColorFilter
 import android.graphics.LinearGradient
 import android.graphics.Matrix
-import android.graphics.RuntimeXfermode
 import android.graphics.Shader
 import android.text.TextPaint
 import android.text.style.CharacterStyle
 import android.text.style.UpdateAppearance
 import android.view.animation.PathInterpolator
-import kotlin.math.abs
-import kotlin.math.min
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerp
 import org.akanework.gramophone.logic.utils.CalculationUtils.lerpInv
+import kotlin.math.abs
+import kotlin.math.min
 
 // Hacks, hacks, hacks...
 private val gradientPathInterpolator = PathInterpolator(0.38f, 0.39f, 0f, 1f)
-class MyGradientSpan(grdWidth: Float, val color: Int, highlightColor: Int) : CharacterStyle(), UpdateAppearance {
+class MyGradientSpan(grdWidth: Float, color: Int, highlightColor: Int) : CharacterStyle(), UpdateAppearance {
     private val matrix = Matrix()
     private val gradientWidth = grdWidth
-    private lateinit var shader: LinearGradient
-    var highlightColor = highlightColor
-        set(value) {
-            if (field != value) {
-                field = value
-                invalidateShader() // TODO(ASAP): can we avoid thrashing GC?
-            }
-        }
-    init {
-        invalidateShader()
-    }
-    fun invalidateShader() {
-        shader = LinearGradient(
-            0f, 1f, gradientWidth, 1f,
-            highlightColor, color,
-            //Color.GREEN, Color.YELLOW,
-            Shader.TileMode.CLAMP
-        )
-    }
+    private val shader = LinearGradient(
+        0f, 1f, gradientWidth, 1f,
+        highlightColor, color,
+        //Color.GREEN, Color.YELLOW,
+        Shader.TileMode.CLAMP
+    )
     var progress = 1f
     lateinit var lineOffsets: List<Int>
     lateinit var runToLineMappings: List<Int>

@@ -476,6 +476,7 @@ sealed class SemanticLyrics : Parcelable {
         val text: String,
         val start: ULong,
         var end: ULong,
+        var endIsImplicit: Boolean,
         val words: MutableList<Word>?,
         var speaker: SpeakerEntity?,
         var isTranslated: Boolean
@@ -681,7 +682,8 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
                     else lastWordSyncPoint ?: lastSyncPoint!!
                     // use last word sync point (even if last word was whitespace only or something)
                     // if present as end time, otherwise we will fill it later.
-                    out.add(LyricLine(text, start, lastWordSyncPoint?.let { it - 1uL } ?: 0uL, words, speaker, false /* filled later */))
+                    out.add(LyricLine(text, start, lastWordSyncPoint?.let { it - 1uL } ?: 0uL /* filled later */,
+                        lastWordSyncPoint == null, words, speaker, false /* filled later */))
                     compressed.forEach {
                         val diff = it - start
                         out.add(out.last().copy(start = it, words = words?.map {
@@ -713,12 +715,17 @@ fun parseLrc(lyricText: String, trimEnabled: Boolean, multiLineEnabled: Boolean)
     out.forEach { lyric ->
         if (defaultIsWalaokeM && lyric.speaker == null)
             lyric.speaker = SpeakerEntity.Male
-        lyric.end = lyric.end.takeIf { it != 0uL }
-            ?: lyric.words?.lastOrNull()?.timeRange?.last
-            ?: (if (lyric.start == previousTimestamp) out.find { it.start == lyric.start }
-                ?.words?.lastOrNull()?.timeRange?.last else null)
-                    ?: out.find { it.start > lyric.start }?.start?.minus(1uL)
+        val mainEnd = if (lyric.start == previousTimestamp) out.firstOrNull {
+            it.start == lyric.start && !it.endIsImplicit }?.end else null
+        if (lyric.endIsImplicit) {
+            if (mainEnd != null) {
+                lyric.end = mainEnd
+                lyric.endIsImplicit = false
+            } else {
+                lyric.end = out.find { it.start > lyric.start }?.start?.minus(1uL)
                     ?: Long.MAX_VALUE.toULong()
+            }
+        }
         lyric.isTranslated = lyric.start == previousTimestamp
         previousTimestamp = lyric.start
     }
@@ -986,13 +993,14 @@ fun UsltFrameDecoder.Result.Sylt.toSyncedLyrics(trimEnabled: Boolean): SyncedLyr
                         .coerceAtMost(string.length - 1)
             }
         }
-        // use last word sync point if last word was whitespace only as end time,
-        // otherwise we will fill it later.
+        // if we had a word, use the last sync point as end time, otherwise we will fill it later.
+        val implicitEnd = i == j - 1
         out.add(
             LyricLine(
                 string, text[i].timestamp.toULong(),
-                if (text[j - 1].text.isBlank()) text[j - 1].timestamp.toULong() - 1uL else 0uL,
-                if (wout.size > 1) wout else null, null, false /* filled later */
+                if (!implicitEnd) text[j - 1].timestamp.toULong() - 1uL else 0uL /* filled later */,
+                implicitEnd, if (wout.size > 1) wout else null, null,
+                false /* filled later */
             )
         )
         i = j
@@ -1000,12 +1008,17 @@ fun UsltFrameDecoder.Result.Sylt.toSyncedLyrics(trimEnabled: Boolean): SyncedLyr
     out.sortBy { it.start }
     var previousTimestamp = ULong.MAX_VALUE
     out.forEach { lyric ->
-        lyric.end = lyric.end.takeIf { it != 0uL }
-            ?: lyric.words?.lastOrNull()?.timeRange?.last
-                    ?: (if (lyric.start == previousTimestamp) out.find { it.start == lyric.start }
-                ?.words?.lastOrNull()?.timeRange?.last else null)
-                    ?: out.find { it.start > lyric.start }?.start?.minus(1uL)
+        val mainEnd = if (lyric.start == previousTimestamp) out.firstOrNull {
+            it.start == lyric.start && !it.endIsImplicit }?.end else null
+        if (lyric.endIsImplicit) {
+            if (mainEnd != null) {
+                lyric.end = mainEnd
+                lyric.endIsImplicit = false
+            } else {
+                lyric.end = out.find { it.start > lyric.start }?.start?.minus(1uL)
                     ?: Long.MAX_VALUE.toULong()
+            }
+        }
         lyric.isTranslated = lyric.start == previousTimestamp
         previousTimestamp = lyric.start
     }
@@ -1461,7 +1474,8 @@ fun parseTtml(audioMimeType: String?, lyricText: String): SemanticLyrics? {
         if (it.time == null) {
             throw IllegalArgumentException("it.time == null but some other P has non-null time")
         }
-        LyricLine(text.toString(), it.time.first, it.time.last, theWords, speaker, it.translated)
+        LyricLine(text.toString(), it.time.first, it.time.last, false,
+            theWords, speaker, it.translated)
     }).also { splitBidirectionalWords(it) }
 }
 
@@ -1487,6 +1501,7 @@ fun parseSrt(lyricText: String, trimEnabled: Boolean): SemanticLyrics? {
             if (trimEnabled)
                 it.trim()
             else it
-        }, ts, (it.endTimeUs / 1000).toULong(), null, null, l)
+        }, ts, (it.endTimeUs / 1000).toULong(), false, null,
+            null, l)
     })
 }
