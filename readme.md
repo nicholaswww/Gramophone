@@ -77,7 +77,7 @@ Please note that Gramophone relys on system media codecs to make the app smaller
 - int32 (32-bit) FLAC files will only work on Android 14 or later
 - FLAC files often do work even on versions prior to Android 8, but are only officially supported on Android 8 or later
 - xHE-AAC files in general will only work on Android 9 or later
-- Dolby Digital (AC-3) / Dolby Digital Plus (E-AC-3) requires a device that has licensed decoders for these formats
+- Dolby Digital (AC-3) / Dolby Digital Plus (E-AC-3) / AC-4 requires a device that has licensed decoders for these formats
 
 There is one exception: ALAC has an extremely lightweight Java decoder available which is included in Gramophone, hence, ALAC files can be played back even without system ALAC decoder.
 
